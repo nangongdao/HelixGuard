@@ -296,12 +296,19 @@ class ModelCallGate:
 
     # ------------------------------------------------------------- internal
 
-    def _deny(
-        self, tenant_id: str, purpose: str, reason: str, model_ref: str | None
-    ) -> ModelGateDecision:
-        # A refusal must be visible (H04: "失败要可见") without needing the
-        # caller to audit — the auxiliary surfaces have no conversation
-        # context to attach an audit event to.
+    def record_denial(self, tenant_id: str | None, purpose: str, reason: str) -> None:
+        """Count one refusal the caller detected itself (H04: a refusal is visible).
+
+        The main chain evaluates the budget facet ahead of the composed
+        :meth:`evaluate` so it can audit ``turn.budget_exceeded`` as its own
+        event type; it still owes the same ``model.call_denied`` count as every
+        other refusal, with ``purpose='triage'`` naming the governed call that
+        was refused.
+        """
+        if purpose not in MODEL_CALL_PURPOSES:
+            raise ValueError(
+                f"unknown model call purpose {purpose!r}; allowed: {sorted(MODEL_CALL_PURPOSES)}"
+            )
         telemetry_metrics.increment(
             "model.call_denied", tenant_id=tenant_id, purpose=purpose, reason=reason
         )
@@ -309,6 +316,14 @@ class ModelCallGate:
             "model.call_denied",
             extra={"tenant_id": tenant_id, "purpose": purpose, "reason": reason},
         )
+
+    def _deny(
+        self, tenant_id: str, purpose: str, reason: str, model_ref: str | None
+    ) -> ModelGateDecision:
+        # A refusal must be visible (H04: "失败要可见") without needing the
+        # caller to audit — the auxiliary surfaces have no conversation
+        # context to attach an audit event to.
+        self.record_denial(tenant_id, purpose, reason)
         return ModelGateDecision(False, reason, purpose, model_ref)
 
 

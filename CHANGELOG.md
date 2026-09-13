@@ -2,6 +2,42 @@
 
 所有版本遵循[语义化版本](https://semver.org)。API 变更遵循 `docs/API_POLICY.md`(响应体只增不改、弃用需 `Deprecation`/`Sunset` 头 + 至少一个次版本过渡、每次变更记录于此)。
 
+## 2.15.0 — 主链 triage 也走同一个治理入口: 无 pin 的 prompt 不再绕过 43.5 禁用面 (2026-09-13)
+
+Version 2.15.0 修复 2.12.0/2.14.0 段都记录过的那条未修复发现：**主链 triage 调用的 43.5 禁用面 fail-open**（H04/T02，工作区 `docs/development-roadmap-2026-09-13.md`）。
+
+**源码取证**：2.12.0 的收口语是"策略检查收敛到一处：`TurnPolicyStage._check_budget`/`_model_allowed`/`_governance_decision` 改为委托闸门，主链与辅助调用共用同一实现"。但收敛的只是**实现**，不是**输入**。主链手搓了三段委托调用，喂给它们的 model_ref 只来自 prompt 版本：`app/turn_policy.py:194` 的 `model_ref = prompt_version.model_ref if prompt_version else None`。而闸门自己的 `evaluate()` 对同样的三个面统一用 `model_ref or self.default_model_ref`——主链的这条手搓序列没有回落。
+
+后果是一条真实的越界链：
+
+1. 默认部署**没有**激活的 prompt 版本（或有但不固定 model_ref）→ `model_ref = None`；
+2. `agents.py:234` 把 `model_ref=prompt.model_ref if prompt else None` 递给 transport，provider 自己解析 `Settings.openai_model`（默认 `gpt-4.1-mini`）——**出境用的 ref 其实是已知的**；
+3. 但 `check_model_policy` 对 `provider_for_model_ref(None)` 在 `app/model_provider.py:157-158` 提前返回 allowed，**同时跳过 `disabled_providers` 与 `allow_data_egress`**。
+
+于是租户已禁用 provider、或禁止数据出境时，主链每回合仍真实出境一次。19.4 allow-list 同样失管：`model_allowed` 对"没有具体 ref"按设计放行，而"没有 pin"并不等于"没有具体 ref"。
+
+**反证（更严的口径才是设计意图）**：辅助面在**完全没有 prompt** 的场景下就按这些面拒绝——`test_model_call_governance.py` 的 `test_disabled_provider_denies`、`test_model_outside_allow_list_denies`、`test_region_egress_denies`、`test_disabled_model_denies_auxiliary_call` 都不 pin 任何 prompt，仅凭 `default_model_ref` 就拒绝。**主链是两侧中更松的那边**，这正是 H04/T02"一个治理入口、两侧不得漂移"的倒读。旁证还有一处：`PURPOSE_TRIAGE` 自 2.12.0 起就在封闭用途词表里、也导出了，但全仓**无一处使用**——主链本该是 `triage` 用途的受治理调用，只是没接上。
+
+**既有测试为什么没拦住**：`test_ai_governance.test_disabled_provider_denies_turn_with_reason` 必须 `_register_active_prompt("openai/gpt-4.1-mini")` 才能归属 provider；`test_audit_fixes.test_model_ref_outside_allowlist_denied` 同样要 pin 一个 ref。两条测试都只在"钉了 prompt"的世界里成立，无 pin 的默认路径完全未被覆盖。
+
+### Added
+
+- **`ModelCallGate.record_denial(tenant_id, purpose, reason)`**：给"调用方自己检测到拒绝"的场景补同一个 `model.call_denied` 计数（`_deny` 复用它）。主链的预算面在组合评估**之前**单独评，为的是保住 `turn.budget_exceeded` 这个独立审计事件类型——但它此前一笔遥测都不记，与"拒绝要可见"（H04）相悖。purpose 走封闭词表校验，拼写错误不得凭空发明用途。
+
+### Changed
+
+- **主链改走唯一治理入口**：`TurnPolicyStage` 以 `gate.evaluate(tenant_id, PURPOSE_TRIAGE, pinned_ref)` 一次评估预算外的全部三个面，`pinned_ref` 是 prompt 钉的 ref、缺省回落 `default_model_ref`（= transport 实际会用的那个）。拒绝仍审计 `turn.model_denied`，payload 的 `model_ref` 从"钉了的 ref"改为**实际评估的 ref**（信息更足），并统一携带 `reason`。
+- **删除失去调用方的 `_model_allowed`/`_governance_decision`**：2.12.0"策略实现只有一份"从此字面成立——不再有第二条进入同一判断的路径。
+- **行为边界（如实记录）**：配置了策略、且 prompt 无 pin 的租户，主链从"照常出境"变为"拒绝并走确定性路径"——这正是修复目的，且与辅助面既有口径一致。**未配置策略行/无控制平面的部署零变化**（fail-open 保留，且有测试按住）；钉了 prompt 的路径语义不变。
+
+### Tests
+
+- 新增 `tests/test_turn_model_governance.py`（19 例）：无 pin 场景逐面钉住 `disabled_providers`/`allow_data_egress`/`disabled_models`/`allowed_models` 四种拒绝（断言 **transport 零调用** + 审计 reason + `mode` 回到 `rules`）；钉了 prompt 的路径回归保护；无策略/无控制平面的 happy path 仍走模型（`mode == "model"`、transport 拿到的 ref 仍是 `None`）；预算耗尽仍审计 `turn.budget_exceeded` 而非 `turn.model_denied`；遥测断言拒绝按 `purpose=triage` 计入 `model.call_denied`、预算拒绝同样计数、放行的回合不计数（delta 比较，规避进程全局计数器）。
+- **红光**：实现前 10 例失败/9 例通过，失败集合正是设计要证明的旁路（四种拒绝面 ×2 个测试类 + 2 例遥测），且失败形态直接呈现越界——`provider.calls == [None]`（带着不可归属的 ref 出境了一次）；9 个通过的用例（放行、无控制平面、钉 ref、预算审计形态）是必须保持的现有语义。
+- **顺带修复一个真实的套件卫生缺陷**：两个遥测用例暴露 `tests/test_telemetry_otel_branches.py` 的 `importlib.reload(app.telemetry)` 泄漏——reload 重跑模块体把 `metrics` 重绑成新 `TelemetryMetrics`，而 `app.model_gateway` 等模块 `from` 导入期绑定的还是旧对象，注册表被劈成两半（闸门往旧对象计数、reload 之后的测试读新对象，delta 恒为 0）。reload 辅助函数现在快照 `dict(vars(tel))` 并经 `addCleanup` 逐键还原。受害者按字母序排：`test_aux_call_outcomes`（2.14.0）在 otel 测试之前所以幸免，`test_turn_model_governance` 在其后所以中招。
+- 受影响既有套件（`test_ai_governance`/`test_audit_fixes`/`test_tenant_model_policy`/`test_model_call_governance`/`test_turn_stages`/`test_aux_call_outcomes`）共 124 例无回归。
+- 全量 `pytest tests`：1883 例（**1837 通过、44 跳过、2 失败**——两例均为既有 opentelemetry 环境噪声：用户 site-packages 装了可选 `[otel]` 所致，CI 不装故 CI 侧 0 失败）；`coverage --fail-under=85`：**89%**（14497 语句、1322 未覆盖），门禁通过。ruff 0.9.9 `format --check`/`check` 全仓 362 文件干净；`openapi_snapshot` 重新生成（仅 `info.version` 2.14.0→2.15.0）；`migration_gate` 44 迁移链连续；`frontend_gate`（语法 + 模块 ≤400 行 + 351 前端用例含 vitest）与 `threat_model_gate --check-today --drill-max-days 90` 全绿。
+
 ## 2.14.0 — 受治理调用的结果四态可区分: 拒绝不再被记成"确定性路径" (2026-09-13)
 
 Version 2.14.0 收口路线图 H04 的不变量「**明确区分全局关闭、租户拒绝、上游故障和允许的确定性路径**」（工作区 `docs/development-roadmap-2026-09-13.md`）。

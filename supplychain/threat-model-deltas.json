@@ -320,6 +320,29 @@
         "全量门禁：pytest tests 通过、coverage 不低于 85；ruff 0.9.9 format --check 与 check 全绿；pyright 0 error；frontend_gate / migration_gate / openapi_snapshot / threat_model_gate 全绿",
         "已知未验证边界：主链 triage 的 43.5 禁用面仍 fail-open（prompt 未固定 model_ref 时 check_model_policy 提前放行，同时跳过 disabled_providers 与 allow_data_egress），本次未修复，已记入 CHANGELOG 作为下一增量；app/static/js/composer.js 的改写状态文案未纳入（该文件 399/400 行，需先抽取模块）；未跑真实供应商模型"
       ]
+    },
+    {
+      "release": "2.15.0",
+      "date": "2026-09-13",
+      "owner": "release-eng",
+      "approved_by": "platform-sec",
+      "controls": [
+        "主链 triage 走唯一治理入口：TurnPolicyStage 以 gate.evaluate(tenant, PURPOSE_TRIAGE, pinned_ref) 一次评估预算外全部三个面（19.4 allow-list、43.5 禁用面、区域出境），pinned_ref 缺省回落 default_model_ref——即 transport 实际会用的那个 ref（agents.py 对 complete 不传 ref，provider 自行解析 Settings.openai_model）",
+        "无 pin 不再等于无 ref：app/turn_policy.py 此前 model_ref = prompt_version.model_ref if prompt_version else None，而 check_model_policy 对不可归属 ref 提前放行并跳过 disabled_providers 与 allow_data_egress——租户禁用 provider/禁止出境时主链每回合仍真实出境一次；辅助面从 2.12.0 起就没有这个洞（default_model_ref）",
+        "拒绝可见且计数：预算面保留独立审计事件 turn.budget_exceeded，同时经新增 ModelCallGate.record_denial 以 purpose=triage 计入 model.call_denied；PURPOSE_TRIAGE 自 2.12.0 起在封闭用途词表里但全仓无一处使用，本次接上",
+        "删除失去调用方的 TurnPolicyStage._model_allowed/_governance_decision：2.12.0『策略实现只有一份』从此字面成立，不再存在进入同一判断的第二条路径",
+        "fail-open 边界不变：无策略行/无控制平面仍按 43.5 既有语义放行（有测试按住）；钉了 prompt 的路径语义不变；未配置策略的部署零变化"
+      ],
+      "verification_evidence": [
+        "取证（实现前）：主链三段委托检查的输入只来自 prompt 版本（app/turn_policy.py:194），而闸门 evaluate() 对同样三面统一用 model_ref or default_model_ref——收敛的只是实现，不是输入",
+        "反证（更严口径才是设计意图）：test_model_call_governance 的 test_disabled_provider_denies / test_model_outside_allow_list_denies / test_region_egress_denies / test_disabled_model_denies_auxiliary_call 在完全无 prompt 的场景下就按这些面拒绝，仅凭 default_model_ref——主链是两侧中更松的那边，即 T02『两侧不得漂移』的倒读",
+        "既有测试为何没拦住：test_ai_governance.test_disabled_provider_denies_turn_with_reason 必须 _register_active_prompt('openai/gpt-4.1-mini') 才能归属 provider，test_audit_fixes.test_model_ref_outside_allowlist_denied 同样要 pin——无 pin 的默认路径完全未被覆盖",
+        "红光（实现前）：tests/test_turn_model_governance.py 10 例失败/9 例通过，失败集合即设计要证明的旁路（四种拒绝面 ×2 测试类 + 2 例遥测），失败形态直接呈现越界：provider.calls == [None]（带不可归属 ref 出境一次）",
+        "绿光：tests/test_turn_model_governance.py 19 例全绿（无 pin 逐面拒绝且 transport 零调用 + mode 回到 rules；钉 ref 回归保护；无策略/无控制平面仍走模型 mode=model 且 transport 拿到的 ref 仍为 None；预算仍审计 turn.budget_exceeded；遥测 purpose=triage 计数互不串台，delta 比较）",
+        "无回归：test_ai_governance + test_audit_fixes + test_tenant_model_policy + test_model_call_governance + test_turn_stages + test_aux_call_outcomes 共 124 例通过",
+        "行为边界如实记录：配置了策略且 prompt 无 pin 的租户，主链从『照常出境』变为『拒绝并走确定性路径』——与辅助面既有口径一致，即修复目的；无策略行/无控制平面零变化",
+        "已知未验证边界：辅助调用不计入每日预算预留（只在预算已耗尽时拒绝）仍未覆盖；语义层面的『改变含义』仍无确定性判据；app/static/js/composer.js 的改写状态文案未纳入（该文件 399/400 行，需先抽取模块）；未跑真实供应商模型"
+      ]
     }
   ]
 }
