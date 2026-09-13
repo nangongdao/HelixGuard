@@ -540,6 +540,7 @@ class PromptVersionActionRequest(StrictModel):
 class TenantModelPolicyRequest(StrictModel):
     allowed_models: list[str] | None = None
     daily_turn_budget: int | None = Field(default=None, ge=1, le=1_000_000)
+    daily_model_call_budget: int | None = Field(default=None, ge=1, le=1_000_000)
 
 
 class TenantModelPolicyOut(StrictModel):
@@ -547,6 +548,8 @@ class TenantModelPolicyOut(StrictModel):
     allowed_models: list[str] | None = None
     daily_turn_budget: int | None = None
     daily_turn_count: int = 0
+    daily_model_call_budget: int | None = None
+    daily_model_call_count: int = 0
 
 
 class TenantProvisionRequest(StrictModel):

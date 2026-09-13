@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Helix Support",
-    "version": "2.15.0"
+    "version": "2.16.0"
   },
   "paths": {
     "/api/supervisor/knowledge-gaps": {
@@ -15951,6 +15951,22 @@
             "type": "integer",
             "title": "Daily Turn Count",
             "default": 0
+          },
+          "daily_model_call_budget": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Model Call Budget"
+          },
+          "daily_model_call_count": {
+            "type": "integer",
+            "title": "Daily Model Call Count",
+            "default": 0
           }
         },
         "additionalProperties": false,
@@ -15988,6 +16004,19 @@
               }
             ],
             "title": "Daily Turn Budget"
+          },
+          "daily_model_call_budget": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 1000000.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Model Call Budget"
           }
         },
         "additionalProperties": false,

@@ -34,6 +34,7 @@ from app.model_gateway import (
     ModelCallGate,
     ModelGateDecision,
     record_call_failure,
+    reserved_transport,
 )
 from app.model_provider import ModelProvider
 
@@ -142,7 +143,7 @@ class SummaryService:
         if decision is not None and not decision.allowed:
             return self._rule_summary(conversation, messages), OUTCOME_DENIED
         try:
-            content, response = self._model_summary(kind, conversation, messages)
+            content, response = self._model_summary(kind, conversation, messages, tenant_id)
             record_model_response(
                 self.cost_attribution,
                 tenant_id,
@@ -169,7 +170,11 @@ class SummaryService:
         return self._rule_summary(conversation, messages), OUTCOME_FAILED
 
     def _model_summary(
-        self, kind: str, conversation: dict[str, Any], messages: list[dict[str, Any]]
+        self,
+        kind: str,
+        conversation: dict[str, Any],
+        messages: list[dict[str, Any]],
+        tenant_id: str | None,
     ) -> tuple[str, Any]:
         assert self.model_provider is not None
         system_prompt = CONTEXT_SYSTEM_PROMPT if kind == "context" else DISPOSITION_SYSTEM_PROMPT
@@ -178,7 +183,10 @@ class SummaryService:
             metadata=json.dumps(self._metadata(conversation), ensure_ascii=False),
             transcript=transcript,
         )
-        response = self.model_provider.complete(system_prompt, user_prompt)
+        # H04 2.16.0: reserve one model-call unit around exactly the transport
+        # -- released when it raises, consumed when the provider answered.
+        with reserved_transport(self.model_gate, tenant_id):
+            response = self.model_provider.complete(system_prompt, user_prompt)
         payload = json.loads(response.content)
         content = payload["summary"]
         if not isinstance(content, str) or not content.strip():

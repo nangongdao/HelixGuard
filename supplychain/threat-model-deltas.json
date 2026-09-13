@@ -343,6 +343,26 @@
         "行为边界如实记录：配置了策略且 prompt 无 pin 的租户，主链从『照常出境』变为『拒绝并走确定性路径』——与辅助面既有口径一致，即修复目的；无策略行/无控制平面零变化",
         "已知未验证边界：辅助调用不计入每日预算预留（只在预算已耗尽时拒绝）仍未覆盖；语义层面的『改变含义』仍无确定性判据；app/static/js/composer.js 的改写状态文案未纳入（该文件 399/400 行，需先抽取模块）；未跑真实供应商模型"
       ]
+    },
+    {
+      "release": "2.16.0",
+      "date": "2026-09-13",
+      "owner": "release-eng",
+      "approved_by": "platform-sec",
+      "controls": [
+        "受治理调用的每日模型调用预算（H04 最后一条可确定性实现的执行面缺口『辅助调用不消耗/不预留预算』）：迁移 v45（expand）加 tenants.daily_model_call_budget（NULL=不限=默认）与 tenant_usage_daily.model_call_count；ModelCallGate 增加第四个面 model_call_budget_exceeded，评估顺序=回合预算→模型调用预算→allow-list→43.5 禁用面",
+        "transport 前预留、失败即释放：新增导出的 reserved_transport(gate, tenant_id) 上下文管理器，预留边界=恰好 transport 本身——进入前占 1 单位、complete 抛错即释放、返回即确认消耗（输出不可用也算：请求已到达 provider）；接线六个位点 language.detect/translate、summaries._model_summary、copilot suggest/rewrite、TriageAgent._model_decision（主链 triage 首次与辅助面共用预算面）",
+        "回合计数器口径保持纯净：不把模型调用混进 turn_count（它喂账单导出与 admin 展示），两条预算面各用各的列；有测试钉住模型回合 turn_count 仍为 1 而 model_call_count 为 1",
+        "拒绝可见：预算耗尽的拒绝原因带名字（daily model call budget exhausted (used/limit)），主链经既有 turn.model_denied 审计、全部用途经既有 model.call_denied 计数（purpose 区分）",
+        "fail-open 边界不变：不配置 daily_model_call_budget（默认）的部署零变化——不检查、不写计数、不多一次拒绝；确定性路径（高置信规则/目标语言相同/无 provider）不消耗；未配置策略行零变化"
+      ],
+      "verification_evidence": [
+        "缺口取证（实现前）：预算计数器 tenant_usage_daily.turn_count 每回合无条件 +1（app/turn_persist.py），辅助调用自 2.12.0 起只在预算耗尽时被拒、transport 从不占用任何计数——daily_turn_budget=50 的租户每回合仍可隐式带走最多约 5 次辅助出境",
+        "切法判据：费用归因（2.3.x inference_costs）已覆盖五类调用的可见性，缺的是执行面；保持 turn_count 口径纯净的理由是它被账单导出（Phase 22.4 list_tenant_usage）与 admin daily_turn_count 消费，混入即污染下游分析",
+        "红光（实现前）：tests/test_model_call_budget.py 收集即失败（ImportError: reserved_transport）；18 例覆盖无限制零写入、逐面拒绝+原因带名、失败释放、返回但不可用仍消耗、none/unconfigured 零消耗、主链回合恰占 1/规则回合占 0/失败释放/耗尽拒绝且 transport 为零",
+        "绿光：tests/test_model_call_budget.py 18 例全绿；受影响既有套件（governance/aux outcomes/tenant policy/turn governance/summaries/copilot/multilingual/ai governance/audit fixes/turn stages/phase22）共 221 例零回归",
+        "已知边界如实记录：check-then-reserve 竞态窗口与 Phase 19.4 回合预算既有姿势一致（SQLite 单写者下极小），不做并发承诺；语义层面『改变含义』仍无确定性判据；composer.js 改写状态文案未纳入（399/400 行需先抽模块）；未跑真实供应商模型"
+      ]
     }
   ]
 }

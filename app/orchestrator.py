@@ -97,7 +97,23 @@ class ConversationOrchestrator(ConversationLifecycleMixin):
             governance_service=governance_service,
         )
         self.policy = PolicyAgent()
-        self.triage = TriageAgent(model_provider, cost_attribution=cost_attribution)
+        # H04/T02: the gate is built *before* the agents so the triage
+        # transport can reserve against the daily model-call budget (2.16.0).
+        # It is attached to the control plane after construction (the plane
+        # owns the snapshot store and is built later), resolved lazily by the
+        # gate -- which is the one governed entry for every model transport
+        # (triage, language, summaries, copilot). ``default_model_ref`` is the
+        # model the provider would use for a call that carries none, so a
+        # ``disabled_models`` entry can match an auxiliary call.
+        self.data_plane_config: DataPlaneConfig | None = None
+        self.model_gate = ModelCallGate(
+            database,
+            plane_resolver=lambda: getattr(self, "data_plane_config", None),
+            default_model_ref=getattr(settings, "openai_model", None),
+        )
+        self.triage = TriageAgent(
+            model_provider, cost_attribution=cost_attribution, model_gate=self.model_gate
+        )
         self.knowledge = KnowledgeAgent(database, knowledge_connector=knowledge_connector)
         self.order = OrderAgent(self.tools)
         self.escalation = EscalationAgent()
@@ -105,19 +121,6 @@ class ConversationOrchestrator(ConversationLifecycleMixin):
         self.queue = queue or SQLiteTaskQueue(database)
         self.prompt_registry = PromptRegistry(database)
         self.quality_service = QualityService(database)
-        # H04/T02: declared here, attached by the composition root after
-        # construction (the plane owns the snapshot store and is built later),
-        # resolved lazily by the gate -- which is also the one governed entry
-        # for every model transport (triage, language, summaries, copilot).
-        # ``default_model_ref`` is the model the provider would use for a call
-        # that carries none, so a ``disabled_models`` entry can match an
-        # auxiliary call.
-        self.data_plane_config: DataPlaneConfig | None = None
-        self.model_gate = ModelCallGate(
-            database,
-            plane_resolver=lambda: getattr(self, "data_plane_config", None),
-            default_model_ref=getattr(settings, "openai_model", None),
-        )
         # Backlog: session intelligent summaries — model-first, deterministic
         # projection fallback so the lifecycle path never depends on the model.
         self.summaries = SummaryService(
