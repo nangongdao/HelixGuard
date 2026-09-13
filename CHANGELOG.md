@@ -2,6 +2,20 @@
 
 所有版本遵循[语义化版本](https://semver.org)。API 变更遵循 `docs/API_POLICY.md`(响应体只增不改、弃用需 `Deprecation`/`Sunset` 头 + 至少一个次版本过渡、每次变更记录于此)。
 
+## 2.16.0 — 受治理调用的每日模型调用预算: transport 前预留、失败即释放 (2026-09-13)
+
+Version 2.16.0 收口 H04 验收里最后一条可确定性实现的执行面缺口：**辅助调用不消耗/不预留每日预算**（2.12.0 起记录）。费用归因（2.3.x `inference_costs`）已覆盖五类调用，本版补的是**执行面**。
+
+**缺口取证**：Phase 19.4 的每日预算以**回合**为单位——`tenant_usage_daily.turn_count` 每回合完成时无条件 +1（`app/turn_persist.py`），预算检查读它，admin API 暴露为 `daily_turn_count`，账单导出也消费它。辅助调用（检测/翻译/摘要/Copilot）自 2.12.0 起在预算**耗尽时会被拒绝**，但它们的 transport 从不占用任何计数——运营给租户配 `daily_turn_budget=50`，每个回合仍可隐式带走最多约 5 次辅助出境，预算形同虚设（路线图原话："不把语言识别/翻译当无成本、无策略的辅助调用"；"无策略"半句 2.12.0/2.15.0 已修，本版修"无成本"半句）。
+
+**切法（保持回合计数器的口径纯净）**：不把模型调用混进 `turn_count`（会污染账单导出与 admin 展示），而是新增第二条预算面——迁移 v45（expand）加 `tenants.daily_model_call_budget`（NULL=不限，默认，零行为变化）与 `tenant_usage_daily.model_call_count` 计数列；`ModelCallGate` 增加第四个面 `model_call_budget_exceeded`（评估顺序：回合预算 → 模型调用预算 → allow-list → 43.5 禁用面）。**预留语义**：新增 `reserved_transport(gate, tenant_id)` 上下文管理器（导出），调用方以 `with reserved_transport(self.model_gate, tenant_id): response = provider.complete(...)` 包裹**恰好 transport 本身**——进入前占 1 个单位、`complete` 抛错即释放、返回即确认消耗（产出不可用也算：请求已经到达 provider 并消耗了它的算力；只有"根本没发出去/发出去就炸了"才不收）。接线六个 transport 位点：`language.detect`/`language.translate`/`summaries._model_summary`/`copilot._model_suggestions`/`copilot.rewrite_tone`/`TriageAgent._model_decision`（主链 triage 首次与辅助面共用预算面；`TriageAgent` 增加可选 `model_gate`，orchestrator 把闸门创建提前到 agent 构造前注入）。预算耗尽的拒绝原因带名字（`daily model call budget exhausted (used/limit)`），经既有 `turn.model_denied` 审计（主链）与 `model.call_denied` 计数（所有用途）可见。
+
+**行为边界（如实记录）**：不配置 `daily_model_call_budget`（默认）的部署**零变化**——不检查、不写计数、不多一次拒绝（有测试钉住：无限制时整个回合流程在计数器上留零痕迹）。配置了的租户：五类用途共享同一额度，triage 与辅助调用都在 transport 前占用；确定性路径（高置信规则、目标语言相同、无 provider）不消耗；已知的 check-then-reserve 竞态窗口与 Phase 19.4 回合预算的既有姿势一致（SQLite 单写者下窗口极小），如实记录不做并发承诺。admin API：`TenantModelPolicyRequest/Out` 增加 `daily_model_call_budget`/`daily_model_call_count`（只增不改）。
+
+**红光**：新 `tests/test_model_call_budget.py` 18 例，实现前收集即失败（`ImportError: reserved_transport`）。钉住：无限制零写入；检测/翻译各占 1；耗尽后拒绝且 transport 为零、拒绝原因带名字（gate 级 + `authorize` 抛错级 + 回合级审计）；失败 transport 释放后额度可再用；**返回但输出不可用仍消耗**（预留边界=transport 本身）；`none`/`unconfigured` 路径零消耗；summaries/Copilot 建议各占 1、Copilot 建议耗尽回落 canned 且记 `denied`、Copilot 改写失败释放；主链回合：模型回合恰占 1（且 `turn_count` 仍为 1——两计数器口径互不污染）、高置信规则回合占 0、triage 失败释放、耗尽回合 transport 为零 + `turn.model_denied` 带预算原因、无限制回合零痕迹；策略字段 DB 往返。
+
+（全量门禁数字待本轮跑完补记。）
+
 ## 2.15.0 — 主链 triage 也走同一个治理入口: 无 pin 的 prompt 不再绕过 43.5 禁用面 (2026-09-13)
 
 Version 2.15.0 修复 2.12.0/2.14.0 段都记录过的那条未修复发现：**主链 triage 调用的 43.5 禁用面 fail-open**（H04/T02，工作区 `docs/development-roadmap-2026-09-13.md`）。

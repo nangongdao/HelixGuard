@@ -28,19 +28,23 @@ class DatabaseTenancyMixin:
         tenant_id: str,
         allowed_models: list[str] | None,
         daily_turn_budget: int | None,
+        daily_model_call_budget: int | None = None,
     ) -> None:
         """Set the per-tenant model policy (Phase 19.4).
 
         ``allowed_models`` is the allow-list of model refs; ``None`` means no
         restriction. ``daily_turn_budget`` is the per-day turn cap; ``None``
-        means unlimited (the default). Raises ``LookupError`` if the tenant
-        does not exist so the API can return 404.
+        means unlimited (the default). ``daily_model_call_budget`` (H04
+        2.16.0) caps governed *model transports* per day across every purpose;
+        ``None`` means unlimited. Raises ``LookupError`` if the tenant does
+        not exist so the API can return 404.
         """
         models_json = json.dumps(allowed_models) if allowed_models else None
         with self.connect() as connection:
             cursor = connection.execute(
-                "UPDATE tenants SET allowed_models_json = ?, daily_turn_budget = ? WHERE id = ?",
-                (models_json, daily_turn_budget, tenant_id),
+                "UPDATE tenants SET allowed_models_json = ?, daily_turn_budget = ?, "
+                "daily_model_call_budget = ? WHERE id = ?",
+                (models_json, daily_turn_budget, daily_model_call_budget, tenant_id),
             )
             if cursor.rowcount == 0:
                 raise LookupError("Tenant not found")
@@ -49,7 +53,8 @@ class DatabaseTenancyMixin:
         """Read the per-tenant model policy (Phase 19.4)."""
         with self.connect() as connection:
             row = connection.execute(
-                "SELECT allowed_models_json, daily_turn_budget FROM tenants WHERE id = ?",
+                "SELECT allowed_models_json, daily_turn_budget, daily_model_call_budget "
+                "FROM tenants WHERE id = ?",
                 (tenant_id,),
             ).fetchone()
         if row is None:
@@ -58,7 +63,52 @@ class DatabaseTenancyMixin:
         return {
             "allowed_models": models,
             "daily_turn_budget": row["daily_turn_budget"],
+            "daily_model_call_budget": row["daily_model_call_budget"],
         }
+
+    def reserve_model_call(self, tenant_id: str, date_str: str) -> int:
+        """Reserve one unit of the daily model-call budget (H04 2.16.0).
+
+        Called by the gate *before* a governed transport; the caller releases
+        via :meth:`release_model_call` when the transport raises. Returns the
+        counter value after the reservation.
+        """
+        with self.connect() as connection:
+            connection.execute(
+                "INSERT INTO tenant_usage_daily(tenant_id, date, turn_count, model_call_count) "
+                "VALUES (?, ?, 0, 1) "
+                "ON CONFLICT(tenant_id, date) DO UPDATE SET "
+                "model_call_count = model_call_count + 1",
+                (tenant_id, date_str),
+            )
+            row = connection.execute(
+                "SELECT model_call_count FROM tenant_usage_daily WHERE tenant_id = ? AND date = ?",
+                (tenant_id, date_str),
+            ).fetchone()
+        return int(row["model_call_count"]) if row else 0
+
+    def release_model_call(self, tenant_id: str, date_str: str) -> int:
+        """Release one reserved model-call unit; the counter floors at 0."""
+        with self.connect() as connection:
+            connection.execute(
+                "UPDATE tenant_usage_daily SET model_call_count = MAX(model_call_count - 1, 0) "
+                "WHERE tenant_id = ? AND date = ?",
+                (tenant_id, date_str),
+            )
+            row = connection.execute(
+                "SELECT model_call_count FROM tenant_usage_daily WHERE tenant_id = ? AND date = ?",
+                (tenant_id, date_str),
+            ).fetchone()
+        return int(row["model_call_count"]) if row else 0
+
+    def get_tenant_model_call_usage(self, tenant_id: str, date_str: str) -> int:
+        """Read the per-tenant daily governed model-call count (H04 2.16.0)."""
+        with self.connect() as connection:
+            row = connection.execute(
+                "SELECT model_call_count FROM tenant_usage_daily WHERE tenant_id = ? AND date = ?",
+                (tenant_id, date_str),
+            ).fetchone()
+        return int(row["model_call_count"]) if row else 0
 
     def increment_tenant_usage(self, tenant_id: str, date_str: str) -> int:
         """Increment and return the per-tenant daily turn count (Phase 19.4)."""

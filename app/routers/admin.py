@@ -208,12 +208,14 @@ def build_router(deps: RouteDeps) -> APIRouter:
     ) -> TenantModelPolicyOut:
         _ensure_same_tenant(principal, tenant_id)
         policy = database.get_tenant_model_policy(tenant_id)
-        count = database.get_tenant_daily_usage(tenant_id, utc_now()[:10])
+        today = utc_now()[:10]
         return TenantModelPolicyOut(
             tenant_id=tenant_id,
             allowed_models=policy["allowed_models"],
             daily_turn_budget=policy["daily_turn_budget"],
-            daily_turn_count=count,
+            daily_turn_count=database.get_tenant_daily_usage(tenant_id, today),
+            daily_model_call_budget=policy["daily_model_call_budget"],
+            daily_model_call_count=database.get_tenant_model_call_usage(tenant_id, today),
         )
 
     @router.put(
@@ -227,14 +229,19 @@ def build_router(deps: RouteDeps) -> APIRouter:
     ) -> TenantModelPolicyOut:
         _ensure_same_tenant(principal, tenant_id)
         database.set_tenant_model_policy(
-            tenant_id, request.allowed_models, request.daily_turn_budget
+            tenant_id,
+            request.allowed_models,
+            request.daily_turn_budget,
+            request.daily_model_call_budget,
         )
-        count = database.get_tenant_daily_usage(tenant_id, utc_now()[:10])
+        today = utc_now()[:10]
         return TenantModelPolicyOut(
             tenant_id=tenant_id,
             allowed_models=request.allowed_models,
             daily_turn_budget=request.daily_turn_budget,
-            daily_turn_count=count,
+            daily_turn_count=database.get_tenant_daily_usage(tenant_id, today),
+            daily_model_call_budget=request.daily_model_call_budget,
+            daily_model_call_count=database.get_tenant_model_call_usage(tenant_id, today),
         )
 
     # ------------------------------------------------------------------

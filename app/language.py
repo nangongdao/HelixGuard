@@ -43,6 +43,7 @@ from app.model_gateway import (
     ModelCallGate,
     ModelGateDecision,
     record_call_failure,
+    reserved_transport,
 )
 from app.model_provider import ModelProvider
 
@@ -213,9 +214,13 @@ class LanguageService:
         if decision is not None and not decision.allowed:
             return detect_language(text), OUTCOME_DENIED
         try:
-            response = self.model_provider.complete(
-                DETECT_SYSTEM_PROMPT, f"Customer message:\n{text[:2000]}"
-            )
+            # H04 2.16.0: the unit is reserved before the transport and
+            # released if the transport raises -- a request that reached the
+            # provider is consumed even when its output is unusable.
+            with reserved_transport(self.model_gate, tenant_id):
+                response = self.model_provider.complete(
+                    DETECT_SYSTEM_PROMPT, f"Customer message:\n{text[:2000]}"
+                )
             self._record_cost(tenant_id, response, "language_detect")
             payload = json.loads(response.content)
             language = payload["language"]
@@ -254,10 +259,11 @@ class LanguageService:
         if decision is not None and not decision.allowed:
             return text, False, OUTCOME_DENIED
         try:
-            response = self.model_provider.complete(
-                TRANSLATE_SYSTEM_PROMPT,
-                _TRANSLATE_USER_PROMPT.format(language=target_language, text=text[:6000]),
-            )
+            with reserved_transport(self.model_gate, tenant_id):
+                response = self.model_provider.complete(
+                    TRANSLATE_SYSTEM_PROMPT,
+                    _TRANSLATE_USER_PROMPT.format(language=target_language, text=text[:6000]),
+                )
             self._record_cost(tenant_id, response, "language_translate")
             payload = json.loads(response.content)
             translation = payload["translation"]

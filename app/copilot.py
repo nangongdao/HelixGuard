@@ -45,6 +45,7 @@ from app.model_gateway import (
     ModelCallGate,
     ModelGateDecision,
     record_call_failure,
+    reserved_transport,
 )
 from app.model_provider import ModelProvider
 
@@ -176,7 +177,9 @@ class CopilotService:
             user_prompt += f"\n\nOperator draft to improve or extend:\n{draft.strip()}"
         if language and language != "zh":
             user_prompt += f"\n\nReply in the customer's language: {language}."
-        response = self.model_provider.complete(SUGGEST_SYSTEM_PROMPT, user_prompt)
+        # H04 2.16.0: reserve one model-call unit around exactly the transport.
+        with reserved_transport(self.model_gate, tenant_id):
+            response = self.model_provider.complete(SUGGEST_SYSTEM_PROMPT, user_prompt)
         record_model_response(
             self.cost_attribution,
             tenant_id,
@@ -254,10 +257,13 @@ class CopilotService:
         if decision is not None and not decision.allowed:
             return {"rewritten": text, "source": OUTCOME_DENIED, "tone": tone}
         try:
-            response = self.model_provider.complete(
-                REWRITE_SYSTEM_PROMPT,
-                _REWRITE_USER_PROMPT.format(tone=tone, text=text[:6000]),
-            )
+            # H04 2.16.0: reserve one model-call unit around exactly the
+            # transport -- released when it raises, consumed when it answered.
+            with reserved_transport(self.model_gate, tenant_id):
+                response = self.model_provider.complete(
+                    REWRITE_SYSTEM_PROMPT,
+                    _REWRITE_USER_PROMPT.format(tone=tone, text=text[:6000]),
+                )
             record_model_response(
                 self.cost_attribution,
                 tenant_id,

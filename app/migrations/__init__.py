@@ -499,6 +499,7 @@ _VERSION_MODULES = [
     "v42_shadow_traffic_comparisons",
     "v43_replication_log",
     "v44_inference_costs",
+    "v45_tenant_model_call_budget",
 ]
 
 for _module_name in _VERSION_MODULES:

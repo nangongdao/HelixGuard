@@ -5,6 +5,8 @@ session summaries, operator copilot — must clear the *same* tenant policy
 before it reaches the transport:
 
 * the per-tenant daily turn budget (Phase 19.4);
+* the per-tenant daily *model-call* budget (H04 2.16.0) — a second,
+  transport-denominated counter that auxiliary work cannot ride for free;
 * the ``allowed_models`` allow-list (Phase 19.4);
 * the control-plane disable surface (ROADMAP 43.5): disabled providers,
   disabled model refs, and data-egress refusal when the provider's processing
@@ -53,8 +55,9 @@ Only an explicit refusal denies.
 from __future__ import annotations
 
 import logging
+from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any, Callable, Iterator
 
 from app.database import utc_now
 from app.model_provider import ModelPolicyDecision, check_model_policy
@@ -136,6 +139,27 @@ def record_call_failure(purpose: str, tenant_id: str | None) -> None:
     telemetry_metrics.increment("model.call_failed", tenant_id=tenant_id, purpose=purpose)
 
 
+@contextmanager
+def reserved_transport(gate: "ModelCallGate | None", tenant_id: str | None) -> Iterator[None]:
+    """Reserve one model-call unit around a transport attempt.
+
+    Module-level shim so callers that may hold ``model_gate = None`` (tests,
+    optional wiring) keep a single expression::
+
+        with reserved_transport(self.model_gate, tenant_id):
+            response = self.model_provider.complete(...)
+
+    The reservation spans *exactly* the transport: reserve before
+    ``complete``, release if it raises, keep the unit if it returned. With no
+    gate, no tenant or no configured budget it is a no-op.
+    """
+    if gate is None or tenant_id is None:
+        yield
+        return
+    with gate.reserved(tenant_id):
+        yield
+
+
 class ModelCallDenied(RuntimeError):
     """The tenant's policy refuses this model call.
 
@@ -205,6 +229,29 @@ class ModelCallGate:
         used = self.database.get_tenant_daily_usage(tenant_id, utc_now()[:10])
         return used >= limit, used, limit
 
+    def model_call_budget_exceeded(self, tenant_id: str | None) -> tuple[bool, int, int | None]:
+        """Check the tenant's daily *model-call* budget (H04 2.16.0).
+
+        The Phase 19.4 budget above is denominated in turns and stays that
+        way — ``tenant_usage_daily.turn_count`` feeds the billing export. This
+        facet counts governed *model transports* instead (every purpose,
+        triage included), so auxiliary work cannot ride a turn budget for
+        free. ``daily_model_call_budget=None`` (the default) means unlimited:
+        the facet passes and the gate writes nothing — a deployment that
+        never configures the limit behaves exactly as before.
+        """
+        if self.database is None or tenant_id is None:
+            return False, 0, None
+        try:
+            policy = self.database.get_tenant_model_policy(tenant_id)
+        except LookupError:
+            return False, 0, None
+        limit = policy["daily_model_call_budget"]
+        if limit is None:
+            return False, 0, None
+        used = self.database.get_tenant_model_call_usage(tenant_id, utc_now()[:10])
+        return used >= limit, used, limit
+
     def model_allowed(self, tenant_id: str | None, model_ref: str | None) -> bool:
         """Enforce the tenant's allowed-models allow-list (Phase 19.4).
 
@@ -272,6 +319,10 @@ class ModelCallGate:
         if exceeded:
             reason = f"daily turn budget exhausted ({used}/{limit})"
             return self._deny(tenant_id, purpose, reason, effective_ref)
+        exceeded, used, limit = self.model_call_budget_exceeded(tenant_id)
+        if exceeded:
+            reason = f"daily model call budget exhausted ({used}/{limit})"
+            return self._deny(tenant_id, purpose, reason, effective_ref)
         if not self.model_allowed(tenant_id, effective_ref):
             reason = f"model {effective_ref!r} is not in the tenant allow-list"
             return self._deny(tenant_id, purpose, reason, effective_ref)
@@ -293,6 +344,35 @@ class ModelCallGate:
                 tenant_id=tenant_id, purpose=decision.purpose, reason=decision.reason
             )
         return decision
+
+    @contextmanager
+    def reserved(self, tenant_id: str | None) -> Iterator[None]:
+        """Reserve one model-call unit for the enclosed transport (H04 2.16.0).
+
+        The unit is occupied *before* the transport and released only when the
+        transport raises — a request that reached the provider is consumed
+        even when its output is unusable, and an outage does not bill the
+        tenant. Without a configured ``daily_model_call_budget`` (or without a
+        database) this is a no-op, so a deployment that never configures the
+        limit writes nothing and changes nothing.
+        """
+        if self.database is None or tenant_id is None:
+            yield
+            return
+        try:
+            policy = self.database.get_tenant_model_policy(tenant_id)
+        except LookupError:
+            policy = None
+        if policy is None or policy["daily_model_call_budget"] is None:
+            yield
+            return
+        today = utc_now()[:10]
+        self.database.reserve_model_call(tenant_id, today)
+        try:
+            yield
+        except Exception:
+            self.database.release_model_call(tenant_id, today)
+            raise
 
     # ------------------------------------------------------------- internal
 
@@ -347,4 +427,5 @@ __all__ = [
     "ModelCallGate",
     "ModelGateDecision",
     "record_call_failure",
+    "reserved_transport",
 ]
