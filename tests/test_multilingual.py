@@ -115,23 +115,23 @@ class LanguageServiceTests(unittest.TestCase):
         service = LanguageService(FakeModelProvider(fail=True), "zh")
         language, source = service.detect("你好")
         self.assertEqual(language, "zh")
-        self.assertEqual(source, "rule")
+        self.assertEqual(source, "failed")
 
     def test_detection_unknown_code_falls_back_to_rules(self) -> None:
         service = LanguageService(FakeModelProvider(detect="xx"), "zh")
         language, source = service.detect("Hello")
         self.assertEqual(language, "en")
-        self.assertEqual(source, "rule")
+        self.assertEqual(source, "failed")
 
     def test_detection_malformed_json_falls_back_to_rules(self) -> None:
         service = LanguageService(FakeModelProvider(bad_json=True), "zh")
         language, source = service.detect("Hello")
         self.assertEqual(language, "en")
-        self.assertEqual(source, "rule")
+        self.assertEqual(source, "failed")
 
     def test_detection_without_provider_uses_rules(self) -> None:
         service = LanguageService(None, "zh")
-        self.assertEqual(service.detect("你好"), ("zh", "rule"))
+        self.assertEqual(service.detect("你好"), ("zh", "unconfigured"))
 
     def test_translate_model_success(self) -> None:
         provider = FakeModelProvider(translation="Hello, how can I help?")
@@ -155,14 +155,14 @@ class LanguageServiceTests(unittest.TestCase):
         text, translated, source = service.translate("你好", "en")
         self.assertEqual(text, "你好")
         self.assertFalse(translated)
-        self.assertEqual(source, "rule")
+        self.assertEqual(source, "failed")
 
     def test_translate_without_provider_returns_original(self) -> None:
         service = LanguageService(None, "zh")
         text, translated, source = service.translate("你好", "en")
         self.assertEqual(text, "你好")
         self.assertFalse(translated)
-        self.assertEqual(source, "rule")
+        self.assertEqual(source, "unconfigured")
 
     def test_translate_identity_output_treated_as_untouched(self) -> None:
         provider = FakeModelProvider(translation="你好")
@@ -205,7 +205,7 @@ class MultilingualAppTests(unittest.TestCase):
         turn = self._send(conversation_id, "Hello, can you help me?", "multi-key-1")
         self.assertEqual(turn["conversation"]["language"], "en")
         self.assertEqual(turn["customer_message"]["metadata"]["language"], "en")
-        self.assertEqual(turn["customer_message"]["metadata"]["language_source"], "rule")
+        self.assertEqual(turn["customer_message"]["metadata"]["language_source"], "unconfigured")
 
     def test_chinese_message_stays_zh(self) -> None:
         conversation_id = self._open_conversation()
@@ -238,7 +238,7 @@ class MultilingualAppTests(unittest.TestCase):
         assistant = turn["assistant_message"]
         self.assertEqual(assistant["metadata"]["language"], "en")
         self.assertFalse(assistant["metadata"]["translated"])
-        self.assertEqual(assistant["metadata"]["translation_source"], "rule")
+        self.assertEqual(assistant["metadata"]["translation_source"], "failed")
         self.assertNotIn("original_content", assistant["metadata"])
 
     def test_translation_audit_emitted(self) -> None:

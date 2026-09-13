@@ -93,7 +93,7 @@ class SummaryTests(unittest.TestCase):
         summaries = self._summaries(conversation_id)
         context = [s for s in summaries if s["kind"] == "context"]
         self.assertEqual(len(context), 1)
-        self.assertEqual(context[0]["source"], "rule")
+        self.assertEqual(context[0]["source"], "unconfigured")
         self.assertIn("ORD-10482", context[0]["content"])
         self.assertIn("客户 ctx", context[0]["content"])
 
@@ -116,7 +116,7 @@ class SummaryTests(unittest.TestCase):
         summaries = self._summaries(conversation_id)
         disposition = [s for s in summaries if s["kind"] == "disposition"]
         self.assertEqual(len(disposition), 1)
-        self.assertEqual(disposition[0]["source"], "rule")
+        self.assertEqual(disposition[0]["source"], "unconfigured")
         self.assertIn("ORD-10482", disposition[0]["content"])
 
     def test_summary_generated_once_after_reopen(self) -> None:
@@ -149,7 +149,7 @@ class SummaryTests(unittest.TestCase):
         service = SummaryService(self.services.database, provider)
         conversation_id = self._open_conversation("fail")
         row = service.generate("demo", conversation_id, "context")
-        self.assertEqual(row["source"], "rule")
+        self.assertEqual(row["source"], "failed")
         self.assertIn("ORD-10482", row["content"])
 
     def test_malformed_model_json_falls_back_to_rule(self) -> None:
@@ -160,7 +160,7 @@ class SummaryTests(unittest.TestCase):
         service = SummaryService(self.services.database, BadProvider())
         conversation_id = self._open_conversation("badjson")
         row = service.generate("demo", conversation_id, "context")
-        self.assertEqual(row["source"], "rule")
+        self.assertEqual(row["source"], "failed")
 
     def test_empty_model_summary_falls_back_to_rule(self) -> None:
         class EmptyProvider(FakeModelProvider):
@@ -170,7 +170,7 @@ class SummaryTests(unittest.TestCase):
         service = SummaryService(self.services.database, EmptyProvider())
         conversation_id = self._open_conversation("empty")
         row = service.generate("demo", conversation_id, "context")
-        self.assertEqual(row["source"], "rule")
+        self.assertEqual(row["source"], "failed")
 
     def test_internal_notes_never_leak_into_summary(self) -> None:
         conversation_id = self._open_conversation("notes")

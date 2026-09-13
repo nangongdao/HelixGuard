@@ -11,6 +11,11 @@ the lifecycle path never waits on an external model.
 H04/T02: generation first clears the tenant's model policy through the shared
 :class:`~app.model_gateway.ModelCallGate`; a refused call is never attempted
 and the deterministic projection is used instead.
+
+H04 (2.14.0): the stored ``source`` names why the projection was used, so a
+policy refusal (``denied``) and an upstream failure (``failed``) are no longer
+indistinguishable from the deployment's own deterministic mode
+(``unconfigured``) in ``conversation_summaries``.
 """
 
 from __future__ import annotations
@@ -20,7 +25,16 @@ import logging
 from typing import Any
 
 from app.cost_attribution import InferenceContext, record_model_response
-from app.model_gateway import PURPOSE_SUMMARY, ModelCallGate
+from app.model_gateway import (
+    OUTCOME_DENIED,
+    OUTCOME_FAILED,
+    OUTCOME_MODEL,
+    OUTCOME_UNCONFIGURED,
+    PURPOSE_SUMMARY,
+    ModelCallGate,
+    ModelGateDecision,
+    record_call_failure,
+)
 from app.model_provider import ModelProvider
 
 logger = logging.getLogger("helix")
@@ -105,39 +119,54 @@ class SummaryService:
             tenant_id, conversation_id, kind, content, source
         )
 
+    def _decision(self, tenant_id: str) -> ModelGateDecision | None:
+        """The tenant's decision for summaries, or None when no gate is wired.
+
+        A refusal is a decision: the deterministic projection is stored with
+        the reason (``denied``) instead of the generic deterministic token, so
+        the stored row still says *why* no model summary was produced.
+        """
+        if self.model_gate is None:
+            return None
+        return self.model_gate.evaluate(tenant_id, PURPOSE_SUMMARY)
+
     def _summarize(self, tenant_id: str, conversation_id: str, kind: str) -> tuple[str, str]:
         conversation = self.database.get_conversation(tenant_id, conversation_id)
         if conversation is None:
             raise LookupError("Conversation not found")
         messages = self.database.list_messages(tenant_id, conversation_id, limit=100)
-        if self.model_provider is not None and (
-            self.model_gate is None or self.model_gate.is_allowed(tenant_id, PURPOSE_SUMMARY)
-        ):
-            try:
-                content, response = self._model_summary(kind, conversation, messages)
-                record_model_response(
-                    self.cost_attribution,
-                    tenant_id,
-                    response,
-                    InferenceContext(
-                        conversation_id=conversation_id,
-                        agent="summary",
-                    ),
-                )
-                if content.strip():
-                    return content, "model"
-            except Exception:
-                # Any provider failure (HTTP, malformed JSON, missing key,
-                # unexpected type) falls back to the deterministic projection.
-                logger.debug(
-                    "summary.model_failed",
-                    extra={
-                        "tenant_id": tenant_id,
-                        "conversation_id": conversation_id,
-                        "kind": kind,
-                    },
-                )
-        return self._rule_summary(conversation, messages), "rule"
+        if self.model_provider is None:
+            # ENABLE_LLM=false: the projection is the deployment's own mode.
+            return self._rule_summary(conversation, messages), OUTCOME_UNCONFIGURED
+        decision = self._decision(tenant_id)
+        if decision is not None and not decision.allowed:
+            return self._rule_summary(conversation, messages), OUTCOME_DENIED
+        try:
+            content, response = self._model_summary(kind, conversation, messages)
+            record_model_response(
+                self.cost_attribution,
+                tenant_id,
+                response,
+                InferenceContext(
+                    conversation_id=conversation_id,
+                    agent="summary",
+                ),
+            )
+            if content.strip():
+                return content, OUTCOME_MODEL
+        except Exception:
+            # Any provider failure (HTTP, malformed JSON, missing key,
+            # unexpected type) falls back to the deterministic projection.
+            logger.debug(
+                "summary.model_failed",
+                extra={
+                    "tenant_id": tenant_id,
+                    "conversation_id": conversation_id,
+                    "kind": kind,
+                },
+            )
+        record_call_failure(PURPOSE_SUMMARY, tenant_id)
+        return self._rule_summary(conversation, messages), OUTCOME_FAILED
 
     def _model_summary(
         self, kind: str, conversation: dict[str, Any], messages: list[dict[str, Any]]

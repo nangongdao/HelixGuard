@@ -296,6 +296,30 @@
         "全量门禁：pytest tests 全绿、coverage 不低于 85；ruff 0.9.9 format --check 与 check 全绿；pyright 0 error；frontend_gate / migration_gate / openapi_snapshot / threat_model_gate 全绿",
         "已知未验证边界：语义层面的『改变含义』（例如把拒绝翻成批准）无法由确定性规则判定，本次只约束可确定检测的风险类别；未跑真实供应商模型"
       ]
+    },
+    {
+      "release": "2.14.0",
+      "date": "2026-09-13",
+      "owner": "release-eng",
+      "approved_by": "platform-sec",
+      "controls": [
+        "结果四态可区分 app/model_gateway.py：OUTCOME_MODEL/RULE/NONE/UNCONFIGURED/DENIED/FAILED/REJECTED 与 MODEL_CALL_OUTCOMES 为封闭词表——全局关闭、租户拒绝、上游故障、允许的确定性路径必须能逐条辨认，拼写错误不得凭空发明第五种结果（H04 不变量）",
+        "拒绝与故障分开计数：闸门拒绝记 model.call_denied，被真实发起的 transport 失败记 model.call_failed；两者分开才能对上游故障独立告警，而不把每一次策略拒绝都算成一次故障",
+        "记录值即数据契约：这些 token 被持久化在 messages.metadata_json（language_source/translation_source）、audit_events(reply.translated).payload_json.source、conversation_summaries.source 与 copilot 响应 source，因此只增不改名；此前全部塌陷为 rule，使审计链无法区分治理事件（策略拒绝）与运维事件（上游故障）",
+        "辅助面取整个决定而非布尔：LanguageService/SummaryService/CopilotService 由 is_allowed() 改为 evaluate()，拒绝原因不再被调用方丢弃；策略实现仍只有一份（T02 不新建平行 allow-list）",
+        "fail-open 边界不变：无 provider（ENABLE_LLM=false）记 unconfigured、无策略行/控制平面不可达仍按原语义放行；transport 契约与既有回退路径（同语言/失败/空输出）完全不变"
+      ],
+      "verification_evidence": [
+        "取证（实现前）：app/language.py 的 detect/translate 在策略拒绝与 transport 失败时都 return \"rule\"（同一行），summary/copilot 同理；该值即回合落盘内容，令被拒的唯一痕迹只剩 model.call_denied 计数",
+        "旁证：既有测试按名字已在区分这些场景（test_suggest_falls_back_to_canned_without_model vs test_suggest_model_failure_falls_back_to_canned；test_detection_failure_falls_back_to_rules vs test_detection_without_provider_uses_rules），只有记录本身没有区分",
+        "用户可见面：app/static/js/thread.js 把策略拒绝渲染为『当前无翻译模型，已返回原文』，把运营引向错误的修复方向；本次按原因分别渲染",
+        "红光（实现前）：tests/test_aux_call_outcomes.py 因 app.model_gateway.MODEL_CALL_OUTCOMES 不存在而无法收集（ImportError）",
+        "绿光：tests/test_aux_call_outcomes.py 24 例全绿（逐面钉住 model/denied 两种拒绝面/failed 两种形态/unconfigured/none/rule；端到端断言拒绝回合 transport 零调用且三个记录面均记 denied；遥测两个计数互不串台）",
+        "口径变更：22 处既有断言由被固化的 rule 改写为更具体的原因（denied/failed/unconfigured），每个新值由新测试文件独立证明，非把旧测试改绿",
+        "无回归：test_aux_call_outcomes + test_model_call_governance + test_multilingual + test_summaries + test_copilot 共 103 例通过；node --test tests/frontend/thread.test.js 11 例通过",
+        "全量门禁：pytest tests 通过、coverage 不低于 85；ruff 0.9.9 format --check 与 check 全绿；pyright 0 error；frontend_gate / migration_gate / openapi_snapshot / threat_model_gate 全绿",
+        "已知未验证边界：主链 triage 的 43.5 禁用面仍 fail-open（prompt 未固定 model_ref 时 check_model_policy 提前放行，同时跳过 disabled_providers 与 allow_data_egress），本次未修复，已记入 CHANGELOG 作为下一增量；app/static/js/composer.js 的改写状态文案未纳入（该文件 399/400 行，需先抽取模块）；未跑真实供应商模型"
+      ]
     }
   ]
 }

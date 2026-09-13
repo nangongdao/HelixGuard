@@ -190,7 +190,7 @@ test("requestTranslation posts the target language for the message", async () =>
   assert.deepEqual(JSON.parse(apiCalls[0].options.body), { target_language: "en" });
 });
 
-test("buildTranslateResultHtml mirrors the legacy three outcomes with escaping", () => {
+test("buildTranslateResultHtml names the reason the original stands", () => {
   installWindow({ islandMode: false });
   configureDeps();
   assert.equal(
@@ -202,8 +202,22 @@ test("buildTranslateResultHtml mirrors the legacy three outcomes with escaping",
     "目标语言与当前服务语言一致，无需翻译",
   );
   assert.equal(
-    buildTranslateResultHtml({ was_translated: false, source: "rule" }, "zh"),
+    buildTranslateResultHtml({ was_translated: false, source: "unconfigured" }, "zh"),
     "当前无翻译模型，已返回原文",
+  );
+  // H04 (2.14.0): a policy refusal and a broken transport are not a missing
+  // model, and the message must not send the operator to the wrong fix.
+  assert.equal(
+    buildTranslateResultHtml({ was_translated: false, source: "denied" }, "zh"),
+    "租户策略拒绝了翻译调用，原文未改动",
+  );
+  assert.equal(
+    buildTranslateResultHtml({ was_translated: false, source: "failed" }, "zh"),
+    "翻译模型调用失败，原文未改动",
+  );
+  assert.equal(
+    buildTranslateResultHtml({ was_translated: false, source: "rule" }, "zh"),
+    "翻译模型未改动原文",
   );
 });
 

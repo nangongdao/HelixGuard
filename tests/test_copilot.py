@@ -146,7 +146,7 @@ class CopilotAppTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200, response.text)
         suggestions = response.json()["suggestions"]
         self.assertTrue(suggestions)
-        self.assertEqual(suggestions[0]["source"], "rule")
+        self.assertEqual(suggestions[0]["source"], "unconfigured")
         self.assertIn("退款", suggestions[0]["content"])
 
     def test_suggest_model_first(self) -> None:
@@ -175,7 +175,7 @@ class CopilotAppTests(unittest.TestCase):
         )
         suggestions = response.json()["suggestions"]
         self.assertTrue(suggestions)
-        self.assertEqual(suggestions[0]["source"], "rule")
+        self.assertEqual(suggestions[0]["source"], "failed")
 
     def test_suggest_never_leaks_internal_notes(self) -> None:
         provider = FakeModelProvider()
@@ -284,7 +284,7 @@ class CopilotAppTests(unittest.TestCase):
         )
         payload = response.json()
         self.assertEqual(payload["rewritten"], "请等待")
-        self.assertEqual(payload["source"], "rule")
+        self.assertEqual(payload["source"], "failed")
 
     def test_rewrite_identity_output_treated_as_unchanged(self) -> None:
         self.copilot.model_provider = FakeModelProvider(rewritten="请等待")
