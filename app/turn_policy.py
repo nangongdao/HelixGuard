@@ -15,8 +15,7 @@ from time import monotonic
 from typing import Any
 
 from app.domain import AgentName, ConversationStatus, RiskAssessment, TriageDecision
-from app.model_gateway import ModelCallGate
-from app.model_provider import ModelPolicyDecision
+from app.model_gateway import PURPOSE_TRIAGE, ModelCallGate
 from app.prompts import PromptVersion
 from app.turn_services import TurnServices
 
@@ -189,23 +188,24 @@ class TurnPolicyStage:
                 "turn.budget_exceeded",
                 {"used": budget_used, "limit": budget_limit},
             )
-        # Phase 19.4: a prompt version whose model_ref is outside the tenant's
-        # allowed-models allow-list must not route through the model path.
-        model_ref = prompt_version.model_ref if prompt_version else None
-        if allow_model and not self._model_allowed(tenant_id, model_ref):
-            allow_model = False
-            self.services.database.audit(
+            # A refused governed call owes the same count as every other
+            # refusal; the audit above keeps budget a distinct event type.
+            self._gate().record_denial(
                 tenant_id,
-                conversation_id,
-                "orchestrator",
-                "turn.model_denied",
-                {"model_ref": model_ref},
+                PURPOSE_TRIAGE,
+                f"daily turn budget exhausted ({budget_used}/{budget_limit})",
             )
-        # ROADMAP 43.5: the control-plane disable surface may refuse a provider
-        # or model outright (or block data egress to its region) even when the
-        # 19.4 allow-list passed; the refusal reason is audited for drift.
+        # Phase 19.4 + ROADMAP 43.5 (H04): evaluate the tenant's model policy
+        # against the ref this turn's transport will actually use. A prompt
+        # version may pin one; otherwise the provider resolves the deployment
+        # default, because the triage agent offers ``complete`` no ref at all.
+        # Evaluating only the pinned ref let an unpinned prompt skip the
+        # disable surface *and* the allow-list entirely while the turn still
+        # egressed once -- the bypass the auxiliary surfaces never had, because
+        # the gate falls back to ``default_model_ref``.
+        pinned_ref = prompt_version.model_ref if prompt_version else None
         if allow_model:
-            decision = self._governance_decision(tenant_id, model_ref)
+            decision = self._gate().evaluate(tenant_id, PURPOSE_TRIAGE, pinned_ref)
             if not decision.allowed:
                 allow_model = False
                 self.services.database.audit(
@@ -213,7 +213,7 @@ class TurnPolicyStage:
                     conversation_id,
                     "orchestrator",
                     "turn.model_denied",
-                    {"model_ref": model_ref, "reason": decision.reason},
+                    {"model_ref": decision.model_ref, "reason": decision.reason},
                 )
         # ROADMAP 18.2a: policy assessment segment starts here.
         policy_started = monotonic()
@@ -297,26 +297,6 @@ class TurnPolicyStage:
         cannot drift apart (H04/T02).
         """
         return self._gate().budget_exceeded(tenant_id)
-
-    def _model_allowed(self, tenant_id: str, model_ref: str | None) -> bool:
-        """Enforce the tenant's allowed-models allow-list (Phase 19.4).
-
-        ``allowed_models=None`` means unrestricted. A prompt version with a
-        ``model_ref`` outside the allow-list is not permitted for this tenant;
-        the turn then falls back to the deterministic routing path.
-        """
-        return self._gate().model_allowed(tenant_id, model_ref)
-
-    def _governance_decision(self, tenant_id: str, model_ref: str | None) -> ModelPolicyDecision:
-        """Evaluate the 43.5 control-plane disable surface for one model ref.
-
-        Delegates to the shared gate, which reads ``model_policy`` (disabled
-        providers/models, data-egress flag) from the signed control-plane
-        policy when one is attached; without a control plane, an unreachable
-        plane, or no snapshot the check passes -- the pre-43.5 fail-open
-        default is preserved so existing deployments are unaffected.
-        """
-        return self._gate().governance_decision(tenant_id, model_ref)
 
     def _gate(self) -> ModelCallGate:
         """Resolve the shared model gate for this turn (H04/T02).

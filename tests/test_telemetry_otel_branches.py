@@ -34,26 +34,46 @@ _OTEL_MOCKS = {
 
 
 @mock.patch.dict(sys.modules, _OTEL_MOCKS)
-def _reload_with_otel() -> tuple[object, mock.MagicMock]:
+def _reload_with_otel() -> tuple[object, mock.MagicMock, dict[str, object]]:
     # Import after the mocks are in place: the module-level try/except sees a
-    # successful import and sets _otel_available = True.
+    # successful import and sets _otel_available = True. Returns the
+    # pre-reload globals — hand them to _reload_without_otel from addCleanup.
     tel = importlib.import_module("app.telemetry")
+    saved = dict(vars(tel))
     tel = importlib.reload(tel)
-    return tel, _OTEL_MOCKS["opentelemetry"]
+    return tel, _OTEL_MOCKS["opentelemetry"], saved
 
 
-def _reload_without_otel() -> object:
+def _reload_without_otel(saved: dict[str, object] | None = None) -> object:
     for key in list(_OTEL_MOCKS):
         sys.modules.pop(key, None)
     tel = importlib.import_module("app.telemetry")
     tel = importlib.reload(tel)
+    if saved is not None:
+        _restore(tel, saved)
     return tel
+
+
+def _restore(tel: object, saved: dict[str, object]) -> None:
+    """Put the pre-reload module globals back (why this matters).
+
+    ``importlib.reload`` re-executes the module body, so ``metrics =
+    TelemetryMetrics()`` installs a *fresh* counter object — while every
+    ``from app.telemetry import metrics`` binding taken before the reload
+    (``app.model_gateway`` among them) still points at the old one. A reload
+    that leaks therefore splits the telemetry registry in two: the gate keeps
+    counting into an object no later test can read, and any test that asserts
+    on ``app.telemetry.metrics`` sees an empty one. Restoring the pre-reload
+    globals leaves the module observably unchanged for the rest of the suite.
+    """
+    for key, value in saved.items():
+        setattr(tel, key, value)
 
 
 class TelemetryOtelTests(unittest.TestCase):
     def test_configure_tracing_initializes_provider(self) -> None:
-        tel, _otel = _reload_with_otel()
-        self.addCleanup(lambda: _reload_without_otel())
+        tel, _otel, saved = _reload_with_otel()
+        self.addCleanup(lambda: _reload_without_otel(saved))
         sdk_trace = _OTEL_MOCKS["opentelemetry.sdk.trace"]
         with mock.patch.dict(os.environ, {"OTEL_EXPORTER_OTLP_ENDPOINT": "http://collector:4318"}):
             tel.configure_tracing()
@@ -63,8 +83,8 @@ class TelemetryOtelTests(unittest.TestCase):
         self.assertEqual(sdk_trace.TracerProvider.call_count, 1)
 
     def test_span_forwards_attributes_and_events_to_otel(self) -> None:
-        tel, _otel = _reload_with_otel()
-        self.addCleanup(lambda: _reload_without_otel())
+        tel, _otel, saved = _reload_with_otel()
+        self.addCleanup(lambda: _reload_without_otel(saved))
         tel.configure_tracing()
         provider = tel._tracer_provider
         otel_span = provider.get_tracer("helix-support").start_as_current_span().__enter__()
@@ -78,7 +98,10 @@ class TelemetryOtelTests(unittest.TestCase):
         self.assertIsNotNone(record.end_time)
 
     def test_configure_logs_nothing_when_otel_absent(self) -> None:
+        tel_module = importlib.import_module("app.telemetry")
+        saved = dict(vars(tel_module))
         tel = _reload_without_otel()
+        self.addCleanup(lambda: _restore(tel, saved))
         with self.assertLogs("app.telemetry", level=logging.DEBUG) as captured:
             tel.configure_tracing()
         self.assertTrue(any("opentelemetry not installed" in line for line in captured.output))
