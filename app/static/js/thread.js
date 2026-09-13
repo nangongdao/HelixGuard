@@ -241,6 +241,18 @@ export function buildTranslateResultHtml(out, language) {
     // don't blame a missing model.
     return "目标语言与当前服务语言一致，无需翻译";
   }
+  // H04 (2.14.0): the API now reports *why* the original stands. Telling the
+  // operator "当前无翻译模型" for a tenant-policy refusal sent them to fix the
+  // deployment instead of the policy that actually refused the call.
+  if (out.source === "denied") {
+    return "租户策略拒绝了翻译调用，原文未改动";
+  }
+  if (out.source === "failed") {
+    return "翻译模型调用失败，原文未改动";
+  }
+  if (out.source === "rule") {
+    return "翻译模型未改动原文";
+  }
   return "当前无翻译模型，已返回原文";
 }
 

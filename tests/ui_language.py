@@ -7,7 +7,7 @@
 
 本测在真实会话里闭环验证:
 1. API 预建 open 会话并写入两条客户消息,探针 POST translate 确认降级语义
-   (无模型配置时 ``was_translated=false`` / ``source="rule"``,与部署无关);
+   (无模型配置时 ``was_translated=false`` / ``source="unconfigured"``,与部署无关);
 2. 工作台选中会话 → 语言 picker 默认「自动」→ 改选 ``en`` → PATCH 成功,
    头部 select 与 subtitle 同步为 English;改回「自动」→ PATCH null 清除;
 3. 第一条客户消息行的翻译条把目标改 ``zh`` → 点「翻译」→ POST translate 成功,
@@ -103,10 +103,28 @@ def main() -> None:
         f"/api/conversations/{conv_id}/messages/{msg_id}/translate",
         {"target_language": "en"},
     )
-    assert "was_translated" in probe and probe.get("source") in {"rule", "model"}, (
-        f"翻译探针异常: {probe}"
+    assert "was_translated" in probe and probe.get("source") in {
+        "model",
+        "rule",
+        "none",
+        "unconfigured",
+        "denied",
+        "failed",
+        "rejected",
+    }, f"翻译探针异常: {probe}"
+    # H04 (2.14.0): the API reports *why* the original stands, and the result
+    # line renders that reason instead of blaming a missing model for every
+    # non-translation. The messages mirror app/static/js/thread.js.
+    rendered_text = (
+        "已翻译为 English"
+        if probe["was_translated"]
+        else {
+            "none": "目标语言与当前服务语言一致，无需翻译",
+            "denied": "租户策略拒绝了翻译调用，原文未改动",
+            "failed": "翻译模型调用失败，原文未改动",
+            "rule": "翻译模型未改动原文",
+        }.get(probe.get("source"), "当前无翻译模型，已返回原文")
     )
-    rendered_text = "已翻译为 English" if probe["was_translated"] else "当前无翻译模型，已返回原文"
 
     with sync_playwright() as playwright:
         try:

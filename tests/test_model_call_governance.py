@@ -13,7 +13,10 @@ These tests pin the fix at both ends:
   policy facets (daily budget, allowed-model allow-list, 43.5 disable surface
   including region egress) and records the refusal;
 * with a denying policy the fake provider records **zero** transports and each
-  caller takes its existing deterministic fallback, while a permissive tenant
+  caller takes its existing deterministic fallback **and records the refusal as
+  ``denied``** (2.14.0 — the refusal used to be recorded as ``"rule"``, i.e. as
+  the ordinary deterministic path, which made it indistinguishable from an
+  outage; see ``tests/test_aux_call_outcomes.py``), while a permissive tenant
   still uses the model exactly once — the gate must not simply disable
   everything.
 """
@@ -211,7 +214,7 @@ class AuxiliaryCallGovernanceTests(GateFixture):
         provider = FakeModelProvider(detect="ja")
         service = LanguageService(provider, "zh", model_gate=self._gate())
         language, source = service.detect("Hello there", tenant_id=TENANT)
-        self.assertEqual((language, source), ("en", "rule"))
+        self.assertEqual((language, source), ("en", "denied"))
         self.assertEqual(provider.calls, [])
 
     # ------------------------------------------------------------ translation
@@ -228,7 +231,7 @@ class AuxiliaryCallGovernanceTests(GateFixture):
         provider = FakeModelProvider()
         service = LanguageService(provider, "zh", model_gate=self._gate())
         text, translated, source = service.translate("退款已批准。", "en", tenant_id=TENANT)
-        self.assertEqual((text, translated, source), ("退款已批准。", False, "rule"))
+        self.assertEqual((text, translated, source), ("退款已批准。", False, "denied"))
         self.assertEqual(provider.calls, [])
 
     # --------------------------------------------------------------- summaries
@@ -247,7 +250,7 @@ class AuxiliaryCallGovernanceTests(GateFixture):
         provider = FakeModelProvider()
         service = SummaryService(self.db, provider, model_gate=self._gate())
         row = service.generate(TENANT, conv_id, "context")
-        self.assertEqual(row["source"], "rule")
+        self.assertEqual(row["source"], "denied")
         self.assertEqual(provider.calls, [])
 
     # ----------------------------------------------------------------- copilot
@@ -266,7 +269,7 @@ class AuxiliaryCallGovernanceTests(GateFixture):
         provider = FakeModelProvider()
         service = CopilotService(self.db, provider, model_gate=self._gate())
         suggestions = service.suggest_reply(TENANT, conv_id)
-        self.assertTrue(all(item["source"] == "rule" for item in suggestions))
+        self.assertTrue(all(item["source"] == "denied" for item in suggestions))
         self.assertEqual(provider.calls, [])
 
     def test_copilot_rewrite_makes_zero_transports_when_denied(self) -> None:
@@ -274,7 +277,7 @@ class AuxiliaryCallGovernanceTests(GateFixture):
         provider = FakeModelProvider()
         service = CopilotService(self.db, provider, model_gate=self._gate())
         result = service.rewrite_tone("请稍等。", "friendly", tenant_id=TENANT)
-        self.assertEqual(result["source"], "rule")
+        self.assertEqual(result["source"], "denied")
         self.assertEqual(provider.calls, [])
 
     def test_copilot_rewrite_uses_model_when_allowed(self) -> None:
@@ -313,7 +316,7 @@ class TurnIntakeGovernanceTests(GateFixture):
             TENANT, conv["id"], "配送一般多久能到？", "admin", "idem-intake-1"
         )
         self.assertEqual(provider.calls, [])
-        self.assertEqual(self._customer_metadata(conv["id"])["language_source"], "rule")
+        self.assertEqual(self._customer_metadata(conv["id"])["language_source"], "denied")
 
     def test_intake_detection_uses_model_when_allowed(self) -> None:
         provider = FakeModelProvider(detect="ja")

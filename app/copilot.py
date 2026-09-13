@@ -17,6 +17,13 @@ Internal notes never enter the suggestion/recommendation context.
 H04/T02: every model-backed path clears the tenant's policy through the shared
 :class:`~app.model_gateway.ModelCallGate` before transport; a refused call
 falls back to the deterministic path (canned responses / the original text).
+
+H04 (2.14.0): the returned ``source`` names *why* the caller got what it got
+(``denied`` for a policy refusal, ``failed`` for a broken transport,
+``unconfigured`` when no provider is configured, ``rule`` for the deterministic
+path), so the copilot response contract no longer reports a refusal as a
+transport failure. ``recommend_knowledge`` is unchanged: its ``source`` is a
+*retrieval* marker, not the outcome of a model call.
 """
 
 from __future__ import annotations
@@ -26,7 +33,19 @@ import logging
 from typing import Any
 
 from app.cost_attribution import InferenceContext, record_model_response
-from app.model_gateway import PURPOSE_COPILOT_REWRITE, PURPOSE_COPILOT_SUGGEST, ModelCallGate
+from app.model_gateway import (
+    OUTCOME_DENIED,
+    OUTCOME_FAILED,
+    OUTCOME_MODEL,
+    OUTCOME_NONE,
+    OUTCOME_RULE,
+    OUTCOME_UNCONFIGURED,
+    PURPOSE_COPILOT_REWRITE,
+    PURPOSE_COPILOT_SUGGEST,
+    ModelCallGate,
+    ModelGateDecision,
+    record_call_failure,
+)
 from app.model_provider import ModelProvider
 
 logger = logging.getLogger("helix")
@@ -82,11 +101,15 @@ class CopilotService:
         # through the shared gate before any transport.
         self.model_gate = model_gate
 
-    def _permitted(self, purpose: str, tenant_id: str | None) -> bool:
-        """True when the tenant policy allows this model call."""
+    def _decision(self, purpose: str, tenant_id: str | None) -> ModelGateDecision | None:
+        """The tenant's decision for this purpose, or None when no gate is wired.
+
+        A refusal is a decision: the caller records ``OUTCOME_DENIED`` rather
+        than reporting the fallback as a broken transport.
+        """
         if self.model_gate is None:
-            return True
-        return self.model_gate.is_allowed(tenant_id, purpose)
+            return None
+        return self.model_gate.evaluate(tenant_id, purpose)
 
     # ------------------------------------------------------------- suggestions
 
@@ -104,24 +127,36 @@ class CopilotService:
         limit = max(1, min(limit, 3))
         messages = self.database.list_messages(tenant_id, conversation_id, limit=100)
         language = conversation.get("language")
-        if self.model_provider is not None and self._permitted(PURPOSE_COPILOT_SUGGEST, tenant_id):
-            try:
-                suggestions = self._model_suggestions(
-                    conversation, messages, draft, language, tenant_id
-                )
-                if suggestions:
-                    return [{"content": s, "source": "model"} for s in suggestions[:limit]]
-            except Exception:
-                logger.debug(
-                    "copilot.suggest_failed",
-                    extra={"tenant_id": tenant_id, "conversation_id": conversation_id},
-                )
+        outcome = OUTCOME_UNCONFIGURED
+        if self.model_provider is not None:
+            decision = self._decision(PURPOSE_COPILOT_SUGGEST, tenant_id)
+            if decision is not None and not decision.allowed:
+                outcome = OUTCOME_DENIED
+            else:
+                try:
+                    suggestions = self._model_suggestions(
+                        conversation, messages, draft, language, tenant_id
+                    )
+                    if suggestions:
+                        return [
+                            {"content": s, "source": OUTCOME_MODEL} for s in suggestions[:limit]
+                        ]
+                except Exception:
+                    logger.debug(
+                        "copilot.suggest_failed",
+                        extra={"tenant_id": tenant_id, "conversation_id": conversation_id},
+                    )
+                record_call_failure(PURPOSE_COPILOT_SUGGEST, tenant_id)
+                outcome = OUTCOME_FAILED
         # Deterministic fallback: the tenant's most-used canned responses,
-        # filtered by the current draft when one exists.
+        # filtered by the current draft when one exists. ``outcome`` names why
+        # they are being returned (H04): a refusal, a broken transport or the
+        # deployment having no provider are three different facts about the
+        # same canned list.
         canned = self.database.list_canned_responses(tenant_id, search=draft, limit=limit)
         if not canned and not draft:
             canned = self.database.list_canned_responses(tenant_id, limit=limit)
-        return [{"content": item["body"], "source": "rule"} for item in canned[:limit]]
+        return [{"content": item["body"], "source": outcome} for item in canned[:limit]]
 
     def _model_suggestions(
         self,
@@ -203,31 +238,42 @@ class CopilotService:
     # ------------------------------------------------------------------ rewrite
 
     def rewrite_tone(self, text: str, tone: str, tenant_id: str | None = None) -> dict[str, Any]:
-        """Rewrite ``text`` in ``tone``; any failure returns the original."""
+        """Rewrite ``text`` in ``tone``; any failure returns the original.
+
+        ``source`` names why the returned text is what it is (H04): ``none``
+        for empty input, ``model`` for a rewrite, ``rule`` when the model
+        echoed the original, and the reason the original stands otherwise
+        (``denied`` / ``failed`` / ``unconfigured``).
+        """
         text = text.strip()
         if not text:
-            return {"rewritten": text, "source": "rule", "tone": tone}
-        if self.model_provider is not None and self._permitted(PURPOSE_COPILOT_REWRITE, tenant_id):
-            try:
-                response = self.model_provider.complete(
-                    REWRITE_SYSTEM_PROMPT,
-                    _REWRITE_USER_PROMPT.format(tone=tone, text=text[:6000]),
-                )
-                record_model_response(
-                    self.cost_attribution,
-                    tenant_id,
-                    response,
-                    InferenceContext(agent="copilot_rewrite"),
-                )
-                payload = json.loads(response.content)
-                rewritten = payload["rewritten"]
-                if isinstance(rewritten, str) and rewritten.strip():
-                    if rewritten.strip() != text:
-                        return {"rewritten": rewritten.strip(), "source": "model", "tone": tone}
-                    return {"rewritten": text, "source": "rule", "tone": tone}
-            except Exception:
-                logger.debug("copilot.rewrite_failed", extra={"tone": tone})
-        return {"rewritten": text, "source": "rule", "tone": tone}
+            return {"rewritten": text, "source": OUTCOME_NONE, "tone": tone}
+        if self.model_provider is None:
+            return {"rewritten": text, "source": OUTCOME_UNCONFIGURED, "tone": tone}
+        decision = self._decision(PURPOSE_COPILOT_REWRITE, tenant_id)
+        if decision is not None and not decision.allowed:
+            return {"rewritten": text, "source": OUTCOME_DENIED, "tone": tone}
+        try:
+            response = self.model_provider.complete(
+                REWRITE_SYSTEM_PROMPT,
+                _REWRITE_USER_PROMPT.format(tone=tone, text=text[:6000]),
+            )
+            record_model_response(
+                self.cost_attribution,
+                tenant_id,
+                response,
+                InferenceContext(agent="copilot_rewrite"),
+            )
+            payload = json.loads(response.content)
+            rewritten = payload["rewritten"]
+            if isinstance(rewritten, str) and rewritten.strip():
+                if rewritten.strip() != text:
+                    return {"rewritten": rewritten.strip(), "source": OUTCOME_MODEL, "tone": tone}
+                return {"rewritten": text, "source": OUTCOME_RULE, "tone": tone}
+        except Exception:
+            logger.debug("copilot.rewrite_failed", extra={"tone": tone})
+        record_call_failure(PURPOSE_COPILOT_REWRITE, tenant_id)
+        return {"rewritten": text, "source": OUTCOME_FAILED, "tone": tone}
 
     # ------------------------------------------------------------- transcript
 

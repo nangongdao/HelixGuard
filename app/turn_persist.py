@@ -26,6 +26,7 @@ from app.domain import (
     RiskAssessment,
     TriageDecision,
 )
+from app.model_gateway import OUTCOME_NONE, OUTCOME_REJECTED
 from app.prompts import PromptVersion
 from app.quality import estimate_tokens
 from app.telemetry import metrics as telemetry_metrics
@@ -221,7 +222,7 @@ class TurnPersistStage:
                     )
                     if rejected_categories:
                         did_translate = False
-                        translation_source = "rejected"
+                        translation_source = OUTCOME_REJECTED
                 if did_translate:
                     assistant_content = translated
                     metadata["original_content"] = result.content
@@ -244,7 +245,7 @@ class TurnPersistStage:
                 )
             else:
                 metadata["translated"] = False
-                metadata["translation_source"] = "none"
+                metadata["translation_source"] = OUTCOME_NONE
         telemetry_metrics.increment(
             "turn.processed",
             tenant_id=tenant_id,

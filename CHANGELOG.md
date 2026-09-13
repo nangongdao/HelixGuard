@@ -2,6 +2,45 @@
 
 所有版本遵循[语义化版本](https://semver.org)。API 变更遵循 `docs/API_POLICY.md`(响应体只增不改、弃用需 `Deprecation`/`Sunset` 头 + 至少一个次版本过渡、每次变更记录于此)。
 
+## 2.14.0 — 受治理调用的结果四态可区分: 拒绝不再被记成"确定性路径" (2026-09-13)
+
+Version 2.14.0 收口路线图 H04 的不变量「**明确区分全局关闭、租户拒绝、上游故障和允许的确定性路径**」（工作区 `docs/development-roadmap-2026-09-13.md`）。
+
+**源码取证**：2.12.0 让被拒的辅助调用不再发起 transport，但**每一个回退都被记成同一个值**——`"rule"`。而这个值正是回合落盘的内容：客户消息 metadata 的 `language_source`、助手消息 metadata 的 `translation_source`、审计事件 `reply.translated` 的 `source`、`conversation_summaries.source`，以及 Copilot 响应契约的 `source`。`app/language.py` 的 `detect`/`translate` 在被拒（策略）与 transport 失败（故障）时都走 `return ..., "rule"`。于是审计链回答不了治理复核真正要问的问题：这条回复没被翻译，是因为**租户策略拒绝了这次调用**（治理事件），还是因为**上游故障**（运维事件）？被拒的唯一痕迹只剩 `model.call_denied` 计数。
+
+前端把这一塌陷直接说给坐席听：`app/static/js/thread.js:244` 把"策略拒绝"渲染成"当前无翻译模型，已返回原文"，把运营引向错误的修复方向（该函数对 `source === "none"` 已有注释"don't blame a missing model"，却对拒绝没有）。
+
+**旁证**：既有测试**按名字**一直在区分这些场景——`test_suggest_falls_back_to_canned_without_model` 与 `test_suggest_model_failure_falls_back_to_canned`、`test_detection_failure_falls_back_to_rules` 与 `test_detection_without_provider_uses_rules`——只有记录本身没区分。
+
+**契约口径变更**（记录值，非 API 形状）：以下字段的取值新增 `denied`/`failed`/`unconfigured`，`"rule"` 收窄为"按设计的确定性路径"。
+
+### Added
+
+- **封闭结果词表 `app/model_gateway.py`**：`OUTCOME_MODEL`/`OUTCOME_RULE`/`OUTCOME_NONE`/`OUTCOME_UNCONFIGURED`/`OUTCOME_DENIED`/`OUTCOME_FAILED`/`OUTCOME_REJECTED` 与 `MODEL_CALL_OUTCOMES`。与封闭用途清单同理：四态必须能逐条辨认，拼写错误不得凭空发明第五种结果。这些 token 会被持久化（消息 metadata、`conversation_summaries.source`、copilot 响应契约），因此是数据契约——只增不改名。
+- **`record_call_failure()`**：transport 失败记 `model.call_failed`（tenant/purpose 维度）。与 `model.call_denied` 分开计数，使上游故障可独立告警，而不会把每一次策略拒绝都算成一次故障。
+
+### Changed
+
+- **辅助面改用 `evaluate()` 取决定**：`LanguageService`/`SummaryService`/`CopilotService` 原先只取布尔（`is_allowed`）并丢弃拒绝原因；现在取整个决定，拒绝即记 `denied`。策略实现仍只有一份（T02）。
+- **四个记录面按原因落值**：拒绝 → `denied`；transport 被真实发起后失败或输出不可用 → `failed`；部署未配置 provider（`ENABLE_LLM=false`）→ `unconfigured`；按设计的确定性路径（模型原样回显、canned 而非模型）→ `rule`；同语言无需翻译 → `none`。
+- **`app/turn_persist.py`** 复用词表常量（`OUTCOME_REJECTED`/`OUTCOME_NONE`），不再写字面量。
+- **`app/static/js/thread.js`**：翻译结果行按 `denied`/`failed`/`rule` 给出各自文案；无 provider 仍渲染"当前无翻译模型，已返回原文"（探针语义不变）。
+- **未纳入本切片**：`app/static/js/composer.js` 的改写状态文案（同样是"策略拒绝"被说成"模型不可用"）保持原样——该文件 399/400 行，前端门禁规定"抽取域模块而非提高上限"，需先抽取才能加分支；`recommend_knowledge` 的 `source` 是**检索**标记、不是模型调用结果，不动。
+
+### Tests
+
+- 新增 `tests/test_aux_call_outcomes.py`（24 例）：词表四态互不相等且都在封闭集合内；逐面钉住 `detect`/`translate`/`generate`/`suggest_reply`/`rewrite_tone` 的 `model`/`denied`（两种独立拒绝面：43.5 禁用面与预算）/`failed`（抛错与"答非所问"）/`unconfigured`/`none`/`rule`；端到端断言拒绝的回合 **transport 零调用**、客户与助手 metadata 及 `reply.translated` 审计 payload 均记 `denied`；故障回合记 `failed`；遥测断言 `model.call_failed` 只在故障时自增、`model.call_denied` 只在拒绝时自增。
+- **红光**：实现前 `ImportError: cannot import name 'MODEL_CALL_OUTCOMES'`。
+- **改写 22 处既有断言**（`test_model_call_governance` 6、`test_multilingual` 7、`test_summaries` 5、`test_copilot` 3、`test_frontend/thread.test.js` 1 组，另 `tests/ui_language.py` 探针按词表取值）。逐条都是把"被固化的塌陷"换成**更具体**的原因：拒绝 → `denied`、故障 → `failed`、未配置 → `unconfigured`。这是记录口径的契约变更，**不是把旧测试改绿**——每个新值都由新测试文件独立证明，且 `rule` 仍被 `detect` 回显、`translate` 同语言等既有用例按住。
+- 受影响的既有套件（`test_aux_call_outcomes`/`test_model_call_governance`/`test_multilingual`/`test_summaries`/`test_copilot`）共 103 例全绿；`node --test tests/frontend/thread.test.js` 11 例全绿。
+- 全量 `pytest tests`：1864 例（1818 通过、44 跳过、2 失败）+ `coverage --fail-under=85`：覆盖率 89%（14500 语句、1323 未覆盖），门禁通过；ruff 0.9.9 `format --check`/`check` 全仓 361 文件干净；`pyright app` 无实质错误（仅 57 条环境性 `reportMissingImports`）；`frontend_gate`（语法 + 模块 ≤400 行 + 351 前端用例含 vitest）、`migration_gate`（44 迁移链连续）、`openapi_snapshot`（仅版本号变化）、`threat_model_gate --check-today --drill-max-days 90` 全绿。
+- **本机环境敏感（同 2.12.0/2.13.0 段，与本次改动无关）**：用户 site-packages 中已安装的可选 `opentelemetry` SDK 使 `test_telemetry_otel_branches::test_configure_logs_nothing_when_otel_absent` 与 `test_telemetry_edge::test_debug_log_emitted_at_span_end` 各 1 例失败——两例断言的正是"未安装 opentelemetry 时"的分支。CI 不装 `[otel]`，故 CI 侧 0 失败。
+
+### 本切片未覆盖（本次审计新发现，未修复）
+
+- **主链 triage 调用的 43.5 禁用面仍 fail-open**：`app/turn_policy.py:194` 以 `model_ref = prompt_version.model_ref if prompt_version else None` 解析归属；默认 prompt 不固定 model_ref，而 `check_model_policy` 在 `provider_for_model_ref(None)` 处提前返回 allowed（`app/model_provider.py:157-158`），**同时跳过 `disabled_providers` 与 `allow_data_egress`**。即租户已禁用 provider、或禁止数据出境时，主链仍会真实出境一次（其 transport 实际用的是 `Settings.openai_model`）。闸门已为辅助调用解决了同一问题（`default_model_ref`），主链尚未；修复会改变受限白名单租户的回合路由，需单独增量与产品确认。
+- H04 MVP 的其余项：辅助调用不计入每日预算**预留**（当前只在预算已耗尽时拒绝）；语义层面的"改变含义"无法由确定性规则判定。
+
 ## 2.13.0 — 译后复核: 译文的批准不再继承原文 (2026-09-13)
 
 Version 2.13.0 收口路线图 H04 验收的最后一条：**翻译改变含义/引入敏感内容时不能沿用原文批准结论**（工作区 `docs/development-roadmap-2026-09-13.md`；2.12.0 段末已把该项列为未覆盖）。

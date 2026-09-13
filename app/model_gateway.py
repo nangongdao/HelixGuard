@@ -30,6 +30,17 @@ cannot drift; the auxiliary callers use :meth:`evaluate`/:meth:`is_allowed`
 with the deployment's default model ref, because they carry no prompt-pinned
 model.
 
+Recording the outcome (2.14.0)
+------------------------------
+
+A refusal is a decision, and it is *not* a failure. Every caller records why it
+fell back, from the closed :data:`MODEL_CALL_OUTCOMES` vocabulary: a tenant
+refusal is ``denied``, a transport that was attempted and broke is ``failed``,
+a deployment with no provider configured is ``unconfigured``, and the permitted
+deterministic path is ``rule``/``none``. 2.12.0 recorded all of them as
+``rule``, which made a governance refusal indistinguishable from an outage in
+the audit trail -- the one question a governance review asks.
+
 Fail-open boundaries (unchanged from Phase 19.4 / 43.5)
 ------------------------------------------------------
 
@@ -71,6 +82,58 @@ MODEL_CALL_PURPOSES = frozenset(
         PURPOSE_COPILOT_REWRITE,
     }
 )
+
+# Why a governed call produced the text it did. Closed for the same reason the
+# purpose catalogue is: H04 requires the four cases -- global switch off, tenant
+# refusal, upstream failure, and the permitted deterministic path -- to stay
+# distinguishable in the records the callers write, and a typo must not invent
+# a fifth outcome. These tokens are persisted (customer/assistant message
+# metadata, ``conversation_summaries.source``, the copilot response contract),
+# so they are a data contract: add, do not rename.
+OUTCOME_MODEL = "model"
+"""The transport answered with usable output."""
+
+OUTCOME_RULE = "rule"
+"""Deterministic path by design, with the model surface available and allowed."""
+
+OUTCOME_NONE = "none"
+"""Nothing to do: the reply is already in the target language."""
+
+OUTCOME_UNCONFIGURED = "unconfigured"
+"""No model provider is configured in this deployment (global ``ENABLE_LLM``
+off), so the deterministic path *is* the configured mode. Never a refusal and
+never a failure."""
+
+OUTCOME_DENIED = "denied"
+"""The tenant's policy refused the call; no request left the process."""
+
+OUTCOME_FAILED = "failed"
+"""The request was attempted and failed, or returned unusable output."""
+
+OUTCOME_REJECTED = "rejected"
+"""The translated text failed the outbound re-review (2.13.0)."""
+
+MODEL_CALL_OUTCOMES = frozenset(
+    {
+        OUTCOME_MODEL,
+        OUTCOME_RULE,
+        OUTCOME_NONE,
+        OUTCOME_UNCONFIGURED,
+        OUTCOME_DENIED,
+        OUTCOME_FAILED,
+        OUTCOME_REJECTED,
+    }
+)
+
+
+def record_call_failure(purpose: str, tenant_id: str | None) -> None:
+    """Count one failed transport attempt (H04: a failure must be visible).
+
+    A refusal is a *decision* and is counted by the gate as
+    ``model.call_denied``; keeping the two counters separate is what lets an
+    operator alert on an outage without alerting on every policy refusal.
+    """
+    telemetry_metrics.increment("model.call_failed", tenant_id=tenant_id, purpose=purpose)
 
 
 class ModelCallDenied(RuntimeError):
@@ -250,7 +313,15 @@ class ModelCallGate:
 
 
 __all__ = [
+    "MODEL_CALL_OUTCOMES",
     "MODEL_CALL_PURPOSES",
+    "OUTCOME_DENIED",
+    "OUTCOME_FAILED",
+    "OUTCOME_MODEL",
+    "OUTCOME_NONE",
+    "OUTCOME_REJECTED",
+    "OUTCOME_RULE",
+    "OUTCOME_UNCONFIGURED",
     "PURPOSE_COPILOT_REWRITE",
     "PURPOSE_COPILOT_SUGGEST",
     "PURPOSE_LANGUAGE_DETECT",
@@ -260,4 +331,5 @@ __all__ = [
     "ModelCallDenied",
     "ModelCallGate",
     "ModelGateDecision",
+    "record_call_failure",
 ]

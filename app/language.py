@@ -15,6 +15,12 @@ H04/T02: both calls first clear the tenant's model policy through the shared
 :class:`~app.model_gateway.ModelCallGate`. A refused call is not attempted —
 the deterministic detector / the original reply is used instead — so a tenant
 that disables the provider no longer egresses from the language surface.
+
+H04 (2.14.0): the recorded ``source`` names *why* the answer was produced, from
+the closed outcome vocabulary, so the record distinguishes a policy refusal
+(``denied``) and an upstream failure (``failed``) from the deployment's own
+deterministic mode (``unconfigured``) and from the permitted deterministic
+answer (``rule`` / ``none``).
 """
 
 from __future__ import annotations
@@ -26,9 +32,17 @@ from typing import Any
 
 from app.cost_attribution import InferenceContext, record_model_response
 from app.model_gateway import (
+    OUTCOME_DENIED,
+    OUTCOME_FAILED,
+    OUTCOME_MODEL,
+    OUTCOME_NONE,
+    OUTCOME_RULE,
+    OUTCOME_UNCONFIGURED,
     PURPOSE_LANGUAGE_DETECT,
     PURPOSE_LANGUAGE_TRANSLATE,
     ModelCallGate,
+    ModelGateDecision,
+    record_call_failure,
 )
 from app.model_provider import ModelProvider
 
@@ -158,15 +172,17 @@ class LanguageService:
         # (tests, embedded use); the orchestrator always wires one.
         self.model_gate = model_gate
 
-    def _permitted(self, purpose: str, tenant_id: str | None) -> bool:
-        """True when the tenant policy allows this model call.
+    def _decision(self, purpose: str, tenant_id: str | None) -> ModelGateDecision | None:
+        """The tenant's decision for this purpose, or None when no gate is wired.
 
-        Denial is a decision, not an error: every caller falls back to its
-        deterministic path and the turn never blocks on the gate.
+        Denial is a decision, not an error: every caller records
+        ``OUTCOME_DENIED`` and falls back to its deterministic path, so the
+        refusal stays visible in the record and the turn never blocks on the
+        gate.
         """
         if self.model_gate is None:
-            return True
-        return self.model_gate.is_allowed(tenant_id, purpose)
+            return None
+        return self.model_gate.evaluate(tenant_id, purpose)
 
     def _record_cost(self, tenant_id: str | None, response: Any, agent: str) -> None:
         if tenant_id is None:
@@ -183,26 +199,34 @@ class LanguageService:
     def detect(self, text: str, tenant_id: str | None = None) -> tuple[str | None, str]:
         """Return (language, source) for a customer message.
 
-        ``source`` is ``"model"`` when the provider answered with a known
-        code, otherwise ``"rule"``. Never raises: provider failures and
-        unusable output fall back to the deterministic detector, and a tenant
-        policy refusal never reaches the transport at all.
+        ``source`` is ``"model"`` when the provider answered with a known code,
+        otherwise the reason the deterministic detector was used: ``"denied"``
+        (tenant policy refused), ``"failed"`` (the request was attempted and
+        failed or returned an unusable code), or ``"unconfigured"`` (no
+        provider is configured). Never raises: provider failures and unusable
+        output fall back to the deterministic detector, and a tenant policy
+        refusal never reaches the transport at all.
         """
-        if self.model_provider is not None and self._permitted(PURPOSE_LANGUAGE_DETECT, tenant_id):
-            try:
-                response = self.model_provider.complete(
-                    DETECT_SYSTEM_PROMPT, f"Customer message:\n{text[:2000]}"
-                )
-                self._record_cost(tenant_id, response, "language_detect")
-                payload = json.loads(response.content)
-                language = payload["language"]
-                if isinstance(language, str) and language in KNOWN_LANGUAGES:
-                    return language, "model"
-            except Exception:
-                logger.debug(
-                    "language.detect_failed", extra={"provider": type(self.model_provider).__name__}
-                )
-        return detect_language(text), "rule"
+        if self.model_provider is None:
+            return detect_language(text), OUTCOME_UNCONFIGURED
+        decision = self._decision(PURPOSE_LANGUAGE_DETECT, tenant_id)
+        if decision is not None and not decision.allowed:
+            return detect_language(text), OUTCOME_DENIED
+        try:
+            response = self.model_provider.complete(
+                DETECT_SYSTEM_PROMPT, f"Customer message:\n{text[:2000]}"
+            )
+            self._record_cost(tenant_id, response, "language_detect")
+            payload = json.loads(response.content)
+            language = payload["language"]
+            if isinstance(language, str) and language in KNOWN_LANGUAGES:
+                return language, OUTCOME_MODEL
+        except Exception:
+            logger.debug(
+                "language.detect_failed", extra={"provider": type(self.model_provider).__name__}
+            )
+        record_call_failure(PURPOSE_LANGUAGE_DETECT, tenant_id)
+        return detect_language(text), OUTCOME_FAILED
 
     # ------------------------------------------------------------ translation
 
@@ -214,17 +238,21 @@ class LanguageService:
     ) -> tuple[str, bool, str]:
         """Translate ``text`` to ``target_language``.
 
-        Returns ``(translated_text, translated, source)``. When the target
-        matches the service language, or the provider fails/misbehaves, the
-        original text is returned with ``translated=False`` — the turn path
-        never blocks on translation.
+        Returns ``(translated_text, translated, source)``. ``source`` names why
+        the returned text is what it is: ``"none"`` (the reply is already in the
+        target language), ``"model"``, or the reason the original stands --
+        ``"denied"``, ``"failed"``, ``"unconfigured"`` or ``"rule"`` (the model
+        echoed the original). When the target matches the service language, or
+        the provider fails/misbehaves, the original text is returned with
+        ``translated=False`` — the turn path never blocks on translation.
         """
         if not target_language or target_language == self.service_language:
-            return text, False, "none"
+            return text, False, OUTCOME_NONE
         if self.model_provider is None:
-            return text, False, "rule"
-        if not self._permitted(PURPOSE_LANGUAGE_TRANSLATE, tenant_id):
-            return text, False, "rule"
+            return text, False, OUTCOME_UNCONFIGURED
+        decision = self._decision(PURPOSE_LANGUAGE_TRANSLATE, tenant_id)
+        if decision is not None and not decision.allowed:
+            return text, False, OUTCOME_DENIED
         try:
             response = self.model_provider.complete(
                 TRANSLATE_SYSTEM_PROMPT,
@@ -236,11 +264,12 @@ class LanguageService:
             if not isinstance(translation, str) or not translation.strip():
                 raise ValueError("Translation must be a non-empty string")
             if translation.strip() == text.strip():
-                return text, False, "rule"
-            return translation.strip(), True, "model"
+                return text, False, OUTCOME_RULE
+            return translation.strip(), True, OUTCOME_MODEL
         except Exception:
             logger.debug(
                 "language.translate_failed",
                 extra={"target_language": target_language},
             )
-            return text, False, "rule"
+            record_call_failure(PURPOSE_LANGUAGE_TRANSLATE, tenant_id)
+            return text, False, OUTCOME_FAILED
