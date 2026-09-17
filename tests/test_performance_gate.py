@@ -9,7 +9,10 @@ internally consistent.
 
 from __future__ import annotations
 
+import tempfile
 import unittest
+from pathlib import Path
+from unittest.mock import patch
 
 from scripts import performance_gate
 from scripts.performance_gate import (
@@ -167,6 +170,64 @@ class HeapSessionTests(unittest.TestCase):
         self.assertIn(self.PRECISE_FLAG, performance_gate.HEAP_SESSION_ARGS)
         self.assertIn(self.PRECISE_FLAG, performance_gate.LEAK_PROBE_ARGS)
         self.assertNotIn(self.PRECISE_FLAG, performance_gate.TIMING_SESSION_ARGS)
+
+
+class StaticBudgetCoverageTests(unittest.TestCase):
+    """The static budgets must measure everything and must still be able to fail.
+
+    Two structural properties, both learned the hard way. The widget payload used
+    to name its two files explicitly, so a second widget module would have
+    escaped the budget silently — the same fail-open shape as a ceiling that sits
+    so far above its payload that it cannot fail (a 15 MB heap budget reported
+    green for four nights). Neither property belongs to a particular number, so
+    both are asserted against a synthetic tree rather than the live one.
+    """
+
+    def _temp_tree(self, widget_module_bytes: int) -> tuple[tempfile.TemporaryDirectory, Path]:
+        tmp = tempfile.TemporaryDirectory()
+        static = Path(tmp.name) / "app" / "static"
+        (static / "js").mkdir(parents=True)
+        (static / "css").mkdir(parents=True)
+        (static / "app.js").write_text("// entry\n", encoding="utf-8")
+        (static / "styles.css").write_text("/* styles */\n", encoding="utf-8")
+        (static / "css" / "tokens.css").write_text("/* tokens */\n", encoding="utf-8")
+        (static / "widget-app.js").write_text("// widget shell\n", encoding="utf-8")
+        (static / "js" / "widget-core.js").write_text("// core\n", encoding="utf-8")
+        (static / "js" / "widget-extra.js").write_text(
+            "//" + "x" * widget_module_bytes + "\n", encoding="utf-8"
+        )
+        return tmp, static
+
+    def test_widget_payload_includes_every_widget_module(self) -> None:
+        tmp, static = self._temp_tree(400)
+        self.addCleanup(tmp.cleanup)
+        names = [path.name for path in performance_gate._widget_payload_files(static)]
+        self.assertEqual(names, ["widget-app.js", "widget-core.js", "widget-extra.js"])
+
+        with patch.object(performance_gate, "ROOT", Path(tmp.name)):
+            sizes = performance_gate._static_payload()
+        expected = sum(
+            path.stat().st_size for path in performance_gate._widget_payload_files(static)
+        )
+        self.assertEqual(sizes["widget_js_bytes"], expected)
+
+    def test_widget_budget_reports_a_problem_when_a_module_grows(self) -> None:
+        tmp, _static = self._temp_tree(BUDGETS["widget_js_bytes"] + 1_000)
+        self.addCleanup(tmp.cleanup)
+        with patch.object(performance_gate, "ROOT", Path(tmp.name)):
+            _sizes, problems = check_static_budgets()
+        self.assertTrue(problems, "an oversized widget module must fail the gate")
+        self.assertIn("widget_js_bytes", "\n".join(problems))
+
+    def test_static_budgets_keep_bounded_headroom(self) -> None:
+        sizes, _problems = check_static_budgets()
+        for key, limit in BUDGETS.items():
+            ratio = limit / sizes[key]
+            self.assertLessEqual(
+                ratio,
+                performance_gate.MAX_STATIC_HEADROOM,
+                f"{key}: ceiling {limit} sits {ratio:.1%} above the measured {sizes[key]}",
+            )
 
 
 if __name__ == "__main__":

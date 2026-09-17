@@ -198,4 +198,78 @@ export function messageTone(role) {
   return "assistant";
 }
 
+/* H01 — resumable send and idle polling.
+ *
+ * These live here rather than in the entry point because they are the parts
+ * that must not be wrong: whether a retry is the same send attempt (a second
+ * key would produce a second customer message), whether a poll may run at all,
+ * and how far the cursor may move (too far skips a reply, moving on a failed
+ * page re-reads forever).
+ */
+
+export const POLL_BASE_DELAY_MS = 4000;
+export const POLL_MAX_DELAY_MS = 30000;
+
+const MAX_BACKOFF_STEPS = 8;
+
+/**
+ * Decide the send attempt for `content`.
+ *
+ * The same text retried after a failure is the *same* attempt: it keeps its
+ * channel id, so the server resolves it as a replay instead of creating a
+ * second customer message when the first confirmation was lost. Edited text is
+ * a different message and gets a fresh id.
+ */
+export function nextSendAttempt(previous, content, idFactory = makeChannelMessageId) {
+  const text = String(content ?? "").trim();
+  if (!text) return null;
+  if (previous?.channelMessageId && String(previous.content || "") === text) {
+    return previous;
+  }
+  return { channelMessageId: String(idFactory()), content: text };
+}
+
+/**
+ * Fold a polled delta into the transcript.
+ *
+ * Optimistic `local-*` bubbles are dropped first: once the server transcript is
+ * being read the confirmed message is the source of truth, and keeping the
+ * placeholder would render the customer's own message twice.
+ */
+export function mergePolledMessages(current, incoming) {
+  const settled = (current || []).filter(
+    (message) => !String(message?.id || "").startsWith("local-"),
+  );
+  return mergeMessages(settled, incoming);
+}
+
+/** Map the conversation status headers onto the banner state. */
+export function conversationSignals(status, surveyUrl) {
+  const normalized = String(status || "");
+  const url = String(surveyUrl || "");
+  const resolved = normalized === "resolved" && Boolean(url);
+  return {
+    handoff: normalized === "waiting_human" || normalized === "human_active",
+    resolved,
+    resolvedSurveyUrl: resolved ? url : "",
+  };
+}
+
+/** Poll only while an idle, visible conversation can still change. */
+export function shouldPoll(state = {}) {
+  return Boolean(state.conversationId) && !state.resolved && !state.busy && !state.hidden;
+}
+
+/** Exponential backoff for a failing poll, capped at `max`. */
+export function nextPollDelayMs(failures, base = POLL_BASE_DELAY_MS, max = POLL_MAX_DELAY_MS) {
+  const count = Number(failures);
+  const step = Number.isFinite(count) ? Math.max(0, Math.min(Math.trunc(count), MAX_BACKOFF_STEPS)) : 0;
+  return Math.min(base * 2 ** step, max);
+}
+
+/** Move the cursor only on a confirmed page; an empty answer keeps position. */
+export function advanceCursor(current, candidate) {
+  return String(candidate || "") || String(current || "");
+}
+
 export const DEFAULT_WIDGET_CONFIG = DEFAULT_CONFIG;

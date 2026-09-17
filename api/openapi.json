@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Helix Support",
-    "version": "2.21.0"
+    "version": "2.22.0"
   },
   "paths": {
     "/api/supervisor/knowledge-gaps": {
@@ -12436,7 +12436,7 @@
           "widget"
         ],
         "summary": "List widget conversation messages",
-        "description": "List widget conversation messages. Requires: X-Widget-Token (signed, no API key).",
+        "description": "List the customer-visible transcript, resumable through ``cursor``.\n\nResponses carry ``X-Conversation-Status`` (and ``X-CSAT-Survey-URL`` once a\nsurvey is pending) alongside the shared opaque pagination headers\n``X-Next-Cursor`` / ``X-Has-More``, so a client can poll for the delta and\nresume a dropped read instead of re-fetching the whole transcript.",
         "operationId": "list_widget_messages_api_widget_sessions__conversation_id__messages_get",
         "parameters": [
           {
@@ -12458,6 +12458,23 @@
               "minimum": 1,
               "default": 50,
               "title": "Limit"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 512
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
             }
           },
           {

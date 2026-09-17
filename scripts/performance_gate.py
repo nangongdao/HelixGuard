@@ -70,11 +70,28 @@ BASELINE = ROOT / "artifacts" / "performance-baseline.json"
 # that revisit: the ceiling is re-anchored to the realized baseline with ~8%
 # headroom so a runaway dependency or an unminified vendored blob (> 10% jump)
 # still fails the gate.
+# == 2026-09-17 re-anchor (H01: widget resumable send + idle polling) ==
+# The widget payload grew 20,614 -> 26,981 B (+6,367) because the customer shell
+# gained the parts that must not be wrong offline: a send attempt that survives a
+# failure (so a lost confirmation replays instead of double-posting), and a
+# cursor-based idle poll so an operator reply and the CSAT link reach a customer
+# who sends nothing. Unlike the operator side this is raw zero-build source: no
+# Vite step, so comments and formatting ship as-is. The ceiling is re-anchored to
+# the realized baseline with ~7% headroom (the operator reconcile used ~8%) —
+# still far below the >10% jump a runaway dependency would produce.
 BUDGETS = {
     "operator_js_bytes": 780_000,  # app.js + js/*.js + dist/assets/*.js (React runtime)
     "operator_css_bytes": 125_000,  # styles.css + css/tokens.css
-    "widget_js_bytes": 25_000,  # widget-app.js + js/widget-core.js (zero-build, unchanged)
+    "widget_js_bytes": 29_000,  # widget-app.js + every js/widget-*.js (zero-build)
 }
+
+# A static budget may not drift far above the payload it measures: a ceiling that
+# sits well clear of the current bytes can no longer fail, which is the shape that
+# let a 15 MB heap budget report green for four nights (see HEAP_SESSION_ARGS).
+# Raising a ceiling has to stay a bounded, deliberate act rather than a reflexive
+# one; §43.6 anchored the original budgets at ~25% headroom over the baseline, so
+# that is the widest gap allowed here too.
+MAX_STATIC_HEADROOM = 1.25
 
 # Browser budgets (§43.6: LCP/INP/CLS、长任务、内存和 10k 队列渲染).
 BROWSER_BUDGETS = {
@@ -234,6 +251,19 @@ HEAP_SESSION_ARGS = ["--enable-precise-memory-info"]
 LEAK_PROBE_ARGS = ["--enable-precise-memory-info", "--js-flags=--expose-gc"]
 
 
+def _widget_payload_files(static_dir: Path) -> list[Path]:
+    """Every file in the widget's shipped payload.
+
+    The widget ships its own shell plus whatever it imports from ``js/``. The
+    payload used to name ``widget-core.js`` explicitly, so a second widget module
+    would have escaped the budget silently — the same fail-open shape as a budget
+    that cannot fail. Glob the widget-side modules instead of listing them.
+    """
+    files = [static_dir / "widget-app.js"]
+    files.extend(sorted(static_dir.glob("js/widget-*.js")))
+    return files
+
+
 def _static_payload() -> dict[str, int]:
     """Measure the shipped first-paint byte sizes."""
     static_dir = ROOT / "app" / "static"
@@ -258,8 +288,7 @@ def _static_payload() -> dict[str, int]:
             if path.stem.startswith("terminal"):
                 continue
             operator_css += path.stat().st_size
-    widget_js = (static_dir / "widget-app.js").stat().st_size
-    widget_js += (static_dir / "js" / "widget-core.js").stat().st_size
+    widget_js = sum(path.stat().st_size for path in _widget_payload_files(static_dir))
     return {
         "operator_js_bytes": operator_js,
         "operator_css_bytes": operator_css,
