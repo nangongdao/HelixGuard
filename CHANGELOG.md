@@ -2,6 +2,40 @@
 
 所有版本遵循[语义化版本](https://semver.org)。API 变更遵循 `docs/API_POLICY.md`(响应体只增不改、弃用需 `Deprecation`/`Sunset` 头 + 至少一个次版本过渡、每次变更记录于此)。
 
+## 2.20.0 — 夜间性能门禁不再「不可能失败」: heap 与泄漏探针移入专用精确会话 (2026-09-17)
+
+Version 2.20.0 修的是一个**门禁自身**的缺陷，不是产品缺陷。主链夜间（schedule）CI 已经**连续四晚（2026-09-14 起）红**，失败作业恒为 `browser`，错误恒为：
+
+> `FAIL: heap growth unmeasurable: every sample is the quantized constant 10000000 — launch Chromium with --enable-precise-memory-info (see PERF_PRECISE_MEMORY) or the 15.0 MB budget cannot fail`
+
+**这个门禁本来就不可能失败。** Chromium 出于隐私把 `performance.memory.usedJSHeapSize` 量子化为固定 `10_000_000`，除非启动时带 `--enable-precise-memory-info`；于是每一轮刷新的采样**全等**，`tail - first` 恒为 0.0 MB，**15 MB 的 heap 预算永远无法被超过**。`scripts/performance_gate.py` 早已知道这件事并且**故意**报红点名修法（这正是「会腐烂的断言」应有的处理），但这个测量被 `PERF_PRECISE_MEMORY` 环境变量把守着，而 `.github/workflows/ci.yml` 的 `schedule` 步骤**从未设置它**——夜间性能/视觉门禁因此**连续多晚零信号**，任何真实内存回归都会被这条恒定失败淹没。该作业**不在 PR 门禁内**，所以逐轮「CI 5/5 全绿」完全看不到它。
+
+**修法：专用精确会话，且不保留任何开关**
+
+- heap 采样（20 轮刷新）与详情开关泄漏探针（5 轮、GC 后采样）从「主会话 + 环境变量」改为**各自独立的 Chromium 会话**，固定携带 `--enable-precise-memory-info`（泄漏探针另加 `--js-flags=--expose-gc`）。
+- **时延会话保持无 flag**：`TIMING_SESSION_ARGS = []`。该 flag 会关掉部分分配器优化，`--expose-gc` 实测会把同会话桌面 LCP 拉高约 50 ms——两者都会污染 wall-clock 预算，所以时延与会话彻底分离，两个预算同时可信。
+- **删除 `PERF_PRECISE_MEMORY`**：精确会话无条件启用。原来的开关默认关闭，正是它让预算「静默失效」。
+- fail-closed 判定抽成纯函数 `heap_growth_problem(samples)`：`performance.memory` 缺失、或全部样本等于量子化常量 → 显式报「budget went unenforced / cannot fail」，绝不把测不到读成 0 增长；专用会话启动失败同样计入 `problems`（本应发生的测量没有发生即门禁失败）。
+- 增长口径固定为「稳定尾部（末三样本最大值）相对首个样本」，不是 `max - min`——后者测抖动，对单调爬升且从不回落的泄漏会低估。
+- 三处会话共用 `_launch_browser` 单一入口，保留 `CHROME_EXECUTABLE` 与 msedge 回落，避免新增会话静默丢掉回落路径。
+- **顺带关掉第二个「不可能失败」的预算**：详情泄漏探针原先只在「所有样本 > 0」时记录数字，读不到堆（或样本被量子化）时既不记录也不报错——5 MB 保留预算静默失效，与本版要修的缺陷同类。现将判定抽成纯函数 leak_retention_problem(samples)，与 heap_growth_problem 对称，含量子化守卫（样本全等于 10 MB 常量会被读成「零泄漏」而假通过）。
+
+**验证**
+
+- 红光（实现前）：`tests/test_performance_gate.py` 新增 10 例 → 失败于 `ImportError: cannot import name 'heap_growth_mb' from 'scripts.performance_gate'`，且模块仍暴露 `PERF_PRECISE_MEMORY`。
+- 绿光：`tests/test_performance_gate.py` — **14/14**（原 4 例 + 新增 10 例：量子化堆必须被报出而非读作 0 增长、内存不可用必报、真实样本可测、增长为尾部对首样本、平坦堆增长为 0；「精确会话不可被环境变量关掉 + 时延会话不得携带该 flag」的结构断言；以及泄漏预算的同类 fail-closed 三态）。
+- **端到端实证（本机 clean DB，未设任何环境变量）**：`python scripts/performance_gate.py --base-url http://127.0.0.1:8765` 连跑四次**全部 exit 0**（末次输出 `performance gate passed (static+browser)`），metrics 含真实 `heap_growth_mb` **0.25 / 0.27 / 0.30 / 0.25 MB** 与 `detail_leak_mb` **0.04 / 0.04 / 0.03 / 0.03 MB**；时延预算同轮全部在限内（web LCP 856 ms / 2500、桌面 LCP 776 ms / 1000、桌面 CLS 0.0636 / 0.10）。改动前该状态必定报 `cannot fail` 并 exit 1。
+- 文档对齐：`docs/OPERATIONS.md` 与 `docs/PERF_NOTES.md` 原先写「flag 关闭时按量子化跳过」，与代码实际的 fail-closed 行为相反，已改写为「测不到即门禁失败、无环境开关、夜间作业不再需要任何变量」。
+- 其余门禁：threat_model_gate `--release 2.20.0` 通过（新增 delta）；openapi 快照随版本号重生成（仅 `info.version` 变动，API 面零变化）。
+- 全量：**1915 通过 / 44 跳过 / 2 失败**（两例失败是已知的 opentelemetry 环境噪声 `test_telemetry_edge` / `test_telemetry_otel_branches`，与 2.18.0 同两例，非回归），覆盖率 **89%**（14732 语句 / 1350 未覆盖 / 3642 分支 / 574 部分，`--fail-under=85` 通过）。
+
+**行为边界（如实记录）**
+
+- **无运行时面变化**：只改 CI 门禁脚本、其单测与运维文档，不触及应用请求路径、鉴权、多租户隔离、出境与数据保留策略。
+- 夜间作业**不需要**改 workflow（这正是本版的目的之一）——变量已从代码中移除，而不是在 workflow 里补一个。
+- 多一次浏览器会话启动（约 1–3 s），换取 heap 预算可执行。
+- 未纳入本版：`ai-eval` 作业的偶发不稳定（同一次 `d45e973` 的 PR run 通过、main push run 因 `adv-secret-canary-sentinel` 知识命中丢失而失败，`gh run rerun --failed` 后转绿；本地同树连跑 28 次 24/24，含 25 个 `PYTHONHASHSEED` 全绿）。安全底线门禁不稳定本身是缺陷，需独立变更定位其资源敏感性。
+
 ## 2.19.0 — 附件失败可恢复: 上传回执、待重试队列与 island 双轨不丢稿 (2026-09-17)
 
 Version 2.19.0 落地路线图 H02 的第二片。2.18.0 关掉的是「重试一次人工回复会变成两条客户可见消息」，而同一个坐席流程里**往前一步**还开着同一个洞：文件上传成功、响应丢了、工作台重试，字节就被存了第二遍——重复的那份既多算一次租户配额，又能被下一条消息绑走，于是一次操作变成两个附件。与此同时，**上传失败**这条路会把坐席刚挑好的文件直接丢掉：队列只在成功时追加，一次 413 配额错误或网络抖动之后，坐席只能回到磁盘上重新找一遍文件。这正是 H02 验收条款里那句「附件失败…不丢稿」缺失的另一半。

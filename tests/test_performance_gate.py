@@ -11,7 +11,16 @@ from __future__ import annotations
 
 import unittest
 
-from scripts.performance_gate import BROWSER_BUDGETS, BUDGETS, check_static_budgets
+from scripts import performance_gate
+from scripts.performance_gate import (
+    BROWSER_BUDGETS,
+    BUDGETS,
+    HEAP_QUANTIZED_BYTES,
+    check_static_budgets,
+    heap_growth_mb,
+    heap_growth_problem,
+    leak_retention_problem,
+)
 
 
 class StaticBudgetTests(unittest.TestCase):
@@ -68,6 +77,96 @@ class StaticBudgetTests(unittest.TestCase):
         for web_key, desktop_key in desktop_twins:
             self.assertIn(web_key, BROWSER_BUDGETS)
             self.assertIn(desktop_key, BROWSER_BUDGETS)
+
+
+class HeapBudgetTests(unittest.TestCase):
+    """The heap budget must be measured, never assumed.
+
+    These pin the fail-closed states without a browser: a quantized or absent
+    ``performance.memory`` has to be *reported*, never read as "no growth".
+    Both states were live in the nightly job — Chromium quantizes
+    ``usedJSHeapSize`` to a fixed 10 MB unless launched with
+    ``--enable-precise-memory-info``, so every sample was identical, the
+    tail-minus-first growth was 0.0 MB, and a 15 MB budget that cannot fail
+    reported green for four consecutive nights.
+    """
+
+    def test_quantized_heap_is_reported_not_read_as_zero(self) -> None:
+        problem = heap_growth_problem([HEAP_QUANTIZED_BYTES] * 5)
+        self.assertIsNotNone(problem)
+        self.assertIn("cannot fail", problem)
+
+    def test_missing_memory_is_reported(self) -> None:
+        for samples in ([], [0, 0, 0]):
+            with self.subTest(samples=samples):
+                self.assertIsNotNone(heap_growth_problem(samples))
+
+    def test_real_samples_are_measurable(self) -> None:
+        self.assertIsNone(heap_growth_problem([1_000_000, 1_500_000, 1_200_000]))
+
+    def test_growth_is_tail_versus_first_sample(self) -> None:
+        # Budget is *retention*: a leak that climbs across every cycle has to
+        # register even when each individual step is small, and a heap that
+        # climbs then dips must not be netted out by the dip.
+        mb = 1024 * 1024
+        samples = [mb, 3 * mb, 5 * mb, 7 * mb, 9 * mb]
+        self.assertEqual(heap_growth_mb(samples), 8.0)
+
+    def test_growth_of_a_flat_heap_is_zero(self) -> None:
+        mb = 1024 * 1024
+        self.assertEqual(heap_growth_mb([mb, mb + 1024, mb, mb + 2048]), 0.0)
+
+
+class LeakBudgetTests(unittest.TestCase):
+    """The retention budget must fail closed for the same reason the heap does.
+
+    The probe used to record a number only when every sample was positive, so
+    an unreadable or quantized heap produced silence instead of a problem: the
+    5 MB retention budget went unenforced with no signal. These pin the
+    reporting so the second budget cannot become another that cannot fail.
+    """
+
+    def test_unreadable_heap_is_reported(self) -> None:
+        for samples in ([], [0, 0, 0, 0, 0]):
+            with self.subTest(samples=samples):
+                problem = leak_retention_problem(samples)
+                self.assertIsNotNone(problem)
+                self.assertIn("unenforced", problem)
+
+    def test_quantized_heap_is_reported_not_read_as_no_leak(self) -> None:
+        problem = leak_retention_problem([HEAP_QUANTIZED_BYTES] * 5)
+        self.assertIsNotNone(problem)
+        self.assertIn("cannot fail", problem)
+
+    def test_real_samples_are_measurable(self) -> None:
+        self.assertIsNone(leak_retention_problem([900_000, 905_000, 910_000, 902_000, 908_000]))
+
+
+class HeapSessionTests(unittest.TestCase):
+    """The precise-memory session must be unconditional, and separate.
+
+    ``PERF_PRECISE_MEMORY`` is how the heap budget silently went unenforced:
+    the flag defaulted off, the nightly job never set it, and the budget that
+    could not fail reported green. The precise session is now unconditional —
+    reintroducing an environment switch that can turn the measurement off
+    breaks ``test_precise_memory_is_not_opt_in`` on purpose. The *timing*
+    session must stay flag-free: ``--enable-precise-memory-info`` disables some
+    allocator optimizations, which measurably skews the wall-clock budgets
+    measured in the same session.
+    """
+
+    PRECISE_FLAG = "--enable-precise-memory-info"
+
+    def test_precise_memory_is_not_opt_in(self) -> None:
+        self.assertFalse(
+            hasattr(performance_gate, "PERF_PRECISE_MEMORY"),
+            "an environment switch that can silently disable the heap budget is back",
+        )
+
+    def test_precise_sessions_carry_the_flag_and_the_timing_session_does_not(self) -> None:
+        self.assertIn(self.PRECISE_FLAG, performance_gate.HEAP_SESSION_ARGS)
+        self.assertIn(self.PRECISE_FLAG, performance_gate.LEAK_PROBE_ARGS)
+        self.assertNotIn(self.PRECISE_FLAG, performance_gate.TIMING_SESSION_ARGS)
 
 
 if __name__ == "__main__":

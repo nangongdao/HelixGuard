@@ -198,7 +198,7 @@ root cause:**chunk 逐条写入的 WAL 提交开销**(Windows 本地 SQLite,单�
 
 `scripts/performance_gate.py --base-url URL` 的浏览器层在 Playwright Chromium
 (1440×900,空队列基线)中实测网页与桌面壳(§D5 前置条件)两条轨道的指标,
-预算值在 `BROWSER_BUDGETS`。本机 clean-DB 实测(2026-09-02,PERF_PRECISE_MEMORY=1):
+预算值在 `BROWSER_BUDGETS`。本机 clean-DB 实测(2026-09-02):
 
 | 指标 | web 实测 | web 预算 | 桌面壳实测 | 桌面壳预算 |
 |------|---------|---------|-----------|-----------|
@@ -218,11 +218,14 @@ root cause:**chunk 逐条写入的 WAL 提交开销**(Windows 本地 SQLite,单�
   本机曾测到 1020–1220 ms 的连续越限——根因是系统级负载(后台 webview/
   内存压力),**不是应用回归**;clean DB + 整机空闲后回落。CI nightly 的
   runner 负载不同,wall-clock 预算对 runner 敏感,不进 per-PR 门。
-- **`PERF_PRECISE_MEMORY=1` 才启用精确 heap 与泄漏探针**(否则 Chromium
-  把 `performance.memory` 量子化为固定 10MB,测量无意义);CI 不设该变量,
-  探测按量子化跳过。`detail_leak_mb` 探针在**独立浏览器会话**跑
-  (`--js-flags=--expose-gc`),与主会话隔离——实测 `--expose-gc` 会把同
-  会话桌面 LCP 拉高 ~50ms,时延预算与内存探针互不污染。
+- **heap 与泄漏探针在专用会话里实测(2.20.0 起)**:两者都由一个带
+  `--enable-precise-memory-info` 的**独立 Chromium 会话**测量——不带该 flag 时
+  Chromium 把 `performance.memory` 量子化为固定 10MB,每轮采样全等、增长恒
+  读作 0,15MB 预算**永远无法失败**(09-14 起连续四晚夜间 CI 就是败在这里)。
+  该 flag 会关掉部分分配器优化、扰动 wall-clock 时延,因此**不进时延会话**;
+  `detail_leak_mb` 探针另加 `--js-flags=--expose-gc`(实测会把同会话桌面 LCP
+  拉高 ~50ms),两者互不污染。**没有环境开关**——测不到即门禁失败,不静默跳过,
+  夜间作业也不再需要任何变量。
 - **INP 探针必须走受信输入**:`locator.click()` 才会产生 interactionId,
   程序化 `element.click()` 静默记不到任何事件;探针测到 0 时按「budget
   went unenforced」显式报红,不静默跳过。
@@ -232,5 +235,6 @@ root cause:**chunk 逐条写入的 WAL 提交开销**(Windows 本地 SQLite,单�
   过滤 `.map`(22 chunk 共 2.12MB,web 端保留供调试),桌面包减重 ~2.1MB。
 
 相关测试:`tests/test_performance_gate.py`(静态预算键完备、桌面预算必须有
-web 孪生、INP/泄漏键覆盖);浏览器层 `python scripts/performance_gate.py
---base-url http://127.0.0.1:8765`。
+web 孪生、INP/泄漏键覆盖,以及 heap 预算的 fail-closed 状态与"精确会话不可被
+环境变量关掉"的结构断言);浏览器层 `python scripts/performance_gate.py
+--base-url http://127.0.0.1:8765`——**无需任何环境变量**。

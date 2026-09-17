@@ -434,6 +434,28 @@
         "服务端回归：pytest -k 'attachment or rich_media' 70 项全通过；迁移门禁 48 条连续；openapi 快照已随新增 Idempotency-Key 头重生成",
         "已知未覆盖：归档删除（app/db/archive.py）目前不清理 attachments 行与其磁盘对象——既有缺口（保留清单一侧已覆盖），需独立变更；附件行上的回执键同样随 SELECT * 进入既有导出路径"
       ]
+    },
+    {
+      "release": "2.20.0",
+      "date": "2026-09-17",
+      "owner": "release-eng",
+      "approved_by": "platform-sec",
+      "controls": [
+        "夜间性能门禁的 heap 预算从「不可能失败」改为真正可执行：scripts/performance_gate.py 把 heap 采样与详情泄漏探针移入**独立、带 --enable-precise-memory-info 的 Chromium 会话**，时延会话保持无 flag。此前 heap 测量由 PERF_PRECISE_MEMORY 环境变量把守，而 .github/workflows/ci.yml 的 schedule（夜间）作业从未设置它——Chromium 出于隐私把 performance.memory.usedJSHeapSize 量子化为固定 10,000,000，每轮采样全等、tail-vs-first 增长恒 0.0 MB，15 MB 预算**连续四晚（2026-09-14 起）零信号**，任何真实内存回归都被恒定失败淹没",
+        "删除该环境开关：PERF_PRECISE_MEMORY 不再是代码中的概念，精确会话无条件启用。新增结构断言 tests/test_performance_gate.py::HeapSessionTests 钉住两点——「精确会话不可被环境变量关掉」以及「时延会话不得携带 precise flag」（该 flag 关掉部分分配器优化，会污染同一会话里测得的 wall-clock 预算）",
+        "fail-closed 判定抽成纯函数 heap_growth_problem(samples)：performance.memory 缺失、或全部样本等于量子化常量 10,000,000 时，显式报「budget went unenforced / cannot fail」，绝不把测不到读成 0 增长；专用会话启动失败同样计入 problems（本应发生的测量没有发生即门禁失败，不是缺失的可选指标）",
+        "增长口径固定为「稳定尾部（末三个样本的最大值）相对首个样本」，而非 max-min：后者测的是抖动，对单调爬升且从不回落的内存泄漏会低估，正是 leak 的形状",
+        "三处浏览器会话共用 _launch_browser 单一入口并保留 CHROME_EXECUTABLE 与 msedge 回落，避免新增会话静默丢掉本地回落路径（三份重复的回落代码就会漏掉一份）",
+        "顺带关掉第二个「不可能失败」的预算：详情泄漏探针原先只在「所有样本 > 0」时记录数字，读不到堆（或样本被量子化）时既不记录也不报错——5 MB 保留预算静默失效，与本版要修的缺陷同类。现将判定抽成纯函数 leak_retention_problem(samples)，与 heap_growth_problem 对称，含量子化守卫（样本全等于 10 MB 常量会被读成「零泄漏」而假通过）",
+        "无运行时面变化：本次只改 CI 门禁脚本、其单元测试与运维文档，不触及应用请求路径、鉴权、多租户隔离、出境与数据保留策略"
+      ],
+      "verification_evidence": [
+        "现场取证：gh run list --event schedule 显示 2026-09-14 起连续四晚 failure，失败作业恒为 browser，错误恒为 'heap growth unmeasurable: every sample is the quantized constant 10000000 — launch Chromium with --enable-precise-memory-info (see PERF_PRECISE_MEMORY) or the 15.0 MB budget cannot fail'；该作业不在 PR 门禁内，故逐轮「CI 5/5」看不到",
+        "红光（实现前）：tests/test_performance_gate.py 新增的 7 例（heap 预算 fail-closed 与增长口径 5 例 + 精确会话结构断言 2 例）在实现前失败——ImportError: cannot import name 'heap_growth_mb' from 'scripts.performance_gate'，且模块仍暴露 PERF_PRECISE_MEMORY；修复后 11/11 通过",
+        "端到端实证（本机 clean DB，**未设任何环境变量**）：python scripts/performance_gate.py --base-url http://127.0.0.1:8765 连跑三次退出码 0，metrics 含真实 heap_growth_mb 0.25 / 0.27 / 0.30 MB 与 detail_leak_mb 0.04 / 0.04 / 0.03 MB（改动前该状态必定报 cannot fail 并 exit 1），时延预算同轮全部在预算内",
+        "全量回归：1915 通过 / 44 跳过 / 2 失败（两例失败是已知的 opentelemetry 环境噪声 test_telemetry_edge / test_telemetry_otel_branches，非回归），覆盖率 89%（14732 语句 / 1350 未覆盖，--fail-under=85 通过）；ruff 0.9.9 对 app tests scripts 全绿；pyright app 0 实质错误（57 条 reportMissingImports 为环境缺包噪声）",
+        "文档与代码对齐：docs/OPERATIONS.md 与 docs/PERF_NOTES.md 原先描述「flag 关闭时按量子化跳过」，与代码的 fail-closed 行为相反，已改写为「测不到即门禁失败、无环境开关、夜间作业无需任何变量」；同时纠正本地笔记 notes.md 中与事实相反的「CI nightly already sets the flag」（该文件未跟踪）"
+      ]
     }
   ]
 }

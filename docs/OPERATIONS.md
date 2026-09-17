@@ -332,10 +332,15 @@ changelog entry.
   re-run on a clean DB and an idle machine before touching anything. Only a
   single-track rise (desktop-only, web flat) points at the Tauri shell path:
   splash hand-off, island mount, or sidecar asset staleness.
-- **`heap_growth_mb` / `detail_leak_mb` unmeasurable**: the gate reports this
-  when `PERF_PRECISE_MEMORY` is off (Chromium quantizes `performance.memory`
-  to a fixed 10 MB) or when the launch flag is missing. CI does not set the
-  variable by design; a local run needs `PERF_PRECISE_MEMORY=1`.
+- **`heap_growth_mb` / `detail_leak_mb` unmeasurable**: the heap samples and
+  the leak probe run in dedicated Chromium sessions launched with
+  `--enable-precise-memory-info`, kept separate from the timing session because
+  the flag disables allocator optimizations and would skew the wall-clock
+  budgets. The gate reports this state when `performance.memory` is absent or
+  when every sample is Chromium's quantized 10 MB constant, i.e. the flag did
+  not reach that session. There is no environment switch to turn the
+  measurement off: an unmeasurable heap is a gate failure, not a skipped
+  budget.
 - **`detail_leak_mb` climbing**: a leak probe failure means detail
   open/close retains heap across cycles. Before debugging the renderer,
   confirm the probe itself worked: it needs a clickable queue row (the INP
@@ -346,10 +351,10 @@ changelog entry.
   was missing or the seed failed. Seed the queue (the gate does this via
   `POST /api/conversations`) and re-run; the gate refuses to read 0 as a
   pass.
-- **Desktop LCP persistently near 1000 ms**: re-run with `PERF_PRECISE_MEMORY=1`
-  and the machine idle. Historical local spread is 860–984 ms against a
-  1000 ms budget; values past ~1.1 s on a clean DB warrant a thread-island
-  inspection rather than a budget raise.
+- **Desktop LCP persistently near 1000 ms**: re-run on an idle machine with a
+  clean DB. Historical local spread is 860–984 ms against a 1000 ms budget;
+  values past ~1.1 s on a clean DB warrant a thread-island inspection rather
+  than a budget raise.
 
 The static byte layer (`operator_js_bytes` / `operator_css_bytes` /
 `widget_js_bytes`, no browser needed) fails on bundle growth: check that the

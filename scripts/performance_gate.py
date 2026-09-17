@@ -220,10 +220,18 @@ def _measure_interaction_inp(page: Any) -> float:
 # memory info is disabled — a fixed 10 MB, identical on every sample. Measured,
 # not assumed: with --enable-precise-memory-info the same page reports ~940 KB.
 HEAP_QUANTIZED_BYTES = 10_000_000
-# Opt in to real heap numbers. Off by default because the flag also disables
-# some allocator optimizations, which would skew the timing budgets measured
-# in the same browser session.
-PERF_PRECISE_MEMORY = os.environ.get("PERF_PRECISE_MEMORY") == "1"
+# The precise-memory flag disables some allocator optimizations, which
+# measurably skews the wall-clock budgets (desktop LCP) measured alongside it,
+# so it must not ride along in the timing session.
+TIMING_SESSION_ARGS: list[str] = []
+# Real heap numbers, measured in a session of their own. Unconditional on
+# purpose: gating this behind an opt-in environment variable is exactly how the
+# budget went unenforced — the flag defaulted off, the nightly job never set
+# it, and a 15 MB budget that can never fail reported green for four nights.
+HEAP_SESSION_ARGS = ["--enable-precise-memory-info"]
+# The leak probe additionally forces GC between cycles, so a sample reflects
+# live objects rather than V8's lazy idle collection.
+LEAK_PROBE_ARGS = ["--enable-precise-memory-info", "--js-flags=--expose-gc"]
 
 
 def _static_payload() -> dict[str, int]:
@@ -270,9 +278,84 @@ def check_static_budgets() -> tuple[dict[str, int], list[str]]:
     return sizes, problems
 
 
+def _launch_browser(playwright: Any, chrome_binary: str | None, args: list[str]) -> Any:
+    """Launch headless Chromium with ``args``.
+
+    Falls back to a local Chrome (``CHROME_EXECUTABLE``) and then to the msedge
+    channel, for machines with no Playwright-managed browsers. Kept in one
+    place because three sessions now launch with different argument sets —
+    duplicating the fallback is how one of them silently loses it.
+    """
+    from playwright.sync_api import Error as PlaywrightError
+
+    try:
+        return playwright.chromium.launch(headless=True, args=args)
+    except PlaywrightError:
+        if chrome_binary:
+            return playwright.chromium.launch(
+                executable_path=chrome_binary, headless=True, args=args
+            )
+        return playwright.chromium.launch(channel="msedge", headless=True, args=args)
+
+
+def heap_growth_problem(samples: list[int]) -> str | None:
+    """Why the heap budget is unenforced, or ``None`` when it is measurable.
+
+    Split out from the browser harness so the fail-closed states are testable
+    without Chromium. A quantized or absent ``performance.memory`` must be
+    *reported*, never silently read as "no growth" — that reading is what let a
+    budget that cannot fail pass for four consecutive nightly runs.
+    """
+    budget = BROWSER_BUDGETS["heap_growth_mb"]
+    if not samples or not all(s > 0 for s in samples):
+        return (
+            "heap growth unmeasurable: performance.memory is unavailable, so the "
+            f"{budget} MB budget went unenforced"
+        )
+    if len(set(samples)) == 1 and samples[0] == HEAP_QUANTIZED_BYTES:
+        return (
+            "heap growth unmeasurable: every sample is the quantized constant "
+            f"{HEAP_QUANTIZED_BYTES} — the heap session must be launched with "
+            f"--enable-precise-memory-info or the {budget} MB budget cannot fail"
+        )
+    return None
+
+
+def heap_growth_mb(samples: list[int]) -> float:
+    """Growth across the refresh cycles: the settled tail against the first.
+
+    Not ``max - min``: that measures jitter, and stays small for a heap that
+    climbs monotonically and never comes back down.
+    """
+    return round((max(samples[-3:]) - samples[0]) / (1024 * 1024), 2)
+
+
+def leak_retention_problem(samples: list[int]) -> str | None:
+    """Why the detail-leak budget is unenforced, or ``None`` when measurable.
+
+    Same fail-closed rule as :func:`heap_growth_problem`, and for the same
+    reason: the probe used to record a number only when every sample was
+    positive, so an unreadable (or quantized) heap produced silence rather than
+    a problem — the 5 MB retention budget went unenforced with no signal. The
+    quantized check matters too: every sample equal to the 10 MB constant would
+    otherwise read as a clean 0 MB leak, i.e. a second budget that cannot fail.
+    """
+    budget = BROWSER_BUDGETS["detail_leak_mb"]
+    if not samples or not all(s > 0 for s in samples):
+        return (
+            "detail leak probe: performance.memory was unreadable across the cycles, "
+            f"so the {budget} MB budget went unenforced"
+        )
+    if len(set(samples)) == 1 and samples[0] == HEAP_QUANTIZED_BYTES:
+        return (
+            "detail leak probe: every sample is the quantized constant "
+            f"{HEAP_QUANTIZED_BYTES}, so the {budget} MB budget cannot fail"
+        )
+    return None
+
+
 def check_browser_budgets(base_url: str) -> tuple[dict[str, float | None], list[str]]:
     """Run the Playwright measurements against a live server."""
-    from playwright.sync_api import Error as PlaywrightError
     from playwright.sync_api import sync_playwright
 
     metrics_script = """
@@ -352,25 +435,12 @@ def check_browser_budgets(base_url: str) -> tuple[dict[str, float | None], list[
 
     problems: list[str] = []
     metrics: dict[str, float | None] = {}
-    # --expose-gc 只用于独立 leak-probe 会话;主会话带它会把桌面 LCP 拉高
-    # ~50ms(实测对照),污染同一会话的时延预算。
-    launch_args = ["--enable-precise-memory-info"] if PERF_PRECISE_MEMORY else []
+    # The timing session carries no flags: --enable-precise-memory-info and
+    # --expose-gc both perturb what is measured here (--expose-gc measurably
+    # raises desktop LCP ~50 ms), so the heap measurements do not share it.
     with sync_playwright() as playwright:
         chrome_binary = os.environ.get("CHROME_EXECUTABLE")
-        try:
-            browser = playwright.chromium.launch(headless=True, args=launch_args)
-        except PlaywrightError:
-            if chrome_binary:
-                # Local machines that keep Chrome in a non-standard location
-                # (no Playwright-managed browsers, no msedge channel at the
-                # default path) can point the gate at their real browser.
-                browser = playwright.chromium.launch(
-                    executable_path=chrome_binary, headless=True, args=launch_args
-                )
-            else:
-                browser = playwright.chromium.launch(
-                    channel="msedge", headless=True, args=launch_args
-                )
+        browser = _launch_browser(playwright, chrome_binary, TIMING_SESSION_ARGS)
         context = browser.new_context(viewport={"width": 1440, "height": 900})
         page = context.new_page()
 
@@ -518,15 +588,16 @@ def check_browser_budgets(base_url: str) -> tuple[dict[str, float | None], list[
             )
         metrics["queue_10k_island_render_ms"] = island_render_ms
 
-        # --- heap growth across refresh cycles -------------------------
+        browser.close()
+
+        # --- heap growth across refresh cycles (dedicated session) --------
         # Chromium quantizes performance.memory for privacy unless launched
         # with --enable-precise-memory-info: usedJSHeapSize returns a constant
         # 10,000,000 regardless of real usage. That constant is > 0, so the old
-        # `all(s > 0)` guard passed, every sample was identical, and
-        # `max - min` was always 0.0 — which is exactly what
-        # artifacts/performance-baseline.json recorded. The budget was set and
-        # could never be exceeded. HEAP_QUANTIZED_BYTES detects that state so
-        # it is reported instead of being read as a clean 0 MB of growth.
+        # `all(s > 0)` guard passed, every sample was identical, and the growth
+        # read as a clean 0.0 MB — a budget that could never be exceeded. The
+        # flag skews wall-clock timings, so the samples are taken here rather
+        # than in the timing session that just closed.
         await_refresh = """
         () => new Promise((done) => {
           refreshAll({ silent: true, background: true, refreshDetail: false })
@@ -534,100 +605,104 @@ def check_browser_budgets(base_url: str) -> tuple[dict[str, float | None], list[
         })
         """
         heap_samples: list[int] = []
-        for _ in range(HEAP_REFRESH_CYCLES):
-            heap_samples.append(page.evaluate(await_refresh) or 0)
+        try:
+            heap_browser = _launch_browser(playwright, chrome_binary, HEAP_SESSION_ARGS)
+            heap_context = heap_browser.new_context(viewport={"width": 1440, "height": 900})
+            heap_page = heap_context.new_page()
+            heap_page.goto(base_url, wait_until="domcontentloaded")
+            heap_page.wait_for_selector("#conversationList[aria-busy='false']", timeout=60000)
+            # Queue settle before the first sample, so the baseline is a
+            # rendered page rather than one still filling in.
+            heap_page.wait_for_timeout(800)
+            for _ in range(HEAP_REFRESH_CYCLES):
+                heap_samples.append(heap_page.evaluate(await_refresh) or 0)
+            heap_context.close()
+            heap_browser.close()
+        except Exception as exc:
+            # A measurement that was supposed to happen and did not is a gate
+            # failure, not an absent optional metric.
+            problems.append(
+                f"heap session failed, leaving the "
+                f"{BROWSER_BUDGETS['heap_growth_mb']} MB budget unenforced: "
+                f"{type(exc).__name__}: {exc}"
+            )
+            heap_samples = []
 
-        if not heap_samples or not all(s > 0 for s in heap_samples):
-            problems.append(
-                "heap growth unmeasurable: performance.memory is unavailable, so the "
-                f"{BROWSER_BUDGETS['heap_growth_mb']} MB budget went unenforced"
-            )
-        elif len(set(heap_samples)) == 1 and heap_samples[0] == HEAP_QUANTIZED_BYTES:
-            problems.append(
-                f"heap growth unmeasurable: every sample is the quantized constant "
-                f"{HEAP_QUANTIZED_BYTES} — launch Chromium with "
-                "--enable-precise-memory-info (see PERF_PRECISE_MEMORY) or the "
-                f"{BROWSER_BUDGETS['heap_growth_mb']} MB budget cannot fail"
-            )
+        heap_problem = heap_growth_problem(heap_samples)
+        if heap_problem:
+            problems.append(heap_problem)
         else:
-            # Growth, not spread: compare the tail against the first sample so a
-            # leak registers. `max - min` measured jitter and would stay small
-            # for a heap that climbs monotonically across every cycle.
-            baseline = heap_samples[0]
-            settled = max(heap_samples[-3:])
-            metrics["heap_growth_mb"] = round((settled - baseline) / (1024 * 1024), 2)
-
-        browser.close()
+            metrics["heap_growth_mb"] = heap_growth_mb(heap_samples)
 
         # --- detail open/close leak probe (separate session) -------------
         # A detail render that retains DOM nodes or listeners across
         # clearSelection would climb monotonically. The probe runs in its own
         # browser session with --expose-gc so the forced GC that makes the
         # measurement meaningful never pollutes the timing budgets measured in
-        # the main session (--expose-gc measurably raises desktop LCP). Only
-        # meaningful with real heap numbers (PERF_PRECISE_MEMORY=1) — the
-        # quantized constant would read as a clean 0 MB. The queue row seeded
-        # for the INP probe is the click target; selectConversation/
+        # the timing session (--expose-gc measurably raises desktop LCP). It is
+        # meaningful only with real heap numbers — the quantized constant would
+        # read as a clean 0 MB — which is why the session carries the precise
+        # flag. The queue row seeded for the INP probe is the click target;
+        # selectConversation/
         # clearSelection are app.js thin wrappers over the conversation-detail
         # module.
-        if PERF_PRECISE_MEMORY:
-            try:
-                leak_browser = playwright.chromium.launch(
-                    headless=True,
-                    args=["--enable-precise-memory-info", "--js-flags=--expose-gc"],
-                )
-                leak_context = leak_browser.new_context(viewport={"width": 1440, "height": 900})
-                leak_page = leak_context.new_page()
-                leak_page.goto(base_url, wait_until="domcontentloaded")
-                leak_page.wait_for_selector("#conversationList[aria-busy='false']", timeout=60000)
-                # Queue render settle before the first cycle.
-                leak_page.wait_for_timeout(800)
-                leak_script = (
-                    """
-                async (id) => {
-                  const forceGc = () => { if (window.gc) { window.gc(); window.gc(); } };
-                  const heap = () => performance.memory ? performance.memory.usedJSHeapSize : 0;
-                  const samples = [];
-                  for (let i = 0; i < %d; i++) {
-                    await selectConversation(id);
-                    // Detail fetch + render settle.
-                    await new Promise((r) => setTimeout(r, 400));
-                    clearSelection();
-                    // Give the cleared view a beat to detach, then force GC so
-                    // the sample reflects live objects, not V8's lazy idle
-                    // collection.
-                    await new Promise((r) => setTimeout(r, 300));
-                    forceGc();
-                    await new Promise((r) => setTimeout(r, 100));
-                    // Sample the *settled* baseline after close, not the open
-                    // peak: the budget is "no retention after close", and an
-                    // open-time climb would be dominated by legitimately live
-                    // detail data rather than leaked nodes.
-                    samples.push(heap());
-                  }
-                  return samples;
-                }
+        try:
+            leak_browser = _launch_browser(playwright, chrome_binary, LEAK_PROBE_ARGS)
+            leak_context = leak_browser.new_context(viewport={"width": 1440, "height": 900})
+            leak_page = leak_context.new_page()
+            leak_page.goto(base_url, wait_until="domcontentloaded")
+            leak_page.wait_for_selector("#conversationList[aria-busy='false']", timeout=60000)
+            # Queue render settle before the first cycle.
+            leak_page.wait_for_timeout(800)
+            leak_script = (
                 """
-                    % DETAIL_LEAK_CYCLES
-                )
-                row_id = leak_page.evaluate(
-                    "() => document.querySelector('.conversation-row button.conversation-item')"
-                    "?.dataset?.id || null"
-                )
-                if row_id:
-                    leak_samples = leak_page.evaluate(leak_script, row_id)
-                    if leak_samples and all(s > 0 for s in leak_samples):
-                        growth = leak_samples[-1] - leak_samples[0]
-                        metrics["detail_leak_mb"] = round(growth / (1024 * 1024), 2)
+            async (id) => {
+              const forceGc = () => { if (window.gc) { window.gc(); window.gc(); } };
+              const heap = () => performance.memory ? performance.memory.usedJSHeapSize : 0;
+              const samples = [];
+              for (let i = 0; i < %d; i++) {
+                await selectConversation(id);
+                // Detail fetch + render settle.
+                await new Promise((r) => setTimeout(r, 400));
+                clearSelection();
+                // Give the cleared view a beat to detach, then force GC so
+                // the sample reflects live objects, not V8's lazy idle
+                // collection.
+                await new Promise((r) => setTimeout(r, 300));
+                forceGc();
+                await new Promise((r) => setTimeout(r, 100));
+                // Sample the *settled* baseline after close, not the open
+                // peak: the budget is "no retention after close", and an
+                // open-time climb would be dominated by legitimately live
+                // detail data rather than leaked nodes.
+                samples.push(heap());
+              }
+              return samples;
+            }
+            """
+                % DETAIL_LEAK_CYCLES
+            )
+            row_id = leak_page.evaluate(
+                "() => document.querySelector('.conversation-row button.conversation-item')"
+                "?.dataset?.id || null"
+            )
+            if row_id:
+                leak_samples = leak_page.evaluate(leak_script, row_id) or []
+                leak_problem = leak_retention_problem(leak_samples)
+                if leak_problem:
+                    problems.append(leak_problem)
                 else:
-                    problems.append(
-                        "detail leak probe: no queue row was clickable, so the "
-                        f"{BROWSER_BUDGETS['detail_leak_mb']} MB budget went unenforced"
-                    )
-                leak_context.close()
-                leak_browser.close()
-            except Exception as exc:
-                problems.append(f"detail leak probe failed: {type(exc).__name__}: {exc}")
+                    growth = leak_samples[-1] - leak_samples[0]
+                    metrics["detail_leak_mb"] = round(growth / (1024 * 1024), 2)
+            else:
+                problems.append(
+                    "detail leak probe: no queue row was clickable, so the "
+                    f"{BROWSER_BUDGETS['detail_leak_mb']} MB budget went unenforced"
+                )
+            leak_context.close()
+            leak_browser.close()
+        except Exception as exc:
+            problems.append(f"detail leak probe failed: {type(exc).__name__}: {exc}")
 
     for key, limit in BROWSER_BUDGETS.items():
         if key not in metrics or metrics[key] is None:
