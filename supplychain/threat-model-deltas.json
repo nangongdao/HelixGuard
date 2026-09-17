@@ -363,6 +363,29 @@
         "绿光：tests/test_model_call_budget.py 18 例全绿；受影响既有套件（governance/aux outcomes/tenant policy/turn governance/summaries/copilot/multilingual/ai governance/audit fixes/turn stages/phase22）共 221 例零回归",
         "已知边界如实记录：check-then-reserve 竞态窗口与 Phase 19.4 回合预算既有姿势一致（SQLite 单写者下极小），不做并发承诺；语义层面『改变含义』仍无确定性判据；composer.js 改写状态文案未纳入（399/400 行需先抽模块）；未跑真实供应商模型"
       ]
+    },
+    {
+      "release": "2.17.0",
+      "date": "2026-09-17",
+      "owner": "release-eng",
+      "approved_by": "platform-sec",
+      "controls": [
+        "订单补问（ROADMAP H03）引入封闭结果种类词表 TaskOutcome（clarification/answer/handoff）+ 待补槽位 clarify_slot，随助手消息 metadata 与待补任务行持久化（数据契约：只增不改）",
+        "迁移 v46（expand）新建 conversation_pending_tasks：tenant_id 外键跟 v01 基线惯例、PRIMARY KEY(tenant_id, conversation_id) 保证每会话单条活跃任务、expires_at 建索引；归档删除与保留清单同步纳入该表（DSR/保留不遗漏新表）",
+        "有界多轮：Settings.order_clarification_max_rounds（默认 2）与 pending_clarification_ttl_minutes（默认 120，含共享常量 DEFAULT_PENDING_TASK_TTL_MINUTES 作单一来源）；到期任务在读取时惰性丢弃，不喂轮次上限",
+        "取消路径全覆盖并各自审计 order.pending_cleared(reason)：人工接管 accept、解决 resolve、话题切换（非 order 路由）、敏感请求/交接 handoff、答案完成 answered、轮次上限升级",
+        "证据规则不放宽：未标注结果（task_outcome=None，含 legacy 构造与质量门禁/轮次升级）与标注为 answer 但无 orders.lookup 记录的结果仍判 order_response_without_tool_record；补问豁免仅限已标注的 clarification",
+        "幂等与持久性：同一 Idempotency-Key 重放不重复递增轮次；待补状态跨进程重启存活；轮次上限触发的升级走既有 escalation 通道并进 handoff_reason",
+        "补问豁免不得吞掉敏感回合：带凭据材料的订单消息（风险类别 credential_topic）不进入补问循环，改为直接转人工（turn_execution 在订单分支上按 PolicyAgent 的类别判定分流）——对抗集 adv-pii-onetime-code 的期望（waiting_human、requires_human、agent=escalation、不回显验证码）保持不变，安全底线不放宽"
+      ],
+      "verification_evidence": [
+        "红光（实现前）：tests/test_order_clarification.py 22 例先失败——bump_pending_task 缺 ttl_minutes 默认值（4 例 TypeError）、路由 PendingTaskOut(**pending) 投影多余键（pydantic 拒绝）、跨租户用例触发 tenant_id 外键",
+        "绿光：tests/test_order_clarification.py 22/22；既有质量门禁护栏（tests/test_phase21.py、tests/test_units.py）未标记结果仍判失败，零回归",
+        "产品政策变更已记录：golden 用例 order-no-number-escalation（期望 waiting_human）改为 order-no-number-clarification（期望 agent=order/status=open/quality_approved=true），test_phase21 护栏注释改为守未标注与已标注答案两侧，不把旧测试改绿当成功",
+        "端到端覆盖：补问保持 open 且落库轮次/意图/过期；补齐订单号后走同一身份门禁与 orders.lookup 证据完成；未绑定客户补号仍 identity_required；话题切换/敏感请求/接管/解决/轮次上限均清任务；重启后任务存活；重放不重复计轮",
+        "已知未验证边界：语义层面『改变含义』仍无确定性判据；任务种类仅 order 一种；过期清理为惰性（无后台任务）；composer.js 文案未纳入（399/400 行需先抽模块）；未跑真实供应商模型",
+        "对抗集回归取证：H03 初版把该用例从 waiting_human 变成 open（升级此前由订单质量门禁的无证据规则带来），评估为真实安全底线回退而非政策变更；修正后 scripts/evaluate_adversarial.py 24/24 通过，且新增用例test_credential_material_never_enters_the_clarification_loop 钉住（不建待补任务、不回显、消息不含追问文案）"
+      ]
     }
   ]
 }

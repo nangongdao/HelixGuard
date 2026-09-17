@@ -2,6 +2,27 @@
 
 所有版本遵循[语义化版本](https://semver.org)。API 变更遵循 `docs/API_POLICY.md`(响应体只增不改、弃用需 `Deprecation`/`Sunset` 头 + 至少一个次版本过渡、每次变更记录于此)。
 
+## 2.17.0 — 订单补问与有限多轮任务状态: 补问不是「已解决」 (2026-09-17)
+
+Version 2.17.0 落地路线图 H03：支持「查物流 → 请提供订单号 → ORD-…」这种自然任务，而不是一开始信息不全就交人工。
+
+**缺口取证**：此前 `OrderAgent` 能生成「请提供订单号」的回复，但该回复没有 `orders.lookup` 工具记录，质量门禁按 `order_response_without_tool_record` 判定并把回合升级人工（golden 用例 `order-no-number-escalation` 钉住的正是这个保守行为）——客户被要求补充信息，却被直接转给人工，补问这条路径实际不可用。缺口不在「能不能生成补问」，而在**补问没有被建模成一种结果**：它既不是答案也不是失败，只能落进「无证据 → 升级」的兜底。
+
+**切法**：给专业 Agent 的结果加一个封闭的结果种类（`TaskOutcome`：`clarification`/`answer`/`handoff`，与待补槽位 `clarify_slot` 一起写入助手消息 metadata 与待补任务行，作为**只增不改**的数据契约），并让补问成为有界的多轮任务：
+
+- **结果种类**：`OrderAgent` 的四种出口各自标注（无订单号=clarification、查到/查无=answer、需要身份或连接器不可用=handoff）；质量门禁只对**已标注的 clarification** 豁免证据规则，未标注结果（legacy 构造、`None`）与标注为 answer 的无工具记录结果**仍判失败**——最终答案的证据要求未被放宽。
+- **待补任务（迁移 v46，expand）**：`conversation_pending_tasks` 每会话单行（`PRIMARY KEY(tenant_id, conversation_id)`），记 `kind`/`slot`/`intent`/`rounds`/`expires_at`；一次补问 +1 轮并顺延过期时间；表纳入归档删除与保留清单（DSR 不遗漏新表）。
+- **有界**：`ORDER_CLARIFICATION_MAX_ROUNDS`（默认 2，达到上限后下一轮直接清楚升级人工，不再重复追问）+ `PENDING_CLARIFICATION_TTL_MINUTES`（默认 120，到期任务在读取时惰性丢弃，之后再补问重新起算第 1 轮）。
+- **取消路径**：人工接管、会话解决、话题切换（路由到非 order Agent）、敏感请求/交接、答案完成——各自清任务并审计 `order.pending_cleared` 带 `reason`。
+- **不吞敏感回合**：带凭据材料（验证码/密码，风险类别 `credential_topic`）的订单消息**不进入补问循环**——追问订单号等于邀请客户继续粘贴机密，改为直接转人工。对抗集 `adv-pii-onetime-code` 的期望（`waiting_human` + 不回显）保持不变，安全底线不放宽。
+- **不丢状态**：任务落库，跨进程重启存活；同一 `Idempotency-Key` 重放不重复计数轮次。运营可见：会话详情新增 `pending_task`（只增，nullable）。
+
+**行为边界（如实记录）**：未标注结果的证据规则与升级行为**零变化**（质量门禁两侧都有测试钉住）。**产品政策变更已记录**：golden 用例改为 `order-no-number-clarification`（`agent=order`、`status=open`、`quality_approved=true`），旧期望 `waiting_human` 明确作废，并在 `tests/test_phase21.py` 护栏注释中写明——不是把旧测试改绿。任务种类当前只有 order 一种；过期清理是惰性的（无后台任务）；`app/static/js/composer.js` 的补问文案未纳入（该文件 399/400 行，需先抽取域模块）。
+
+**红光**：新 `tests/test_order_clarification.py` 22 例，实现前 6 例失败（`bump_pending_task` 缺 `ttl_minutes` 默认值、路由 `PendingTaskOut(**pending)` 投影多余键、跨租户用例触发 `tenant_id` 外键）。钉住：无订单号=clarification 且不要求人工；成功/查无=answer 且有工具记录；需身份=handoff；质量门禁对已标注补问放行、对未标注与已标注答案仍判 `order_response_without_tool_record`；存储单行/租户隔离/清除/惰性过期；端到端补问→补号→带证据完成；未绑定客户补号仍 `identity_required`；轮次上限清楚升级；话题切换/敏感请求/接管/解决各自清任务；重启存活；重放不重复计轮。
+
+**全量门禁（2.17.0）**：1924 例收集 / 1878 通过 / 44 跳过 / 2 失败（已知 opentelemetry 环境噪声，CI 不装 `[otel]`——`test_telemetry_edge`、`test_telemetry_otel_branches`），覆盖率 **89%**（`coverage report --fail-under=85` 通过）；ruff 0.9.9 `format --check` + `check` 全绿（366 文件）；pyright `app` 0 实质错误（57 条全是 `reportMissingImports` 环境缺包）；golden eval 27/27；**对抗集 24/24**；迁移门禁 46 条连续；openapi 快照重生成（`pending_task` 只增）；threat_model_gate 干净。
+
 ## 2.16.0 — 受治理调用的每日模型调用预算: transport 前预留、失败即释放 (2026-09-13)
 
 Version 2.16.0 收口 H04 验收里最后一条可确定性实现的执行面缺口：**辅助调用不消耗/不预留每日预算**（2.12.0 起记录）。费用归因（2.3.x `inference_costs`）已覆盖五类调用，本版补的是**执行面**。
@@ -14,7 +35,7 @@ Version 2.16.0 收口 H04 验收里最后一条可确定性实现的执行面缺
 
 **红光**：新 `tests/test_model_call_budget.py` 18 例，实现前收集即失败（`ImportError: reserved_transport`）。钉住：无限制零写入；检测/翻译各占 1；耗尽后拒绝且 transport 为零、拒绝原因带名字（gate 级 + `authorize` 抛错级 + 回合级审计）；失败 transport 释放后额度可再用；**返回但输出不可用仍消耗**（预留边界=transport 本身）；`none`/`unconfigured` 路径零消耗；summaries/Copilot 建议各占 1、Copilot 建议耗尽回落 canned 且记 `denied`、Copilot 改写失败释放；主链回合：模型回合恰占 1（且 `turn_count` 仍为 1——两计数器口径互不污染）、高置信规则回合占 0、triage 失败释放、耗尽回合 transport 为零 + `turn.model_denied` 带预算原因、无限制回合零痕迹；策略字段 DB 往返。
 
-（全量门禁数字待本轮跑完补记。）
+**全量门禁（2.16.0 交付时）**：1901 例收集 / 1855 通过 / 44 跳过 / 2 失败（本地 opentelemetry 环境噪声，CI 不装 `[otel]`），覆盖率 89%（≥85 门禁）；ruff 0.9.9 全绿（364 文件）；pyright `app` 0 实质错误（57 条仅环境缺包）；openapi 快照重生成（字段只增）；迁移门禁 45 条连续；threat_model_gate 干净。
 
 ## 2.15.0 — 主链 triage 也走同一个治理入口: 无 pin 的 prompt 不再绕过 43.5 禁用面 (2026-09-13)
 

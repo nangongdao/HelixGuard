@@ -14,7 +14,7 @@ from app.db._util import (
     utc_after_seconds,
     utc_now,
 )
-from app.domain import ConversationStatus
+from app.domain import DEFAULT_PENDING_TASK_TTL_MINUTES, ConversationStatus
 from app.labels import normalize_conversation_labels
 
 
@@ -812,3 +812,88 @@ class DatabaseConversationsMixin:
                 (tenant_id, conversation_id),
             ).fetchall()
         return [dict(row) for row in rows]
+
+    def bump_pending_task(
+        self,
+        tenant_id: str,
+        conversation_id: str,
+        *,
+        kind: str,
+        slot: str,
+        intent: str,
+        ttl_minutes: int = DEFAULT_PENDING_TASK_TTL_MINUTES,
+    ) -> dict[str, Any]:
+        """Upsert the conversation's single pending task, advancing rounds.
+
+        ROADMAP H03: a clarification turn records the task automation waits
+        on -- the slot the customer was asked for, the original intent, and
+        the round counter (one per clarification sent, so the execution stage
+        can escalate instead of asking forever). One active task per
+        conversation: a second clarify bumps the same row, and the expiry is
+        pushed forward each time the task is still alive.
+        """
+        now = utc_now()
+        with self.connect() as connection:
+            connection.execute(
+                """INSERT INTO conversation_pending_tasks
+                (tenant_id, conversation_id, kind, slot, intent, rounds,
+                 created_at, updated_at, expires_at)
+                VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?)
+                ON CONFLICT(tenant_id, conversation_id) DO UPDATE SET
+                    kind = excluded.kind,
+                    slot = excluded.slot,
+                    intent = excluded.intent,
+                    rounds = conversation_pending_tasks.rounds + 1,
+                    updated_at = excluded.updated_at,
+                    expires_at = excluded.expires_at""",
+                (
+                    tenant_id,
+                    conversation_id,
+                    kind,
+                    slot,
+                    intent,
+                    now,
+                    now,
+                    utc_after(ttl_minutes),
+                ),
+            )
+            row = connection.execute(
+                "SELECT * FROM conversation_pending_tasks "
+                "WHERE tenant_id = ? AND conversation_id = ?",
+                (tenant_id, conversation_id),
+            ).fetchone()
+        return dict(row) if row else {}
+
+    def get_pending_task(self, tenant_id: str, conversation_id: str) -> dict[str, Any] | None:
+        """Return the active pending task, or None (lapsed tasks are dropped).
+
+        Expiry is enforced on read: a task past ``expires_at`` no longer
+        feeds the round limit or the task context, and the stale row is
+        removed so a later clarification starts a fresh task at round 1.
+        """
+        with self.connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM conversation_pending_tasks "
+                "WHERE tenant_id = ? AND conversation_id = ?",
+                (tenant_id, conversation_id),
+            ).fetchone()
+            if row is None:
+                return None
+            if dict(row)["expires_at"] <= utc_now():
+                connection.execute(
+                    "DELETE FROM conversation_pending_tasks "
+                    "WHERE tenant_id = ? AND conversation_id = ?",
+                    (tenant_id, conversation_id),
+                )
+                return None
+        return dict(row)
+
+    def clear_pending_task(self, tenant_id: str, conversation_id: str) -> bool:
+        """Drop the pending task; True when a row existed (H03 cancel paths)."""
+        with self.connect() as connection:
+            cursor = connection.execute(
+                "DELETE FROM conversation_pending_tasks "
+                "WHERE tenant_id = ? AND conversation_id = ?",
+                (tenant_id, conversation_id),
+            )
+        return cursor.rowcount > 0

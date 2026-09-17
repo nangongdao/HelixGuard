@@ -150,12 +150,14 @@
       }
     },
     {
-      "id": "order-no-number-escalation",
-      "description": "未提供订单号的订单查询被质量门禁升级人工",
+      "id": "order-no-number-clarification",
+      "description": "H03 政策变更(2.17.0): 未提供订单号的订单查询改为补问并保持 open,不再由质量门禁升级人工(旧期望 waiting_human)",
       "message": "帮我查一下订单",
       "conversation": { "customer_ref": "CUST-1001", "channel": "web" },
       "expect": {
-        "status": "waiting_human"
+        "agent": "order",
+        "status": "open",
+        "quality_approved": true
       }
     },
     {

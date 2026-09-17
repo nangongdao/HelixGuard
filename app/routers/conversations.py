@@ -52,6 +52,7 @@ from app.schemas import (
     InternalNoteRequest,
     MessageOut,
     OperatorMessageRequest,
+    PendingTaskOut,
     SavedQueueViewCreateRequest,
     SavedQueueViewOut,
     ThreadOut,
@@ -399,6 +400,7 @@ def build_router(deps: RouteDeps) -> APIRouter:
                 response.headers["X-Next-Cursor"] = encode_message_cursor(
                     str(last["created_at"]), int(last["seq"])
                 )
+        pending = database.get_pending_task(principal.tenant_id, conversation_id)
         return ConversationDetail(
             conversation=conversation_out(conversation),
             messages=[message_out(item) for item in messages],
@@ -417,6 +419,22 @@ def build_router(deps: RouteDeps) -> APIRouter:
                     principal.tenant_id, conversation_id
                 )
             ],
+            # ROADMAP H03: the active pending clarification task, if any. The
+            # stored row also carries its tenant/conversation keys; project
+            # only the operator-facing columns (the DTO forbids extras).
+            pending_task=(
+                PendingTaskOut(
+                    kind=pending["kind"],
+                    slot=pending["slot"],
+                    intent=pending["intent"],
+                    rounds=pending["rounds"],
+                    created_at=pending["created_at"],
+                    updated_at=pending["updated_at"],
+                    expires_at=pending["expires_at"],
+                )
+                if pending
+                else None
+            ),
         )
 
     @router.get(

@@ -66,6 +66,17 @@ class ConversationLifecycleMixin:
         if not updated:
             raise InvalidTransitionError("Conversation cannot be accepted from its current state")
         self.database.audit(tenant_id, conversation_id, actor_id, "conversation.human_accepted", {})
+        # ROADMAP H03: human takeover cancels any pending clarification task
+        # (the invariant "人工接管能中止待补流程") -- automation must not keep
+        # asking for a slot once an operator owns the conversation.
+        if self.database.clear_pending_task(tenant_id, conversation_id):
+            self.database.audit(
+                tenant_id,
+                conversation_id,
+                actor_id,
+                "order.pending_cleared",
+                {"reason": "human_takeover"},
+            )
         # Backlog: generate the handover brief ("前情摘要") so the incoming
         # operator sees what happened before they picked it up. Best-effort:
         # the acceptance never waits on or breaks from the model.
@@ -507,6 +518,16 @@ class ConversationLifecycleMixin:
         if not updated:
             raise InvalidTransitionError("Conversation cannot be resolved from its current state")
         self.database.audit(tenant_id, conversation_id, actor_id, "conversation.resolved", {})
+        # ROADMAP H03: a resolved conversation has no open task -- drop any
+        # pending clarification so a later reopen starts fresh.
+        if self.database.clear_pending_task(tenant_id, conversation_id):
+            self.database.audit(
+                tenant_id,
+                conversation_id,
+                actor_id,
+                "order.pending_cleared",
+                {"reason": "resolved"},
+            )
         # Backlog: issue a one-time CSAT survey link on resolution so the
         # customer can rate the experience; ratings reflow into feedback. The
         # token is echoed on the response and the resolved webhook so tenants
