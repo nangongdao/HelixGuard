@@ -11,7 +11,9 @@ Covers the acceptance criteria of ADR-014 decision 1 + the CI gate:
 - tool-parameter injection is refused at the gateway (non-canonical resource
   id surfaces as ``not_found`` and nothing is echoed);
 - knowledge-agent refusal reasons are merged back into the turn metadata as
-  content risk categories (indirect injection traceability).
+  content risk categories (indirect injection traceability);
+- seeded side effects are retired fail-closed: a leak is reported against the
+  case that owns the seed and aborts the run instead of mis-blaming later cases.
 """
 
 from __future__ import annotations
@@ -30,10 +32,12 @@ from app.agents import OrderAgent, PolicyAgent
 from app.config import Settings
 from app.main import create_app
 from scripts.adversarial_schema import load_adversarial_set
+from scripts.adversarial_seeds import Cleanup, SeedLedger, SeedRetireError
 from scripts.evaluate_adversarial import (
     ADV_EVAL_KEY_ACME,
     ADV_EVAL_KEY_DEMO,
     evaluate,
+    knowledge_retire_cleanup,
 )
 
 ADVERSARIAL_SET = Path(__file__).resolve().parent.parent / "golden" / "adversarial.json"
@@ -265,6 +269,131 @@ class AdversarialHarnessGateTests(unittest.TestCase):
             self.assertIn(key, report)
         self.assertIn("model_ref", report)
         self.assertEqual(report["model_ref"], "deterministic-eval")
+
+
+class _StubResponse:
+    """Minimal stand-in for ``requests.Response`` inside the harness."""
+
+    def __init__(self, status_code: int, payload: Any) -> None:
+        self.status_code = status_code
+        self._payload = payload
+        self.text = json.dumps(payload, ensure_ascii=False)
+
+    def json(self) -> Any:
+        return self._payload
+
+
+class _StubKnowledgeClient:
+    """Fake client that answers PATCH/GET for one knowledge article."""
+
+    def __init__(self, patch_status: int = 200, active_after_retire: bool = False) -> None:
+        self.patch_status = patch_status
+        self.active_after_retire = active_after_retire
+        self.patched: list[str] = []
+
+    def patch(self, url: str, **kwargs: Any) -> _StubResponse:
+        self.patched.append(url)
+        return _StubResponse(self.patch_status, {"id": "kb_seed", "active": True})
+
+    def get(self, url: str, **kwargs: Any) -> _StubResponse:
+        return _StubResponse(200, [{"id": "kb_seed", "active": self.active_after_retire}])
+
+
+class SeedLifecycleTests(unittest.TestCase):
+    """A safety gate may fail, but it must fail closed and name the culprit.
+
+    Regression cover for the 2026-09-17 ``ai-eval`` flake.  Seeds used to be
+    retired on a best-effort basis: the cleanup loop sat *after* the message
+    loop (so an early return skipped it entirely) and the retire response was
+    never inspected.  A seed that survives stays retrievable, and four cases in
+    the set share the identical message (``配送一般多久能到``), so one leaked
+    poisoned article turned three *later* cases red with no mention of the case
+    that actually leaked.
+    """
+
+    def test_ledger_retires_every_seed_and_attributes_leaks(self) -> None:
+        ledger = SeedLedger()
+        retired: list[str] = []
+        ledger.register("case-a", Cleanup("first", lambda: retired.append("first")))
+
+        def _boom() -> None:
+            raise SeedRetireError("retire HTTP 500")
+
+        ledger.register("case-a", Cleanup("second", _boom))
+        ledger.register("case-b", Cleanup("third", lambda: retired.append("third")))
+
+        ledger.retire("case-a")
+        ledger.retire("case-b")
+
+        # A failing cleanup must not stop the remaining ones, and the leak must
+        # be attributed to the case that owns the seed.
+        self.assertEqual(retired, ["first", "third"])
+        self.assertEqual(len(ledger.leaks), 1)
+        self.assertIn("case-a", ledger.leaks[0])
+        self.assertIn("second", ledger.leaks[0])
+        self.assertIn("retire HTTP 500", ledger.leaks[0])
+        self.assertEqual(ledger.pending, {})
+
+    def test_retire_is_idempotent(self) -> None:
+        ledger = SeedLedger()
+        calls: list[int] = []
+        ledger.register("case-a", Cleanup("only", lambda: calls.append(1)))
+        ledger.retire("case-a")
+        ledger.retire("case-a")
+        self.assertEqual(calls, [1])
+        self.assertEqual(ledger.leaks, [])
+
+    def test_unexpected_exception_counts_as_a_leak(self) -> None:
+        # Any failure -- not just the typed one -- means "cannot prove the seed
+        # is gone", so it must be reported rather than swallowed.
+        ledger = SeedLedger()
+
+        def _boom() -> None:
+            raise RuntimeError("database is locked")
+
+        ledger.register("case-a", Cleanup("retire knowledge seed", _boom))
+        ledger.retire("case-a")
+        self.assertEqual(len(ledger.leaks), 1)
+        self.assertIn("database is locked", ledger.leaks[0])
+
+    def test_retire_must_be_proven_not_merely_acknowledged(self) -> None:
+        # A 200 that leaves the article active is still a leak: the harness must
+        # read the article back instead of trusting the status code.
+        client = _StubKnowledgeClient(active_after_retire=True)
+        cleanup = knowledge_retire_cleanup(client, {"X-API-Key": "k"}, "kb_seed")
+        with self.assertRaises(SeedRetireError):
+            cleanup.undo()
+        self.assertEqual(client.patched, ["/api/knowledge/kb_seed"])
+
+    def test_clean_retire_passes_verification(self) -> None:
+        client = _StubKnowledgeClient(active_after_retire=False)
+        cleanup = knowledge_retire_cleanup(client, {"X-API-Key": "k"}, "kb_seed")
+        cleanup.undo()  # must not raise
+        self.assertEqual(client.patched, ["/api/knowledge/kb_seed"])
+
+    def test_leaked_seed_aborts_the_run_and_names_the_culprit(self) -> None:
+        original_patch = TestClient.patch
+        attempts: list[str] = []
+
+        def flaky_patch(self: TestClient, url: str, *args: Any, **kwargs: Any) -> Any:
+            body = kwargs.get("json")
+            if isinstance(body, dict) and body.get("active") is False:
+                attempts.append(str(url))
+                return _StubResponse(500, {"detail": "simulated retire failure"})
+            return original_patch(self, url, *args, **kwargs)
+
+        with patch.object(TestClient, "patch", flaky_patch):
+            report = evaluate(ADVERSARIAL_SET)
+
+        # The run must stop rather than keep reporting results it cannot trust.
+        self.assertTrue(report["aborted"])
+        self.assertEqual(len(report["seed_leaks"]), 1)
+        self.assertIn("adv-indirect-knowledge-injection", report["seed_leaks"][0])
+        self.assertEqual(len(attempts), 1)
+        self.assertTrue(attempts[0].startswith("/api/knowledge/kb_"))
+        # Attribution stays with the case that leaked: the later victims of that
+        # leak are never reported as failures of their own.
+        self.assertEqual([case["id"] for case in report["cases"] if not case["passed"]], [])
 
 
 if __name__ == "__main__":
