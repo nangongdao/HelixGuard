@@ -2,6 +2,26 @@
 
 所有版本遵循[语义化版本](https://semver.org)。API 变更遵循 `docs/API_POLICY.md`(响应体只增不改、弃用需 `Deprecation`/`Sunset` 头 + 至少一个次版本过渡、每次变更记录于此)。
 
+## 2.18.0 — 跨会话命令/回执契约: 慢响应不串会话、发送重试不重复 (2026-09-17)
+
+Version 2.18.0 落地路线图 H02 的第一片：多会话坐席使用前，异步命令与人工发送必须带上「属于哪个会话、基于哪一版草稿、属于哪一次发送尝试」三个身份。
+
+**缺口取证**：`app/static/js/composer.js` 的三条异步路径都是「读 `selectedId` → await → 直接写共享 DOM」，没有任何落地前的回检。①`fetchCopilotSuggestions`/`loadCopilotKnowledge`：A 会话的慢建议回来时直接 `innerHTML` 写当前视图，B 的 copilot 栏被 A 的结果覆盖；`loadCopilotKnowledge` 还在 await **之前**就把 `lastCopilotConv` 置为 A，于是「结果被切换丢弃」与「已加载」两种状态无法区分——回到 A 时不再重载，copilot 栏空白。②`applyCopilotTone`：改写结果直接覆盖 `operatorInput.value`，慢改写期间坐席继续输入的文字被冲掉（路线图验收原话「慢改写期间继续输入」）。③`sendOperatorMessage`：成功后无条件清空**共享的**输入框并 `loadDetail(conversationId)`，发送确认若在坐席切到 B 之后到达，B 正在输入的草稿被抹掉。④后端 `operator-messages` **完全没有幂等**：网络抖动/超时/进程重启后的重试会创建第二条客户可见回复并再记一次 `operator.replied`——路线图明确「发送幂等在服务端成立，不仅禁用按钮」，而客户端当时每发一次生成一个新键，重试等于新请求。
+
+**切法**：不新建全局 store，而是把**「命令/回执契约」抽成域模块**并复用两处既有机制。
+
+- **命令票（`app/static/js/composer-command.js`）**：`beginCommand(surface, conversationId)` 开票，票携带会话 + 该 surface 的单调代次 + 当时的草稿版本；`isCurrent(ticket)` 在**应用结果前**回检（会话未变且没有更新的同 surface 命令）。这是把 `conversation-detail.js` 既有的旧响应保护（`detailSequence` + `selectedId`，路线图点名的「复用详情请求已有的旧响应保护」）推广成每个 surface 一张票。状态是模块私有的，不落全局 `state`。
+- **草稿版本**：`bumpDraftVersion` 在每一次**坐席改动草稿**时 +1（legacy `input` 监听、island `helix-composer-typing` 桥、宏插入、建议/知识插入、发送成功后清空），`isDraftUnchanged` 据此丢弃「基于旧草稿」的改写结果。island 侧同步补齐：宏插入（经 `helix-composer-macro-use` 桥）与建议应用（`applySuggestion` 发 typing）现在也推进版本，否则慢改写会覆盖刚插入的宏。
+- **copilot 工具面抽取**：三个写核移到新 `app/static/js/copilot-tools.js` 并加票守卫；`composer.js` 改 re-export（沿用它对 `drafts.js` 的既有姿势），从 399 行降到 **303 行**，重新拿到 400 行门禁余量。
+- **发送回执（服务端）**：迁移 v47（expand）给 `messages` 加 `operator_idempotency_key`（nullable）+ 部分唯一索引 `idx_messages_operator_send_receipt(tenant_id, conversation_id, key) WHERE key IS NOT NULL`——镜像 v11 的 `idx_messages_channel_dedup` 姿势。`operator-messages` 接受 `Idempotency-Key` 头：命中相同（会话+作者+正文+附件集）→ 返回**原消息**并置 `X-Idempotent-Replay: true`，不再走 `handoff`、不再审计；命中但载荷/作者不同 → **409**（编辑后重发绝不能被当成重放吞掉，那正是「不丢稿」要防的）；并发竞态走 `IntegrityError` 回读让胜者的回执生效；无键时行为**完全不变**。客户端 `sendKeyFor` 按（会话+正文+附件集）缓存稳定键、成功即释放 `clearSendKey`，所以「双击/超时重试」复用同一键由服务端去重，而「稍后刻意再发同一句话」是新尝试。
+- **回执记在 `messages` 行上而非复用 `api_idempotency`（v37）**：该资源键表没有 `conversation_id`，且**不在**归档删除、DSR 擦除、保留清单、RLS 策略集任何一处——复用它就要新增四条清理/隔离路径。记在消息行上则回执自动继承全部治理保证（`tests/test_archive.py`、`tests/test_dsr.py`、`tests/test_privacy.py` 已覆盖）。顺带补上 `message_out()` 的投影：新列若不经投影会触发 `MessageOut` 严格模型拒绝，且 `list_messages`/`list_notes` 两条读路径都会带到。
+
+**行为边界（如实记录）**：无 `Idempotency-Key` 的调用方零变化（每次 POST 仍是独立消息）。重放不重复 `operator.replied`／`conversation.human_accepted`（有测试钉住）。键按会话命名空间隔离：同一字符串在另一会话是**不同请求**，绝不会解析到本会话的消息；跨租户同理。回执列会随 `messages` 一起进入 DSR 导出（`channel_message_id` 早已如此，非本版引入），未收窄导出契约。已知未覆盖：`composer.js` 的补问文案仍未纳入；island 侧的 `helix-composer-state` 回灌（legacy→island 镜像）不推进草稿版本（非坐席编辑）；契约的 generation 只在单页生命周期内有效，不跨标签页。
+
+**红光**：新 `tests/test_operator_message_idempotency.py` 13 例，实现前 **8 例失败**（重试产生第二条消息、无冲突检测、超长键被接受、`get_message_by_operator_key` 不存在）。钉住：重放返回原消息且不新增第二条、不重复审计/接管、跨进程重启存活、丢响应后重试同一条；改稿/换附件集/换作者=409；键按会话与租户隔离；无键时每次独立、空内容仍 422、超长键 422、新键产生新消息。新 `tests/frontend/composer-command.test.js` 15 例（票据代次、会话切换、草稿版本、发送键稳定性/敏感性/释放/重置）。新 `tests/frontend/composer-consistency.test.js` 10 例用可控 deferred 钉住竞态：A 建议不落 B、慢改写不覆盖继续输入、A 改写不写 B、发送确认在切换后不抹 B 草稿、双击复用同键、失败保留草稿与待发附件并用同键重试、被丢弃的知识加载保持缓存冷（回到会话会重载）。
+
+**全量门禁（2.18.0）**：1937 例收集 / 1891 通过 / 44 跳过 / 2 失败（已知 opentelemetry 环境噪声，CI 不装 `[otel]`——`test_telemetry_edge`、`test_telemetry_otel_branches`），覆盖率 **89%**（14687 语句 / 1343 未覆盖 / 3628 分支 / 573 部分，`coverage report --fail-under=85` 通过）；ruff 0.9.9 `format --check` + `check` 全绿（368 文件）；pyright `app` 0 实质错误（57 条全是 `reportMissingImports` 环境缺包）；前端门禁通过（语法 OK、模块 ≤400 行、**376** 个 node 测试）；vitest `composer-island.test.jsx` 17/17；golden eval 27/27；对抗集 24/24；迁移门禁 **47** 条连续；openapi 快照重生成（端点摘要/描述 + 版本，只增）；threat_model_gate 干净。
+
 ## 2.17.0 — 订单补问与有限多轮任务状态: 补问不是「已解决」 (2026-09-17)
 
 Version 2.17.0 落地路线图 H03：支持「查物流 → 请提供订单号 → ORD-…」这种自然任务，而不是一开始信息不全就交人工。

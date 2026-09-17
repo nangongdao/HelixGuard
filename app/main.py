@@ -36,7 +36,7 @@ configure_logging()
 configure_tracing()
 logger = logging.getLogger("helix")
 IDEMPOTENCY_KEY_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{8,128}$")
-APP_VERSION = "2.17.0"
+APP_VERSION = "2.18.0"
 
 
 def _conversation_quota_exceeded(database: Any, tenant_id: str) -> str | None:
@@ -196,11 +196,13 @@ def message_out(row: dict[str, Any]) -> MessageOut:
 
     ``list_messages`` keeps ``seq`` (the monotonic cursor key) in the row so the
     API can build the next cursor; it is not part of the public resource. The
-    ``channel_message_id`` (Phase 23.2) is likewise an internal dedup key.
+    ``channel_message_id`` (Phase 23.2) and ``operator_idempotency_key``
+    (ROADMAP H02) are likewise internal dedup keys.
     """
     payload = dict(row)
     payload.pop("seq", None)
     payload.pop("channel_message_id", None)
+    payload.pop("operator_idempotency_key", None)
     return MessageOut(**payload)
 
 

@@ -74,6 +74,7 @@ class DatabaseMessagesMixin:
         turn_id: str | None = None,
         channel_message_id: str | None = None,
         reply_to: str | None = None,
+        operator_idempotency_key: str | None = None,
     ) -> dict[str, Any]:
         message_id = f"msg_{uuid4().hex[:12]}"
         now = utc_now()
@@ -89,8 +90,9 @@ class DatabaseMessagesMixin:
             connection.execute(
                 """INSERT INTO messages
                 (id, tenant_id, conversation_id, turn_id, role, author, content,
-                 metadata_json, created_at, channel_message_id, reply_to)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                 metadata_json, created_at, channel_message_id, reply_to,
+                 operator_idempotency_key)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     message_id,
                     tenant_id,
@@ -103,6 +105,7 @@ class DatabaseMessagesMixin:
                     now,
                     channel_message_id,
                     reply_to,
+                    operator_idempotency_key,
                 ),
             )
         self._invalidate_dashboard(tenant_id)
@@ -137,6 +140,25 @@ class DatabaseMessagesMixin:
         item = dict(row)
         item["metadata"] = json.loads(item.pop("metadata_json"))
         return item
+
+    def get_message_by_operator_key(
+        self, tenant_id: str, conversation_id: str, idempotency_key: str
+    ) -> dict[str, Any] | None:
+        """Resolve the send receipt for an operator reply (ROADMAP H02).
+
+        The partial unique index ``idx_messages_operator_send_receipt``
+        guarantees at most one message per (tenant, conversation, key), so a
+        retried send attempt resolves to the message it already produced
+        instead of creating a second one. The key is namespaced per
+        conversation: the same string elsewhere is a different request.
+        """
+        with self.connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM messages WHERE tenant_id = ? AND conversation_id = ? "
+                "AND operator_idempotency_key = ?",
+                (tenant_id, conversation_id, idempotency_key),
+            ).fetchone()
+        return _message_row_to_item(row, include_seq=False) if row else None
 
     def list_messages(
         self,

@@ -27,7 +27,7 @@ def test_registry_is_sound_on_the_real_package() -> None:
     problems = verify_migration_registry()
     assert problems == []
     chain = all_migrations()
-    assert [m.version for m in chain] == list(range(1, 47))
+    assert [m.version for m in chain] == list(range(1, 48))
 
 
 def test_every_migration_lives_in_its_version_module() -> None:
@@ -88,4 +88,4 @@ def test_gate_script_exit_codes() -> None:
         encoding="utf-8",
     )
     assert clean.returncode == 0, clean.stderr
-    assert "46 migrations" in clean.stdout
+    assert "47 migrations" in clean.stdout

@@ -220,6 +220,7 @@ class ConversationLifecycleMixin:
         content: str,
         can_override: bool = False,
         attachment_ids: list[str] | None = None,
+        send_key: str | None = None,
     ) -> dict[str, Any]:
         content = content.strip()
         if not content:
@@ -242,6 +243,7 @@ class ConversationLifecycleMixin:
             actor_id,
             content,
             metadata,
+            operator_idempotency_key=send_key,
         )
         self.database.audit(
             tenant_id,

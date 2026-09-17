@@ -10,9 +10,10 @@ from collections.abc import AsyncIterator
 from time import perf_counter
 from typing import Annotated
 from typing import Annotated as TAnnotated  # noqa: F401
+from typing import Any
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response
 from fastapi.responses import StreamingResponse
 
 from app.labels import normalize_conversation_labels
@@ -60,6 +61,46 @@ from app.schemas import (
 from app.security import Principal, Role
 
 logger = logging.getLogger("helix")
+
+# ROADMAP H02: an operator send attempt is identified by its conversation, its
+# author and its payload together with the caller's Idempotency-Key. A key
+# replayed with a *different* payload is a client bug that must fail loudly:
+# silently returning the earlier message would swallow the edit the operator
+# just typed, which is precisely the draft-loss H02 forbids.
+_SEND_RECEIPT_MISMATCH = (
+    "Idempotency-Key was already used for a different send attempt in this conversation"
+)
+
+
+def _operator_send_receipt(
+    database: Any,
+    principal: Principal,
+    conversation_id: str,
+    payload: OperatorMessageRequest,
+    attachment_ids: list[str],
+    idempotency_key: str | None,
+) -> dict[str, Any] | None:
+    """Resolve the stored receipt for this send attempt.
+
+    Returns the original response payload when the attempt already landed,
+    ``None`` when this is a first send (or no key was supplied), and raises
+    ``409`` when the key is replaying a *different* attempt.
+    """
+    if not idempotency_key:
+        return None
+    stored = database.get_message_by_operator_key(
+        principal.tenant_id, conversation_id, idempotency_key
+    )
+    if stored is None:
+        return None
+    stored_attachments = stored.get("metadata", {}).get("attachment_ids") or []
+    if (
+        stored.get("author") != principal.actor_id
+        or stored.get("content") != payload.content
+        or list(stored_attachments) != list(attachment_ids)
+    ):
+        raise HTTPException(status_code=409, detail=_SEND_RECEIPT_MISMATCH)
+    return stored
 
 
 def build_router(deps: RouteDeps) -> APIRouter:
@@ -549,11 +590,23 @@ def build_router(deps: RouteDeps) -> APIRouter:
     @router.post(
         "/api/conversations/{conversation_id}/operator-messages",
         response_model=MessageOut,
+        summary="Send an operator reply (Idempotency-Key honoured)",
+        description=(
+            "Stores the operator's reply and, when an Idempotency-Key is "
+            "supplied, records it as the send receipt for that attempt. "
+            "Replaying the same key returns the original message with "
+            "X-Idempotent-Replay: true instead of creating a second reply."
+        ),
     )
     def operator_message(
+        response: Response,
         conversation_id: str,
         payload: OperatorMessageRequest,
         principal: Annotated[Principal, Depends(require_permission("operator:act"))],
+        idempotency_key: Annotated[
+            str | None,
+            Header(alias="Idempotency-Key", max_length=128),
+        ] = None,
     ) -> MessageOut:
         attachment_ids: list[str] = []
         if payload.attachment_ids:
@@ -566,14 +619,41 @@ def build_router(deps: RouteDeps) -> APIRouter:
                 )
             except LookupError as exc:
                 raise HTTPException(status_code=404, detail=str(exc)) from exc
-        message = orchestrator.operator_reply(
-            principal.tenant_id,
-            conversation_id,
-            principal.actor_id,
-            payload.content,
-            can_override=principal.role in {Role.ADMIN, Role.SUPERVISOR},
-            attachment_ids=attachment_ids,
+
+        # ROADMAP H02: the send receipt. Disabling the button is not a
+        # guarantee — a retried attempt (lost response, timeout, restored
+        # session, bounced process) must resolve to the message it already
+        # produced rather than send the customer a second copy.
+        replay = _operator_send_receipt(
+            database, principal, conversation_id, payload, attachment_ids, idempotency_key
         )
+        if replay is not None:
+            response.headers["X-Idempotent-Replay"] = "true"
+            return message_out(replay)
+
+        try:
+            message = orchestrator.operator_reply(
+                principal.tenant_id,
+                conversation_id,
+                principal.actor_id,
+                payload.content,
+                can_override=principal.role in {Role.ADMIN, Role.SUPERVISOR},
+                attachment_ids=attachment_ids,
+                send_key=idempotency_key,
+            )
+        except sqlite3.IntegrityError:
+            # Lost the race against a concurrent attempt carrying the same
+            # key: the winner's receipt is authoritative. A different payload
+            # surfaces as a conflict through the same receipt check.
+            if not idempotency_key:
+                raise
+            winner = _operator_send_receipt(
+                database, principal, conversation_id, payload, attachment_ids, idempotency_key
+            )
+            if winner is None:
+                raise
+            response.headers["X-Idempotent-Replay"] = "true"
+            return message_out(winner)
         if attachment_ids:
             services.attachments.attach_message(principal.tenant_id, message["id"], attachment_ids)
         return MessageOut(**message)

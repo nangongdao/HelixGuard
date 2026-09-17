@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Helix Support",
-    "version": "2.17.0"
+    "version": "2.18.0"
   },
   "paths": {
     "/api/supervisor/knowledge-gaps": {
@@ -3046,8 +3046,8 @@
         "tags": [
           "conversations"
         ],
-        "summary": "Send an operator reply",
-        "description": "Send an operator reply. Requires: operator:act.",
+        "summary": "Send an operator reply (Idempotency-Key honoured)",
+        "description": "Stores the operator's reply and, when an Idempotency-Key is supplied, records it as the send receipt for that attempt. Replaying the same key returns the original message with X-Idempotent-Replay: true instead of creating a second reply.",
         "operationId": "operator_message_api_conversations__conversation_id__operator_messages_post",
         "parameters": [
           {
@@ -3057,6 +3057,23 @@
             "schema": {
               "type": "string",
               "title": "Conversation Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
             }
           },
           {

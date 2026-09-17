@@ -18,6 +18,8 @@ import * as broadcast from "./broadcast.js?v=1.4.0";
 import * as boot from "./boot.js?v=1.4.0";
 import * as commands from "./commands.js?v=1.4.0";
 import * as composer from "./composer.js?v=1.4.0";
+import * as composerCommand from "./composer-command.js?v=1.4.0";
+import * as copilotTools from "./copilot-tools.js?v=1.4.0";
 import * as conversationActions from "./conversation-actions.js?v=1.4.0";
 import * as conversationDetail from "./conversation-detail.js?v=1.4.0";
 import * as composerIslandBridge from "./composer-island-bridge.js?v=1.4.0";
@@ -134,6 +136,8 @@ export function initModules() {
     boot,
     commands,
     composer,
+    composerCommand,
+    copilotTools,
     conversationActions,
     conversationDetail,
     composerIslandBridge,

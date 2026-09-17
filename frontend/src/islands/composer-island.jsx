@@ -177,10 +177,17 @@ export function ComposerIsland() {
     [operatorReply],
   );
 
-  const applySuggestion = useCallback((content) => {
-    setOperatorReply(content);
-    operatorInputRef.current?.focus();
-  }, []);
+  const applySuggestion = useCallback(
+    (content) => {
+      setOperatorReply(content);
+      // ROADMAP H02: the draft changed through a tool rather than a keystroke,
+      // so announce it — an in-flight tone rewrite computed from the previous
+      // text must not overwrite the suggestion the operator just applied.
+      emitTyping("operator", content);
+      operatorInputRef.current?.focus();
+    },
+    [emitTyping],
+  );
 
   const handleFileChange = useCallback((event) => {
     const file = event.target.files?.[0];

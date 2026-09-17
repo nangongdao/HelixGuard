@@ -2,34 +2,89 @@
  * Helix Support — composer surface (ROADMAP §41.6 / ARC-001): drafts, claim
  * renewal, canned macros and the AI copilot bar. app.js keeps thin
  * delegating wrappers and calls configure() once with its singletons.
+ *
+ * The copilot tool cores live in js/copilot-tools.js (ROADMAP H02) and the
+ * command/receipt guards in js/composer-command.js; both are re-exported here
+ * so every existing call site and test keeps its import path.
  */
 
 import { clearPendingAttachments, pendingIds } from "./attachment.js?v=1.4.0";
 import {
   clearDraft,
+  draftKey,
+  draftTtlMs,
+  draftsEnabled,
   loadDraft,
+  pruneExpiredDrafts,
   saveDraft,
 } from "./drafts.js?v=1.4.0";
+import {
+  beginCommand,
+  bumpDraftVersion,
+  clearSendKey,
+  configure as configureCommand,
+  isCurrent,
+  sendKeyFor,
+} from "./composer-command.js?v=1.4.0";
+import {
+  COMPOSER_COPILOT_EVENT,
+  applyCopilotTone,
+  configure as configureCopilotTools,
+  fetchCopilotSuggestions,
+  loadCopilotKnowledge,
+  publishCopilot,
+  resetCopilot,
+  setCopilotStatus,
+  suggestionAt,
+} from "./copilot-tools.js?v=1.4.0";
 
 let ctx = null;
 
-/** Inject the legacy app.js singletons (state/els/api/helpers). */
+/** Inject the legacy app.js singletons (state/els/api/helpers) — the single
+ *  injection point for the whole composer surface: the extracted
+ *  js/copilot-tools.js cores and the js/composer-command.js contract receive
+ *  the same bundle, so a caller that configures the composer configures all
+ *  of it. */
 export function configure(deps) {
   ctx = deps;
+  configureCopilotTools(deps);
+  configureCommand(deps);
 }
 
 // Draft persistence lives in js/drafts.js (re-exported for the namespace).
 export { clearDraft, draftKey, draftTtlMs, draftsEnabled, loadDraft, pruneExpiredDrafts, saveDraft } from "./drafts.js?v=1.4.0";
-
-/** Publish a copilot section {status?, suggestions?, knowledge?, rewritten?}
- * to the composer island (no-op outside island mode). */
-function publishCopilot(detail) {
-  if (typeof window === "undefined" || !window.__HELIX_ISLAND_MODE__) return;
-  window.dispatchEvent(new CustomEvent(COMPOSER_COPILOT_EVENT, { detail }));
-}
-
-/** Event the composer island listens on for copilot tool state. */
-export const COMPOSER_COPILOT_EVENT = "helix-composer-copilot";
+// Pending attachments are part of the send lifecycle (the composer owns the
+// attachment bar). Re-exported for the namespace — `configure` included, and
+// aliased because the `?v=` query is part of a module's URL: a consumer that
+// resolves the bare path would configure a *second* instance whose state the
+// composer never reads.
+export {
+  clearPendingAttachments,
+  configure as configureAttachments,
+  pendingIds,
+  uploadPendingAttachment,
+} from "./attachment.js?v=1.4.0";
+// The command/receipt contract (js/composer-command.js).
+export {
+  beginCommand,
+  bumpDraftVersion,
+  clearSendKey,
+  draftVersionFor,
+  isCurrent,
+  isDraftUnchanged,
+  reset,
+  sendKeyFor,
+} from "./composer-command.js?v=1.4.0";
+// Copilot tool cores (js/copilot-tools.js).
+export {
+  COMPOSER_COPILOT_EVENT,
+  applyCopilotTone,
+  fetchCopilotSuggestions,
+  loadCopilotKnowledge,
+  resetCopilot,
+  setCopilotStatus,
+  suggestionAt,
+} from "./copilot-tools.js?v=1.4.0";
 
 export function scheduleClaimRenewal(detail) {
   if (ctx.state.claimRenewTimer) {
@@ -101,6 +156,9 @@ export function applyMacroFromSuggest(responseId) {
     ctx.els.operatorInput.value = macro.body;
   }
   hideMacroSuggest();
+  // ROADMAP H02: the macro replaced the draft, so an in-flight rewrite
+  // computed from the previous text is stale.
+  bumpDraftVersion(ctx.state.selectedId);
   saveDraft(ctx.state.selectedId, ctx.els.operatorInput.value);
   ctx.els.operatorInput.focus();
   void ctx.api(`/api/canned-responses/${encodeURIComponent(responseId)}/use`, { method: "POST" }).catch(
@@ -153,142 +211,6 @@ export async function recordMacroUse(responseId) {
   }
 }
 
-let copilotSuggestionTexts = [];
-
-export function suggestionAt(index) {
-  return copilotSuggestionTexts[Number(index)];
-}
-
-export function setCopilotStatus(text, autoHide = true) {
-  if (!ctx.els.copilotStatus) return;
-  ctx.els.copilotStatus.textContent = text;
-  ctx.els.copilotStatus.hidden = !text;
-  if (autoHide && text) {
-    window.setTimeout(() => {
-      if (ctx.els.copilotStatus) ctx.els.copilotStatus.hidden = true;
-    }, 2500);
-  }
-}
-
-export async function fetchCopilotSuggestions({ draft } = {}) {
-  const conversationId = ctx.state.selectedId;
-  if (!conversationId || !ctx.canOperate()) return;
-  setCopilotStatus("生成中…", false);
-  publishCopilot({ status: "生成中…" });
-  try {
-    const payload = await ctx.api("/api/copilot/suggest", {
-      method: "POST",
-      body: JSON.stringify({
-        conversation_id: conversationId,
-        // Island mode passes the island textarea content; legacy reads its own input.
-        draft: draft !== undefined ? draft : ctx.els.operatorInput?.value || null,
-      }),
-    });
-    const items = payload.suggestions || [];
-    const mapped = items.map((item) => ({ content: item.content, source: item.source }));
-    copilotSuggestionTexts = mapped.map((item) => item.content);
-    if (typeof window !== "undefined" && window.__HELIX_ISLAND_MODE__) {
-      publishCopilot({ suggestions: mapped, status: mapped.length ? "" : "暂无建议" });
-      return;
-    }
-    if (!ctx.els.copilotSuggestions) return;
-    if (!items.length) {
-      ctx.els.copilotSuggestions.hidden = true;
-      ctx.els.copilotSuggestions.innerHTML = "";
-      setCopilotStatus("暂无建议");
-      return;
-    }
-    ctx.els.copilotSuggestions.innerHTML = items
-      .map((item, index) => {
-        const badge = item.source === "model" ? "AI" : "模板";
-        return `<button type="button" class="copilot-suggestion" data-index="${index}" title="${ctx.escapeHtml(item.content)}">`
-          + `<span class="copilot-suggestion-badge">${badge}</span>`
-          + `<span class="copilot-suggestion-text">${ctx.escapeHtml(item.content)}</span></button>`;
-      })
-      .join("");
-    ctx.els.copilotSuggestions.hidden = false;
-    setCopilotStatus("");
-  } catch {
-    setCopilotStatus("建议生成失败");
-    publishCopilot({ status: "建议生成失败" });
-  }
-}
-
-export async function loadCopilotKnowledge() {
-  const conversationId = ctx.state.selectedId;
-  if (!conversationId || !ctx.canOperate()) return;
-  if (ctx.state.lastCopilotConv === conversationId) return;
-  ctx.state.lastCopilotConv = conversationId;
-  try {
-    const payload = await ctx.api("/api/copilot/knowledge", {
-      method: "POST",
-      body: JSON.stringify({ conversation_id: conversationId }),
-    });
-    const articles = (payload.articles || []).map((article) => ({
-      title: article.title,
-      category: article.category || "",
-    }));
-    if (typeof window !== "undefined" && window.__HELIX_ISLAND_MODE__) {
-      publishCopilot({ knowledge: articles });
-      return;
-    }
-    if (!ctx.els.copilotKnowledge) return;
-    ctx.els.copilotKnowledge.hidden = !articles.length;
-    ctx.els.copilotKnowledge.innerHTML = articles
-      .map((article) => `<button type="button" class="copilot-kb-item" data-title="${ctx.escapeHtml(article.title)}">`
-        + `<span class="copilot-kb-title">${ctx.escapeHtml(article.title)}</span>`
-        + `<span class="copilot-kb-cat">${ctx.escapeHtml(article.category)}</span></button>`)
-      .join("");
-  } catch {
-    if (typeof window !== "undefined" && window.__HELIX_ISLAND_MODE__) {
-      publishCopilot({ knowledge: [] });
-      return;
-    }
-    if (ctx.els.copilotKnowledge) ctx.els.copilotKnowledge.hidden = true;
-  }
-}
-
-export async function applyCopilotTone(tone, { text } = {}) {
-  const value = text !== undefined ? text : ctx.els.operatorInput?.value || "";
-  if (!value.trim()) {
-    setCopilotStatus("先输入草稿再改写");
-    publishCopilot({ status: "先输入草稿再改写" });
-    return;
-  }
-  setCopilotStatus("改写中…", false);
-  publishCopilot({ status: "改写中…" });
-  try {
-    const payload = await ctx.api("/api/copilot/rewrite", {
-      method: "POST",
-      body: JSON.stringify({ text: value, tone }),
-    });
-    const statusText = payload.source === "model" ? "已改写" : "原样保留（模型不可用）";
-    if (typeof window !== "undefined" && window.__HELIX_ISLAND_MODE__) {
-      publishCopilot({ status: statusText, rewritten: payload.rewritten });
-      return;
-    }
-    ctx.els.operatorInput.value = payload.rewritten;
-    setCopilotStatus(statusText);
-  } catch {
-    setCopilotStatus("改写失败");
-    publishCopilot({ status: "改写失败" });
-  }
-}
-
-export function resetCopilot() {
-  ctx.state.lastCopilotConv = null;
-  copilotSuggestionTexts = [];
-  if (ctx.els.copilotSuggestions) {
-    ctx.els.copilotSuggestions.hidden = true;
-    ctx.els.copilotSuggestions.innerHTML = "";
-  }
-  if (ctx.els.copilotKnowledge) {
-    ctx.els.copilotKnowledge.hidden = true;
-    ctx.els.copilotKnowledge.innerHTML = "";
-  }
-  if (ctx.els.copilotStatus) ctx.els.copilotStatus.hidden = true;
-}
-
 export function renderCopilot(detail) {
   const conversation = detail.conversation;
   const human = ["waiting_human", "human_active"].includes(conversation.status);
@@ -323,27 +245,45 @@ function publishState() {
 }
 
 /** Send an operator message (shared by the legacy form and the React island
- *  bridge). Reads nothing from the DOM — the caller passes the content. */
+ *  bridge). Reads nothing from the DOM — the caller passes the content.
+ *
+ *  ROADMAP H02: the attempt carries a stable idempotency key, so a retry after
+ *  a lost response resolves to the message the server already stored instead
+ *  of sending the customer a second copy. Only the originating conversation's
+ *  composer is cleared — a late confirmation for A must never wipe the draft
+ *  the operator is typing in B — and a failed send keeps the text and the
+ *  pending attachments retryable. */
 export async function sendOperatorMessage(content) {
   const conversationId = ctx.state.selectedId;
   if (!conversationId) return;
   const text = String(content || "").trim();
   if (!text) return;
   hideMacroSuggest();
+  const ticket = beginCommand("operator-send", conversationId);
+  // Backlog (语音/富媒体消息): include this conversation's pending uploads.
+  const pendingIds_ = pendingIds(conversationId);
+  const sendKey = sendKeyFor(conversationId, text, pendingIds_);
   ctx.setFormBusy(ctx.els.operatorForm, true);
   try {
     const body = { content: text };
-    // Backlog (语音/富媒体消息): include this conversation's pending uploads.
-    const pendingIds_ = pendingIds(conversationId);
     if (pendingIds_.length) body.attachment_ids = [...pendingIds_];
     await ctx.api(`/api/conversations/${encodeURIComponent(conversationId)}/operator-messages`, {
       method: "POST",
+      headers: { "Idempotency-Key": sendKey },
       body: JSON.stringify(body),
     });
+    // Confirmed: the receipt has done its job and the attempt is complete, so
+    // deliberately sending the same text again is a new attempt.
+    clearSendKey(conversationId, text, pendingIds_);
     clearPendingAttachments(conversationId);
-    ctx.els.operatorInput.value = "";
     clearDraft(conversationId);
-    await ctx.loadDetail(conversationId);
+    if (isCurrent(ticket)) {
+      ctx.els.operatorInput.value = "";
+      // The sent text is no longer the draft: an in-flight rewrite computed
+      // from it must not paste it back into the now-empty box.
+      bumpDraftVersion(conversationId);
+      await ctx.loadDetail(conversationId);
+    }
     void ctx.refreshAll({ silent: true, refreshDetail: false });
   } catch (error) {
     ctx.showToast(error.message, true);
@@ -384,6 +324,7 @@ export function bindComposer() {
       const content = suggestionAt(button.dataset.index);
       if (content) {
         ctx.els.operatorInput.value = content;
+        bumpDraftVersion(ctx.state.selectedId);
         ctx.els.operatorInput.focus();
       }
     });
@@ -393,6 +334,7 @@ export function bindComposer() {
       const button = event.target.closest(".copilot-kb-item");
       if (!button) return;
       ctx.els.operatorInput.value = button.dataset.title || "";
+      bumpDraftVersion(ctx.state.selectedId);
       ctx.els.operatorInput.focus();
     });
   }

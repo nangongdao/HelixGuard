@@ -1,0 +1,126 @@
+// Helix Support — composer command/receipt contract unit tests (ROADMAP H02)
+// Run: node --test tests/frontend/composer-command.test.js
+//
+// js/composer-command.js owns the two facts that decide whether an async
+// composer command may apply its result: which conversation it was issued for
+// (plus a per-surface generation) and which draft it was computed from. It
+// also owns the client half of the send receipt — the stable idempotency key
+// that makes retrying a send safe.
+//
+// The module keeps its state in module-local maps, so every test starts with
+// a reset() to stay independent.
+
+import { test, beforeEach } from "node:test";
+import assert from "node:assert/strict";
+
+import {
+  beginCommand,
+  bumpDraftVersion,
+  clearSendKey,
+  configure as configureCommand,
+  draftVersionFor,
+  isCurrent,
+  isDraftUnchanged,
+  reset,
+  sendKeyFor,
+} from "../../app/static/js/composer-command.js";
+
+let state;
+
+beforeEach(() => {
+  state = { selectedId: "conv-a" };
+  configureCommand({ state });
+  reset();
+});
+
+test("a ticket is current while the operator stays on its conversation", () => {
+  const ticket = beginCommand("copilot-suggest", "conv-a");
+  assert.equal(ticket.conversationId, "conv-a");
+  assert.equal(isCurrent(ticket), true);
+});
+
+test("a ticket stops being current once the operator switches conversation", () => {
+  const ticket = beginCommand("copilot-suggest", "conv-a");
+  state.selectedId = "conv-b";
+  assert.equal(isCurrent(ticket), false);
+});
+
+test("a newer command on the same surface supersedes the older ticket", () => {
+  const first = beginCommand("copilot-tone", "conv-a");
+  const second = beginCommand("copilot-tone", "conv-a");
+  assert.equal(isCurrent(first), false);
+  assert.equal(isCurrent(second), true);
+});
+
+test("surfaces supersede independently", () => {
+  const suggest = beginCommand("copilot-suggest", "conv-a");
+  beginCommand("copilot-tone", "conv-a");
+  assert.equal(isCurrent(suggest), true);
+});
+
+test("beginCommand falls back to the selected conversation", () => {
+  assert.equal(beginCommand("operator-send").conversationId, "conv-a");
+});
+
+test("a keystroke invalidates a result computed from the older draft", () => {
+  const ticket = beginCommand("copilot-tone", "conv-a");
+  assert.equal(isDraftUnchanged(ticket), true);
+  bumpDraftVersion("conv-a");
+  assert.equal(isDraftUnchanged(ticket), false);
+});
+
+test("draft versions are per conversation", () => {
+  const ticket = beginCommand("copilot-tone", "conv-a");
+  bumpDraftVersion("conv-b");
+  assert.equal(draftVersionFor("conv-a"), 0);
+  assert.equal(isDraftUnchanged(ticket), true);
+});
+
+test("a ticket for another conversation is never draft-unchanged", () => {
+  const ticket = beginCommand("copilot-tone", "conv-a");
+  state.selectedId = "conv-b";
+  assert.equal(isDraftUnchanged(ticket), false);
+});
+
+test("send keys are stable for the same attempt", () => {
+  const first = sendKeyFor("conv-a", "您好", ["att-1"]);
+  const retry = sendKeyFor("conv-a", "您好", ["att-1"]);
+  assert.equal(first, retry);
+  assert.match(first, /^[0-9a-f]+$/);
+});
+
+test("send key attachment order does not matter", () => {
+  assert.equal(sendKeyFor("conv-a", "您好", ["a1", "a2"]), sendKeyFor("conv-a", "您好", ["a2", "a1"]));
+});
+
+test("editing the text yields a new send key", () => {
+  const original = sendKeyFor("conv-a", "您好");
+  assert.notEqual(sendKeyFor("conv-a", "您好，请稍等"), original);
+});
+
+test("changing the attachment set yields a new send key", () => {
+  const original = sendKeyFor("conv-a", "您好", []);
+  assert.notEqual(sendKeyFor("conv-a", "您好", ["att-1"]), original);
+});
+
+test("the same text in another conversation is a different attempt", () => {
+  const a = sendKeyFor("conv-a", "您好");
+  const b = sendKeyFor("conv-b", "您好");
+  assert.notEqual(a, b);
+});
+
+test("a confirmed attempt releases its key, so resending is a new attempt", () => {
+  const first = sendKeyFor("conv-a", "您好");
+  clearSendKey("conv-a", "您好");
+  assert.notEqual(sendKeyFor("conv-a", "您好"), first);
+});
+
+test("reset drops every ticket, draft version and send key", () => {
+  const ticket = beginCommand("operator-send", "conv-a");
+  bumpDraftVersion("conv-a");
+  const before = sendKeyFor("conv-a", "您好");
+  reset();
+  assert.equal(isCurrent(ticket), false);
+  assert.equal(draftVersionFor("conv-a"), 0);
+  assert.notEqual(sendKeyFor("conv-a", "您好"), before);
+});
