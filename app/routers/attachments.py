@@ -5,48 +5,139 @@ Operator uploads an attachment to a conversation; the file is validated
 stored on disk. Upload/delete require ``operator:act``; listing, metadata,
 and forced download require ``conversation:read``. Limit violations are 413,
 unsupported types 415, missing rows 404.
+
+ROADMAP H02 (2.19.0): an upload may carry an ``Idempotency-Key``. The receipt
+is persisted on the attachment row, so a retry after a lost response resolves
+to the row the first attempt already produced (``X-Idempotent-Replay: true``)
+instead of storing the bytes — and charging the tenant quota — a second time.
+A key replayed with a *different* file is a 409, never a silent success.
 """
 
 from __future__ import annotations
 
+import hashlib
+import sqlite3
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    Header,
+    HTTPException,
+    Query,
+    Response,
+    UploadFile,
+)
 from fastapi.responses import FileResponse
 
-from app.attachments import AttachmentLimitError, AttachmentService, AttachmentTypeError
+from app.attachments import (
+    AttachmentLimitError,
+    AttachmentService,
+    AttachmentTypeError,
+    sanitize_filename,
+)
 from app.main import require_permission
 from app.routers.common import RouteDeps
 from app.schemas import AttachmentOut, ScanVerdictIn
 from app.security import Principal
 
+# A key is bound to one upload attempt: its author and the exact bytes. A key
+# replayed with a different file (name, type, size or digest) is a client bug
+# that must fail loudly — returning the earlier attachment would silently
+# substitute the file the operator just corrected, which is the "lose the
+# draft" failure H02 forbids.
+_UPLOAD_RECEIPT_MISMATCH = (
+    "Idempotency-Key was already used for a different upload attempt in this conversation"
+)
+
+# ``storage_key`` is the internal disk filename and ``operator_idempotency_key``
+# is the receipt; neither is part of the API contract. ``_out`` filters rather
+# than whitelists, so every column that must stay private has to be named here.
+_PRIVATE_ATTACHMENT_COLUMNS = frozenset({"storage_key", "operator_idempotency_key"})
+
+
+def _attachment_upload_receipt(
+    database: Any,
+    principal: Principal,
+    conversation_id: str,
+    filename: str,
+    content_type: str,
+    data: bytes,
+    idempotency_key: str | None,
+) -> dict[str, Any] | None:
+    """Resolve the stored receipt for this upload attempt.
+
+    Returns the stored row when the attempt already landed, ``None`` when this
+    is a first upload (or no key was supplied), and raises ``409`` when the key
+    is replaying a *different* attempt.
+    """
+    if not idempotency_key:
+        return None
+    stored = database.get_attachment_by_operator_key(
+        principal.tenant_id, conversation_id, idempotency_key
+    )
+    if stored is None:
+        return None
+    if (
+        stored.get("uploader") != principal.actor_id
+        or stored.get("filename") != sanitize_filename(filename)
+        or stored.get("content_type") != content_type
+        or int(stored.get("size_bytes") or 0) != len(data)
+        or (stored.get("sha256") or "") != hashlib.sha256(data).hexdigest()
+    ):
+        raise HTTPException(status_code=409, detail=_UPLOAD_RECEIPT_MISMATCH)
+    return stored
+
 
 def build_router(deps: RouteDeps) -> APIRouter:
     router = APIRouter()
     attachments: AttachmentService = deps.services.attachments
+    database = deps.database
 
     def _out(attachment: dict[str, Any]) -> AttachmentOut:
-        # ``storage_key`` is the internal disk filename; never exposed.
         return AttachmentOut(
-            **{key: value for key, value in attachment.items() if key != "storage_key"}
+            **{
+                key: value
+                for key, value in attachment.items()
+                if key not in _PRIVATE_ATTACHMENT_COLUMNS
+            }
         )
 
     @router.post("/api/attachments", response_model=AttachmentOut, status_code=201)
     async def upload_attachment(
+        response: Response,
         principal: Annotated[Principal, Depends(require_permission("operator:act"))],
         conversation_id: Annotated[str, Form(min_length=5, max_length=80)],
         file: Annotated[UploadFile, File()],
+        idempotency_key: Annotated[
+            str | None,
+            Header(alias="Idempotency-Key", max_length=128),
+        ] = None,
     ) -> AttachmentOut:
         data = await file.read()
         content_type = (file.content_type or "").split(";")[0].strip().lower()
+        filename = file.filename or "attachment"
+
+        # ROADMAP H02: the upload receipt. A lost response must not cost the
+        # tenant a second copy of the same bytes.
+        replay = _attachment_upload_receipt(
+            database, principal, conversation_id, filename, content_type, data, idempotency_key
+        )
+        if replay is not None:
+            response.headers["X-Idempotent-Replay"] = "true"
+            return _out(replay)
+
         try:
             attachment = attachments.upload(
                 principal.tenant_id,
                 conversation_id,
                 principal.actor_id,
-                file.filename or "attachment",
+                filename,
                 content_type,
                 data,
+                idempotency_key=idempotency_key,
             )
         except LookupError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -54,6 +145,25 @@ def build_router(deps: RouteDeps) -> APIRouter:
             raise HTTPException(status_code=415, detail=str(exc)) from exc
         except AttachmentLimitError as exc:
             raise HTTPException(status_code=413, detail=str(exc)) from exc
+        except sqlite3.IntegrityError:
+            # Lost the race against a concurrent attempt carrying the same key:
+            # the winner's receipt is authoritative. A different file surfaces
+            # as a conflict through the same receipt check.
+            if not idempotency_key:
+                raise
+            winner = _attachment_upload_receipt(
+                database,
+                principal,
+                conversation_id,
+                filename,
+                content_type,
+                data,
+                idempotency_key,
+            )
+            if winner is None:
+                raise
+            response.headers["X-Idempotent-Replay"] = "true"
+            return _out(winner)
         return _out(attachment)
 
     @router.get("/api/attachments", response_model=list[AttachmentOut])

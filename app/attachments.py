@@ -9,6 +9,12 @@ conversation stream. An operator reply can reference uploaded attachments
 via ``attachment_ids``, which are backfilled onto the attachment rows so the
 message stream can render chips. Voice-to-text and ClamAV are out of scope
 for this slice — the scanner is the interface to swap in later.
+
+ROADMAP H02 (2.19.0): an upload may carry an ``Idempotency-Key``; the receipt
+is stored on the row (``operator_idempotency_key``, partial unique per tenant
+and conversation) so a retry after a lost response resolves to the bytes that
+were already stored instead of storing them twice. Receipt *resolution* lives
+in the router, mirroring the operator send receipt (v47).
 """
 
 from __future__ import annotations
@@ -240,6 +246,7 @@ class AttachmentService:
         filename: str,
         content_type: str,
         data: bytes,
+        idempotency_key: str | None = None,
     ) -> dict[str, Any]:
         conversation = self.database.get_conversation(tenant_id, conversation_id)
         if conversation is None:
@@ -293,8 +300,8 @@ class AttachmentService:
                     """INSERT INTO attachments
                     (id, tenant_id, conversation_id, message_id, filename, content_type,
                      size_bytes, storage_key, uploader, status, scanned, verdict, created_at,
-                     sha256)
-                    VALUES (?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                     sha256, operator_idempotency_key)
+                    VALUES (?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (
                         attachment_id,
                         tenant_id,
@@ -309,10 +316,15 @@ class AttachmentService:
                         verdict,
                         now,
                         sha256 or None,
+                        # ROADMAP H02 (2.19.0): the upload receipt. NULL for
+                        # callers that send no key, which keeps the partial
+                        # unique index out of their way.
+                        idempotency_key or None,
                     ),
                 )
         except Exception:
-            # Never leave an orphaned file behind when the row insert fails.
+            # Never leave an orphaned file behind when the row insert fails
+            # (including the unique-index violation of a concurrent retry).
             self._remove_object(storage_key)
             raise
         self.database.audit(

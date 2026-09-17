@@ -260,3 +260,17 @@ test("a knowledge load paints and marks the conversation once applied", async ()
   await loadCopilotKnowledge();
   assert.equal(state.lastCopilotConv, "conv-a");
 });
+
+test("a confirmation does not wipe text typed while the send was in flight", async () => {
+  const gate = deferred();
+  const { els } = configureAll({
+    apiImpl: (url) => (url.includes("/operator-messages") ? gate.promise : {}),
+  });
+  els.operatorInput.value = "已为您加急处理";
+  const inFlight = sendOperatorMessage("已为您加急处理");
+  // The operator keeps typing: the box no longer holds what was sent.
+  els.operatorInput.value = "已为您加急处理，另外再补一句";
+  gate.resolve({ id: "msg_1" });
+  await inFlight;
+  assert.equal(els.operatorInput.value, "已为您加急处理，另外再补一句");
+});

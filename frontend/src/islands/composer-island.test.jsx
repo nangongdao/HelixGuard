@@ -270,3 +270,80 @@ describe("ComposerIsland attachment bar", () => {
     expect(document.getElementById(INPUT_IDS.attachmentFile)).toBeTruthy();
   });
 });
+
+describe("ComposerIsland attachment failures and send lifecycle", () => {
+  // ROADMAP H02 (2.19.0): a failed upload stays on screen and retryable. The
+  // File is retained legacy-side; the island mirrors only the token, so its
+  // chips must route both actions back through the bridge.
+  it("renders a failed upload as a retryable chip and bridges both actions", () => {
+    const dispatchSpy = vi.spyOn(window, "dispatchEvent");
+    render(<ComposerIsland />);
+    publishToolsState({
+      pendingAttachments: [],
+      failedAttachments: [
+        { token: "截图.png|2048|1700000000000|image/png", filename: "截图.png", error: "附件超出配额" },
+      ],
+    });
+    const failed = document.querySelector("#pendingAttachments .pending-attachment-chip.is-failed");
+    expect(failed).toBeTruthy();
+    expect(failed.textContent).toContain("截图.png");
+    expect(failed.getAttribute("title")).toBe("附件超出配额");
+
+    fireEvent.click(failed.querySelector(".failed-attachment-retry"));
+    const retryEvent = dispatchSpy.mock.calls
+      .map(([ev]) => ev)
+      .find((ev) => ev.type === COMPOSER_EVENTS.ATTACHMENT_RETRY);
+    expect(retryEvent.detail).toEqual({ token: "截图.png|2048|1700000000000|image/png" });
+
+    fireEvent.click(failed.querySelector(".failed-attachment-dismiss"));
+    const dismissEvent = dispatchSpy.mock.calls
+      .map(([ev]) => ev)
+      .find((ev) => ev.type === COMPOSER_EVENTS.ATTACHMENT_DISMISS);
+    expect(dismissEvent.detail).toEqual({ token: "截图.png|2048|1700000000000|image/png" });
+  });
+
+  it("keeps a stored attachment and a failed one on the same bar", () => {
+    render(<ComposerIsland />);
+    publishToolsState({
+      pendingAttachments: [{ id: "att-1", filename: "发货单.pdf" }],
+      failedAttachments: [{ token: "b|1|1|x", filename: "截图.png", error: "网络错误" }],
+    });
+    const chips = document.querySelectorAll("#pendingAttachments .pending-attachment-chip");
+    expect(chips.length).toBe(2);
+    expect(chips[0].className).not.toContain("is-failed");
+    expect(chips[1].className).toContain("is-failed");
+  });
+
+  // ROADMAP H02 (2.19.0): the island mirrors legacy's send lifecycle, so it
+  // must not clear the reply on submit. A failed send leaves legacy's draft
+  // intact and republishes nothing — clearing locally would show the operator
+  // an empty box and silently look like a lost draft.
+  it("keeps the operator draft on submit and clears it only on confirmation", () => {
+    render(<ComposerIsland />);
+    publishToolsState();
+    fireEvent.change(document.getElementById(INPUT_IDS.operatorInput), {
+      target: { value: "已为您加急处理" },
+    });
+    fireEvent.submit(document.getElementById(INPUT_IDS.operatorForm));
+    expect(document.getElementById(INPUT_IDS.operatorInput).value).toBe("已为您加急处理");
+
+    // The confirmed send clears legacy's draft *and* advances its generation.
+    publishToolsState({ operatorDraft: "", operatorDraftRevision: 1 });
+    expect(document.getElementById(INPUT_IDS.operatorInput).value).toBe("");
+  });
+
+  // The generation is the only signal that distinguishes "legacy cleared it"
+  // from "there was never a draft": a stray publish that repeats the same text
+  // and generation must not wipe what the operator typed.
+  it("ignores a republish that does not advance the draft generation", () => {
+    render(<ComposerIsland />);
+    publishToolsState({ operatorDraft: "", operatorDraftRevision: 0 });
+    fireEvent.change(document.getElementById(INPUT_IDS.operatorInput), {
+      target: { value: "已为您加急处理" },
+    });
+    fireEvent.submit(document.getElementById(INPUT_IDS.operatorForm));
+    // A silent refresh republishes the same (empty) value and generation.
+    publishToolsState({ operatorDraft: "", operatorDraftRevision: 0 });
+    expect(document.getElementById(INPUT_IDS.operatorInput).value).toBe("已为您加急处理");
+  });
+});

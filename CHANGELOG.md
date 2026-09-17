@@ -2,6 +2,55 @@
 
 所有版本遵循[语义化版本](https://semver.org)。API 变更遵循 `docs/API_POLICY.md`(响应体只增不改、弃用需 `Deprecation`/`Sunset` 头 + 至少一个次版本过渡、每次变更记录于此)。
 
+## 2.19.0 — 附件失败可恢复: 上传回执、待重试队列与 island 双轨不丢稿 (2026-09-17)
+
+Version 2.19.0 落地路线图 H02 的第二片。2.18.0 关掉的是「重试一次人工回复会变成两条客户可见消息」，而同一个坐席流程里**往前一步**还开着同一个洞：文件上传成功、响应丢了、工作台重试，字节就被存了第二遍——重复的那份既多算一次租户配额，又能被下一条消息绑走，于是一次操作变成两个附件。与此同时，**上传失败**这条路会把坐席刚挑好的文件直接丢掉：队列只在成功时追加，一次 413 配额错误或网络抖动之后，坐席只能回到磁盘上重新找一遍文件。这正是 H02 验收条款里那句「附件失败…不丢稿」缺失的另一半。
+
+**服务端：上传回执（迁移 v48）**
+
+`POST /api/attachments` 现在接受 `Idempotency-Key`，回执记在附件行上（`attachments.operator_idempotency_key`，nullable + 部分唯一索引 `(tenant_id, conversation_id, key) WHERE key IS NOT NULL`，镜像 v47 与 v11 的既有姿势）：
+
+| 情形 | 行为 |
+|---|---|
+| 同（会话+上传人+文件名+内容类型+字节数+sha256）重放 | 返回**原行** + `X-Idempotent-Replay: true`；不新增行、不再记 `attachment.uploaded` 审计、不再计租户配额 |
+| 同键但换了文件（名字/类型/大小/摘要任一不同） | **409**——摘要纳入比较，避免把同名同长的另一份文件当成重放（静默替换坐席刚纠正的文件同样是丢稿路径） |
+| 并发同键竞态 | `IntegrityError` → 回读，胜者回执生效 |
+| 被拒的上传（413 配额 / 415 类型） | 不留回执，坐席修正后可用同一键继续重试 |
+| 无键 | 行为**完全不变**（NULL 键被部分唯一索引排除） |
+
+回执同样**不复用 `api_idempotency`（v37）**，理由与 v47 一致：该表无 `conversation_id`，且不在归档删除 / DSR 擦除 / 保留清单 / RLS 策略集任何一处；`attachments` 已在保留清单与 RLS 策略集中，回执记在行上即自动继承。
+
+两个实现细节值得单列：①路由的 `_out()` 是**过滤式**而非白名单式，而 `AttachmentOut` 是 `extra="forbid"` 的严格模型——给表加列必然漏进投影，因此把 `operator_idempotency_key` 与 `storage_key` 一并列入私有列集合（与 2.18.0 修 `message_out()` 同型）。②回执读取 `Database.get_attachment_by_operator_key` 落在新的 `DatabaseAttachmentsMixin`，进程重启后仍可解析。
+
+**客户端：待重试队列**
+
+- 上传失败**保留 File 本身**，按会话隔离且有界（每会话 5 条），`failedAttachments(conversationId)` 只读暴露；
+- `retryFailedAttachment` 用**同一回执键**重发（新增 `composer-command.js:uploadKeyFor/uploadTokenFor/clearUploadKey`），丢响应不会把同一份字节存两次；`dismissFailedAttachment` 是**唯一**的丢弃路径；
+- 失败 chip 同时给出「重试」与「×」两个显式动作，`title` 带上传失败原因；
+- `clearPendingAttachments`（发送生命周期）**不再影响失败队列**——尚未入库的文件不能被发送流程丢掉；
+- 新增 `resetAttachments()`，与契约模块的 `reset()` 对称。
+
+**island 双轨与「提交后立即清稿」**
+
+失败条目经 `helix-composer-state` 快照下发，只带 token / 文件名 / 错误文案，**File 始终留在 legacy 侧**；重试与放弃经 `helix-composer-attachment-retry` / `-dismiss` 回传，island 不持有文件对象也不自行丢弃。
+
+同时修掉本卡片点名的 [HX07]「React 提交后立即清稿」：island 的 `handleOperatorSubmit` 不再本地清空，清空改由 **legacy 确认驱动**——legacy 仅在输入框仍持有刚发出的那段文本时才清空，否则保留（坐席在飞行中继续输入的文字不会被确认抹掉）。发送失败时两条轨道都不动，草稿与待发附件原样可重试。
+
+**一个顺带发现**：确认清空在「首次输入就落在空框」时是 `"" → ""`，**只比较值根本察觉不到清空**（island 的镜像因此会一直留着已发出的文本）。修法是让 H02 已有的**草稿代次**成为可观测信号：`helix-composer-state` 新增 `operatorDraftRevision`，镜像在「值变了**或**代次推进了」时重同步；代次不推进的重发（静默刷新）不会抹掉坐席刚输入的文字。
+
+**红光**：新 `tests/test_attachment_idempotency.py` 14 例，实现前 **9 例失败**（重放把同一份字节存成第二行、重复审计与重复计配额、同键改文件仍 201、超长键被接受、`Database.get_attachment_by_operator_key` 不存在）。钉住：重放返回原行且只存一行、不重复审计/不重复计配额、跨进程重启存活、丢响应后重试同一行；同键换字节/换文件名/换上传人=409；键按会话与租户隔离；无键时每次独立、新键产生新行、被拒上传不留回执；回执列不进 API 投影。新 `tests/frontend/attachment-recovery.test.js` 10 例（实现前因 `composer.js` 未导出新表面而全数失败）钉住：失败保留可重试条目与文件名、重试复用同键、成功转正、直接重传清掉陈旧失败、放弃不重传、未知 token 空操作、跨会话隔离、队列有界 5 条、失败 chip 渲染、清空待发不丢未入库文件。`composer-consistency.test.js` 增 1 例（确认到达不得抹掉飞行中继续输入的文字），`composer-command.test.js` 增 4 例（上传键稳定性/会话与文件敏感性/释放/重置），`composer-island.test.jsx` 增 4 例（失败 chip 双动作、存储与失败同栏共存、提交不清稿、代次不推进不清空）。
+
+**全量门禁（2.19.0）**：1951 例收集 / 1905 通过 / 44 跳过 / 2 失败（已知 opentelemetry 环境噪声，CI 不装 `[otel]`——`test_telemetry_edge`、`test_telemetry_otel_branches`）；覆盖率 **89%（14732 语句 / 1349 未覆盖 / 3642 分支 / 573 部分，`coverage report --fail-under=85` 通过）**；ruff 0.9.9 `format --check` + `check app tests scripts` 全绿（**371** 文件）；pyright `app` 0 实质错误（57 条全是 `reportMissingImports` 环境缺包）；前端门禁通过（语法 OK、模块 ≤400 行、**391** 个 node 测试）；vitest `composer-island.test.jsx` **21/21**；golden eval **27/27**；对抗集 **24/24**；迁移门禁 **48** 条连续；`threat_model_gate --release 2.19.0` 干净；openapi 快照重生成（`/api/attachments` 新增 `Idempotency-Key` 头参数，只增）。
+
+**顺带修掉一处会腐烂的断言**：`tests/test_streaming.py` 把「1-4 已标记、其余全跑」写成从 5 到 47 的逐项列表，每加一条迁移就得手工补一行——v48 正是漏掉的那次。改为从注册表推导（`list(range(5, max(version) + 1))`），语义不变且不会再腐烂。
+
+**行为边界（如实记录）**
+
+- 无 `Idempotency-Key` 的调用方**零变化**。
+- 上传在失败后重试时会**重新读取文件**（浏览器 File 引用仍在内存），不做断点续传；`attachment_max_mb` 级别的文件重传仍是整份。
+- 失败队列按会话保留在内存中，页面刷新即清空（与草稿的 localStorage 持久化不同——File 对象无法序列化）。
+- 本版**发现但刻意未修**：归档删除（`app/db/archive.py`）目前不清理 `attachments` 行与其磁盘对象——既有缺口，保留清单一侧已覆盖，需要独立变更。
+
 ## 2.18.0 — 跨会话命令/回执契约: 慢响应不串会话、发送重试不重复 (2026-09-17)
 
 Version 2.18.0 落地路线图 H02 的第一片：多会话坐席使用前，异步命令与人工发送必须带上「属于哪个会话、基于哪一版草稿、属于哪一次发送尝试」三个身份。

@@ -61,7 +61,11 @@ export { clearDraft, draftKey, draftTtlMs, draftsEnabled, loadDraft, pruneExpire
 export {
   clearPendingAttachments,
   configure as configureAttachments,
+  dismissFailedAttachment,
+  failedAttachments,
   pendingIds,
+  resetAttachments,
+  retryFailedAttachment,
   uploadPendingAttachment,
 } from "./attachment.js?v=1.4.0";
 // The command/receipt contract (js/composer-command.js).
@@ -69,11 +73,14 @@ export {
   beginCommand,
   bumpDraftVersion,
   clearSendKey,
+  clearUploadKey,
   draftVersionFor,
   isCurrent,
   isDraftUnchanged,
   reset,
   sendKeyFor,
+  uploadKeyFor,
+  uploadTokenFor,
 } from "./composer-command.js?v=1.4.0";
 // Copilot tool cores (js/copilot-tools.js).
 export {
@@ -278,7 +285,10 @@ export async function sendOperatorMessage(content) {
     clearPendingAttachments(conversationId);
     clearDraft(conversationId);
     if (isCurrent(ticket)) {
-      ctx.els.operatorInput.value = "";
+      // Only clear the box if it still holds what was sent: an operator who
+      // kept typing while the send was in flight must not lose the newer text
+      // (the island mirror reads the same field, so this covers both tracks).
+      if (ctx.els.operatorInput.value.trim() === text) ctx.els.operatorInput.value = "";
       // The sent text is no longer the draft: an in-flight rewrite computed
       // from it must not paste it back into the now-empty box.
       bumpDraftVersion(conversationId);

@@ -408,6 +408,32 @@
         "治理面回归：归档/DSR/保留/协作套件（test_archive/test_archive_store/test_dsr/test_privacy/test_collaboration/test_system）104 项全通过；迁移门禁 47 条连续",
         "已知未覆盖：composer.js 的补问文案；island 的 helix-composer-state 回灌不推进草稿版本（非坐席编辑）；契约的 generation 仅在单页生命周期内有效，不跨标签页；回执列随 messages 进入 DSR 导出（channel_message_id 早已如此，未收窄导出契约）"
       ]
+    },
+    {
+      "release": "2.19.0",
+      "date": "2026-09-17",
+      "owner": "release-eng",
+      "approved_by": "platform-sec",
+      "controls": [
+        "附件上传回执（ROADMAP H02）记在 attachments 行上：迁移 v48（expand）加 operator_idempotency_key（nullable）+ 部分唯一索引 idx_attachments_operator_upload_receipt(tenant_id, conversation_id, key) WHERE key IS NOT NULL（镜像 v47 与 v11 的既有姿势）",
+        "回执不落 api_idempotency（v37）：该表无 conversation_id 且不在归档删除/DSR 擦除/保留清单/RLS 策略集任何一处，复用它需新增四条清理与隔离路径；attachments 已在保留清单（retention.py）与 RLS 策略集（rls.py）中，记在行上则回执自动继承既有治理保证",
+        "内部去重键不外泄：attachments 路由的 _out() 把 operator_idempotency_key 与 storage_key 一并列入私有列集合。该函数是过滤式而非白名单式，而 AttachmentOut 是 extra=forbid 的 StrictModel——给表加列必然漏进投影，与 v47 的 message_out 同型陷阱，故以显式私有列集合封堵",
+        "重放语义有界：同一键 + 同会话 + 同上传人 + 同文件名 + 同内容类型 + 同字节数 + 同 sha256 → 返回原行并置 X-Idempotent-Replay: true，不新增行、不再审计 attachment.uploaded、不再计租户配额；任一不同 → 409，绝不把「坐席刚纠正过的另一份文件」静默当成重放（摘要纳入比较正是为了不把同名同长的另一份文件误判为重放）",
+        "键按 (tenant_id, conversation_id) 命名空间隔离：同一字符串在另一会话或另一租户是不同请求，不可能解析到本会话/本租户的附件行",
+        "无键调用方行为零变化（NULL 键被部分唯一索引排除，legacy 行不受约束）；并发同键竞态经 sqlite3.IntegrityError 回读由胜者回执生效；被拒（413 配额/415 类型）的上传不留回执，坐席修正后可继续用同一键重试",
+        "客户端失败可恢复（app/static/js/attachment.js）：上传失败保留 File 本身，按会话隔离且有界（每会话 5 条），提供重试与显式放弃两个动作；重试复用同一上传回执键（composer-command.js:uploadKeyFor），丢响应不会把同一份字节存两次；发送成功后的 clearPendingAttachments 不再影响失败队列——未入库的文件不能被发送生命周期丢弃",
+        "island 双轨（composer-island-bridge.js / tool-bars.jsx）：失败条目经 helix-composer-state 快照下发，只带 token/文件名/错误文案，File 始终留在 legacy 侧；重试与放弃经 helix-composer-attachment-retry / helix-composer-attachment-dismiss 回传，island 不持有文件对象也不自行丢弃",
+        "island 提交人工回复不再立即清稿：清空改由 legacy 确认驱动（仅当输入框仍持有刚发出的文本时才清空），失败保留草稿与待发附件——修掉路线图 H02 点名的 React 提交后立即清稿 [HX07]",
+        "草稿代次成为可观测信号：helix-composer-state 新增 operatorDraftRevision（即 H02 的草稿代次）。确认清空在「首次输入即落在空框」时值不变（\"\" → \"\"），只比较值无法察觉清空，代次推进是唯一可靠信号；代次不推进的重发（静默刷新）不会抹掉坐席刚输入的文字"
+      ],
+      "verification_evidence": [
+        "红光（实现前）：tests/test_attachment_idempotency.py 14 例中 9 例失败——重试把同一份字节存成第二行、重复审计与重复计配额、同键改文件仍返回 201、超长键被接受、Database.get_attachment_by_operator_key 不存在；修复后 14/14",
+        "红光（前端）：tests/frontend/attachment-recovery.test.js 在实现前因 composer.js 未导出 failedAttachments/retryFailedAttachment/dismissFailedAttachment 而全数失败；修复后 10/10",
+        "绿光：tests/frontend/composer-consistency.test.js 11/11（新增「确认到达不得抹掉飞行中继续输入的文字」）；tests/frontend/composer-command.test.js 15/15；既有 tests/frontend/composer-tools.test.js 8/8 零改动通过",
+        "前端门禁：frontend_gate 通过（语法 OK、模块 ≤400 行、387 个 node 测试）；vitest src/islands/composer-island.test.jsx 21/21（新增失败 chip 双动作与提交不清稿）",
+        "服务端回归：pytest -k 'attachment or rich_media' 70 项全通过；迁移门禁 48 条连续；openapi 快照已随新增 Idempotency-Key 头重生成",
+        "已知未覆盖：归档删除（app/db/archive.py）目前不清理 attachments 行与其磁盘对象——既有缺口（保留清单一侧已覆盖），需独立变更；附件行上的回执键同样随 SELECT * 进入既有导出路径"
+      ]
     }
   ]
 }

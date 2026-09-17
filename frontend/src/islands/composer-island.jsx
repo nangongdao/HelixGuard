@@ -13,9 +13,12 @@
  *   helix-composer-macro-use          {macroId}         → usage tracking
  *   helix-composer-attachment-upload  {file}            → uploadPendingAttachment
  *   helix-composer-attachment-remove  {id}              → pending removal
+ *   helix-composer-attachment-retry   {token}           → retry a failed upload
+ *   helix-composer-attachment-dismiss {token}           → discard a failed upload
  * State flows the other way via helix-composer-state snapshots (resolved,
- * human, busy flags, drafts, cannedResponses, pendingAttachments, canOperate)
- * and helix-composer-copilot tool events published by composer.js.
+ * human, busy flags, drafts, cannedResponses, pendingAttachments,
+ * failedAttachments, canOperate) and helix-composer-copilot tool events
+ * published by composer.js.
  *
  * The mount point stays hidden in a plain browser tab (legacy is the renderer
  * there); the desktop shell unhides it and yields #customerForm/#operatorForm.
@@ -44,15 +47,18 @@ export function ComposerIsland() {
     operatorBusy: false,
     customerDraft: "",
     operatorDraft: "",
+    operatorDraftRevision: 0,
     canOperate: false,
     cannedResponses: [],
     pendingAttachments: [],
+    failedAttachments: [],
   });
   const [customerMessage, setCustomerMessage] = useState("");
   const [operatorReply, setOperatorReply] = useState("");
   const [tone, setTone] = useState("");
   const [copilot, setCopilot] = useState({ status: "", suggestions: [], knowledge: [] });
   const lastStateRef = useRef(state);
+  const syncedDraftRef = useRef({ text: null, revision: null });
   const operatorInputRef = useRef(null);
 
   useEffect(() => {
@@ -87,9 +93,19 @@ export function ComposerIsland() {
   useEffect(() => {
     setCustomerMessage((prev) => (state.customerDraft !== undefined ? state.customerDraft : prev));
   }, [state.customerDraft]);
+  // ROADMAP H02 (2.19.0): re-sync when the published text differs *or* when
+  // legacy's draft generation advanced. The generation is what makes a
+  // confirmed send observable: it clears the box to "" without changing the
+  // value when the reply was the first thing typed, so a value-only comparison
+  // would leave the sent text sitting in the mirror.
   useEffect(() => {
-    setOperatorReply((prev) => (state.operatorDraft !== undefined ? state.operatorDraft : prev));
-  }, [state.operatorDraft]);
+    if (state.operatorDraft === undefined) return;
+    const revision = state.operatorDraftRevision ?? 0;
+    const synced = syncedDraftRef.current;
+    if (state.operatorDraft === synced.text && revision === synced.revision) return;
+    syncedDraftRef.current = { text: state.operatorDraft, revision };
+    setOperatorReply(state.operatorDraft);
+  }, [state.operatorDraft, state.operatorDraftRevision]);
 
   const emitTyping = useCallback((kind, content) => {
     window.dispatchEvent(new CustomEvent(COMPOSER_EVENTS.TYPING, { detail: { kind, content } }));
@@ -119,7 +135,12 @@ export function ComposerIsland() {
       const content = operatorReply.trim();
       if (!content) return;
       emitSubmit("operator", content);
-      setOperatorReply("");
+      // ROADMAP H02: deliberately *not* cleared here. The legacy composer
+      // owns the send lifecycle and only clears on a confirmed send, so
+      // clearing on submit would empty the box the operator is looking at
+      // while the text they sent is still unconfirmed — a failed send would
+      // silently look like a lost draft. The confirmed send republishes the
+      // composer state, which syncs this textarea in the effect below.
     },
     [operatorReply, state.operatorBusy, emitSubmit],
   );
@@ -270,6 +291,7 @@ export function ComposerIsland() {
           <AttachmentBar
             toolsVisible={toolsVisible}
             pendingAttachments={state.pendingAttachments}
+            failedAttachments={state.failedAttachments}
             onFileChange={handleFileChange}
           />
           <div className="composer-actions">

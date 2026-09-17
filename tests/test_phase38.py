@@ -210,8 +210,8 @@ class ChannelPersistenceTests(unittest.TestCase):
             columns = {
                 row["name"] for row in connection.execute("PRAGMA table_info(turn_jobs)").fetchall()
             }
-            self.assertEqual(migration_schema_version(connection), 47)
-            self.assertEqual(max(migration.version for migration in all_migrations()), 47)
+            self.assertEqual(migration_schema_version(connection), 48)
+            self.assertEqual(max(migration.version for migration in all_migrations()), 48)
         self.assertIn("channel_threads", tables)
         self.assertIn("channel_webhook_receipts", tables)
         self.assertIn("channel_message_id", columns)
