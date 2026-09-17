@@ -23,6 +23,7 @@ import {
   removePendingAttachment,
   uploadPendingAttachment,
 } from "./attachment.js?v=1.4.0";
+import { bumpDraftVersion } from "./composer-command.js?v=1.4.0";
 
 let ctx = null;
 
@@ -83,6 +84,9 @@ export function bindIslandBridge() {
     if (kind !== "operator" || typeof content !== "string") return;
     const conversationId = ctx.state.selectedId;
     if (!conversationId) return;
+    // ROADMAP H02: an in-flight rewrite computed from the previous text must
+    // not overwrite what the operator has typed since.
+    bumpDraftVersion(conversationId);
     ctx.els.operatorInput.value = content;
     window.clearTimeout(ctx.state.draftTimer);
     if (content.trim()) {
@@ -105,7 +109,13 @@ export function bindIslandBridge() {
   // island-side (the insertion itself is island-local).
   window.addEventListener("helix-composer-macro-use", (event) => {
     const { macroId } = event.detail || {};
-    if (macroId) void recordMacroUse(macroId);
+    if (macroId) {
+      // ROADMAP H02: the island inserted the macro into its own textarea, so
+      // an in-flight rewrite computed from the previous text is now stale.
+      const conversationId = ctx.state.selectedId;
+      if (conversationId) bumpDraftVersion(conversationId);
+      void recordMacroUse(macroId);
+    }
   });
   // Pending attachments: the island's file input hands the raw File across.
   window.addEventListener("helix-composer-attachment-upload", (event) => {
@@ -122,6 +132,9 @@ export function bindIslandBridge() {
   ctx.els.operatorInput?.addEventListener("input", () => {
     const conversationId = ctx.state.selectedId;
     if (conversationId) {
+      // ROADMAP H02: every keystroke advances the draft generation, so a
+      // rewrite or suggestion computed from the older text is recognisable.
+      bumpDraftVersion(conversationId);
       window.clearTimeout(ctx.state.draftTimer);
       ctx.state.draftTimer = window.setTimeout(() => {
         saveDraft(conversationId, ctx.els.operatorInput.value);

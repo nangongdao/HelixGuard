@@ -386,6 +386,28 @@
         "已知未验证边界：语义层面『改变含义』仍无确定性判据；任务种类仅 order 一种；过期清理为惰性（无后台任务）；composer.js 文案未纳入（399/400 行需先抽模块）；未跑真实供应商模型",
         "对抗集回归取证：H03 初版把该用例从 waiting_human 变成 open（升级此前由订单质量门禁的无证据规则带来），评估为真实安全底线回退而非政策变更；修正后 scripts/evaluate_adversarial.py 24/24 通过，且新增用例test_credential_material_never_enters_the_clarification_loop 钉住（不建待补任务、不回显、消息不含追问文案）"
       ]
+    },
+    {
+      "release": "2.18.0",
+      "date": "2026-09-17",
+      "owner": "release-eng",
+      "approved_by": "platform-sec",
+      "controls": [
+        "人工发送回执（ROADMAP H02）记在 messages 行上：迁移 v47（expand）加 operator_idempotency_key（nullable）+ 部分唯一索引 idx_messages_operator_send_receipt(tenant_id, conversation_id, key) WHERE key IS NOT NULL（镜像 v11 的 channel 去重索引姿势）",
+        "回执不落 api_idempotency（v37）：该表无 conversation_id 且不在归档删除/DSR 擦除/保留清单/RLS 策略集任何一处，复用它需要新增四条清理与隔离路径；记在 messages 行上则回执自动继承现有全部治理保证",
+        "内部去重键不外泄：message_out() 投影显式丢弃 operator_idempotency_key（与 channel_message_id 同姿势）——list_messages 与 list_notes 两条读路径都会带回新列，StrictModel 会拒绝多余键",
+        "重放语义有界：同一键 + 同会话 + 同作者 + 同正文 + 同附件集 → 返回原消息并置 X-Idempotent-Replay: true，不再走 handoff、不再审计；载荷/作者不同 → 409，绝不把「编辑后重发」静默当成重放（那正是草稿丢失路径）",
+        "键按 (tenant_id, conversation_id) 命名空间隔离：同一字符串在另一会话或另一租户是不同请求，不可能解析到本会话/本租户的消息",
+        "发送幂等在服务端成立而非仅禁用按钮：无键调用方行为零变化；并发同键竞态经 IntegrityError 回读由胜者回执生效",
+        "客户端命令/回执契约（app/static/js/composer-command.js）：命令票=会话+每 surface 单调代次+草稿版本；结果仅在 isCurrent 时落地（复用 conversation-detail 既有 detailSequence+selectedId 保护姿势），改写结果另需 isDraftUnchanged；发送键按（会话+正文+附件集）稳定、确认成功才释放，重试复用同键由服务端去重、刻意重发是新尝试"
+      ],
+      "verification_evidence": [
+        "红光（实现前）：tests/test_operator_message_idempotency.py 13 例中 8 例失败——重试创建第二条客户可见消息、无冲突检测（改稿仍 200）、超长键被接受、get_message_by_operator_key 不存在；修复后 13/13",
+        "绿光：tests/test_operator_message_idempotency.py 13/13；tests/frontend/composer-command.test.js 15/15；tests/frontend/composer-consistency.test.js 10/10（用可控 deferred 复现竞态的十字场景）；既有 tests/frontend/composer-tools.test.js 8/8 零改动通过",
+        "前端门禁：frontend_gate 通过（语法 OK、模块 ≤400 行、376 个 node 测试）；vitest src/islands/composer-island.test.jsx 17/17；composer.js 399 → 303 行（copilot 工具面抽到 copilot-tools.js），恢复 400 行门禁余量",
+        "治理面回归：归档/DSR/保留/协作套件（test_archive/test_archive_store/test_dsr/test_privacy/test_collaboration/test_system）104 项全通过；迁移门禁 47 条连续",
+        "已知未覆盖：composer.js 的补问文案；island 的 helix-composer-state 回灌不推进草稿版本（非坐席编辑）；契约的 generation 仅在单页生命周期内有效，不跨标签页；回执列随 messages 进入 DSR 导出（channel_message_id 早已如此，未收窄导出契约）"
+      ]
     }
   ]
 }

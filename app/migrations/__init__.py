@@ -501,6 +501,7 @@ _VERSION_MODULES = [
     "v44_inference_costs",
     "v45_tenant_model_call_budget",
     "v46_conversation_pending_tasks",
+    "v47_operator_send_receipt",
 ]
 
 for _module_name in _VERSION_MODULES:
