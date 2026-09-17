@@ -18,6 +18,10 @@ export const COMPOSER_EVENTS = Object.freeze({
   MACRO_USE: "helix-composer-macro-use",
   ATTACHMENT_UPLOAD: "helix-composer-attachment-upload",
   ATTACHMENT_REMOVE: "helix-composer-attachment-remove",
+  // ROADMAP H02 (2.19.0): a failed upload is retryable, keyed by the token in
+  // the composer state snapshot — the island never holds the File itself.
+  ATTACHMENT_RETRY: "helix-composer-attachment-retry",
+  ATTACHMENT_DISMISS: "helix-composer-attachment-dismiss",
 });
 
 export const INPUT_IDS = Object.freeze({

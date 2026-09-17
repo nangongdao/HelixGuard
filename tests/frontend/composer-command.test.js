@@ -17,12 +17,15 @@ import {
   beginCommand,
   bumpDraftVersion,
   clearSendKey,
+  clearUploadKey,
   configure as configureCommand,
   draftVersionFor,
   isCurrent,
   isDraftUnchanged,
   reset,
   sendKeyFor,
+  uploadKeyFor,
+  uploadTokenFor,
 } from "../../app/static/js/composer-command.js";
 
 let state;
@@ -123,4 +126,36 @@ test("reset drops every ticket, draft version and send key", () => {
   assert.equal(isCurrent(ticket), false);
   assert.equal(draftVersionFor("conv-a"), 0);
   assert.notEqual(sendKeyFor("conv-a", "您好"), before);
+});
+
+// ROADMAP H02 (2.19.0): upload attempts carry the same kind of receipt key, so
+// a retry after a lost response resolves to the attachment the server already
+// stored instead of storing the bytes — and charging the quota — twice.
+test("the same file in the same conversation is one upload attempt", () => {
+  const file = { name: "截图.png", size: 2048, lastModified: 1700000000000, type: "image/png" };
+  const first = uploadKeyFor("conv-a", file);
+  assert.equal(uploadKeyFor("conv-a", file), first);
+  assert.equal(uploadTokenFor(file), uploadTokenFor({ ...file }), "the token is derived, not random");
+});
+
+test("a different file or another conversation is a different upload attempt", () => {
+  const file = { name: "截图.png", size: 2048, lastModified: 1700000000000, type: "image/png" };
+  const first = uploadKeyFor("conv-a", file);
+  assert.notEqual(uploadKeyFor("conv-a", { ...file, size: 2049 }), first);
+  assert.notEqual(uploadKeyFor("conv-a", { ...file, name: "另一张.png" }), first);
+  assert.notEqual(uploadKeyFor("conv-b", file), first);
+});
+
+test("a stored upload releases its key, so picking the file again is a new attempt", () => {
+  const file = { name: "截图.png", size: 2048, lastModified: 1700000000000, type: "image/png" };
+  const first = uploadKeyFor("conv-a", file);
+  clearUploadKey("conv-a", file);
+  assert.notEqual(uploadKeyFor("conv-a", file), first);
+});
+
+test("reset drops cached upload keys too", () => {
+  const file = { name: "截图.png", size: 2048, lastModified: 1700000000000, type: "image/png" };
+  const before = uploadKeyFor("conv-a", file);
+  reset();
+  assert.notEqual(uploadKeyFor("conv-a", file), before);
 });

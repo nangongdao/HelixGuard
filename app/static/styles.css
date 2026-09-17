@@ -3115,6 +3115,36 @@ body.is-inspector-collapsed .inspector-surface {
   cursor: pointer;
 }
 
+/* ROADMAP H02 (2.19.0): an upload that failed stays on screen so the operator
+   can retry the same file instead of hunting for it on disk again. The chip
+   carries the retry and the explicit dismissal. */
+.pending-attachment-chip.is-failed {
+  color: var(--red);
+  background: var(--red-soft);
+  border-color: var(--red);
+}
+
+.failed-attachment-retry {
+  flex: 0 0 auto;
+  padding: 0 2px;
+  color: var(--red);
+  background: transparent;
+  border: 0;
+  font-size: 12px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.failed-attachment-dismiss {
+  flex: 0 0 auto;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+
 .attachment-upload {
   display: inline-flex;
   align-items: center;

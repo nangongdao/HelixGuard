@@ -23,6 +23,7 @@ from app.db._util import (
     utc_now,
 )
 from app.db.archive import DatabaseArchiveMixin
+from app.db.attachments import DatabaseAttachmentsMixin
 from app.db.audit import DatabaseAuditMixin
 from app.db.channels import DatabaseChannelsMixin
 from app.db.collaboration import DatabaseCollaborationMixin
@@ -56,6 +57,7 @@ class Database(
     DatabaseConversationsMixin,
     DatabaseConversationsQueryMixin,
     DatabaseMessagesMixin,
+    DatabaseAttachmentsMixin,
     DatabaseJobsMixin,
     DatabaseKnowledgeMixin,
     DatabaseArchiveMixin,

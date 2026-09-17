@@ -28,6 +28,10 @@
  * confirmed success, so sending the same text again later is a genuinely new
  * attempt rather than a silent replay.
  *
+ * The **upload receipt** follows the same shape for attachments: a retried
+ * upload of the same file resolves to the row the server already stored, so a
+ * lost response costs neither a duplicate nor a second quota charge.
+ *
  * State is module-local on purpose: this is the one command/receipt contract
  * shared by the legacy modules and the React island, not a third global store.
  */
@@ -47,6 +51,8 @@ const generations = new Map();
 const draftVersions = new Map();
 /** In-flight send attempts: `${conversationId}\u0000${fingerprint}` → key. */
 const sendKeys = new Map();
+/** In-flight upload attempts, keyed the same way as sends. */
+const uploadKeys = new Map();
 
 function currentConversation() {
   return ctx?.state?.selectedId ?? null;
@@ -108,6 +114,7 @@ export function reset() {
   generations.clear();
   draftVersions.clear();
   sendKeys.clear();
+  uploadKeys.clear();
 }
 
 function sendFingerprint(content, attachmentIds) {
@@ -137,6 +144,38 @@ export function clearSendKey(conversationId, content, attachmentIds = []) {
   sendKeys.delete(`${conversationId}\u0000${sendFingerprint(content, attachmentIds)}`);
 }
 
+/**
+ * The stable identity of one picked file, derived from what the browser
+ * exposes about it. Same file → same token, which is what lets a failed upload
+ * stay addressable for a retry without holding on to a generated id.
+ */
+export function uploadTokenFor(file) {
+  return [file?.name ?? "", file?.size ?? 0, file?.lastModified ?? 0, file?.type ?? ""].join("|");
+}
+
+/**
+ * The stable idempotency key for one upload attempt.
+ *
+ * Same conversation and same file → the same key, so retrying after a lost
+ * response resolves to the row the server already stored instead of storing
+ * the bytes (and charging the tenant quota) twice. Picking a genuinely
+ * different file yields a different key, so a corrected upload can never be
+ * swallowed as a replay of the rejected one.
+ */
+export function uploadKeyFor(conversationId, file) {
+  const cacheKey = `${conversationId}\u0000${uploadTokenFor(file)}`;
+  const existing = uploadKeys.get(cacheKey);
+  if (existing) return existing;
+  const key = newIdempotencyKey();
+  uploadKeys.set(cacheKey, key);
+  return key;
+}
+
+/** Drop the cached upload key once the attachment is stored. */
+export function clearUploadKey(conversationId, file) {
+  uploadKeys.delete(`${conversationId}\u0000${uploadTokenFor(file)}`);
+}
+
 export default {
   configure,
   beginCommand,
@@ -147,4 +186,7 @@ export default {
   reset,
   sendKeyFor,
   clearSendKey,
+  uploadTokenFor,
+  uploadKeyFor,
+  clearUploadKey,
 };

@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Helix Support",
-    "version": "2.18.0"
+    "version": "2.19.0"
   },
   "paths": {
     "/api/supervisor/knowledge-gaps": {
@@ -9906,6 +9906,23 @@
         "description": "Upload an attachment to a conversation (validated + scanned). Requires: operator:act.",
         "operationId": "upload_attachment_api_attachments_post",
         "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          },
           {
             "name": "X-API-Key",
             "in": "header",

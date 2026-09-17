@@ -140,7 +140,12 @@ export function CopilotBar({ toolsVisible, copilot, tone, onSuggest, onTone, onA
   );
 }
 
-export function AttachmentBar({ toolsVisible, pendingAttachments, onFileChange }) {
+export function AttachmentBar({
+  toolsVisible,
+  pendingAttachments,
+  failedAttachments,
+  onFileChange,
+}) {
   return (
     <div id="attachmentBar" className="attachment-bar" hidden={!toolsVisible}>
       <div id="pendingAttachments" className="pending-attachments">
@@ -156,6 +161,47 @@ export function AttachmentBar({ toolsVisible, pendingAttachments, onFileChange }
                 window.dispatchEvent(
                   new CustomEvent(COMPOSER_EVENTS.ATTACHMENT_REMOVE, {
                     detail: { id: item.id },
+                  }),
+                );
+              }}
+            >
+              ×
+            </button>
+          </span>
+        ))}
+        {/* ROADMAP H02 (2.19.0): the file is retained legacy-side, so the
+            island only mirrors the token and routes the two actions back. */}
+        {(failedAttachments || []).map((item) => (
+          <span
+            key={item.token}
+            className="pending-attachment-chip is-failed"
+            title={item.error}
+          >
+            {item.filename}{" "}
+            <button
+              type="button"
+              className="failed-attachment-retry"
+              data-token={item.token}
+              title="重试上传"
+              onClick={() => {
+                window.dispatchEvent(
+                  new CustomEvent(COMPOSER_EVENTS.ATTACHMENT_RETRY, {
+                    detail: { token: item.token },
+                  }),
+                );
+              }}
+            >
+              重试
+            </button>
+            <button
+              type="button"
+              className="failed-attachment-dismiss"
+              data-token={item.token}
+              title="放弃这个附件"
+              onClick={() => {
+                window.dispatchEvent(
+                  new CustomEvent(COMPOSER_EVENTS.ATTACHMENT_DISMISS, {
+                    detail: { token: item.token },
                   }),
                 );
               }}

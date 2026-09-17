@@ -140,54 +140,12 @@ class Migration005Tests(unittest.TestCase):
             connection.row_factory = sqlite3.Row
             result = run_migrations(connection, all_migrations())
             connection.close()
-            self.assertEqual(
-                result.applied,
-                [
-                    5,
-                    6,
-                    7,
-                    8,
-                    9,
-                    10,
-                    11,
-                    12,
-                    13,
-                    14,
-                    15,
-                    16,
-                    17,
-                    18,
-                    19,
-                    20,
-                    21,
-                    22,
-                    23,
-                    24,
-                    25,
-                    26,
-                    27,
-                    28,
-                    29,
-                    30,
-                    31,
-                    32,
-                    33,
-                    34,
-                    35,
-                    36,
-                    37,
-                    38,
-                    39,
-                    40,
-                    41,
-                    42,
-                    43,
-                    44,
-                    45,
-                    46,
-                    47,
-                ],
-            )
+            # Every migration after the pre-marked 1-4 must run. Derived from
+            # the registry rather than listed by hand: the hand-written list
+            # had to be extended on every release, and 2.19.0 (v48) was the
+            # release where that recurrence got missed.
+            highest = max(migration.version for migration in all_migrations())
+            self.assertEqual(result.applied, list(range(5, highest + 1)))
 
             connection = sqlite3.connect(path)
             connection.row_factory = sqlite3.Row

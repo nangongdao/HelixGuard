@@ -3,10 +3,10 @@
  *
  * Routes the React composer island's interactions back to the legacy
  * composer lifecycle (drafts, operator send, copilot tools, canned macros,
- * pending attachments) and publishes helix-composer-state snapshots with
- * the tool data the island renders (canned responses, pending attachments,
- * canOperate). Kept in its own module so composer.js stays under the
- * 400-line gate.
+ * pending attachments, retryable upload failures) and publishes
+ * helix-composer-state snapshots with the tool data the island renders
+ * (canned responses, pending attachments, failed attachments, canOperate).
+ * Kept in its own module so composer.js stays under the 400-line gate.
  */
 
 import {
@@ -20,10 +20,12 @@ import {
   sendOperatorMessage,
 } from "./composer.js?v=1.4.0";
 import {
+  dismissFailedAttachment,
   removePendingAttachment,
+  retryFailedAttachment,
   uploadPendingAttachment,
 } from "./attachment.js?v=1.4.0";
-import { bumpDraftVersion } from "./composer-command.js?v=1.4.0";
+import { bumpDraftVersion, draftVersionFor } from "./composer-command.js?v=1.4.0";
 
 let ctx = null;
 
@@ -49,6 +51,18 @@ export function publishComposerState() {
         filename: meta[id]?.filename || id,
       }))
     : [];
+  // ROADMAP H02 (2.19.0): failed uploads stay retryable. The File lives
+  // legacy-side; the island mirrors only the token so its chips can route the
+  // retry/dismiss actions back through the bridge.
+  const failed = conversationId
+    ? (window.HelixModules?.attachments?.failedAttachments?.(conversationId) || []).map(
+        (entry) => ({
+          token: entry.token,
+          filename: entry.filename,
+          error: entry.error,
+        }),
+      )
+    : [];
   window.dispatchEvent(
     new CustomEvent("helix-composer-state", {
       detail: {
@@ -57,9 +71,16 @@ export function publishComposerState() {
         customerBusy: ctx.els?.customerForm?.dataset?.busy === "true",
         operatorBusy: ctx.els?.operatorForm?.dataset?.busy === "true",
         operatorDraft: ctx.els?.operatorInput?.value || "",
+        // ROADMAP H02 (2.19.0): the canonical draft's generation. A confirmed
+        // send clears the draft *without changing the text* when it was the
+        // first thing typed (the box was already empty), so a value snapshot
+        // alone cannot tell "cleared" from "never set" — the mirror needs the
+        // generation to notice it.
+        operatorDraftRevision: draftVersionFor(conversationId),
         canOperate,
         cannedResponses: Array.isArray(ctx.state?.cannedResponses) ? ctx.state.cannedResponses : [],
         pendingAttachments: pending,
+        failedAttachments: failed,
       },
     }),
   );
@@ -125,6 +146,18 @@ export function bindIslandBridge() {
   window.addEventListener("helix-composer-attachment-remove", (event) => {
     const { id } = event.detail || {};
     if (id) removePendingAttachment(ctx.state.selectedId, id);
+  });
+  // ROADMAP H02 (2.19.0): the retry re-uploads the retained File with the same
+  // attempt key, so a lost response cannot store the bytes twice.
+  window.addEventListener("helix-composer-attachment-retry", (event) => {
+    const { token } = event.detail || {};
+    const conversationId = ctx.state.selectedId;
+    if (token && conversationId) void retryFailedAttachment(conversationId, token);
+  });
+  window.addEventListener("helix-composer-attachment-dismiss", (event) => {
+    const { token } = event.detail || {};
+    const conversationId = ctx.state.selectedId;
+    if (token && conversationId) dismissFailedAttachment(conversationId, token);
   });
   // Browser dual-track: the legacy #operatorInput typing listener is the
   // exact counterpart of the helix-composer-typing bridge above (draft
