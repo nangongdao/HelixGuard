@@ -36,7 +36,7 @@ configure_logging()
 configure_tracing()
 logger = logging.getLogger("helix")
 IDEMPOTENCY_KEY_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{8,128}$")
-APP_VERSION = "2.16.0"
+APP_VERSION = "2.17.0"
 
 
 def _conversation_quota_exceeded(database: Any, tenant_id: str) -> str | None:

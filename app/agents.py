@@ -12,6 +12,7 @@ from app.domain import (
     AgentResult,
     QualityAssessment,
     RiskAssessment,
+    TaskOutcome,
     TriageDecision,
 )
 from app.model_gateway import reserved_transport
@@ -390,10 +391,16 @@ class OrderAgent:
     def respond(self, tenant_id: str, customer_ref: str | None, message: str) -> AgentResult:
         match = self.ORDER_PATTERN.search(message)
         if not match:
+            # ROADMAP H03: asking for the order number is a designed
+            # clarification, not an unfulfilled answer -- the turn records the
+            # outcome kind and the slot so the persist stage can track the
+            # pending task (rounds/expiry bounds live there, not here).
             return AgentResult(
                 agent=self.name,
                 content="请提供订单号（例如 ORD-10482），我会为你查询最新状态。",
                 confidence=0.9,
+                task_outcome=TaskOutcome.CLARIFICATION,
+                clarify_slot="order_id",
             )
         order_id = f"ORD-{match.group(1)}"
         if self._INJECTION_FRAGMENT.search(message):
@@ -413,6 +420,7 @@ class OrderAgent:
                 tool_calls=[tool_call],
                 requires_human=True,
                 handoff_reason="Order lookup requires a verified customer reference",
+                task_outcome=TaskOutcome.HANDOFF,
             )
         if execution.code == "unavailable":
             return AgentResult(
@@ -422,6 +430,7 @@ class OrderAgent:
                 tool_calls=[tool_call],
                 requires_human=True,
                 handoff_reason="Order connector unavailable",
+                task_outcome=TaskOutcome.HANDOFF,
             )
         if not execution.success:
             return AgentResult(
@@ -429,6 +438,7 @@ class OrderAgent:
                 content=f"没有查到订单 {order_id}。请核对订单号；如仍有问题，我可以转接人工客服。",
                 confidence=0.82,
                 tool_calls=[tool_call],
+                task_outcome=TaskOutcome.ANSWER,
             )
         order = execution.output
         eta = order.get("eta") or "待确认"
@@ -441,6 +451,7 @@ class OrderAgent:
             ),
             confidence=0.99,
             tool_calls=[tool_call],
+            task_outcome=TaskOutcome.ANSWER,
         )
 
 
@@ -484,7 +495,15 @@ class QualityAgent:
             # the customer's intent was not fulfilled. Escalate via the quality
             # gate unless the agent already requested human handoff (identity
             # required, connector unavailable, CRM failure).
-            if not any(call.get("tool") == "orders.lookup" for call in result.tool_calls):
+            # ROADMAP H03: a marked clarification is the designed outcome for
+            # "no order number yet" -- it is not an answer and not a quality
+            # failure. Results that do not speak the outcome contract (legacy
+            # constructions, ``None``) and marked answers keep the strict
+            # evidence rule below unchanged.
+            is_clarification = result.task_outcome == TaskOutcome.CLARIFICATION
+            if not is_clarification and not any(
+                call.get("tool") == "orders.lookup" for call in result.tool_calls
+            ):
                 issues.append("order_response_without_tool_record")
         if any(call.get("tool") not in self._ALLOWED_TOOLS for call in result.tool_calls):
             issues.append("unapproved_tool")

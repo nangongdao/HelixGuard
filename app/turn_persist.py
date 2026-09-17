@@ -21,9 +21,12 @@ from uuid import uuid4
 from app.agents import AgentResult, PolicyAgent
 from app.database import utc_now
 from app.domain import (
+    PENDING_TASK_ORDER_CLARIFICATION,
+    AgentName,
     ConversationStatus,
     QualityAssessment,
     RiskAssessment,
+    TaskOutcome,
     TriageDecision,
 )
 from app.model_gateway import OUTCOME_NONE, OUTCOME_REJECTED
@@ -182,6 +185,73 @@ class TurnPersistStage:
                 },
             )
 
+        # ROADMAP H03: pending-task bookkeeping for bounded multi-turn order
+        # clarifications. Any handoff cancels the task; a marked answer
+        # completes it; an open turn that routed away from the order agent
+        # abandons it (topic switch); only a marked clarification keeps it
+        # alive, advancing the round counter under the configured TTL. Results
+        # that do not speak the outcome contract (``task_outcome`` None --
+        # legacy constructions, quality-gate/round-limit escalations) leave
+        # the bookkeeping untouched.
+        pending_meta: dict[str, Any] = {}
+        if result.task_outcome is not None:
+            pending_meta["task_outcome"] = result.task_outcome
+        if next_status == ConversationStatus.WAITING_HUMAN:
+            if self.services.database.clear_pending_task(tenant_id, conversation_id):
+                self.services.database.audit(
+                    tenant_id,
+                    conversation_id,
+                    "orchestrator",
+                    "order.pending_cleared",
+                    {"reason": "handoff"},
+                )
+        elif result.agent == AgentName.ORDER and result.task_outcome == TaskOutcome.CLARIFICATION:
+            pending = self.services.database.bump_pending_task(
+                tenant_id,
+                conversation_id,
+                kind=PENDING_TASK_ORDER_CLARIFICATION,
+                slot=result.clarify_slot or "order_id",
+                intent=decision.intent,
+                ttl_minutes=self.services.settings.pending_clarification_ttl_minutes,
+            )
+            pending_meta.update(
+                {
+                    "clarify_slot": result.clarify_slot,
+                    "pending_rounds": pending.get("rounds"),
+                    "pending_expires_at": pending.get("expires_at"),
+                }
+            )
+            self.services.database.audit(
+                tenant_id,
+                conversation_id,
+                result.agent,
+                "order.clarification_requested",
+                {
+                    "slot": result.clarify_slot,
+                    "rounds": pending.get("rounds"),
+                    "expires_at": pending.get("expires_at"),
+                    "intent": decision.intent,
+                },
+            )
+        elif result.agent == AgentName.ORDER and result.task_outcome == TaskOutcome.ANSWER:
+            if self.services.database.clear_pending_task(tenant_id, conversation_id):
+                self.services.database.audit(
+                    tenant_id,
+                    conversation_id,
+                    "orchestrator",
+                    "order.pending_cleared",
+                    {"reason": "answered"},
+                )
+        elif result.agent != AgentName.ORDER:
+            if self.services.database.clear_pending_task(tenant_id, conversation_id):
+                self.services.database.audit(
+                    tenant_id,
+                    conversation_id,
+                    "orchestrator",
+                    "order.pending_cleared",
+                    {"reason": "topic_switch"},
+                )
+
         metadata = {
             "agent": result.agent,
             "confidence": result.confidence,
@@ -202,6 +272,7 @@ class TurnPersistStage:
             "prompt_version": prompt_version.version if prompt_version else None,
             "prompt_channel": inputs.prompt_channel,
             "budget_exceeded": inputs.budget_exceeded,
+            **pending_meta,
         }
         assistant_content = result.content
         if inputs.language:

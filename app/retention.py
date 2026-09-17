@@ -705,6 +705,7 @@ class RetentionService:
                 ("turn_requests", "turn_requests"),
                 ("conversation_labels", "conversation_labels"),
                 ("conversation_summaries", "conversation_summaries"),
+                ("conversation_pending_tasks", "pending_tasks"),
                 ("conversation_mentions", "conversation_mentions"),
                 ("csat_surveys", "csat_surveys"),
                 ("attachments", "attachments"),

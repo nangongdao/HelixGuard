@@ -20,7 +20,14 @@ from typing import Any
 from app.agents import (
     AgentResult,
 )
-from app.domain import AgentName, QualityAssessment, RiskAssessment, TriageDecision
+from app.domain import (
+    PENDING_TASK_ORDER_CLARIFICATION,
+    AgentName,
+    QualityAssessment,
+    RiskAssessment,
+    TaskOutcome,
+    TriageDecision,
+)
 from app.turn_services import TurnServices
 
 logger = logging.getLogger("helix")
@@ -120,6 +127,24 @@ class TurnExecutionStage:
                 None,
             )
         if decision.route == AgentName.ORDER:
+            # ROADMAP H03: read the durable pending task before running the
+            # specialist. When the round limit is reached the customer gets a
+            # clear escalation instead of being asked for the same slot
+            # forever; the persist stage cancels the task on the handoff.
+            pending = self.services.database.get_pending_task(tenant_id, conversation["id"])
+            max_rounds = self.services.settings.order_clarification_max_rounds
+            if (
+                pending is not None
+                and pending["kind"] == PENDING_TASK_ORDER_CLARIFICATION
+                and pending["rounds"] >= max_rounds
+            ):
+                return (
+                    self.services.escalation.respond(
+                        "Order clarification reached the round limit "
+                        f"({pending['rounds']}/{max_rounds}); handing off to a human"
+                    ),
+                    None,
+                )
             customer_ref = conversation.get("customer_ref")
             crm_record: dict[str, Any] | None = None
             if customer_ref:
@@ -157,6 +182,24 @@ class TurnExecutionStage:
                 if crm.code == "ok" and crm.output.get("customer_ref"):
                     customer_ref = crm.output["customer_ref"]
             result = self.services.order.respond(tenant_id, customer_ref, context.content)
+            # ROADMAP H03: the clarification path must not swallow a turn that
+            # carries credential material. Asking for the order number would
+            # invite the customer to paste more secrets, so the turn escalates
+            # to a human instead -- the behaviour this input had before H03
+            # (the quality gate's evidence rule), with the adversarial floor
+            # adv-pii-onetime-code unchanged: still waiting_human, still no
+            # echo (AI-001 redacts the excerpt).
+            if (
+                result.task_outcome == TaskOutcome.CLARIFICATION
+                and "credential_topic" in self.services.policy.inspect(context.content).categories
+            ):
+                return (
+                    self.services.escalation.respond(
+                        "Order request carried credential material; escalating "
+                        "instead of asking for a follow-up"
+                    ),
+                    None,
+                )
             if crm_record is None:
                 return result, None
             return replace(result, tool_calls=[crm_record, *result.tool_calls]), None

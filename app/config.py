@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlsplit
 
+from app.domain import DEFAULT_PENDING_TASK_TTL_MINUTES
+
 
 def _env_bool(name: str, default: bool) -> bool:
     raw = os.getenv(name)
@@ -49,6 +51,12 @@ class Settings:
     openai_model: str = "gpt-4.1-mini"
     enable_llm: bool = False
     auto_escalate_threshold: float = 0.55
+    # ROADMAP H03: bounded multi-turn order clarification. After this many
+    # clarification replies for one pending task the next unanswered attempt
+    # escalates to a human instead of asking again. Zero behaviour change for
+    # deployments that never hit the order clarify path.
+    order_clarification_max_rounds: int = 2
+    pending_clarification_ttl_minutes: int = DEFAULT_PENDING_TASK_TTL_MINUTES
     auth_mode: str = "demo"
     demo_api_key: str = "helix-demo-key"
     api_keys_json: str = "{}"
@@ -313,6 +321,10 @@ class Settings:
             openai_model=os.getenv("OPENAI_MODEL", "gpt-4.1-mini"),
             enable_llm=_env_bool("ENABLE_LLM", False),
             auto_escalate_threshold=float(os.getenv("AUTO_ESCALATE_THRESHOLD", "0.55")),
+            order_clarification_max_rounds=_env_int("ORDER_CLARIFICATION_MAX_ROUNDS", 2),
+            pending_clarification_ttl_minutes=_env_int(
+                "PENDING_CLARIFICATION_TTL_MINUTES", DEFAULT_PENDING_TASK_TTL_MINUTES
+            ),
             auth_mode=os.getenv("AUTH_MODE", "demo").strip().lower(),
             demo_api_key=os.getenv("DEMO_API_KEY", "helix-demo-key"),
             api_keys_json=os.getenv("API_KEYS_JSON", "{}"),

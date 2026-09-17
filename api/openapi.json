@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Helix Support",
-    "version": "2.16.0"
+    "version": "2.17.0"
   },
   "paths": {
     "/api/supervisor/knowledge-gaps": {
@@ -13404,6 +13404,16 @@
             },
             "type": "array",
             "title": "Summaries"
+          },
+          "pending_task": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PendingTaskOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": false,
@@ -14925,6 +14935,51 @@
           "content"
         ],
         "title": "OperatorMessageRequest"
+      },
+      "PendingTaskOut": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "slot": {
+            "type": "string",
+            "title": "Slot"
+          },
+          "intent": {
+            "type": "string",
+            "title": "Intent"
+          },
+          "rounds": {
+            "type": "integer",
+            "title": "Rounds"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "title": "Updated At"
+          },
+          "expires_at": {
+            "type": "string",
+            "title": "Expires At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "slot",
+          "intent",
+          "rounds",
+          "created_at",
+          "updated_at",
+          "expires_at"
+        ],
+        "title": "PendingTaskOut",
+        "description": "The task automation is waiting to continue (ROADMAP H03).\n\nSurfaced on the conversation detail so an operator sees what the\ncustomer was asked for and how many clarifications were sent. ``None``\nwhen no task is pending."
       },
       "PromptVersionActionRequest": {
         "properties": {

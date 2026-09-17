@@ -332,6 +332,23 @@ class AuditArchiveDetailOut(AuditArchiveOut):
     events: list[dict[str, Any]]
 
 
+class PendingTaskOut(StrictModel):
+    """The task automation is waiting to continue (ROADMAP H03).
+
+    Surfaced on the conversation detail so an operator sees what the
+    customer was asked for and how many clarifications were sent. ``None``
+    when no task is pending.
+    """
+
+    kind: str
+    slot: str
+    intent: str
+    rounds: int
+    created_at: str
+    updated_at: str
+    expires_at: str
+
+
 class ConversationDetail(StrictModel):
     conversation: ConversationOut
     messages: list[MessageOut]
@@ -339,6 +356,9 @@ class ConversationDetail(StrictModel):
     # Backlog (session intelligent summary): operator-facing context brief and
     # disposition draft, when generated. Add-only, always present (nullable).
     summaries: list[ConversationSummaryOut] = Field(default_factory=list)
+    # ROADMAP H03: the pending clarification task, when one is active.
+    # Add-only, always present (nullable); lists leave it unset.
+    pending_task: PendingTaskOut | None = None
 
 
 class ConversationSummaryOut(StrictModel):

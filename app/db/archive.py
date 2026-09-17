@@ -124,6 +124,11 @@ class DatabaseArchiveMixin:
             "DELETE FROM turn_requests WHERE conversation_id = ?", (conversation_id,)
         )
         connection.execute("DELETE FROM turn_jobs WHERE conversation_id = ?", (conversation_id,))
+        # ROADMAP H03: pending clarification tasks follow their conversation.
+        connection.execute(
+            "DELETE FROM conversation_pending_tasks WHERE conversation_id = ?",
+            (conversation_id,),
+        )
         connection.execute("DELETE FROM conversations WHERE id = ?", (conversation_id,))
 
     def get_archived_conversation(

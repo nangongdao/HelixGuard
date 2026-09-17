@@ -634,17 +634,20 @@ class KnowledgeLifecycleDbTests(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# 21 golden-set regression guard for the order-no-number escalation fix
+# 21 golden-set regression guard for the order-no-number rule
 # ---------------------------------------------------------------------------
 
 
 class QualityGateOrderNoNumberTests(unittest.TestCase):
-    """The quality gate must escalate an order query with no order number.
+    """An unmarked order result with no order number stays a quality failure.
 
-    Regression guard for the ``order-no-number-escalation`` golden case: the
-    OrderAgent returns a "please provide an order number" prompt with no
-    ``orders.lookup`` tool call, and the QualityAgent must flag that as
-    ``order_response_without_tool_record`` so the turn escalates to human.
+    Policy change (H03 / 2.17.0): the live path no longer escalates here -- the
+    OrderAgent marks the "please provide an order number" reply with the
+    ``clarification`` outcome, which the gate approves so the conversation
+    stays open (golden case ``order-no-number-clarification``). The strict
+    evidence rule below is *not* relaxed for results that do not speak the
+    outcome contract (legacy constructions, ``None``) nor for marked answers:
+    a final answer still needs its ``orders.lookup`` record.
     """
 
     def test_order_response_without_orders_lookup_is_flagged(self) -> None:
