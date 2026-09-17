@@ -97,3 +97,32 @@ HTTP API、`_check_expect` 断言、p95 统计、`compare` 基线对比）；`ap
 - `app/prompts.py`、`app/worm_store.py`、`app/redaction.py`、`app/tools.py`
 - `scripts/evaluate.py`、`golden/set.json`
 - `tests/test_eval_reports.py`、`tests/test_adversarial_eval.py`
+
+## 修订 2026-09-17（2.21.0）：种子退役改为 fail-closed
+
+**背景**：上文「代价 / 风险」里那句「间接注入经知识库种子，检索缓存可能掩盖未命中」在
+2026-09-17 真实发生了，但方向与预期相反——不是缓存掩盖了**未命中**，而是**未被退役的
+种子**污染了后续用例。
+
+**观察到的缺陷**：`scripts/evaluate_adversarial.py` 的种子清理是**尽力而为**的。
+`_retire_seed()` 丢弃 PATCH 响应；清理循环写在消息循环**之后**，消息返回非 200 时提前
+`return` 会**完全跳过清理**；没有任何 `try/finally`。对抗集里有 3 个用例带
+`knowledge_seed`，其中 `adv-indirect-knowledge-injection` 注入的文章正文**字面包含**
+`配送一般多久能到`，而这正是另外三个用例（15/17/18）**完全相同**的消息。于是用例 3 的
+种子一旦未被退役，就会抢走后面三个用例的检索命中，并被间接注入防护判为危险内容（升级人
+工、不带引用）——表现为「安全底线门禁偶发变红，且红灯全部指向受害者」。
+
+**决定**：
+
+1. 种子退役**必须被证明**，而不是被确认：先检查退役请求的状态码，再**读回**文章确认
+   `active=false`。「请求返回 200」不构成证据。
+2. 退役**必然执行**：用例体包在 `try/finally` 里，提前返回与异常都不能带走未退役的种子。
+3. 泄漏**必须中止本轮**并**归因给种子的所有者**（`seed_leaks` 带用例 id），且中止发生在
+   **晋级门禁之前**——隔离已失效的一轮不允许产生任何可用于晋级的结论。
+
+**后果**：`SeedLedger`（`scripts/adversarial_seeds.py`）成为种子生命周期的唯一入口；
+对抗集本身（`golden/adversarial.json`）未作任何改动。代价是每个种子多一次读回请求。
+
+**遗留（已考虑、本版不改）**：`search_knowledge()` 在 FTS 命中为空时**不回落**到标签检索
+（`app/db/knowledge.py`）。本次调查确认 FTS 索引由触发器维护、启动时自动补齐，未观察到该
+分支被真实触发，故不动产品检索语义；将来若出现「文章存在却检索不到」，优先查此处。

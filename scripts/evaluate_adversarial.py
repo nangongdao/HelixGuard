@@ -16,6 +16,12 @@ Seeding channels (ADR-014 decision 1):
   first message; the harness asserts it never leaks into the reply or the
   assistant metadata.
 
+Every seeding channel is retired fail-closed once its case ends (see
+``scripts.adversarial_seeds``).  A cleanup that cannot *prove* the side effect
+is gone is reported against the case that owns it and aborts the run: a leaked
+seed stays retrievable by later cases, so reporting them would put the reds on
+the victims instead of the culprit.
+
 Every run runs against a fresh in-process application (ephemeral database,
 demo + acme API keys) and writes its report into a WORM store when
 ``--worm-dir`` is given, so the safety gate leaves audit evidence.  The exit
@@ -58,6 +64,7 @@ from scripts._console import use_utf8_console
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from scripts.adversarial_schema import load_adversarial_set
+from scripts.adversarial_seeds import Cleanup, SeedLedger, SeedRetireError
 
 ADVERSARIAL_DEFAULT = Path(__file__).resolve().parent.parent / "golden" / "adversarial.json"
 
@@ -136,20 +143,56 @@ def _register_prompt_version(app: Any, version: str) -> str:
     return created.id
 
 
+def knowledge_retire_cleanup(
+    client: Any,
+    headers: dict[str, str],
+    article_id: str,
+) -> Cleanup:
+    """Build the cleanup that deactivates a seeded article and *proves* it.
+
+    A 200 from the PATCH is not evidence on its own: an article that is still
+    ``active`` stays retrievable, and because four cases in the set share the
+    identical message, a single leaked poisoned article is enough to fail
+    several later cases.  So the cleanup reads the article back and fails
+    closed whenever it cannot show the seed is gone.
+    """
+
+    def undo() -> None:
+        response = client.patch(
+            f"/api/knowledge/{article_id}", json={"active": False}, headers=headers
+        )
+        if response.status_code != 200:
+            raise SeedRetireError(
+                f"retire HTTP {response.status_code}: {getattr(response, 'text', '')[:120]}"
+            )
+        listing = client.get("/api/knowledge?include_inactive=true", headers=headers)
+        if listing.status_code != 200:
+            raise SeedRetireError(f"retire verification HTTP {listing.status_code}")
+        for article in listing.json():
+            if article.get("id") == article_id:
+                if article.get("active"):
+                    raise SeedRetireError("article still active after retire")
+                return
+        raise SeedRetireError("retired article missing from the include_inactive listing")
+
+    return Cleanup("retire knowledge seed", undo)
+
+
 def _seed_case(
     client: TestClient,
     headers: dict[str, str],
     case: dict[str, Any],
     conversation_id: str,
-) -> tuple[list[str], str | None, list[Any]]:
-    """Apply the case's seeding channels.
+    ledger: SeedLedger,
+) -> tuple[list[str], str | None]:
+    """Apply the case's seeding channels and register their cleanups.
 
-    Returns ``(canaries, first_message, cleanups)``.  Cleanups run after the
-    case's messages so a seeded knowledge article cannot leak into another
-    case's retrieval (every seeded article is retired once its case ends).
+    Returns ``(canaries, first_message)``.  Cleanups are registered rather than
+    run here: the caller retires them in a ``finally``, so neither an early
+    return (a non-200 message) nor an exception can leave a seeded knowledge
+    article retrievable by the cases that follow.
     """
     canaries: list[str] = []
-    cleanups: list[Any] = []
     knowledge_seed = case.get("knowledge_seed")
     if knowledge_seed:
         payload: dict[str, Any] = {
@@ -166,11 +209,7 @@ def _seed_case(
         if response.status_code != 201:
             _fail(f"case {case['id']}: knowledge seed failed: HTTP {response.status_code}")
         article_id = response.json()["id"]
-
-        def _retire_seed() -> None:
-            client.patch(f"/api/knowledge/{article_id}", json={"active": False}, headers=headers)
-
-        cleanups.append(_retire_seed)
+        ledger.register(case["id"], knowledge_retire_cleanup(client, headers, article_id))
     attachment_seed = case.get("attachment_seed")
     if attachment_seed:
         response = client.post(
@@ -193,7 +232,7 @@ def _seed_case(
         canary = make_canary()
         canaries.append(canary)
         first_message = f"{first_message} {canary}"
-    return canaries, first_message, cleanups
+    return canaries, first_message
 
 
 def _check_expect(
@@ -308,6 +347,26 @@ def run_case(
     client: TestClient,
     headers: dict[str, str],
     case: dict[str, Any],
+    ledger: SeedLedger | None = None,
+) -> CaseResult:
+    """Run one adversarial case, always retiring its seeds before returning.
+
+    Retirement happens in a ``finally``: a case that fails early (or raises)
+    must not be able to leave its seed behind, because that seed would then be
+    retrieved by later cases and put their reds on the wrong case id.
+    """
+    active_ledger = ledger if ledger is not None else SeedLedger()
+    try:
+        return _run_case(client, headers, case, active_ledger)
+    finally:
+        active_ledger.retire(case["id"])
+
+
+def _run_case(
+    client: TestClient,
+    headers: dict[str, str],
+    case: dict[str, Any],
+    ledger: SeedLedger,
 ) -> CaseResult:
     """Run one adversarial case and return its result."""
     conversation: dict[str, Any] = case["conversation"]
@@ -326,7 +385,7 @@ def run_case(
     conversation_id = created.json()["id"]
 
     try:
-        canaries, first_message, cleanups = _seed_case(client, headers, case, conversation_id)
+        canaries, first_message = _seed_case(client, headers, case, conversation_id, ledger)
     except SystemExit as exc:
         return CaseResult(case["id"], False, 0.0, str(exc))
 
@@ -351,8 +410,6 @@ def run_case(
                 f"message {index} failed: HTTP {response.status_code}",
             )
         last_response = response
-    for cleanup in cleanups:
-        cleanup()
     assert last_response is not None  # messages is non-empty
     duration_ms = (time.monotonic() - started) * 1000
     result = last_response.json()
@@ -404,18 +461,25 @@ def evaluate(adversarial_path: Path) -> dict[str, Any]:
             "demo": {"X-API-Key": ADV_EVAL_KEY_DEMO, "X-Tenant-Id": "demo"},
             "acme": {"X-API-Key": ADV_EVAL_KEY_ACME, "X-Tenant-Id": "acme"},
         }
+        ledger = SeedLedger()
         try:
             with TestClient(app) as client:
                 results: list[CaseResult] = []
                 for case in cases:
+                    if ledger.leaks:
+                        # A seed survived its case, so this run is no longer
+                        # isolated: every further result would be a guess, and
+                        # its reds would name the victims of the leak.
+                        break
                     tenant = case.get("tenant_id") or "demo"
-                    results.append(run_case(client, headers_by_tenant[tenant], case))
+                    results.append(run_case(client, headers_by_tenant[tenant], case, ledger))
         finally:
             try:
                 app.state.services.database.close()
             except Exception:
                 pass
 
+    seed_leaks = ledger.leaks
     passed = sum(1 for r in results if r.passed)
     durations = sorted(r.duration_ms for r in results)
     p95 = durations[min(len(durations) - 1, int(len(durations) * 0.95))] if durations else 0.0
@@ -430,6 +494,8 @@ def evaluate(adversarial_path: Path) -> dict[str, Any]:
         "passed": passed,
         "failed": len(results) - passed,
         "pass_rate": round(passed / len(results), 4) if results else 0.0,
+        "aborted": bool(seed_leaks),
+        "seed_leaks": seed_leaks,
         "mean_confidence": round(statistics.mean(confidences), 4) if confidences else 0.0,
         "citation_coverage": round(cited / len(results), 4) if results else 0.0,
         "p95_latency_ms": round(p95, 2),
@@ -504,6 +570,8 @@ def main() -> int:
             for item in report["cases"]
         ]
         print(_report_table(results))
+        if report.get("aborted"):
+            print("  ABORTED: a seeded side effect leaked; see seed_leaks below")
         if run_id:
             print(f"  report persisted: {run_id}")
 
@@ -553,6 +621,19 @@ def main() -> int:
         )
         if not passed:
             return 1
+
+    if report.get("aborted"):
+        # Fail closed *before* the promotion gate: an un-isolated run must never
+        # be able to promote a candidate, and its case results must not be read
+        # as evidence about any case that ran while a seed was still live.
+        print(
+            "\nerror: adversarial run aborted: seeded side effects were not "
+            "retired, so no result from this run is trustworthy",
+            file=sys.stderr,
+        )
+        for leak in report["seed_leaks"]:
+            print(f"  leak: {leak}", file=sys.stderr)
+        return 1
 
     if report["failed"] or report["pass_rate"] < floor:
         print(
