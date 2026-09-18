@@ -33,6 +33,7 @@ import logging
 from typing import Any
 
 from app.cost_attribution import InferenceContext, record_model_response
+from app.domain import is_internal_message_role
 from app.model_gateway import (
     OUTCOME_DENIED,
     OUTCOME_FAILED,
@@ -287,7 +288,7 @@ class CopilotService:
         lines: list[str] = []
         for message in messages[-100:]:
             role = str(message.get("role", ""))
-            if role in {"note", "internal_note"}:
+            if is_internal_message_role(role):
                 continue  # internal notes never reach the model
             content = str(message.get("content", ""))
             lines.append(f"{role}: {content}")

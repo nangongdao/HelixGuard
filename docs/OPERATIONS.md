@@ -357,9 +357,15 @@ changelog entry.
   than a budget raise.
 
 The static byte layer (`operator_js_bytes` / `operator_css_bytes` /
-`widget_js_bytes`, no browser needed) fails on bundle growth: check that the
-Vite `dist/` was rebuilt (`npx vite build`, `emptyOutDir` clears stale chunks)
-and that no unminified vendor blob was added. `--update` rewrites
+`widget_js_bytes` — tracked sources, LF-normalised — plus `operator_dist_bytes`
+for the Vite build output; no browser needed) fails on bundle growth: check that
+the Vite `dist/` was rebuilt (`npx vite build`, `emptyOutDir` clears stale
+chunks) and that no unminified vendor blob was added. Two things to know when a
+number looks surprising: the measurement is EOL-normalised on purpose (a CRLF
+working tree must not make the same commit look ~10 KB heavier than CI measures
+it), and `operator_dist_bytes` can only be measured where the frontend has been
+built — where it has not, the gate prints `NOTE: operator_dist_bytes: ... went
+unenforced` instead of quietly comparing a smaller payload. `--update` rewrites
 `artifacts/performance-baseline.json` — only after approving a real budget
 change, never to silence a failing gate.
 

@@ -45,6 +45,21 @@ PENDING_TASK_ORDER_CLARIFICATION = "order_clarification"
 # constant exists so the store stays usable without a settings object.
 DEFAULT_PENDING_TASK_TTL_MINUTES = 120
 
+# Roles that exist only for the service team. Every audience-scoped projection
+# (the customer widget, copilot context, conversation summaries) has to agree on
+# this list. It previously did not: the widget hid ``internal`` and
+# ``internal_note`` while copilot and summaries also treated ``note`` as
+# internal, so a ``note`` message was internal everywhere except in the
+# customer's browser (H01). One definition, and unknown roles stay
+# customer-visible -- an unrecognised role is ordinary chatter, whereas a role
+# listed here must never be projected outward.
+INTERNAL_MESSAGE_ROLES = frozenset({"note", "internal", "internal_note"})
+
+
+def is_internal_message_role(role: object) -> bool:
+    """True when a message with ``role`` must stay inside the service team."""
+    return str(role or "") in INTERNAL_MESSAGE_ROLES
+
 
 @dataclass(frozen=True)
 class RiskAssessment:

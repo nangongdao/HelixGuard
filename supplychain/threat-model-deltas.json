@@ -478,6 +478,30 @@
         "端到端行为改变：泄漏实验从「3 个受害者判红、0 处归因」变为「0 个受害者判红 + 1 条归因到 adv-indirect-knowledge-injection 的泄漏 + 本轮中止」；补丁前 harness 本地连跑 150 轮曾自然出现 1 次失败（约 1/150），说明该路径确会自燃",
         "门禁与全量：threat_model_gate --release 2.21.0 通过；migration_gate 48 条连续；frontend_gate 通过（391 tests）；openapi 仅 info.version 变动；ruff 0.9.9 全绿（372 文件）；pyright app 0 实质错误；本地全量 pytest：2 failed, 1921 passed, 44 skipped, 4 warnings，用时 20:39。2 个失败**仅**为已知的本地 otel 环境噪声（`test_telemetry_otel_branches::test_configure_logs_nothing_when_otel_absent`、`test_telemetry_edge::test_debug_log_emitted_at_span_end`——`opentelemetry` 落在用户 site-packages 导致，CI 全绿）。覆盖率 TOTAL 89%（门禁 ≥85%）。"
       ]
+    },
+    {
+      "release": "2.22.0",
+      "date": "2026-09-17",
+      "owner": "release-eng",
+      "approved_by": "platform-sec",
+      "controls": [
+        "客户投影的角色名单收敛为单一事实来源：app/domain.py 新增 INTERNAL_MESSAGE_ROLES={note,internal,internal_note} 与 is_internal_message_role()，widget 投影、copilot 上下文、会话摘要三处统一引用；此前 widget 只看 {internal,internal_note} 而其余两处看 {note,internal_note}，role=note 的内部消息会进入客户浏览器（真实请求取证：修复前客户可见 ['note','operator']）",
+        "未知角色保持客户可见、名单内角色绝不外投影：fix 方向是 fail-closed（宁可少喂模型/摘要，不可多投影客户），且不引入「只要不认识就隐藏」的黑名单漂移",
+        "widget 消息读取接上既有 opaque keyset 游标契约（app/pagination.py 的 encode/decode_message_cursor），非法游标 400；新增查询参数 cursor 与 X-Has-More/X-Next-Cursor 响应头，无 cursor 时行为与 2.21.0 等价（API 只增不改）",
+        "游标推进以「最后一条被扫描到的行」为准而非「最后一条可见消息」：整页内部备注时客户看到空列表但游标仍前进，避免轮询客户端反复重读同一页备注而永远读不到其后的答复（分页边界与信息隐藏解耦）",
+        "客户端发送尝试可恢复：nextSendAttempt() 让同一文本的重试复用同一 channel_message_id，服务端按既有 v11 渠道幂等键判为重放而不产生第二条客户消息；失败保留待发文本（不丢稿），确认成功后才释放尝试",
+        "客户端空闲接收有界化：轮询仅在「有会话 + 未解决 + 非发送中 + 页面可见」时运行，失败指数退避 4s→30s 封顶且不推进游标（不会跳过未确认的消息），resolved 或 401/404 失效即停止，visibilitychange 回前台补一次",
+        "静态性能预算必须「测到全部载荷、且测量不随环境漂移」：scripts/performance_gate.py 新增 _lf_bytes() 统一按 LF 归一化计数（工作树 CRLF 与 CI LF 检出从此量得同一个数），构建产物拆出独立预算 operator_dist_bytes（app/static/dist 被 gitignore，缺席时具名报 unenforced 而非静默减量），widget 载荷取样由硬编码两个文件改为 glob js/widget-*.js（再新增一个 widget 模块不再能静默逃出预算），并新增 MAX_STATIC_HEADROOM=1.25 断言——任何静态预算不得高于其所测载荷 25%，堵死「抬上限直到通过」式漂移。此四条同属 2.20.0 所修「不可能失败的门禁」家族：预算要么被测到、要么被具名，绝不允许在一个偏小的数字上通过"
+      ],
+      "verification_evidence": [
+        "红光（实现前）：tests/test_widget_resume.py 8 例中 7 例失败——X-Next-Cursor/X-Has-More 缺失、非法游标未被拒（返回 200）、role=note 泄漏；tests/frontend/widget-resume.test.js 9 例因 app/static/js/widget-core.js 未导出新函数而全红",
+        "绿光：tests/test_widget_resume.py 10/10；tests/frontend/widget-resume.test.js 9/9；scripts/frontend_gate.py 通过（400 tests，较 2.21.0 的 391 增加 9）",
+        "泄漏取证（artifacts/probe_widget_note_leak.py，真实 TestClient 请求，修复前后各跑一次）：修复前 status=200、roles visible=['note','operator']、无 X-Next-Cursor/X-Has-More；修复后 roles visible=['operator']、两个头均出现、VERDICT note leaked: False",
+        "端到端：test_idle_poll_carries_reply_and_resolution_without_a_customer_send —— 客户侧不发任何消息，一次携带游标的轮询同时取回坐席回复、X-Conversation-Status: resolved 与含 survey token 的 X-CSAT-Survey-URL",
+        "分页边界：test_a_page_of_internal_notes_does_not_stall_the_cursor —— limit=2 时首页可见为空、X-Has-More=true 且仍有 X-Next-Cursor，带该游标的下一页恰好返回被备注挡住的那条可见消息；test_cursor_cannot_reach_another_conversation 证明跨会话游标不能越界读取",
+        "回归面 150 passed：tests/test_widget_routes.py、test_widget_client.py、test_widget_resume.py、test_widget_token.py、test_copilot.py（71）+ test_summaries.py、test_frontend_gate.py、test_system.py（79）；scripts/openapi_snapshot.py --dump 重建后与规范一致（仅新增 cursor 参数、两个响应头文档与 info.version）；全量 1934 passed, 2 failed, 44 skipped，用时 0:19:48。2 个失败**仅**为已知的本地 otel 环境噪声（`test_telemetry_otel_branches` / `test_telemetry_edge`，`opentelemetry` 落在用户 site-packages 导致，CI 全绿）。覆盖率 TOTAL 89%（门禁 ≥85%）",
+        "性能门禁两次报红均为真信号（非噪声）：① 本地全量抓到改动成本——widget shipped 载荷（工作树原始字节口径）20,614 → 26,981 B（+30.9%）超出旧上限 1,981 B；② CI quality run 35241301022 上新加余量断言当场报红：「operator_js_bytes: ceiling 780000 sits 187.7% above the measured 415634」，而同一棵树本地量得 746,821 B。根因：一个数字里藏着两重环境依赖——(a) 换行风格，CRLF 检出每行多算一字节（同样的被跟踪文件本地 425,757 B vs CI 415,634 B，差额 10,123 恰等于行数）；(b) 构建产物，app/static/dist 被 gitignore 且 CI 的 quality 作业不构建它（只有 browser 作业构建），把 dist 折进 operator_js_bytes 使上限锚定在含 dist 的载荷上、而断言它的环境量的却是不含 dist 的那份——在 CI 里该上限比实际比较的数字高约 88%，预算不可能失败。处置：LF 归一化后本地与 CI 的 tracked 载荷逐字节一致（415,634 B）；构建产物独立预算 operator_dist_bytes（400,000，实测 343,450 B）；ci.yml 的 quality 作业在测试前构建前端使该预算在 CI 也真正强制；预算重锚到 LF 基线（operator_js_bytes 780,000→449,000、operator_css_bytes 125,000→107,000、widget_js_bytes→28,500），余量 +8%~+17% 全部 ≤1.25。tests/test_performance_gate.py 14 → 20 例（含「每个预算要么被量到要么被具名 unenforced」「换行风格不改变测量结果」「构建产物不折进 tracked 载荷」）"
+      ]
     }
   ]
 }

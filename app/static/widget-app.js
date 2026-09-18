@@ -1,14 +1,20 @@
 import {
+  advanceCursor,
   clearSession,
+  conversationSignals,
   copy,
   makeChannelMessageId,
   mergeMessages,
+  mergePolledMessages,
   messageTone,
+  nextPollDelayMs,
+  nextSendAttempt,
   parseSseFrames,
   readWidgetConfig,
   restoreSessionForLaunch,
   saveSession,
   sessionKey,
+  shouldPoll,
 } from "/static/js/widget-core.js?v=1.4.0";
 
 const config = readWidgetConfig();
@@ -23,6 +29,12 @@ const state = {
   pendingAssistant: "",
   busy: false,
   handoff: false,
+  // H01: the in-flight send attempt (kept across a failure so a retry reuses
+  // its channel id) and the read cursor the idle poll resumes from.
+  pendingAttempt: null,
+  cursor: "",
+  pollFailures: 0,
+  pollTimer: null,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -75,6 +87,7 @@ function showFatal(message = copy(config.locale, "expired")) {
 }
 
 function expireSession(message = copy(config.locale, "expired")) {
+  stopPolling();
   clearSession(storage, sessionKey());
   state.token = "";
   state.conversationId = null;
@@ -179,22 +192,81 @@ function saveCurrentSession() {
   saveSession(storage, { conversationId: state.conversationId, token: state.token }, sessionKey());
 }
 
+function applySignals(signals) {
+  state.handoff = signals.handoff;
+  state.resolved = signals.resolved;
+  state.resolvedSurveyUrl = signals.resolvedSurveyUrl;
+  renderResolvedBanner();
+}
+
 async function loadHistory() {
-  const response = await request(`/api/widget/sessions/${encodeURIComponent(state.conversationId)}/messages?limit=200`);
-  const conversationStatus = response.headers.get("X-Conversation-Status") || "";
-  state.handoff = ["waiting_human", "human_active"].includes(conversationStatus);
+  // H01: with a cursor this reads only what arrived since the last page, so the
+  // idle poll stays cheap and a dropped connection resumes where it stopped
+  // instead of re-reading (and possibly skipping) the transcript.
+  const query = state.cursor ? `?limit=200&cursor=${encodeURIComponent(state.cursor)}` : "?limit=200";
+  const response = await request(
+    `/api/widget/sessions/${encodeURIComponent(state.conversationId)}/messages${query}`,
+  );
   // ROADMAP 2.10.0: when the operator resolved the conversation, surface
   // the resolved banner and the CSAT rating link — the customer side of
   // the CSAT loop was previously unreachable in the widget channel.
-  const surveyUrl = response.headers.get("X-CSAT-Survey-URL") || "";
-  state.resolved = conversationStatus === "resolved" && Boolean(surveyUrl);
-  state.resolvedSurveyUrl = state.resolved ? surveyUrl : "";
-  renderResolvedBanner();
-  state.messages = mergeMessages(
-    state.messages.filter((message) => !String(message.id || "").startsWith("local-")),
-    await response.json(),
+  applySignals(
+    conversationSignals(
+      response.headers.get("X-Conversation-Status") || "",
+      response.headers.get("X-CSAT-Survey-URL") || "",
+    ),
   );
+  state.cursor = advanceCursor(state.cursor, response.headers.get("X-Next-Cursor"));
+  state.messages = mergePolledMessages(state.messages, await response.json());
   renderMessages();
+}
+
+function stopPolling() {
+  if (state.pollTimer !== null) {
+    clearTimeout(state.pollTimer);
+    state.pollTimer = null;
+  }
+}
+
+function schedulePoll(delay = nextPollDelayMs(state.pollFailures)) {
+  stopPolling();
+  state.pollTimer = setTimeout(pollOnce, delay);
+}
+
+async function pollOnce() {
+  state.pollTimer = null;
+  if (
+    !shouldPoll({
+      conversationId: state.conversationId,
+      resolved: state.resolved,
+      busy: state.busy,
+      hidden: document.hidden,
+    })
+  ) {
+    // A turn in flight or a hidden tab is a reason to wait, not to stop: the
+    // operator may still be typing a reply.
+    if (state.conversationId && !state.resolved) schedulePoll();
+    return;
+  }
+  try {
+    await loadHistory();
+    state.pollFailures = 0;
+    showBanner("", false);
+  } catch (error) {
+    if (error.name === "AbortError") return;
+    if (error.status === 401 || error.status === 404) {
+      stopPolling();
+      expireSession();
+      return;
+    }
+    state.pollFailures += 1;
+    showBanner(copy(config.locale, "reconnecting"), true);
+  }
+  if (state.resolved) {
+    stopPolling();
+    return;
+  }
+  schedulePoll();
 }
 
 function parseJobData(data) {
@@ -260,6 +332,9 @@ async function streamLatestTurn() {
   state.pendingAssistant = "";
   showBanner(completed ? "" : copy(config.locale, "timeout"), !completed);
   renderMessages();
+  // The turn is over: from here the reply may come from a human, so keep
+  // reading until the conversation is resolved.
+  schedulePoll();
   return completed;
 }
 
@@ -278,11 +353,15 @@ async function startSession(event) {
     state.conversationId = session.conversation.id;
     state.token = session.widget_token;
     state.resolved = false;
+    state.cursor = "";
+    state.pendingAttempt = null;
+    state.pollFailures = 0;
     renderResolvedBanner();
     saveCurrentSession();
     history.replaceState({}, document.title, `${location.pathname}${location.search}`);
     setChatVisible();
     await loadHistory();
+    schedulePoll();
   } catch (error) {
     if (error.name === "AbortError") return;
     if (error.status === 401 || error.status === 404) expireSession();
@@ -294,10 +373,19 @@ async function startSession(event) {
 
 async function sendMessage(event) {
   event.preventDefault();
-  const content = messageInput.value.trim();
-  if (!content || state.busy || !state.conversationId) return;
-  const channelMessageId = makeChannelMessageId();
-  state.messages = mergeMessages(state.messages, [{ id: `local-${channelMessageId}`, role: "customer", content, created_at: new Date().toISOString() }]);
+  if (state.busy || !state.conversationId) return;
+  // H01: the attempt survives a failure. Retrying the same text reuses its
+  // channel id, so a confirmation lost in transit replays instead of becoming a
+  // second customer message; a fresh draft gets a fresh id.
+  const attempt = nextSendAttempt(state.pendingAttempt, messageInput.value, makeChannelMessageId);
+  if (!attempt) return;
+  state.pendingAttempt = attempt;
+  state.messages = mergeMessages(state.messages, [{
+    id: `local-${attempt.channelMessageId}`,
+    role: "customer",
+    content: attempt.content,
+    created_at: new Date().toISOString(),
+  }]);
   messageInput.value = "";
   state.pendingAssistant = "";
   renderMessages();
@@ -306,12 +394,15 @@ async function sendMessage(event) {
   try {
     const queued = await request(`/api/widget/sessions/${encodeURIComponent(state.conversationId)}/messages?async_mode=true`, {
       method: "POST",
-      body: JSON.stringify({ content, channel_message_id: channelMessageId }),
+      body: JSON.stringify({ content: attempt.content, channel_message_id: attempt.channelMessageId }),
     });
     await queued.json();
+    state.pendingAttempt = null;
     await streamLatestTurn();
   } catch (error) {
     if (error.name === "AbortError") return;
+    state.pendingAttempt = attempt;
+    messageInput.value = attempt.content;
     state.pendingAssistant = "";
     if (error.status === 401 || error.status === 404) {
       expireSession();
@@ -335,6 +426,7 @@ function handleInputKey(event) {
 function handleBootstrapNavigation() {
   const next = readWidgetConfig();
   if (!next.token) return;
+  stopPolling();
   requestController.abort();
   requestController = new AbortController();
   clearSession(storage, sessionKey());
@@ -343,6 +435,9 @@ function handleBootstrapNavigation() {
   state.messages = [];
   state.pendingAssistant = "";
   state.handoff = false;
+  state.pendingAttempt = null;
+  state.cursor = "";
+  state.pollFailures = 0;
   $("customerName").value = "";
   messageInput.value = "";
   setBusy(false);
@@ -366,6 +461,7 @@ async function restoreOrPrepare() {
     try {
       await loadHistory();
       showBanner("", false);
+      schedulePoll();
     } catch (error) {
       if (error.name === "AbortError") return;
       if (error.status === 401 || error.status === 404) expireSession();
@@ -385,4 +481,8 @@ messageInput.addEventListener("keydown", handleInputKey);
 window.addEventListener("online", () => showBanner("", false));
 window.addEventListener("offline", () => showBanner(copy(config.locale, "reconnecting"), true));
 window.addEventListener("hashchange", handleBootstrapNavigation);
+// A tab that comes back to the foreground should not wait out the backoff.
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) schedulePoll(0);
+});
 restoreOrPrepare();

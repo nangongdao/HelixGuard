@@ -73,6 +73,16 @@ jobs:
       - name: Tauri config gate
         run: python scripts/tauri_config_gate.py --allow-empty-pubkey
 
+      - name: Build frontend (static byte budgets must measure the shipped payload)
+        # app/static/dist is gitignored, so a job that never builds it measures a
+        # smaller operator payload than the app ships: operator_dist_bytes (the
+        # Vite React runtime, ~343 KB) silently left the gate while the ceiling
+        # looked tight locally, where a build happened to exist. Build it here as
+        # the browser job already does, so tests/test_performance_gate.py compares
+        # like with like in both environments.
+        working-directory: frontend
+        run: npm run build
+
       - name: Unit tests with coverage
         run: |
           python -m coverage run -m pytest tests -q

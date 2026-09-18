@@ -32,9 +32,15 @@ from fastapi.responses import StreamingResponse
 from app.config import Settings
 from app.context import bind_tenant_scope
 from app.database import Database
+from app.domain import is_internal_message_role
 from app.intake import backpressure_reason
 from app.main import AppServices, message_out
 from app.orchestrator import ConversationOrchestrator
+from app.pagination import (
+    InvalidCursorError,
+    decode_message_cursor,
+    encode_message_cursor,
+)
 from app.schemas import (
     ConversationOut,
     MessageOut,
@@ -237,7 +243,19 @@ def list_widget_messages(
     conversation_id: str,
     token: Annotated[WidgetToken, Depends(_verify_widget_token)],
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    cursor: Annotated[str | None, Query(max_length=512)] = None,
 ) -> list[MessageOut]:
+    """List the customer-visible transcript, resumable through ``cursor``.
+
+    Responses carry ``X-Conversation-Status`` (and ``X-CSAT-Survey-URL`` once a
+    survey is pending) alongside the shared opaque pagination headers
+    ``X-Next-Cursor`` / ``X-Has-More``, so a client can poll for the delta and
+    resume a dropped read instead of re-fetching the whole transcript.
+    """
+    # H01: ``X-Next-Cursor`` is built from the last row the query *scanned*, not
+    # the last row the customer can see. A page made entirely of internal notes
+    # still has to move the cursor forward, otherwise a polling client re-reads
+    # the same notes forever and never reaches the reply behind them.
     services = _services(request)
     database: Database = services.database
     _ensure_tenant(token, database)
@@ -256,12 +274,24 @@ def list_widget_messages(
         if survey:
             base = services.settings.csat_base_url or ""
             response.headers["X-CSAT-Survey-URL"] = f"{base}/api/csat/{survey['token']}"
-    rows = [
-        row
-        for row in database.list_messages(token.tenant_id, conversation_id, limit=limit)
-        if row.get("role") not in {"internal", "internal_note"}
-    ]
-    return [message_out(row) for row in rows]
+    try:
+        decoded_cursor = decode_message_cursor(cursor) if cursor else None
+    except InvalidCursorError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    scanned = database.list_messages(
+        token.tenant_id,
+        conversation_id,
+        limit=limit + 1,
+        cursor=decoded_cursor,
+    )
+    response.headers["X-Has-More"] = str(len(scanned) > limit).lower()
+    page = scanned[:limit]
+    if page:
+        last = page[-1]
+        response.headers["X-Next-Cursor"] = encode_message_cursor(
+            str(last["created_at"]), int(last["seq"])
+        )
+    return [message_out(row) for row in page if not is_internal_message_role(row.get("role"))]
 
 
 @router.get("/sessions/{conversation_id}/stream")
