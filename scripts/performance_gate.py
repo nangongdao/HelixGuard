@@ -71,18 +71,41 @@ BASELINE = ROOT / "artifacts" / "performance-baseline.json"
 # headroom so a runaway dependency or an unminified vendored blob (> 10% jump)
 # still fails the gate.
 # == 2026-09-17 re-anchor (H01: widget resumable send + idle polling) ==
-# The widget payload grew 20,614 -> 26,981 B (+6,367) because the customer shell
-# gained the parts that must not be wrong offline: a send attempt that survives a
-# failure (so a lost confirmation replays instead of double-posting), and a
-# cursor-based idle poll so an operator reply and the CSAT link reach a customer
-# who sends nothing. Unlike the operator side this is raw zero-build source: no
-# Vite step, so comments and formatting ship as-is. The ceiling is re-anchored to
-# the realized baseline with ~7% headroom (the operator reconcile used ~8%) —
-# still far below the >10% jump a runaway dependency would produce.
+# The widget payload grew 20,614 -> 26,218 B (LF, as shipped) because the customer
+# shell gained the parts that must not be wrong offline: a send attempt that
+# survives a failure (so a lost confirmation replays instead of double-posting),
+# and a cursor-based idle poll so an operator reply and the CSAT link reach a
+# customer who sends nothing. Unlike the operator side this is raw zero-build
+# source: no Vite step, so comments and formatting ship as-is. The ceiling is
+# re-anchored to the realized baseline with ~8% headroom — still far below the
+# >10% jump a runaway dependency or an unminified vendored blob would produce.
+#
+# == 2026-09-17 measurement fix (found by CI run 35241301022, PR #36) ==
+# The first version of the headroom assertion below failed in CI on
+# operator_js_bytes: "ceiling 780000 sits 187.7% above the measured 415634" —
+# while the same commit measured 746,821 B locally. Two environment dependencies
+# were hiding inside one number:
+#   1. EOL. The gate summed raw working-tree bytes, so a CRLF checkout counted one
+#      extra byte per line: 425,757 B locally vs 415,634 B in CI for the *same*
+#      tracked files. Git stores LF, so LF is what gets counted now.
+#   2. Build outputs. app/static/dist is gitignored and exists only where the
+#      frontend has been built; the CI `quality` job does not build it (only the
+#      `browser` job does). Folding dist into operator_js_bytes anchored the
+#      ceiling to a dist-inclusive payload while the environment doing the
+#      asserting measured a dist-exclusive one — so in CI the ceiling sat ~88%
+#      above the number compared against it and could not fail. That is the same
+#      fail-open shape as the quantized heap budget this file already guards
+#      against, so build outputs now carry their own ceiling and their absence is
+#      reported rather than absorbed (see _build_output_files / _static_payload).
 BUDGETS = {
-    "operator_js_bytes": 780_000,  # app.js + js/*.js + dist/assets/*.js (React runtime)
-    "operator_css_bytes": 125_000,  # styles.css + css/tokens.css
-    "widget_js_bytes": 29_000,  # widget-app.js + every js/widget-*.js (zero-build)
+    # Tracked zero-build sources. LF-normalised, so identical in every checkout
+    # and the ceiling means the same thing locally and in CI.
+    "operator_js_bytes": 449_000,  # app.js + js/*.js — measured 415,634 B
+    "operator_css_bytes": 107_000,  # styles.css + css/tokens.css — measured 98,260 B
+    "widget_js_bytes": 28_500,  # widget-app.js + js/widget-*.js — measured 26,218 B
+    # Build output: the Vite React runtime under app/static/dist/assets/, minus
+    # the on-demand terminal chunk. Only measurable where the frontend was built.
+    "operator_dist_bytes": 400_000,  # dist/assets/*.{js,css} — measured 343,450 B
 }
 
 # A static budget may not drift far above the payload it measures: a ceiling that
@@ -90,7 +113,9 @@ BUDGETS = {
 # let a 15 MB heap budget report green for four nights (see HEAP_SESSION_ARGS).
 # Raising a ceiling has to stay a bounded, deliberate act rather than a reflexive
 # one; §43.6 anchored the original budgets at ~25% headroom over the baseline, so
-# that is the widest gap allowed here too.
+# that is the widest gap allowed here too. Only *measured* components are checked:
+# a component this environment could not measure reports itself as unenforced
+# instead of passing on a size that is small for the wrong reason.
 MAX_STATIC_HEADROOM = 1.25
 
 # Browser budgets (§43.6: LCP/INP/CLS、长任务、内存和 10k 队列渲染).
@@ -264,47 +289,89 @@ def _widget_payload_files(static_dir: Path) -> list[Path]:
     return files
 
 
-def _static_payload() -> dict[str, int]:
-    """Measure the shipped first-paint byte sizes."""
-    static_dir = ROOT / "app" / "static"
-    operator_js = sum(path.stat().st_size for path in sorted(static_dir.glob("js/*.js")))
-    operator_js += (static_dir / "app.js").stat().st_size
-    # D2 (§6.3): include the Vite-produced React runtime + island chunks
-    # that are part of the first-paint payload. The terminal island chunk
-    # (xterm.js, ~400KB) is lazily loaded only when the user opens the
-    # diagnostic drawer (Ctrl+`), so it is excluded from the first-paint
-    # budget — it is on-demand, not initial render.
+def _lf_bytes(paths: list[Path]) -> int:
+    """Bytes as shipped: EOL-normalised to LF.
+
+    Git stores LF. Summing raw working-tree bytes made the same commit measure
+    425,757 B in a CRLF checkout and 415,634 B in CI — a budget whose *measured*
+    value moves with the checkout cannot be compared against a fixed ceiling. The
+    normalisation lives here and only here, so every payload is counted one way.
+    """
+    total = 0
+    for path in paths:
+        total += len(path.read_bytes().replace(b"\r\n", b"\n"))
+    return total
+
+
+def _build_output_files(static_dir: Path) -> list[Path]:
+    """Vite build outputs that ship on first paint (terminal island excluded).
+
+    ``app/static/dist`` is gitignored, so it is absent wherever the frontend has
+    not been built — which includes the CI ``quality`` job (only the ``browser``
+    job builds it). Return ``[]`` there so the caller can *report* the unmeasured
+    budget instead of quietly measuring a smaller payload.
+    """
     dist_assets = static_dir / "dist" / "assets"
-    if dist_assets.is_dir():
-        for path in sorted(dist_assets.glob("*.js")):
-            if path.stem.startswith("terminal"):
-                continue
-            operator_js += path.stat().st_size
-    operator_css = (static_dir / "styles.css").stat().st_size
-    operator_css += (static_dir / "css" / "tokens.css").stat().st_size
-    # Terminal island ships its own CSS chunk from Vite (on-demand).
-    if dist_assets.is_dir():
-        for path in sorted(dist_assets.glob("*.css")):
-            if path.stem.startswith("terminal"):
-                continue
-            operator_css += path.stat().st_size
-    widget_js = sum(path.stat().st_size for path in _widget_payload_files(static_dir))
-    return {
-        "operator_js_bytes": operator_js,
-        "operator_css_bytes": operator_css,
-        "widget_js_bytes": widget_js,
+    if not dist_assets.is_dir():
+        return []
+    return [
+        path
+        for path in sorted(dist_assets.iterdir())
+        if path.suffix in {".js", ".css"} and not path.stem.startswith("terminal")
+    ]
+
+
+def _static_payload() -> tuple[dict[str, int], list[str]]:
+    """Measure the shipped first-paint byte sizes.
+
+    Returns ``(sizes, unenforced)``. ``unenforced`` names the budgets whose
+    payload could not be measured in this environment — the point is never to
+    fold an unmeasured component into a size that makes a ceiling look enforced
+    when it is not.
+
+    D2 (§6.3) / D3: the Vite-produced React runtime plus the island chunks are
+    first paint; the terminal island chunk (xterm.js, ~400 KB) is loaded only
+    when the diagnostic drawer opens (Ctrl+`), so it is excluded — on-demand,
+    not initial render.
+    """
+    static_dir = ROOT / "app" / "static"
+    build_outputs = _build_output_files(static_dir)
+    sizes = {
+        "operator_js_bytes": _lf_bytes(
+            [static_dir / "app.js", *sorted(static_dir.glob("js/*.js"))]
+        ),
+        "operator_css_bytes": _lf_bytes(
+            [static_dir / "styles.css", static_dir / "css" / "tokens.css"]
+        ),
+        "widget_js_bytes": _lf_bytes(_widget_payload_files(static_dir)),
+        "operator_dist_bytes": _lf_bytes(build_outputs),
     }
+    unenforced: list[str] = []
+    if not build_outputs:
+        unenforced.append(
+            "operator_dist_bytes: app/static/dist/assets is absent (the frontend has "
+            f"not been built here), so the {BUDGETS['operator_dist_bytes']} byte "
+            "React-runtime budget went unenforced"
+        )
+    return sizes, unenforced
 
 
-def check_static_budgets() -> tuple[dict[str, int], list[str]]:
-    sizes = _static_payload()
+def check_static_budgets() -> tuple[dict[str, int], list[str], list[str]]:
+    """Static byte budgets, as ``(sizes, problems, unenforced)``.
+
+    A budget whose payload this environment could not measure is returned in
+    ``unenforced`` rather than compared against: comparing 0 bytes to a ceiling
+    would report success for the wrong reason, which is how a budget stops
+    carrying a signal.
+    """
+    sizes, unenforced = _static_payload()
     problems = []
     for key, limit in BUDGETS.items():
         if sizes[key] > limit:
             problems.append(
                 f"{key}: {sizes[key]} bytes exceeds budget {limit} (over by {sizes[key] - limit})"
             )
-    return sizes, problems
+    return sizes, problems, unenforced
 
 
 def _launch_browser(playwright: Any, chrome_binary: str | None, args: list[str]) -> Any:
@@ -759,10 +826,18 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     problems: list[str] = []
-    sizes, static_problems = check_static_budgets()
+    sizes, static_problems, unenforced = check_static_budgets()
     problems.extend(static_problems)
-    report: dict[str, object] = {"static": sizes, "budgets": BUDGETS}
+    report: dict[str, object] = {
+        "static": sizes,
+        "budgets": BUDGETS,
+        "unenforced": unenforced,
+    }
     print(json.dumps(report["static"], indent=2))
+    # Named, not swallowed: a budget nobody measured is reported on every run so
+    # it cannot pass for a budget that was measured and held.
+    for notice in unenforced:
+        print(f"NOTE: {notice}", file=sys.stderr)
 
     if args.base_url:
         metrics, browser_problems = check_browser_budgets(args.base_url)

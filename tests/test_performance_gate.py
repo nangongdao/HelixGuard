@@ -28,7 +28,7 @@ from scripts.performance_gate import (
 
 class StaticBudgetTests(unittest.TestCase):
     def test_first_paint_payload_within_budgets(self) -> None:
-        sizes, problems = check_static_budgets()
+        sizes, problems, _unenforced = check_static_budgets()
         self.assertEqual(problems, [], "\n".join(problems))
         # Sanity: the measured payload is non-trivial (guards against the
         # glob silently matching nothing after a layout change).
@@ -37,8 +37,23 @@ class StaticBudgetTests(unittest.TestCase):
         self.assertGreater(sizes["widget_js_bytes"], 5_000)
 
     def test_budget_keys_are_complete(self) -> None:
-        sizes, _ = check_static_budgets()
+        sizes, _problems, _unenforced = check_static_budgets()
         self.assertEqual(set(sizes), set(BUDGETS))
+
+    def test_every_budget_is_either_measured_or_named_unenforced(self) -> None:
+        """A budget must never drop out of the gate without saying so.
+
+        ``app/static/dist`` is gitignored, so its bytes are simply not on disk in
+        an unbuilt checkout. Subtracting it silently is how the operator ceiling
+        ended up ~88% above the number CI compared against it.
+        """
+        sizes, _problems, unenforced = check_static_budgets()
+        named = "\n".join(unenforced)
+        for key in BUDGETS:
+            self.assertTrue(
+                sizes[key] > 0 or key in named,
+                f"{key} is neither measured nor reported as unenforced",
+            )
 
     def test_browser_budgets_cover_43_6_dimensions(self) -> None:
         for key in (
@@ -175,12 +190,16 @@ class HeapSessionTests(unittest.TestCase):
 class StaticBudgetCoverageTests(unittest.TestCase):
     """The static budgets must measure everything and must still be able to fail.
 
-    Two structural properties, both learned the hard way. The widget payload used
-    to name its two files explicitly, so a second widget module would have
-    escaped the budget silently — the same fail-open shape as a ceiling that sits
-    so far above its payload that it cannot fail (a 15 MB heap budget reported
-    green for four nights). Neither property belongs to a particular number, so
-    both are asserted against a synthetic tree rather than the live one.
+    Three structural properties, all learned the hard way. The widget payload used
+    to name its two files explicitly, so a second widget module would have escaped
+    the budget silently. The operator payload used to fold the gitignored Vite
+    build output into the same number as the tracked sources, so the ceiling was
+    anchored to a dist-inclusive payload while CI measured a dist-exclusive one.
+    And the measurement used raw working-tree bytes, so a CRLF checkout counted an
+    extra byte per line and the *same commit* measured two different sizes. All
+    three are the fail-open shape of a ceiling that sits too far above the number
+    it is compared against — so all three are asserted against a synthetic tree
+    rather than whichever tree happens to be on disk.
     """
 
     def _temp_tree(self, widget_module_bytes: int) -> tuple[tempfile.TemporaryDirectory, Path]:
@@ -188,14 +207,13 @@ class StaticBudgetCoverageTests(unittest.TestCase):
         static = Path(tmp.name) / "app" / "static"
         (static / "js").mkdir(parents=True)
         (static / "css").mkdir(parents=True)
-        (static / "app.js").write_text("// entry\n", encoding="utf-8")
-        (static / "styles.css").write_text("/* styles */\n", encoding="utf-8")
-        (static / "css" / "tokens.css").write_text("/* tokens */\n", encoding="utf-8")
-        (static / "widget-app.js").write_text("// widget shell\n", encoding="utf-8")
-        (static / "js" / "widget-core.js").write_text("// core\n", encoding="utf-8")
-        (static / "js" / "widget-extra.js").write_text(
-            "//" + "x" * widget_module_bytes + "\n", encoding="utf-8"
-        )
+        (static / "app.js").write_bytes(b"// entry\n")
+        (static / "js" / "app-core.js").write_bytes(b"// core\n")
+        (static / "styles.css").write_bytes(b"/* styles */\n")
+        (static / "css" / "tokens.css").write_bytes(b"/* tokens */\n")
+        (static / "widget-app.js").write_bytes(b"// widget shell\n")
+        (static / "js" / "widget-core.js").write_bytes(b"// core\n")
+        (static / "js" / "widget-extra.js").write_bytes(b"//" + b"x" * widget_module_bytes + b"\n")
         return tmp, static
 
     def test_widget_payload_includes_every_widget_module(self) -> None:
@@ -205,29 +223,97 @@ class StaticBudgetCoverageTests(unittest.TestCase):
         self.assertEqual(names, ["widget-app.js", "widget-core.js", "widget-extra.js"])
 
         with patch.object(performance_gate, "ROOT", Path(tmp.name)):
-            sizes = performance_gate._static_payload()
-        expected = sum(
-            path.stat().st_size for path in performance_gate._widget_payload_files(static)
-        )
+            sizes, _unenforced = performance_gate._static_payload()
+        expected = performance_gate._lf_bytes(performance_gate._widget_payload_files(static))
         self.assertEqual(sizes["widget_js_bytes"], expected)
 
     def test_widget_budget_reports_a_problem_when_a_module_grows(self) -> None:
         tmp, _static = self._temp_tree(BUDGETS["widget_js_bytes"] + 1_000)
         self.addCleanup(tmp.cleanup)
         with patch.object(performance_gate, "ROOT", Path(tmp.name)):
-            _sizes, problems = check_static_budgets()
+            _sizes, problems, _unenforced = check_static_budgets()
         self.assertTrue(problems, "an oversized widget module must fail the gate")
         self.assertIn("widget_js_bytes", "\n".join(problems))
 
     def test_static_budgets_keep_bounded_headroom(self) -> None:
-        sizes, _problems = check_static_budgets()
-        for key, limit in BUDGETS.items():
-            ratio = limit / sizes[key]
+        sizes, _problems, unenforced = check_static_budgets()
+        measured = {key: size for key, size in sizes.items() if size > 0}
+        # Every budget is either measured here or named as unenforced — nothing
+        # may leave the gate without a trace.
+        self.assertEqual(len(measured) + len(unenforced), len(BUDGETS))
+        for key, size in measured.items():
+            ratio = BUDGETS[key] / size
             self.assertLessEqual(
                 ratio,
                 performance_gate.MAX_STATIC_HEADROOM,
-                f"{key}: ceiling {limit} sits {ratio:.1%} above the measured {sizes[key]}",
+                f"{key}: ceiling {BUDGETS[key]} sits {ratio:.1%} above the measured {size}",
             )
+
+
+class StaticPayloadMeasurementTests(unittest.TestCase):
+    """The measurement must be a property of the commit, not of the checkout.
+
+    The first H01 revision failed in CI because the same commit measured two
+    different operator payloads — 425,757 B in a CRLF working tree (one extra
+    byte per line) and 415,634 B in CI — and because the gitignored Vite build
+    output was folded into the tracked-source total. Ceilings are compared against
+    these numbers, so both have to be settled before the ratio means anything.
+    """
+
+    def _temp_tree(self, eol: bytes) -> tuple[tempfile.TemporaryDirectory, Path]:
+        tmp = tempfile.TemporaryDirectory()
+        static = Path(tmp.name) / "app" / "static"
+        (static / "js").mkdir(parents=True)
+        (static / "css").mkdir(parents=True)
+        body = eol.join([b"// entry", b"const a = 1;", b"// trailing"]) + eol
+        for rel in (
+            "app.js",
+            "js/app-core.js",
+            "styles.css",
+            "css/tokens.css",
+            "widget-app.js",
+            "js/widget-core.js",
+        ):
+            (static / rel).write_bytes(body)
+        return tmp, static
+
+    def _measure(self, root: Path) -> tuple[dict[str, int], list[str]]:
+        with patch.object(performance_gate, "ROOT", root):
+            return performance_gate._static_payload()
+
+    def test_eol_style_does_not_change_the_measured_payload(self) -> None:
+        crlf_tmp, _ = self._temp_tree(b"\r\n")
+        lf_tmp, _ = self._temp_tree(b"\n")
+        self.addCleanup(crlf_tmp.cleanup)
+        self.addCleanup(lf_tmp.cleanup)
+        crlf_sizes, _ = self._measure(Path(crlf_tmp.name))
+        lf_sizes, _ = self._measure(Path(lf_tmp.name))
+        self.assertEqual(crlf_sizes, lf_sizes)
+
+    def test_build_outputs_get_their_own_budget(self) -> None:
+        tmp, static = self._temp_tree(b"\n")
+        self.addCleanup(tmp.cleanup)
+        before, unenforced = self._measure(Path(tmp.name))
+        self.assertTrue(
+            any("operator_dist_bytes" in notice for notice in unenforced),
+            "an unbuilt checkout must report the React-runtime budget as unenforced",
+        )
+
+        assets = static / "dist" / "assets"
+        assets.mkdir(parents=True)
+        (assets / "index-abc123.js").write_bytes(b"x" * 5_000)
+        (assets / "index-abc123.css").write_bytes(b"y" * 1_000)
+        # On-demand chunk: excluded from the first-paint budget, by name.
+        (assets / "terminal-deadbeef.js").write_bytes(b"z" * 9_000)
+        after, unenforced_after = self._measure(Path(tmp.name))
+
+        self.assertEqual(
+            after["operator_js_bytes"],
+            before["operator_js_bytes"],
+            "a build output must not be folded into the tracked operator payload",
+        )
+        self.assertEqual(after["operator_dist_bytes"], 6_000)
+        self.assertEqual(unenforced_after, [])
 
 
 if __name__ == "__main__":
