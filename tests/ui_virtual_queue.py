@@ -118,7 +118,7 @@ def paginate_until_full(page: Page, target: int) -> None:
     deadline = time.monotonic() + 90
     while True:
         count_text = (page.locator("#queueCount").text_content() or "").strip()
-        # "230 个会话" (all loaded, no more pages) or "230+ 个会话" (still more).
+        # "230 个审核单" (all loaded, no more pages) or "230+ 个审核单" (still more).
         if count_text.startswith(f"{target}"):
             return
         if time.monotonic() >= deadline:
@@ -228,7 +228,7 @@ def main() -> None:
             "scrolling to the bottom did not re-render the window"
         )
         # 断言滚动到底后窗口包含队列真实末行(经 API 取,兼容共享 DB 上更老
-        # 的测试会话占据底部)——而不是写死 vq-slot-0001。
+        # 的测试审核单占据底部)——而不是写死 vq-slot-0001。
         last_id = queue_last_conversation_id()
         assert last_id in bottom_band_ids, (
             f"deep-most row {last_id} not rendered after scrolling to bottom "

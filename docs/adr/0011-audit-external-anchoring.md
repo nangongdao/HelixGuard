@@ -16,7 +16,7 @@ ROADMAP 41.3（SEC-005）的威胁模型是：**DB 管理员或任何能写出�
 - 安全/权限/凭据/DSR 这类高危变更必须与其审计证据同一事务持久化（同事务
   audit/outbox），审计失败时整笔 mutation 回滚并 fail closed，避免“变更发生了、
   证据丢了”。
-- 普通对话 telemetry 走已有 best-effort 路径，失败时不允许沉默——必须产生
+- 普通审核单 telemetry 走已有 best-effort 路径，失败时不允许沉默——必须产生
   可观测的 `audit_gap` 告警与修复任务。
 - 恢复校验必须同时核对本地链、归档 manifest 与外部锚点三份证据。
 

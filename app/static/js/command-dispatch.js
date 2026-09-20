@@ -1,5 +1,5 @@
 /**
- * Helix Support — palette command dispatcher (app.js <500 campaign slice 22).
+ * Helix Guard — palette command dispatcher (app.js <500 campaign slice 22).
  *
  * Consumes the command-palette island's helix-command events and routes each
  * action key to its handler: nav view switches, the conversation-dialog and
@@ -51,7 +51,7 @@ export function renderCommandResults() {
   commandItems.push(...filtered);
   commandIndex = Math.min(commandIndex, Math.max(0, filtered.length - 1));
   if (!filtered.length) {
-    ctx.els.commandResults.innerHTML = '<div class="command-empty">没有匹配的命令或会话</div>';
+    ctx.els.commandResults.innerHTML = '<div class="command-empty">没有匹配的命令或审核单</div>';
     return;
   }
   const groups = new Map();

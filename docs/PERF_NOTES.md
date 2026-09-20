@@ -8,7 +8,7 @@
 - 硬件:本地开发机(Windows 11, x86-64),SQLite 文件库(非 PostgreSQL)。
 - 测量方法:`app/telemetry` 的 `TelemetryMetrics` 直方图(P50/P95 由
   `statistics.quantiles(n=100, inclusive)` 计算),通过 worker 的 `run_once`
-  跑 20 个确定性知识 turn(内容 "配送一般多久能到？",知识库 1 篇文章,
+  跑 20 个确定性知识 turn(内容 "配送一般多久能到？",策略库 1 篇文章,
   `stream_pacing_ms=10` 默认值)。
 - 测量日期:2026-08-16。单机单次窗口,不作为跨设备 SLO 承诺;18.3 压测脚本
   将把同类基准纳入回归。
@@ -56,7 +56,7 @@ stream 首 chunk 已写出**之后**)。它不影响 TTFT,但把 `handle_custome
 
 ## 18.2d — 热路径 SQL 审计
 
-审计目标:队列首屏、会话详情、消息分页三个高频读查询(以及 persist 段的
+审计目标:队列首屏、审核单详情、消息分页三个高频读查询(以及 persist 段的
 质量聚合写),SQLite 实测 `EXPLAIN QUERY PLAN`。**双端**:DDL 由
 `PostgresConnection` 适配器在 PG 上以同一语法执行;PG 的 `EXPLAIN ANALYZE`
 实测随 18.3 压测补充。
@@ -74,7 +74,7 @@ USE TEMP B-TREE FOR ORDER BY
 
 **结论**:无全表扫描;在租户子集上做临时排序。`CASE` 表达式无法匹配任何
 (tenant, priority, updated_at, id) 索引前缀,故 priority 排序必然 temp
-B-tree。**18.5 全量实测**(100k 会话/百万消息,SQLite):offset 首屏
+B-tree。**18.5 全量实测**(100k 审核单/百万消息,SQLite):offset 首屏
 P95=241ms、深页 P95=256ms、keyset 单页约 156ms,均 < 300ms 门——SQLite
 判定达标。
 
@@ -113,8 +113,8 @@ id DESC` 缺 `id` 末列,`idx_conversations_tenant_updated` 不可用作有序�
 1. **确定性窗口快路径**(`app/db/conversations_query.py`
    `_query_conversations_windowed`):对 `sort="updated"` 的搜索,先通过新索引
    `idx_conversations_tenant_updated_id (tenant_id, updated_at DESC, id DESC)`
-   强制有序索引扫描取最新 `offset+limit` 个会话(含 keyset/过滤子句),再对
-   窗口逐会话探测搜索谓词(`content LIKE` 经 pg_trgm GIN 位图)。页面若填满
+   强制有序索引扫描取最新 `offset+limit` 个审核单(含 keyset/过滤子句),再对
+   窗口逐审核单探测搜索谓词(`content LIKE` 经 pg_trgm GIN 位图)。页面若填满
    `limit` 行即返回——窗口外任何匹配按序都在窗口之下,故该页即全局该页
    (completeness rule);不足则回退聚合 CTE。
 2. **窗口硬界** `_PG_SEARCH_WINDOW = 1024`:深 offset(`offset+limit > 1024`)
@@ -135,11 +135,11 @@ id DESC` 缺 `id` 末列,`idx_conversations_tenant_updated` 不可用作有序�
 
 全匹配 P95 从 627–809ms 收敛到 6.5–7.3ms;修正后的消息专属选择性词为
 143.2–168.3ms,均远低于 500ms 验收线;普通 updated 排序分页同时降到
-3.8–6.1ms。旧 selective 词 `000007` 实际命中会话 ID、没有进入消息路径,
+3.8–6.1ms。旧 selective 词 `000007` 实际命中审核单 ID、没有进入消息路径,
 现由基准前置断言防回退。正确性由 `tests/test_search_window.py` 固定密集页、稀疏
 回退、游标与租户边界,live PG 索引/路径测试见 `tests/test_postgres.py`。
 
-### 会话详情(`get_conversation`)
+### 审核单详情(`get_conversation`)
 
 ```
 SEARCH conversations USING INDEX sqlite_autoindex_conversations_1 (id=?)
@@ -175,7 +175,7 @@ root cause:**chunk 逐条写入的 WAL 提交开销**(Windows 本地 SQLite,单�
 
 - **requestIdleCallback 渲染预算**:`app/static/app.js` 新增 `scheduleIdle(fn)`
   助手(有 `requestIdleCallback` 时用 idle 时隙 + 2s 兜底超时,否则 250ms
-  setTimeout)。会话详情打开时的非关键后台工作(附件名回填、工单徽标详情、
+  setTimeout)。审核单详情打开时的非关键后台工作(附件名回填、申诉单徽标详情、
   质量看板数据、首次提及徽标)改为 idle 调度——交互路径上的重活让出给
   首帧与点击响应。浏览器冒烟(ui_smoke / ui_thread_lazy / ui_virtual_queue /
   ui_sserelay)全绿。
@@ -218,12 +218,12 @@ root cause:**chunk 逐条写入的 WAL 提交开销**(Windows 本地 SQLite,单�
   本机曾测到 1020–1220 ms 的连续越限——根因是系统级负载(后台 webview/
   内存压力),**不是应用回归**;clean DB + 整机空闲后回落。CI nightly 的
   runner 负载不同,wall-clock 预算对 runner 敏感,不进 per-PR 门。
-- **heap 与泄漏探针在专用会话里实测(2.20.0 起)**:两者都由一个带
-  `--enable-precise-memory-info` 的**独立 Chromium 会话**测量——不带该 flag 时
+- **heap 与泄漏探针在专用审核单里实测(2.20.0 起)**:两者都由一个带
+  `--enable-precise-memory-info` 的**独立 Chromium 审核单**测量——不带该 flag 时
   Chromium 把 `performance.memory` 量子化为固定 10MB,每轮采样全等、增长恒
   读作 0,15MB 预算**永远无法失败**(09-14 起连续四晚夜间 CI 就是败在这里)。
-  该 flag 会关掉部分分配器优化、扰动 wall-clock 时延,因此**不进时延会话**;
-  `detail_leak_mb` 探针另加 `--js-flags=--expose-gc`(实测会把同会话桌面 LCP
+  该 flag 会关掉部分分配器优化、扰动 wall-clock 时延,因此**不进时延审核单**;
+  `detail_leak_mb` 探针另加 `--js-flags=--expose-gc`(实测会把同审核单桌面 LCP
   拉高 ~50ms),两者互不污染。**没有环境开关**——测不到即门禁失败,不静默跳过,
   夜间作业也不再需要任何变量。
 - **INP 探针必须走受信输入**:`locator.click()` 才会产生 interactionId,
@@ -235,6 +235,6 @@ root cause:**chunk 逐条写入的 WAL 提交开销**(Windows 本地 SQLite,单�
   过滤 `.map`(22 chunk 共 2.12MB,web 端保留供调试),桌面包减重 ~2.1MB。
 
 相关测试:`tests/test_performance_gate.py`(静态预算键完备、桌面预算必须有
-web 孪生、INP/泄漏键覆盖,以及 heap 预算的 fail-closed 状态与"精确会话不可被
+web 孪生、INP/泄漏键覆盖,以及 heap 预算的 fail-closed 状态与"精确审核单不可被
 环境变量关掉"的结构断言);浏览器层 `python scripts/performance_gate.py
 --base-url http://127.0.0.1:8765`——**无需任何环境变量**。

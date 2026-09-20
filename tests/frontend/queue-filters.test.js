@@ -1,4 +1,4 @@
-// Helix Support — queue filter controls unit tests (app.js <500 slice 24)
+// Helix Guard — queue filter controls unit tests (app.js <500 slice 24)
 // Run: node --test tests/frontend/queue-filters.test.js
 
 import { afterEach, beforeEach, mock, test } from "node:test";

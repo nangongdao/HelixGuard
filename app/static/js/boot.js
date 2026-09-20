@@ -1,5 +1,5 @@
 /**
- * Helix Support — legacy boot assembly (app.js <500 campaign).
+ * Helix Guard — legacy boot assembly (app.js <500 campaign).
  *
  * The operator console's boot wiring, extracted verbatim from app.js: the
  * queue/inspector/density/low-perf listeners, the macro/canned chip clicks,

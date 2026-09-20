@@ -136,7 +136,7 @@ class DatabaseConversationsMixin:
     ) -> None:
         """Record the conversation language (or clear it back to auto).
 
-        Backlog (多语言客服): only writes when the stored language differs, so
+        Backlog (多语言审核): only writes when the stored language differs, so
         the version/updated_at metadata is untouched on repeated messages in
         the same language. ``None`` clears the manual override and lets the
         writer path re-detect automatically.

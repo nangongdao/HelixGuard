@@ -98,7 +98,7 @@ class OperatorMessageRequest(StrictModel):
 
 class InternalNoteRequest(StrictModel):
     content: str = Field(min_length=1, max_length=4000)
-    # Backlog (坐席协作): optional id of another internal note in the same
+    # Backlog (审核协作): optional id of another internal note in the same
     # conversation that this note replies to (discussion threads).
     reply_to: str | None = Field(default=None, min_length=5, max_length=80)
 
@@ -176,7 +176,7 @@ class KnowledgeCreateRequest(StrictModel):
     tags: list[str] = Field(min_length=1, max_length=20)
     category: str = Field(default="general", min_length=2, max_length=60)
     source_url: str = Field(min_length=1, max_length=500)
-    # Backlog (多语言客服): the article's language; null means language-agnostic
+    # Backlog (多语言审核): the article's language; null means language-agnostic
     # (matches any customer language in retrieval).
     language: str | None = None
 
@@ -255,10 +255,10 @@ class ConversationOut(StrictModel):
     # Backlog (CSAT): populated on the resolve response with a one-time
     # customer survey link; everything else leaves it null.
     survey_url: str | None = None
-    # Backlog (多语言客服): detected language of the customer's latest
+    # Backlog (多语言审核): detected language of the customer's latest
     # message; null until a customer message has been detected.
     language: str | None = None
-    # Backlog (工单化): the ticket this conversation belongs to, when it has
+    # Backlog (申诉单化): the ticket this conversation belongs to, when it has
     # been converted or linked; null otherwise.
     ticket_id: str | None = None
 
@@ -270,7 +270,7 @@ class MessageOut(StrictModel):
     content: str
     metadata: dict[str, Any] = Field(default_factory=dict)
     created_at: str
-    # Backlog (坐席协作): internal-note threading — the note a message replies
+    # Backlog (审核协作): internal-note threading — the note a message replies
     # to (an internal note id in the same conversation), or null. Always
     # present so ``list_messages``/``message_out`` round-trip cleanly.
     reply_to: str | None = None
@@ -517,7 +517,7 @@ class KnowledgeArticleOut(StrictModel):
     updated_at: str
     reviewed_by: str | None = None
     reviewed_at: str | None = None
-    # Backlog (多语言客服): article language; null = language-agnostic.
+    # Backlog (多语言审核): article language; null = language-agnostic.
     language: str | None = None
 
 
@@ -841,7 +841,7 @@ class SlaPolicyOut(StrictModel):
 
 
 # ---------------------------------------------------------------------------
-# AI-assisted operator copilot (backlog: AI 辅助坐席)
+# AI-assisted operator copilot (backlog: AI 辅助审核)
 # ---------------------------------------------------------------------------
 
 
@@ -893,7 +893,7 @@ class CopilotRewriteOut(StrictModel):
 
 
 # ---------------------------------------------------------------------------
-# Ticketing (backlog: 工单化)
+# Ticketing (backlog: 申诉单化)
 # ---------------------------------------------------------------------------
 
 

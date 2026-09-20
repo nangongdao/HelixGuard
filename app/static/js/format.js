@@ -1,5 +1,5 @@
 /**
- * Helix Support — format / util module (Phase 26.1)
+ * Helix Guard — format / util module (Phase 26.1)
  *
  * Pure formatting and escaping helpers extracted from the monolith. No DOM
  * access; unit-testable with node:test. The legacy app.js keeps its own
@@ -24,7 +24,7 @@ export function statusLabel(status, locale = "zh-CN") {
       open: "自动处理中",
       waiting_human: "等待人工",
       human_active: "人工处理中",
-      resolved: "已解决",
+      resolved: "已判定",
     },
     en: {
       open: "auto",
@@ -43,7 +43,7 @@ export function roleLabel(role, locale = "zh-CN") {
     "zh-CN": {
       admin: "管理员",
       supervisor: "主管",
-      operator: "客服",
+      operator: "审核员",
       channel: "渠道",
       viewer: "只读",
       auditor: "审计员",

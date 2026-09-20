@@ -1,4 +1,4 @@
-"""Backlog: ticketing (工单化).
+"""Backlog: ticketing (申诉单化).
 
 Covers the roadmap acceptance:
 - converting a conversation creates a ticket snapshot (customer identity +
@@ -189,8 +189,8 @@ class TicketAppTests(unittest.TestCase):
     # ----------------------------------------------------- cross-conversation
 
     def test_link_second_conversation(self) -> None:
-        first = self._open_conversation("客户A", "CUST-2001")
-        second = self._open_conversation("客户A", "CUST-2001")
+        first = self._open_conversation("提交方A", "CUST-2001")
+        second = self._open_conversation("提交方A", "CUST-2001")
         ticket = self._create_ticket(first)
         response = self.client.post(
             f"/api/tickets/{ticket['id']}/link",
@@ -220,7 +220,7 @@ class TicketAppTests(unittest.TestCase):
         conversation_id = self._open_conversation()
         self.client.post(
             f"/api/conversations/{conversation_id}/notes",
-            json={"content": "内部机密：客户准备投诉到消协"},
+            json={"content": "内部机密：提交方准备投诉到消协"},
             headers=self.admin,
         )
         ticket = self._create_ticket(conversation_id)

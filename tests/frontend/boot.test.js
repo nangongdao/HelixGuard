@@ -1,4 +1,4 @@
-// Helix Support — legacy boot assembly unit tests (app.js <500 campaign)
+// Helix Guard — legacy boot assembly unit tests (app.js <500 campaign)
 // Run: node --test tests/frontend/boot.test.js
 
 import { afterEach, beforeEach, test } from "node:test";

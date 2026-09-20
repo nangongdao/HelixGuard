@@ -78,7 +78,7 @@ class TurnPolicyStage:
         tenant_id = context.tenant_id
         conversation_id = context.conversation["id"]
         conversation = context.conversation
-        # Backlog (多语言客服): detect the customer message language up front --
+        # Backlog (多语言审核): detect the customer message language up front --
         # best-effort and deterministic, so it never blocks or breaks intake.
         detected_language, language_source = self.services.languages.detect(
             context.content, tenant_id=tenant_id
@@ -102,7 +102,7 @@ class TurnPolicyStage:
             channel_message_id=channel_message_id,
         )
         if detected_language and conversation.get("language") is None:
-            # Backlog (多语言客服): the manual override is sticky -- an
+            # Backlog (多语言审核): the manual override is sticky -- an
             # auto-detected code is only written while the stored language is
             # null, so the pinned value survives the next customer message
             # until the operator clears it.

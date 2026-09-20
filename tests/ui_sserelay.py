@@ -164,7 +164,7 @@ def wait_queue_has(page: Page, name: str, timeout_s: float) -> None:
     """Wait until the queue list renders a row named ``name``.
 
     Name-based instead of count-based because ``#queueCount`` caps at
-    ``{page_size}+ 个会话`` once the database holds more than one page of
+    ``{page_size}+ 个审核单`` once the database holds more than one page of
     conversations (shared scratch DB after ui_virtual_queue seeds hundreds
     of rows), so an exact count can never be observed there.
     """

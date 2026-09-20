@@ -1,4 +1,4 @@
-"""Backlog: multi-language customer service (多语言客服).
+"""Backlog: multi-language customer service (多语言审核).
 
 Covers the roadmap acceptance:
 - script-based detection maps zh/en/ja/ko/ru/ar/hi/he/th/el correctly;
@@ -256,7 +256,7 @@ class MultilingualAppTests(unittest.TestCase):
         self.assertTrue(payload["translated"])
 
     def test_manual_language_override_drives_reply_translation(self) -> None:
-        # Backlog (多语言客服): the operator's manual override (PATCH /language)
+        # Backlog (多语言审核): the operator's manual override (PATCH /language)
         # pins the reply translation target. A Chinese message sent on a
         # conversation pinned to English gets detected as zh but the assistant
         # reply is translated into the pinned target (en) when a model is
@@ -335,7 +335,7 @@ class KnowledgeLanguageTests(unittest.TestCase):
             "/api/knowledge",
             json={
                 "title": title,
-                "content": f"关于 {title} 的详细说明，供知识库检索使用。",
+                "content": f"关于 {title} 的详细说明，供策略库检索使用。",
                 "tags": tags,
                 "category": "policy",
                 "source_url": "https://example.com/policy",

@@ -1,5 +1,5 @@
 /**
- * Helix Support — identity island component tests (D3 long tail)
+ * Helix Guard — identity island component tests (D3 long tail)
  *
  * The island is a pure helix-identity subscriber rendering the header
  * readout "actor · role". These tests cover the model parity with legacy
@@ -33,7 +33,7 @@ afterEach(() => {
 describe("identityModel parity with legacy roleLabel", () => {
   it("formats actor · role with the legacy label map", () => {
     expect(identityModel({ actorId: "demo.admin", role: "admin" })).toBe("demo.admin · 管理员");
-    expect(identityModel({ actorId: "op-2", role: "operator" })).toBe("op-2 · 客服");
+    expect(identityModel({ actorId: "op-2", role: "operator" })).toBe("op-2 · 审核员");
     expect(identityModel({ actorId: "aud-1", role: "auditor" })).toBe("aud-1 · 审计员");
   });
 

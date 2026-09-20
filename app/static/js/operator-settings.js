@@ -1,5 +1,5 @@
 /**
- * Helix Support — operator settings + permission gates (app.js <500 campaign).
+ * Helix Guard — operator settings + permission gates (app.js <500 campaign).
  *
  * The remaining genuine (non-delegating) console helpers, extracted verbatim
  * from app.js: the low-perf/queue-size/poll-interval prefs, the permission
@@ -62,7 +62,7 @@ function canOperate() {
   return ctx.state.me?.permissions?.includes("operator:act") === true;
 }
 
-// Backlog (多语言客服): language override + translate both require
+// Backlog (多语言审核): language override + translate both require
 // conversation:write (the console's write gate, distinct from canOperate's
 // operator:act so channel/operator roles can still act).
 function canWriteConversations() {

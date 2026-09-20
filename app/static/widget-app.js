@@ -63,7 +63,7 @@ function applyCopy() {
   setText("headerKicker", copy(config.locale, "eyebrow"));
   setText("onlineLabel", copy(config.locale, "online"));
   setText("welcomeEyebrow", copy(config.locale, "eyebrow"));
-  setText("welcomeTitle", config.locale === "en" ? "Start here" : "欢迎来到服务台");
+  setText("welcomeTitle", config.locale === "en" ? "Start here" : "欢迎使用提交入口");
   setText("welcomeCopy", config.greeting);
   setText("nameLabel", copy(config.locale, "nameLabel"));
   $("customerName").placeholder = copy(config.locale, "namePlaceholder");

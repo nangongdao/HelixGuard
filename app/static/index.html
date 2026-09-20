@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#0a0d12" />
-    <title>Helix Support | 客服控制台</title>
+    <title>Helix Guard | 内容审核台</title>
     <link rel="icon" href="/static/favicon.svg?v=1.4.0" type="image/svg+xml" />
     <link rel="stylesheet" href="/static/styles.css?v=1.4.0" />
     <!-- ROADMAP §18.4 资源: modulepreload fetches the module graph (entry +
@@ -41,7 +41,7 @@
         <div class="desktop-splash-mark" aria-hidden="true">
           <svg class="icon icon-xl"><use href="/static/icons.svg?v=1.4.0#hexagon" /></svg>
         </div>
-        <strong class="desktop-splash-title">Helix Support</strong>
+        <strong class="desktop-splash-title">Helix Guard</strong>
         <span class="desktop-splash-sub" id="desktopSplashStatus">正在启动后端服务…</span>
         <div class="desktop-splash-progress" id="desktopSplashProgress" hidden>
           <div class="desktop-splash-progress-bar"></div>
@@ -55,8 +55,8 @@
             <svg class="icon icon-lg"><use href="/static/icons.svg?v=1.4.0#hexagon" /></svg>
           </div>
           <div class="brand-copy">
-            <strong>Helix Support</strong>
-            <span>客服控制台</span>
+            <strong>Helix Guard</strong>
+            <span>内容审核台</span>
           </div>
           <span class="environment-chip">CONTROL ROOM</span>
         </div>
@@ -79,7 +79,7 @@
           <button id="refreshList" class="icon-button header-refresh" type="button" title="刷新队列" aria-label="刷新队列">
             <svg class="icon"><use href="/static/icons.svg?v=1.4.0#refresh-cw" /></svg>
           </button>
-          <button id="mobileQueue" class="icon-button mobile-only" type="button" title="打开会话队列" aria-label="打开会话队列" aria-expanded="false" aria-controls="queuePane">
+          <button id="mobileQueue" class="icon-button mobile-only" type="button" title="打开审核队列" aria-label="打开审核队列" aria-expanded="false" aria-controls="queuePane">
             <svg class="icon"><use href="/static/icons.svg?v=1.4.0#menu" /></svg>
           </button>
         </div>
@@ -93,7 +93,7 @@
           <button class="nav-item" type="button" data-view="quality" title="质量看板" aria-label="质量看板">
             <svg class="icon"><use href="/static/icons.svg?v=1.4.0#activity" /></svg>
           </button>
-          <button class="nav-item" type="button" data-view="knowledge" title="知识库" aria-label="知识库">
+          <button class="nav-item" type="button" data-view="knowledge" title="策略库" aria-label="策略库">
             <svg class="icon"><use href="/static/icons.svg?v=1.4.0#book-open" /></svg>
           </button>
           <button class="nav-item" type="button" data-view="admin" title="管理" aria-label="管理">
@@ -105,12 +105,12 @@
         </nav>
         <main class="app-main">
       <div class="app-layout" id="workspaceView">
-        <aside id="queuePane" class="queue-pane" aria-label="会话队列">
+        <aside id="queuePane" class="queue-pane" aria-label="审核队列">
           <div class="queue-heading">
             <div>
               <div>
                 <span class="section-kicker">OPERATIONS</span>
-                <h1>会话队列</h1>
+                <h1>审核队列</h1>
               </div>
               <button id="queueClose" class="icon-button queue-close mobile-only" type="button" title="关闭队列" aria-label="关闭队列">
                 <svg class="icon"><use href="/static/icons.svg?v=1.4.0#x" /></svg>
@@ -128,7 +128,7 @@
           <div id="workspaceTabsReactIsland"></div>
           <div id="workspaceTabs" class="workspace-tabs" role="tablist" aria-label="工作区视图">
             <button id="wsTabQueue" class="workspace-tab is-active" type="button" role="tab" aria-selected="true" data-wstab="queue">队列</button>
-            <button id="wsTabTickets" class="workspace-tab" type="button" role="tab" aria-selected="false" data-wstab="tickets">工单</button>
+            <button id="wsTabTickets" class="workspace-tab" type="button" role="tab" aria-selected="false" data-wstab="tickets">申诉单</button>
           </div>
           <div id="metrics" class="metric-grid" aria-live="polite"></div>
           <!-- D3 React island mount (dashboard metrics). The legacy #metrics
@@ -163,8 +163,8 @@
           <div class="queue-controls">
             <label class="search-field">
               <svg class="icon"><use href="/static/icons.svg?v=1.4.0#search" /></svg>
-              <span class="sr-only">搜索会话</span>
-              <input id="searchInput" type="search" placeholder="搜索客户、会话或消息" autocomplete="off" aria-label="搜索会话" />
+              <span class="sr-only">搜索审核单</span>
+              <input id="searchInput" type="search" placeholder="搜索提交方、审核单或消息" autocomplete="off" aria-label="搜索审核单" />
             </label>
             <label class="filter-field">
               <span class="sr-only">筛选状态</span>
@@ -173,7 +173,7 @@
                 <option value="open">自动处理中</option>
                 <option value="waiting_human">等待人工</option>
                 <option value="human_active">人工处理中</option>
-                <option value="resolved">已解决</option>
+                <option value="resolved">已判定</option>
               </select>
               <svg class="icon"><use href="/static/icons.svg?v=1.4.0#chevron-down" /></svg>
             </label>
@@ -260,9 +260,9 @@
           <div id="ticketPane" class="ticket-pane" hidden>
             <div class="ticket-filters">
               <label class="filter-field">
-                <span class="sr-only">筛选工单状态</span>
-                <select id="ticketStatusFilter" aria-label="筛选工单状态">
-                  <option value="">全部工单</option>
+                <span class="sr-only">筛选申诉单状态</span>
+                <select id="ticketStatusFilter" aria-label="筛选申诉单状态">
+                  <option value="">全部申诉单</option>
                   <option value="open">待处理</option>
                   <option value="in_progress">处理中</option>
                   <option value="closed">已关闭</option>
@@ -279,7 +279,7 @@
                drawer layout). -->
           <div id="ticketReactIsland" class="ticket-react-island"></div>
           <div class="queue-footer">
-            <span id="queueCount">0 个会话</span>
+            <span id="queueCount">0 个审核单</span>
             <button id="loadMore" class="queue-more" type="button" hidden>
               <svg class="icon"><use href="/static/icons.svg?v=1.4.0#chevron-down" /></svg>
               <span>加载更多</span>
@@ -302,9 +302,9 @@
         </aside>
 
         <main class="conversation-pane">
-          <section id="emptyState" class="empty-state" aria-label="未选择会话">
+          <section id="emptyState" class="empty-state" aria-label="未选择审核单">
             <div class="empty-icon"><svg class="icon icon-xl"><use href="/static/icons.svg?v=1.4.0#inbox" /></svg></div>
-            <h2>未打开会话</h2>
+            <h2>未打开审核单</h2>
             <p>队列待命</p>
           </section>
           <section id="conversationView" class="conversation-view" hidden>
@@ -315,15 +315,15 @@
               <div id="customerAvatar" class="customer-avatar" aria-hidden="true">?</div>
               <div class="conversation-heading">
                 <div class="title-line">
-                  <h2 id="conversationTitle">选择会话</h2>
+                  <h2 id="conversationTitle">选择审核单</h2>
                   <span id="conversationStatus" class="status-pill">-</span>
                   <span id="ticketBadge" class="ticket-badge" hidden></span>
                 </div>
                 <div class="subtitle-line">
                   <p id="conversationSubtitle">-</p>
-                  <label class="language-picker" title="会话语言：手动覆盖自动检测，或选「自动」恢复">
+                  <label class="language-picker" title="内容语言：手动覆盖自动检测，或选「自动」恢复">
                     <span class="language-picker-label">语言</span>
-                    <select id="conversationLanguageSelect" aria-label="会话语言">
+                    <select id="conversationLanguageSelect" aria-label="内容语言">
                       <option value="">自动</option>
                     </select>
                   </label>
@@ -354,20 +354,20 @@
                   <svg class="icon"><use href="/static/icons.svg?v=1.4.0#rotate-ccw" /></svg>
                   <span>重开</span>
                 </button>
-                <button id="ticketBtn" class="button button-secondary" type="button" title="把该会话转为长周期工单" hidden>
+                <button id="ticketBtn" class="button button-secondary" type="button" title="把该审核单转为长周期申诉单" hidden>
                   <svg class="icon"><use href="/static/icons.svg?v=1.4.0#file-text" /></svg>
-                  <span>转工单</span>
+                  <span>转申诉单</span>
                 </button>
                 <button id="resolveBtn" class="button button-dark" type="button">
                   <svg class="icon"><use href="/static/icons.svg?v=1.4.0#check" /></svg>
-                  <span>解决</span>
+                  <span>判定</span>
                 </button>
               </div>
             </header>
               <div id="csatBanner" class="csat-banner" hidden>
                 <span class="csat-label">
                   <svg class="icon"><use href="/static/icons.svg?v=1.4.0#thumbs-up" /></svg>
-                  <span>满意度链接（解决后发给客户）</span>
+                  <span>抽检评分链接（判定后发给提交方）</span>
                 </span>
                 <code id="csatUrl" class="csat-url"></code>
                 <button id="csatCopyBtn" class="button button-secondary" type="button">复制</button>
@@ -375,7 +375,7 @@
               <div id="summaryBanner" class="summary-banner" hidden>
                 <span class="csat-label">
                   <svg class="icon"><use href="/static/icons.svg?v=1.4.0#file-text" /></svg>
-                  <span id="summaryTitle">会话摘要</span>
+                  <span id="summaryTitle">内容摘要</span>
                 </span>
                 <div id="summaryText" class="summary-text"></div>
               </div>
@@ -404,27 +404,27 @@
                 <div id="threadReactIsland" class="messages" aria-live="polite"></div>
                 <div id="composerNotice" class="composer-notice" hidden>
                   <svg class="icon"><use href="/static/icons.svg?v=1.4.0#shield-check" /></svg>
-                  <span>人工已接管，新的客户消息会进入队列，不会触发机器人回复。</span>
+                  <span>人工已接管，新的待审内容会进入队列，不会触发机器人回复。</span>
                 </div>
                 <form id="customerForm" class="composer customer-composer">
-                  <label class="sr-only" for="customerInput">客户消息</label>
-                  <textarea id="customerInput" rows="2" maxlength="4000" placeholder="输入一条模拟客户消息…" required></textarea>
-                  <button class="send-button" type="submit" title="发送客户消息" aria-label="发送客户消息">
+                  <label class="sr-only" for="customerInput">待审内容</label>
+                  <textarea id="customerInput" rows="2" maxlength="4000" placeholder="输入一条模拟待审内容…" required></textarea>
+                  <button class="send-button" type="submit" title="发送待审内容" aria-label="发送待审内容">
                     <svg class="icon"><use href="/static/icons.svg?v=1.4.0#send" /></svg>
                   </button>
                 </form>
                 <div id="cannedBar" class="canned-bar" hidden>
-                  <span class="canned-label">快捷回复</span>
+                  <span class="canned-label">预置结论</span>
                   <div id="cannedList" class="canned-list"></div>
                 </div>
                 <form id="operatorForm" class="composer operator-composer" hidden>
                   <label class="sr-only" for="operatorInput">人工回复</label>
                   <div class="composer-stack">
-                    <textarea id="operatorInput" rows="2" maxlength="4000" placeholder="输入人工回复… 输入 / 插入快捷回复，Ctrl+Enter 发送"></textarea>
-                    <div id="macroSuggest" class="macro-suggest" hidden role="listbox" aria-label="快捷回复建议"></div>
+                    <textarea id="operatorInput" rows="2" maxlength="4000" placeholder="输入人工回复… 输入 / 插入预置结论，Ctrl+Enter 发送"></textarea>
+                    <div id="macroSuggest" class="macro-suggest" hidden role="listbox" aria-label="预置结论建议"></div>
                     <div id="copilotBar" class="copilot-bar" hidden>
                       <div class="copilot-tools">
-                        <button id="copilotSuggestBtn" class="copilot-btn" type="button" title="根据对话生成建议回复">
+                        <button id="copilotSuggestBtn" class="copilot-btn" type="button" title="根据审核单生成建议结论">
                           <svg class="icon"><use href="/static/icons.svg?v=1.4.0#bot" /></svg>智能建议
                         </button>
                         <select id="copilotTone" class="copilot-tone" aria-label="语气改写">
@@ -457,8 +457,8 @@
                      (hidden) and stay the surface in a plain browser tab. -->
                 <div id="composerReactIsland" class="composer-react-island"></div>
               </section>
-              <aside class="inspector-surface" aria-label="会话检查器">
-                <nav id="inspectorTabs" class="inspector-tabs" role="tablist" aria-label="会话信息">
+              <aside class="inspector-surface" aria-label="审核单检查器">
+                <nav id="inspectorTabs" class="inspector-tabs" role="tablist" aria-label="审核单信息">
                   <button class="inspector-tab is-active" type="button" role="tab" aria-selected="true" data-tab="overview">
                     <svg class="icon"><use href="/static/icons.svg?v=1.4.0#activity" /></svg><span>概览</span>
                   </button>
@@ -498,7 +498,7 @@
                 <form id="noteForm" class="note-composer">
                   <label for="noteInput">内部备注 <span>仅团队可见</span></label>
                   <div class="note-input-row">
-                    <div id="mentionSuggest" class="macro-suggest" hidden role="listbox" aria-label="坐席提及候选"></div>
+                    <div id="mentionSuggest" class="macro-suggest" hidden role="listbox" aria-label="审核员提及候选"></div>
                     <textarea id="noteInput" rows="2" maxlength="4000" placeholder="记录核对结果或交接信息，@ 提及同事" required></textarea>
                     <button type="submit" title="添加内部备注" aria-label="添加内部备注">
                       <svg class="icon"><use href="/static/icons.svg?v=1.4.0#send" /></svg>
@@ -508,23 +508,23 @@
               </aside>
             </div>
           </section>
-          <section id="ticketDetailView" class="conversation-view ticket-detail-view" hidden aria-label="工单详情">
+          <section id="ticketDetailView" class="conversation-view ticket-detail-view" hidden aria-label="申诉单详情">
             <header class="conversation-header">
-              <button id="ticketBack" class="icon-button" type="button" title="返回工单列表" aria-label="返回工单列表">
+              <button id="ticketBack" class="icon-button" type="button" title="返回申诉单列表" aria-label="返回申诉单列表">
                 <svg class="icon"><use href="/static/icons.svg?v=1.4.0#arrow-left" /></svg>
               </button>
               <div class="conversation-heading">
                 <div class="title-line">
-                  <h2 id="ticketDetailTitle">工单详情</h2>
+                  <h2 id="ticketDetailTitle">申诉单详情</h2>
                   <span id="ticketDetailStatus" class="status-pill">-</span>
                   <span id="ticketDetailPriority" class="priority-pill" hidden></span>
                 </div>
                 <p id="ticketDetailSubtitle">-</p>
               </div>
               <div class="conversation-actions">
-                <button id="ticketLinkCurrent" class="button button-secondary" type="button" title="把当前打开的会话关联到本工单" hidden>
+                <button id="ticketLinkCurrent" class="button button-secondary" type="button" title="把当前打开的审核单关联到本申诉单" hidden>
                   <svg class="icon"><use href="/static/icons.svg?v=1.4.0#link" /></svg>
-                  <span>关联当前会话</span>
+                  <span>关联当前审核单</span>
                 </button>
                 <div id="ticketTransitions" class="ticket-transitions"></div>
               </div>
@@ -555,18 +555,18 @@
           <div id="qualityViewGaps" class="quality-gaps" aria-live="polite"></div>
         </div>
       </section>
-      <section id="knowledgeView" class="app-view" hidden aria-label="知识库">
+      <section id="knowledgeView" class="app-view" hidden aria-label="策略库">
         <header class="knowledge-heading">
           <div>
-            <span class="section-kicker">KNOWLEDGE OPERATIONS</span>
-            <h2>知识库</h2>
+            <span class="section-kicker">POLICY OPERATIONS</span>
+            <h2>策略库</h2>
           </div>
           <div class="knowledge-heading-actions">
             <button id="newKnowledgeDraft" class="button button-primary" type="button" hidden>
               <svg class="icon"><use href="/static/icons.svg?v=1.4.0#plus" /></svg>
               <span>新建草稿</span>
             </button>
-            <button id="refreshKnowledge" class="icon-button" type="button" title="刷新知识库" aria-label="刷新知识库">
+            <button id="refreshKnowledge" class="icon-button" type="button" title="刷新策略库" aria-label="刷新策略库">
               <svg class="icon"><use href="/static/icons.svg?v=1.4.0#refresh-cw" /></svg>
             </button>
           </div>
@@ -681,7 +681,7 @@
             <h3>租户配额</h3>
             <dl id="quotaReadout" class="admin-readout"></dl>
             <form id="quotaForm" class="admin-form">
-              <label class="admin-field">会话配额
+              <label class="admin-field">审核单配额
                 <input id="quotaConversations" type="number" min="1" max="10000000" placeholder="不修改留空" />
               </label>
               <label class="admin-field">存储配额（MB）
@@ -694,12 +694,12 @@
             <h3>成员</h3>
             <ul id="memberList" class="admin-list"></ul>
             <form id="memberForm" class="admin-form">
-              <label class="admin-field">坐席标识
+              <label class="admin-field">审核员标识
                 <input id="memberActorId" type="text" maxlength="80" pattern="[A-Za-z0-9._:@\-]{2,}" title="2–80 位，仅字母、数字、. _ : @ -" placeholder="例如 operator-2" required />
               </label>
               <label class="admin-field">角色
                 <select id="memberRole">
-                  <option value="operator">客服</option>
+                  <option value="operator">审核员</option>
                   <option value="supervisor">主管</option>
                   <option value="admin">管理员</option>
                   <option value="viewer">只读</option>
@@ -790,10 +790,10 @@
               <label class="admin-field">渠道
                 <input id="slaChannel" type="text" maxlength="40" placeholder="留空表示全部" />
               </label>
-              <label class="admin-field">首响时限（分钟）
+              <label class="admin-field">首次响应时限（分钟）
                 <input id="slaFirstResponse" type="number" min="1" max="10080" value="15" />
               </label>
-              <label class="admin-field">解决时限（分钟）
+              <label class="admin-field">判定时限（分钟）
                 <input id="slaResolve" type="number" min="1" max="10080" value="1440" />
               </label>
               <button class="button button-primary" type="submit">保存策略</button>
@@ -803,7 +803,7 @@
             <h3>自动路由规则</h3>
             <ul id="routingRuleList" class="admin-list"></ul>
             <form id="routingRuleForm" class="admin-form">
-              <label class="admin-field">意图
+              <label class="admin-field">风险类别
                 <input id="ruleIntent" type="text" maxlength="80" placeholder="可选" />
               </label>
               <label class="admin-field">标签
@@ -866,18 +866,18 @@
     <dialog id="newConversationDialog" class="dialog">
       <form id="newConversationForm" method="dialog">
         <div class="dialog-heading">
-          <div><span class="section-kicker">NEW CONTACT</span><h2>新建会话</h2></div>
+          <div><span class="section-kicker">NEW SUBMISSION</span><h2>新建审核单</h2></div>
           <button id="closeDialog" class="icon-button" type="button" title="关闭" aria-label="关闭"><svg class="icon"><use href="/static/icons.svg?v=1.4.0#x" /></svg></button>
         </div>
-        <label class="field-label" for="newCustomerName">客户名称</label>
+        <label class="field-label" for="newCustomerName">提交方名称</label>
         <input id="newCustomerName" class="text-input" maxlength="80" required placeholder="例如：林嘉" />
-        <label class="field-label" for="newCustomerRef">客户身份标识 <span>可选</span></label>
+        <label class="field-label" for="newCustomerRef">提交方标识 <span>可选</span></label>
         <input id="newCustomerRef" class="text-input" maxlength="80" placeholder="例如：CUST-1001" />
         <label class="field-label" for="newChannel">渠道</label>
         <select id="newChannel" class="text-input"><option value="web">Web</option><option value="api">API</option><option value="messaging">Messaging</option></select>
         <div class="dialog-actions">
           <button id="cancelDialog" class="button button-secondary" type="button">取消</button>
-          <button class="button button-primary" type="submit"><svg class="icon"><use href="/static/icons.svg?v=1.4.0#plus" /></svg><span>创建会话</span></button>
+          <button class="button button-primary" type="submit"><svg class="icon"><use href="/static/icons.svg?v=1.4.0#plus" /></svg><span>创建审核单</span></button>
         </div>
       </form>
     </dialog>
@@ -886,7 +886,7 @@
       <div class="command-palette-inner">
         <div class="command-input-row">
           <svg class="icon"><use href="/static/icons.svg?v=1.4.0#search" /></svg>
-          <input id="commandInput" class="command-input" type="text" placeholder="输入命令或会话… Ctrl+K" autocomplete="off" aria-label="命令搜索" />
+          <input id="commandInput" class="command-input" type="text" placeholder="输入命令或审核单… Ctrl+K" autocomplete="off" aria-label="命令搜索" />
           <kbd class="command-kbd">ESC</kbd>
         </div>
         <div id="commandResults" class="command-results" role="listbox" aria-label="命令结果"></div>

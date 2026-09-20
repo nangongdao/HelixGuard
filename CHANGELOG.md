@@ -2,6 +2,115 @@
 
 所有版本遵循[语义化版本](https://semver.org)。API 变更遵循 `docs/API_POLICY.md`(响应体只增不改、弃用需 `Deprecation`/`Sunset` 头 + 至少一个次版本过渡、每次变更记录于此)。
 
+## 2.24.0 — P2 文案层: 用户可见文案迁移到内容安全审核域 (2026-09-20)
+
+Version 2.24.0 承接 2.23.0（P1 产品身份），改的是**用户看得见的文案**：中文标签、`aria-label`/`title`、i18n 词条、面向用户的助手回复，以及 `docs/` 下活跃文档的术语。**运行时行为不变**——改的是每个字符串"说了什么"，不是代码"怎么跑"：没有逻辑分支、没有断言语义、没有 API 字段或状态机变化。
+
+**规模**
+
+- 受控脚本做 **743 处替换**（第一遍 703 + 补漏 40），另有 **4 处误伤回修**；跨 283 个受跟踪文件（272 个文本 + 11 个二进制：4 个视觉基线 + 7 张 README 截图）。
+- `git diff --shortstat` = `283 files changed, 1142 insertions(+), 1038 deletions(-)`。**增删不对称只有 3 个文件、净 +104 行**，全部有据：本条目 +109、`README.md` 重写 −7、`tests/ui_tickets.py` ruff 折行 +2（T11 改写后行宽超限，用 pin 版 ruff 重排）。**其余 269 个文本文件逐行增删完全对称**，可判定为行内字符串替换，无行结构改动。
+- **换行保真**：读写两侧禁用换行转换。抽查 `app/static/index.html` CRLF=904 / LF-only=0、`app/static/widget.html`、`app/main.py`，与替换前逐项一致（本工作树 `core.autocrlf=true`，全仓 CRLF；若用默认 universal-newline 读法会把文件行尾整体翻成 LF，制造一个掩盖真实改动的巨型 diff——P1 已踩过这个坑）。
+
+**第一遍：术语契约 T1–T15 的机械替换（703 处）**
+
+映射表与规模见 [`docs/DOMAIN.md`](docs/DOMAIN.md) §3。要点：
+
+- **短语表最长优先，不做 token 替换**。`会话语言` 若按 `会话 → 审核单` 会得到病句「审核单语言」，正确结果是「内容语言」；`客户服务` 必须先于 `客服` 消费，否则得出「智能审核员平台」。同类必需的长短语还有 `会话队列 / 会话摘要 / 会话配额 / 工单详情 / 满意度链接 / 人工客服核实 / 转接人工客服` 等。
+- **T11「解决」不做一刀切**。这是中文里少数的动名同形词：任务结局义（状态标签、按钮、SLA 时限、结案动作）迁移为「判定」，动词义（解决问题 / 解决方案 / 足以解决）必须保留。实测全仓 28 处用例后逐条枚举精确短语，而不是 `解决 → 判定` 通配——一刀切会产出「临时判定方案」「无法判定问题」两类明显病句。
+- **刻意不动的三块**：① 历史档案（`CHANGELOG` 历史条目、`docs/RELEASE_*` / `PHASE_*_COMPLETION` / `PROGRESS_REPORT_*`、`supplychain/*.json`）—— 改写等同伪造事实；② 领域内容夹具（`app/database.py`、`app/db/tenancy.py` 的种子正文、`golden/*`）—— 它们是**真功能**不是文案，单独列为 P2b；③ 元文档 `docs/DOMAIN*.md` 自身 —— 它以「客户 → 提交方」的旧词→新词形式书写，被替换会毁掉唯一的事实来源。
+
+**误伤与回修（41 处，全部来自"同形异指"）**
+
+机械替换最危险的不是漏改，是**改完语法通顺但语义全错**。首轮实测抓到四类，加 NUL 哨兵守护表后不再新生：
+
+| 误伤形态 | 实例 | 正确含义 |
+| --- | --- | --- |
+| `客户端` 被拆成「客户 + 端」 | 客户端 → 提交方端 | client 软件 |
+| 认证语境的 `会话` | 无状态会话 / 服务端会话表 / OIDC 会话 / 会话密钥 / 会话 cookie / 独立会话 | session，不是 ticket |
+| `工单系统` | 内部工单系统 → 内部申诉单系统 | 内部 ITSM 工具，非本域对象 |
+| 动词义的 `解决` | 要解决什么问题 / 问题已解决 | ROADMAP H03 刻意区分的概念 |
+
+守护表救不回**已经落盘**的误伤，因此另设反向回修表显式修正一次（13 条），修完复跑自检归零。
+
+**第二遍：交付后审计抓出的两类缺口（40 处）**
+
+第一遍只按映射表替换，审计时改问"还有哪些客服味是映射表**没列出**的词"，逐条人工判定后补漏，明细记入 `docs/DOMAIN.md` §3.1：
+
+1. **提交端（widget）整块没被覆盖**。「在线服务台 / 开始对话 / 聊天链接 / 服务对话 / 欢迎来到服务台」是**最终用户看到的第一屏**，而同一份文件里的 `客户消息` 已经按 T1 改成了 `待审内容`——属迁移集**内部自相矛盾**。已一并迁移为「在线提交入口 / 开始提交 / 提交链接 / 内容提交 / 欢迎使用提交入口」。
+2. **审核员面零散标签**：`首响 → 首次响应`（`首响时限` / `首响与判定时限`）、`对话轮次 → 交互轮次`、`最近对话 → 最近往来`、`根据对话生成建议回复 → 根据审核单生成建议结论`，以及两个英文 kicker（`NEW CONTACT → NEW SUBMISSION`、`KNOWLEDGE OPERATIONS → POLICY OPERATIONS`）。取「首次响应」不是新造词——`PHASE_21_COMPLETION.md` / `PROGRESS_REPORT_2026_09_03.md` / `RELEASE_1_1_0.md` 早已用这个词指同一指标（`first_response_*`），本版只是让 UI 标签与仓库既有词汇对齐。
+
+**第二遍同时抓出并修掉一个真实缺陷（叠字）**
+
+`转接人工客服 → 转接人工复核` 与 `人工客服 → 人工复核` 在同一次运行里**字段重叠**，产出 `已为你转接人工复核复核确认。` 这类句子，出现在 `app/agents.py` 三处**面向用户的助手回复**里。补上哨兵守护后不再新生，但**守护会把 `转接人工复核` 保护起来、把多出来的「复核」当正文留下**——脚本对最终树复跑报 `0 files, 0 replacements`，缺陷却被冻结在文件里。这条经验已写进 `docs/DOMAIN.md` §5：**幂等不等于正确，收敛判据必须配独立扫描**。
+
+**顺带修掉两处悬空的版本/状态标记**（`README.md` 不在脚本替换范围内，属手工核对时发现）
+
+- 首屏徽章仍写 `v2.22.0`——2.10.0 起的惯例是随版本更新（见 2.11.0 条目），P1/P2 漏做，本版改为 `v2.24.0`。
+- 「安全与生产边界」段仍写"提交 exploit 或**客户数据**"，按 T1 改为"提交方数据"。
+- 迁移横幅按进度改写：文案层（P2）已收口，剩余阶段改标 P2b–P5，并明确"当前 URL 路径、模块名与表名仍是旧域命名"，避免横幅自称的完成度与仓库实际状态不一致。
+
+**判定后刻意保留的"客服味"词**（逐条论证，避免后续阶段重复讨论）
+
+`客户端`（client 软件）、认证语境的 `会话`（session）、`内部工单系统`（ITSM 工具）、`排队` / `值班` / `首包`（通用运维词）、`对话框`（Tauri/browser dialog，与「对话」无关）、`北星服务台`（租户展示名，来自种子内容，属 P2b）、测试夹具正文（不面向用户）。完整表见 `docs/DOMAIN.md` §3.1。
+
+**验证**
+
+- **lint/format**：以项目 pin 的 `ruff==0.9.9` 执行官方命令——`ruff format --check app tests scripts` → `373 files already formatted`；`ruff check app tests scripts` → `All checks passed!`。⚠️ 本地系统 `ruff` 为 0.16.5，同一命令会报出上百条错误，逐条核对后确认全部是**版本噪声**（`pyproject.toml` 已注明"ruff 0.16 selects rules the 0.9-era codebase never opted into"），凡本仓 lint 结论一律以 0.9.9 为准。
+- **前端门禁**：`scripts/frontend_gate.py` → `frontend gate passed: syntax OK, modules <= 400 lines, 400 tests`（`frontend/src` 改动后已 `vite build` 重建 `app/static/dist`）。
+- **契约面**：`api/openapi.json` 由 `--dump` 重生成后，相对上一提交的差异**只有 4 行**——`info.title`、`info.version`（2.23.0→2.24.0），以及两处由 docstring 派生的 `description`（`多语言客服 → 多语言审核`）；比较模式报 `openapi spec matches snapshot`（该模式刻意忽略 `title`/`description` 与 `info.version`，只看路径、参数、请求体与响应形状）。
+- **迁移门禁**：`scripts/migration_gate.py --json` → `{"ok": true, "migrations": 48, "phased": 16, "problems": []}`（本版未触及 schema，属回归确认）。
+- **视觉门禁**：对**干净库**服务跑 `scripts/visual_gate.py` → 4/4 面通过，`workspace-dark 0.00% / workspace-light 0.00% / mobile-queue 0.00% / knowledge-view 0.07%`（上限 0.5%），**本版无需重锚基线**。
+  - 第一遍期间曾出现 17–21% 的"漂移"，取证结论是**数据态假漂移**：在同一库先跑截图脚本污染了审核队列的行数据，而基线是按干净的 CI 库锚定的。换干净库复测即降到 0.18%–1.11%（纯文本变化量级），随后以 `--update` 合法重锚。这条约束已写进 `scripts/visual_gate.py` 的模块文档："server must run against a CLEAN database"。
+- **README 截图**：`scripts/readme_screenshots.py` 对干净库重捕获 **7/7**。
+- **测试**：全量 `pytest tests -q` → **2 例失败**，均为本机 OpenTelemetry 环境噪声（`test_debug_log_emitted_at_span_end`、`test_configure_logs_nothing_when_otel_absent`：本机 site-packages 装有 `opentelemetry`，"未安装"分支不触发）。2.20.0–2.22.0 的 CHANGELOG 均有同样记录，CI 全绿。定向子集 289 例全绿；Node 侧 400 例全绿。
+
+**行为边界（如实记录）**
+
+- **HTTP API 零变化**：无新增/删除/改名的路径、参数、响应字段或状态码。按 `docs/API_POLICY.md` 本版不属于 API 变更，无 `Deprecation`/`Sunset` 流程。
+- **旧域中文文案仍会出现在两处**，且是预期：① **seed/demo 内容**——种子策略库正文、预置结论正文、订单类来源查询工具的状态串（`运输中`/`已出库`）、`golden/*` 评测集的中文断言，全部属 P2b；② **代码标识符**——`conversation` / `ticket` / `customer` / `csrf` 等仍为旧域命名，属 P3（模块与路由）/ P4（数据层）。也就是说，本版之后界面文案已无"客服"，但 URL 路径、模块名与表名仍是旧的。
+- **未覆盖**：P2b（内容夹具层）、P3（模块与 API 路径）、P4（数据库对象，含 48 个迁移的一致改写）、P5（测试函数/文件名、遗留 `.bak` 清理、README 迁移横幅移除）。
+
+## 2.23.0 — P1 叙事层: 产品身份由「智能客服」迁移为「内容安全审核」(2026-09-20)
+
+Version 2.23.0 不改任何运行时行为，只改**产品身份**：应用名、发行包名、项目叙事与领域术语契约。动机是原始定位（多 Agent 智能客服平台）与该仓库真正的技术重心不符——平台内核（多 Agent 编排、模型网关与 AI 治理注册表、成本归因、审计哈希链、多租户与多 cell）与"客服"业务外壳相互独立，而外壳让整个仓库在同质化项目里被一眼归类。
+
+**这个版本做了什么**
+
+- **产品名 `Helix Support` → `Helix Guard`**，跨 199 个受跟踪文件一致替换（发行包名 `helix-support` → `helix-guard`、桌面 bundle identifier `com.nangongdao.helix-support` → `com.nangongdao.helix-guard`、OTel `service.name` 默认值与 tracer 名、Docker CI 镜像标签、桌面遥测目录 `%APPDATA%/HelixGuard/`）。
+- **应用内「品牌面」三处同步**（浏览器标题 `Helix Guard | 内容审核台`、header 品牌副标题 `app/static/index.html:59` 与 `frontend/src/islands/session-shell-island.jsx:60`）。这三处是**产品名展示**而非应用内业务文案：`Helix Guard | 客服控制台` 这样的半迁移状态比不改更糟。其余应用内文案（会话/客户/坐席/工单等，仅 `index.html` 即约 90 处、全仓 326 处）属 P2，本版不动。
+- **README 全量重写**为审核域叙事：闭环改为「内容提交 → 策略校验 → 风险分级 → 策略库检索 / 来源溯源 → 判定复核 → 人工稽核 → 审计取证」；架构图与消息时序图的参与者/子系统标签同步；能力清单与部署档位文案同步。
+- **新增术语契约 [`docs/DOMAIN.md`](docs/DOMAIN.md)**：领域模型、T1–T17 术语映射表、明确不动的标识符清单、P1–P5 阶段表，以及"历史档案不改写"的处理约定。
+- **新增迁移方案 [`docs/DOMAIN_MIGRATION_PLAN.md`](docs/DOMAIN_MIGRATION_PLAN.md)**：影响面量化、迁移门禁的 expand/contract 实测结论、风险登记 R1–R6。
+
+**取证与取舍**
+
+1. **替换范围用脚本受控，不做裸串替换**：`artifacts/p1_rebrand.py` 只替换三个 token（`Helix Support` / `helix-support` / `HelixSupport`），并在读写两侧禁用换行转换。实测结果 **207 文件、319 处、diff 为 +319/−319 完全对称**——行尾未被改写（本工作树 `core.autocrlf=true`，全仓库 CRLF；若用默认的 universal-newline 读法会把 199 个文件的整file行尾翻掉，制造一个掩盖真实改动的巨型 diff）。
+2. **刻意保留的标识符**（改名收益低于连带风险）：`helix-server`（桌面 sidecar 二进制；改名要连带 PyInstaller spec、`src-tauri/src/supervisor.rs`、CI 冒烟测试与桌面资源路径）、`helix_client` / `HelixClient`（SDK，无语义信号）、`X-Helix-Timestamp`（渠道签名请求头，改名是 API 破坏性变更）。清单记入 `docs/DOMAIN.md` §4。
+3. **历史档案不改写**：首轮替换波及 `CHANGELOG.md` 与 `docs/RELEASE_*.md` / `docs/PHASE_*_COMPLETION.md` / `docs/PROGRESS_REPORT_*.md`，已 `git checkout` 全量还原。这些是"已发布事实的日期化记录"，改写等同伪造历史，与本仓的如实记录纪律冲突；约定记入 `docs/DOMAIN.md` §6。
+4. **修掉一处被替换放大的既有缺陷**：`src-tauri/tauri.conf.json` 的 updater 端点原本指向 `github.com/nangongdao/helix-support`（与真实仓库 slug `nangongdao/HelixSupport` 不符的悬空地址），替换后会变成同样悬空的 `helix-guard`。本版改为指向真实仓库，属顺带修复而非新引入的行为变化。
+5. **README 悬空链接清理**：原 README 引用的 `ROADMAP_2_X.md`、`ROADMAP_1_X.md`、`IMPLEMENTATION_REPORT_PHASE_38.md`、`DESKTOP_TAURI_PLAN.md` 四个文件在仓库中**均不存在**，已移除或改指实际存在的文档。
+
+**验证**
+
+- 替换后 `git diff --shortstat` = `199 files changed, 288 insertions(+), 288 deletions(-)`（还原历史档案后、README 重写与本条目写入前），增删严格对称。
+- 全量落定后 `git diff --shortstat` = `200 files changed, 415 insertions(+), 383 deletions(-)`；非对称的 32 行全部来自三处**有意新增**：本 CHANGELOG 条目、README 重写、`docs/DOMAIN*.md`。
+- 换行保真复查：`README.md` CRLF=392、`pyproject.toml` CRLF=94、`app/main.py` CRLF=527，与替换前逐项一致，LF-only 均为 0。
+- 逐文件抽查 `app/main.py` / `app/__init__.py` / `pyproject.toml` / `package.json` / `src-tauri/tauri.conf.json` / `app/telemetry.py` / `app/routers/system.py` / `clients/python/**` / `.github/workflows/ci.yml`：改动**全部落在文档字符串、注释、展示字符串与配置标识**，无逻辑分支、无断言、无契约字段变化。
+- `app/main.py` 的 FastAPI `title` 由 `Helix Support` 改为 `Helix Guard`，因此 openapi 快照随版本号一同重生成。
+- **契约面证据**：`python scripts/openapi_snapshot.py --dump` 重生成后，`api/openapi.json` 的差异**仅 2 行**（`info.title` 与 `info.version`）；`python scripts/openapi_snapshot.py`（比较模式）报 `openapi spec matches snapshot`——比较模式刻意忽略 `title`/`description` 与 `info.version`，只看路径、参数、请求体与响应形状，因此这是"HTTP 契约零变化"的独立确认。
+- **lint/format**：以项目 pin 的 `ruff==0.9.9` 执行官方命令——`ruff format --check app tests scripts` → `373 files already formatted`；`ruff check app tests scripts` → `All checks passed!`。
+  - ⚠️ **口径提醒**：本地先以系统 `ruff 0.16.5` 跑同一命令，报出 214 个错误。其中 13 个落在本版改动的文件上，但逐条核对后确认全部是 **ruff 版本噪声**（`pyproject.toml` 已注明"ruff 0.16 selects rules the 0.9-era codebase never opted into"）——换成 pin 版本即全绿。凡本仓 lint 结论都以 0.9.9 为准。
+- **迁移门禁**：`python scripts/migration_gate.py --json` → `{"ok": true, "migrations": 48, "phased": 16, "problems": []}`（本版未触及 schema，属回归确认）。
+- **定向测试**：`tests/test_system.py tests/test_security_depth.py tests/test_frontend_gate.py tests/test_performance_gate.py tests/test_telemetry_otel_branches.py` → **100 例，1 失败**，失败项为 `test_configure_logs_nothing_when_otel_absent`，即本仓已记录的**本地 otel 环境噪声**（本机 site-packages 装有 `opentelemetry`，导致"未安装"分支不触发；2.20.0–2.22.0 的 CHANGELOG 均有同样记录，CI 全绿）。已实测确认 `opentelemetry` 在本机可导入。
+
+**行为边界（如实记录）**
+
+- **HTTP API 零变化**：无新增/删除/改名的路径、参数、响应字段或状态码；`api/openapi.json` 仅 `info.title` 与 `info.version` 变动。按 `docs/API_POLICY.md`，本版不属于 API 变更，故无 `Deprecation`/`Sunset` 流程。
+- **⚠️ 桌面渠道的一处破坏性变更**：Tauri bundle identifier 由 `com.nangongdao.helix-support` 改为 `com.nangongdao.helix-guard`，**已安装的桌面版会读到新的应用数据目录**（`%APPDATA%/HelixGuard`），旧目录下的本地数据不会自动迁移。无生产部署，接受该变更；如需保留历史数据，安装前手工搬迁目录。
+- **⚠️ 中间态是预期的**：本版只完成 P1（叙事层）。`app/` 下仍可见 `conversation` / `ticket` / `csat` / `widget` 等旧域标识符，README 的领域描述与代码命名暂时不一致——这是分阶段迁移的正常中间态，已在 README 底部与 `docs/DOMAIN.md` 显式标注，并按 P2–P5 收口。
+- **未覆盖**：P2（UI 文案与截图）、P3（模块与 API 路径）、P4（数据库对象，含 48 个迁移的一致改写）、P5（测试与视觉/性能基线重锚）。T5（`conversation` → `review_case`，约 5,572 处）建议作为最后一步单独收口。
+
 ## 2.22.0 — H01 第一片: 客户侧可恢复发送与增量持续接收 (2026-09-17)
 
 Version 2.22.0 起，Widget 客户不再需要「再发一条消息」或手动刷新，就能看到人工答复、解决状态与满意度评价——这正是路线图 H01 记录的 [HX05] 缺口；同时修掉一处**客户投影的角色口径与全仓不一致**造成的内部消息外泄。

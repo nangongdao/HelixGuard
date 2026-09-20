@@ -1,5 +1,5 @@
 /**
- * Helix Support — api module (Phase 26.1)
+ * Helix Guard — api module (Phase 26.1)
  *
  * Request layer with timeout, error normalization (RFC 9457 Problem
  * Details), and an injectable fetch for tests. The legacy app.js keeps its

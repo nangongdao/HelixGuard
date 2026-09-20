@@ -27,7 +27,7 @@ def _order_tool_code(tool_calls: list[dict[str, Any]]) -> str | None:
     return tool_calls[0].get("code") if tool_calls else None
 
 
-class HelixSupportTests(unittest.TestCase):
+class HelixGuardTests(unittest.TestCase):
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
         self.db_path = Path(self._tmp.name) / "test.db"
@@ -176,7 +176,7 @@ class HelixSupportTests(unittest.TestCase):
         sensitive = self.create_conversation()
         result = self.send_message(
             sensitive["id"],
-            "我要退款并投诉，给我转人工",
+            "我要退款并投诉，给我转人工复核",
             "idem-sensitive-001",
         ).json()
         self.assertEqual(result["assistant_message"]["metadata"]["agent"], "escalation")
@@ -219,7 +219,7 @@ class HelixSupportTests(unittest.TestCase):
 
     def test_human_handoff_suppresses_bot_and_lifecycle_is_enforced(self) -> None:
         created = self.create_conversation()
-        self.send_message(created["id"], "我要退款，转人工", "idem-handoff-0001")
+        self.send_message(created["id"], "我要退款，转人工复核", "idem-handoff-0001")
         accepted = self.client.post(
             f"/api/conversations/{created['id']}/accept", headers=self.headers
         )

@@ -1,4 +1,4 @@
-"""Offline golden-set evaluation harness for Helix Support.
+"""Offline golden-set evaluation harness for Helix Guard.
 
 Runs a fixed set of end-to-end conversations through the application — the same
 path the HTTP API serves — and checks each case against its expected routing

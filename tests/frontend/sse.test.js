@@ -1,4 +1,4 @@
-// Helix Support — sse module unit tests (Phase 26.1)
+// Helix Guard — sse module unit tests (Phase 26.1)
 // Run: node --test tests/frontend/sse.test.js
 
 import { test } from "node:test";

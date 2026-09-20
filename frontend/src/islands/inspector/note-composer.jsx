@@ -1,5 +1,5 @@
 /**
- * Helix Support — inspector island internal-note composer.
+ * Helix Guard — inspector island internal-note composer.
  *
  * Split out of inspector-island.jsx (400-line module limit). Island-owned
  * since the note-form yield; ports the legacy mention-suggest UX faithfully
@@ -55,7 +55,7 @@ export function NoteComposer({ hidden, conversation, collaborators, actorId, can
 
   const handleInput = (event) => {
     // IME 组合期间(中间拼音/片假名)不渲染也不收起;避免候选列表干扰选字
-    // (中文客服台第一优先,HIGH-1 修复)。
+    // (中文审核台第一优先,HIGH-1 修复)。
     if (event.nativeEvent.isComposing) return;
     caretRef.current = event.target.selectionStart;
     setText(event.target.value);
@@ -142,7 +142,7 @@ export function NoteComposer({ hidden, conversation, collaborators, actorId, can
           className="macro-suggest"
           hidden={!mentionOpen}
           role="listbox"
-          aria-label="坐席提及候选"
+          aria-label="审核员提及候选"
         >
           {matches.map((c, index) => (
             <button

@@ -1,5 +1,5 @@
 /**
- * Helix Support — legacy wiring (app.js <500 campaign facade).
+ * Helix Guard — legacy wiring (app.js <500 campaign facade).
  *
  * Routes the single legacy app.js bundle to every extracted js/ domain module
  * through their configure(). app.js builds one flat `bundle` object of its

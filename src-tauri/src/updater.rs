@@ -62,7 +62,7 @@ async fn perform_update_check(app: &AppHandle) -> Result<bool, String> {
             "发现新版本 {}\n\n当前版本：{}\n\n是否立即下载并安装更新？\n\n更新将在下载完成后自动安装并重启应用。",
             version, current_version
         ))
-        .title("Helix Support - 可用更新")
+        .title("Helix Guard - 可用更新")
         .blocking_show();
 
     if !user_consent {

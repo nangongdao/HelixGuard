@@ -1,5 +1,5 @@
 /**
- * Helix Support — nav DOM lifecycle (app.js <500 campaign).
+ * Helix Guard — nav DOM lifecycle (app.js <500 campaign).
  *
  * The global navigation rail's DOM behaviour, extracted verbatim from app.js
  * (§17.1): setNavActive toggles the is-active rail state, showAppView shows/

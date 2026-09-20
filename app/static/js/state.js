@@ -1,5 +1,5 @@
 /**
- * Helix Support — state module (Phase 26.1)
+ * Helix Guard — state module (Phase 26.1)
  *
  * Pure state-reduction helpers for the queue/detail model. The legacy app.js
  * keeps its own `state` object; these reducers are the single source for

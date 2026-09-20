@@ -1,5 +1,5 @@
 /**
- * Helix Support — composer island operator tool bars.
+ * Helix Guard — composer island operator tool bars.
  *
  * The canned-response chips, the trailing-/ macro suggest list, the copilot
  * bar and the attachment bar. Split out of composer-island.jsx (400-line
@@ -19,7 +19,7 @@ import { COMPOSER_EVENTS, INPUT_IDS } from "./constants.js";
 export function CannedBar({ toolsVisible, cannedResponses, onPick }) {
   return (
     <div id="cannedBar" className="canned-bar" hidden={!toolsVisible}>
-      <span className="canned-label">快捷回复</span>
+      <span className="canned-label">预置结论</span>
       <div id="cannedList" className="canned-list">
         {toolsVisible && cannedResponses.length ? (
           cannedResponses.slice(0, 8).map((item) => (
@@ -35,7 +35,7 @@ export function CannedBar({ toolsVisible, cannedResponses, onPick }) {
             </button>
           ))
         ) : (
-          <span className="canned-empty">暂无快捷回复</span>
+          <span className="canned-empty">暂无预置结论</span>
         )}
       </div>
     </div>
@@ -49,7 +49,7 @@ export function MacroSuggest({ options, onPick }) {
       className="macro-suggest"
       hidden={!options.length}
       role="listbox"
-      aria-label="快捷回复建议"
+      aria-label="预置结论建议"
     >
       {options.map((item) => (
         <button
@@ -76,7 +76,7 @@ export function CopilotBar({ toolsVisible, copilot, tone, onSuggest, onTone, onA
           id="copilotSuggestBtn"
           className="copilot-btn"
           type="button"
-          title="根据对话生成建议回复"
+          title="根据审核单生成建议结论"
           onClick={onSuggest}
         >
           <svg className="icon"><use href="/static/icons.svg?v=1.4.0#bot" /></svg>智能建议

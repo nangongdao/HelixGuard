@@ -3,9 +3,9 @@
 补充 app/routers/conversations.py 的测试覆盖，聚焦于：
 - 查询参数验证（cursor/offset 冲突、mine/assigned_to 冲突等）
 - 保存的队列视图 CRUD
-- 会话标签 API
+- 审核单标签 API
 - 批量操作
-- 会话生命周期（claim/release/assign/accept/resolve/reopen）
+- 审核单生命周期（claim/release/assign/accept/resolve/reopen）
 - 消息列表分页（lines 446-475）
 - Turn job 查询和重试
 - SSE 队列事件流
@@ -192,7 +192,7 @@ class SavedViewTests(unittest.TestCase):
 
 
 class ConversationLabelsTests(unittest.TestCase):
-    """会话标签 API（line 271-278）"""
+    """审核单标签 API（line 271-278）"""
 
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
@@ -208,7 +208,7 @@ class ConversationLabelsTests(unittest.TestCase):
 
     def test_list_conversation_labels(self) -> None:
         # line 271-278
-        # 创建一个会话并通过 API 打标签以产生标签
+        # 创建一个审核单并通过 API 打标签以产生标签
         conv = self.services.database.create_conversation(
             "demo", "Customer", "CUST-1", "web", "operator", 120
         )
@@ -279,7 +279,7 @@ class BulkActionsTests(unittest.TestCase):
 
 
 class ConversationLifecycleTests(unittest.TestCase):
-    """会话生命周期操作（lines 477-787）"""
+    """审核单生命周期操作（lines 477-787）"""
 
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
@@ -308,7 +308,7 @@ class ConversationLifecycleTests(unittest.TestCase):
         conv = self.services.database.create_conversation(
             "demo", "Customer", "CUST-1", "web", "operator", 120
         )
-        # 先 claim 会话
+        # 先 claim 审核单
         self.client.post(f"/api/conversations/{conv['id']}/claim", headers=self.headers)
 
         response = self.client.post(
@@ -329,7 +329,7 @@ class ConversationLifecycleTests(unittest.TestCase):
             json={"assigned_to": "supervisor", "note": None},
             headers=self.headers,
         )
-        # 可能需要特定权限或会话状态，先检查是否成功
+        # 可能需要特定权限或审核单状态，先检查是否成功
         if response.status_code == 200:
             body = response.json()
             self.assertEqual(body["assigned_to"], "supervisor")
@@ -376,7 +376,7 @@ class ConversationLifecycleTests(unittest.TestCase):
         conv = self.services.database.create_conversation(
             "demo", "Customer", "CUST-1", "web", "operator", 120
         )
-        # 先 resolve 会话
+        # 先 resolve 审核单
         self.client.post(f"/api/conversations/{conv['id']}/resolve", headers=self.headers)
 
         response = self.client.post(f"/api/conversations/{conv['id']}/reopen", headers=self.headers)

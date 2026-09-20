@@ -1,5 +1,5 @@
 /**
- * Helix Support — conversation detail assembly (app.js <500 slice 28).
+ * Helix Guard — conversation detail assembly (app.js <500 slice 28).
  *
  * renderDetail is the conductor that paints one selected conversation across
  * every domain surface: the header (title/status/avatar/SLA), the action
@@ -43,12 +43,12 @@ export function renderDetail(detail) {
   els.acceptBtn.hidden = resolved || conversation.status === "human_active";
   els.resolveBtn.hidden = resolved;
   els.reopenBtn.hidden = !resolved;
-  // Backlog (工单化): convert button hides once the conversation belongs to
+  // Backlog (申诉单化): convert button hides once the conversation belongs to
   // a ticket; the badge shows the ticket id and, once fetched, its status.
   if (els.ticketBtn) els.ticketBtn.hidden = !ctx.canOperate() || Boolean(conversation.ticket_id);
   if (els.ticketBadge) {
     if (conversation.ticket_id) {
-      els.ticketBadge.textContent = `工单 ${conversation.ticket_id}`;
+      els.ticketBadge.textContent = `申诉单 ${conversation.ticket_id}`;
       els.ticketBadge.hidden = false;
       actions.scheduleIdle(() => actions.enrichTicketBadge(conversation.ticket_id));
     } else {
@@ -80,7 +80,7 @@ export function renderDetail(detail) {
   const customerBusy = els.customerForm.dataset.busy === "true";
   els.customerInput.disabled = resolved || customerBusy;
   els.customerForm.querySelector("button").disabled = resolved || customerBusy;
-  els.customerInput.placeholder = resolved ? "会话已解决，请先重开" : "输入一条模拟客户消息…";
+  els.customerInput.placeholder = resolved ? "审核单已判定，请先重开" : "输入一条模拟待审内容…";
   actions.renderMessages(detail.messages);
   actions.renderInspector(detail);
   actions.renderSummaries(detail);

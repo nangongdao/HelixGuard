@@ -1,5 +1,5 @@
 /**
- * Helix Support — session/shell domain React island (D3)
+ * Helix Guard — session/shell domain React island (D3)
  *
  * The shell layer: app header, nav rail, theme/density toggles, and the
  * session identity display. This is the root of the island tree (§D3
@@ -15,7 +15,7 @@ import { createRoot } from "react-dom/client";
 const NAV_VIEWS = [
   { id: "workspace", label: "工作台", icon: "inbox" },
   { id: "quality", label: "质量看板", icon: "activity" },
-  { id: "knowledge", label: "知识库", icon: "book-open" },
+  { id: "knowledge", label: "策略库", icon: "book-open" },
   { id: "admin", label: "管理", icon: "settings" },
   { id: "settings", label: "设置", icon: "sliders" },
 ];
@@ -56,8 +56,8 @@ function SessionShellIsland() {
             </svg>
           </div>
           <div className="brand-copy">
-            <strong>Helix Support</strong>
-            <span>客服控制台</span>
+            <strong>Helix Guard</strong>
+            <span>内容审核台</span>
           </div>
           <span className="environment-chip">CONTROL ROOM</span>
         </div>

@@ -1,4 +1,4 @@
-// Helix Support — admin report/SLA/routing island bridge unit tests (app.js <500 sl24)
+// Helix Guard — admin report/SLA/routing island bridge unit tests (app.js <500 sl24)
 // Run: node --test tests/frontend/admin-report-bridge.test.js
 
 import { afterEach, test } from "node:test";
@@ -92,7 +92,7 @@ test("saveSla validates both SLA minutes", async () => {
   const { calls, toasts } = configureDeps();
 
   await saveSlaFromIsland({ priority: "high", firstResponseMinutes: 5 });
-  assert.equal(toasts[0].msg, "请填写首响与解决时限");
+  assert.equal(toasts[0].msg, "请填写首次响应与判定时限");
   assert.equal(calls.length, 0);
 
   await saveSlaFromIsland({ priority: "high", channel: " email ", firstResponseMinutes: 5, resolveMinutes: 60 });

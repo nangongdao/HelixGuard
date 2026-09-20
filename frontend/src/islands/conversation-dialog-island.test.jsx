@@ -1,5 +1,5 @@
 /**
- * Helix Support — conversation dialog island tests (D3 long tail)
+ * Helix Guard — conversation dialog island tests (D3 long tail)
  *
  * The island owns the new-conversation <dialog>; legacy app.js keeps the
  * create lifecycle via helix-conversation-create/-created. These tests

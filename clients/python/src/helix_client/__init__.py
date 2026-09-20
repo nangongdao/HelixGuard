@@ -1,4 +1,4 @@
-"""Helix Support API client (Phase 25.4; v2 support Phase 43.3).
+"""Helix Guard API client (Phase 25.4; v2 support Phase 43.3).
 
 A thin, typed client over the Helix HTTP API covering conversations,
 messages, turn jobs (including SSE streaming), feedback, knowledge, and
@@ -150,7 +150,7 @@ def _raise_for_response(response: httpx.Response) -> None:
 
 
 class HelixClient:
-    """Thin client over the Helix Support HTTP API."""
+    """Thin client over the Helix Guard HTTP API."""
 
     def __init__(
         self,

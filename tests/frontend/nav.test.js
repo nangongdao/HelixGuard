@@ -1,4 +1,4 @@
-// Helix Support — global navigation module unit tests (UI 升级 §17.1)
+// Helix Guard — global navigation module unit tests (UI 升级 §17.1)
 // Run: node --test tests/frontend/nav.test.js
 
 import { test } from "node:test";

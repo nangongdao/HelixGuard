@@ -1,4 +1,4 @@
-// Helix Support — island loader unit tests (ROADMAP §43.6 / DESKTOP_TAURI_PLAN §D3)
+// Helix Guard — island loader unit tests (ROADMAP §43.6 / DESKTOP_TAURI_PLAN §D3)
 // Run: node --test tests/frontend/island-loader.test.js
 //
 // Covers the pure helpers (resolveIslandUrl, yieldLegacyContainers) and the
@@ -93,7 +93,7 @@ test("ISLANDS entries that take over a legacy surface declare yieldsLegacy", () 
   // conversation dialog owns the new-conversation <dialog>; the create
   // lifecycle stays legacy via helix-conversation-create/-created.
   assert.deepEqual(byName["conversation-dialog"].yieldsLegacy, ["newConversationDialog"]);
-  // workspace tabs owns the 队列/工单 tablist; pane switching stays legacy.
+  // workspace tabs owns the 队列/申诉单 tablist; pane switching stays legacy.
   assert.deepEqual(byName["workspace-tabs"].yieldsLegacy, ["workspaceTabs"]);
   // saved views owns the select + save/delete buttons; the data lifecycle
   // stays legacy via helix-saved-views-apply/-save/-delete/-changed.

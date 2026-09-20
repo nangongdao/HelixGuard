@@ -7,7 +7,7 @@ for local and single-node deployments.
 
 Configuration:
 - ``OTEL_EXPORTER_OTLP_ENDPOINT`` – when set, spans are forwarded via OTLP.
-- ``OTEL_SERVICE_NAME`` – defaults to ``helix-support``.
+- ``OTEL_SERVICE_NAME`` – defaults to ``helix-guard``.
 """
 
 from __future__ import annotations
@@ -89,7 +89,7 @@ def configure_tracing() -> None:
     if _tracer_provider is not None:
         return
     endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
-    service_name = os.getenv("OTEL_SERVICE_NAME", "helix-support")
+    service_name = os.getenv("OTEL_SERVICE_NAME", "helix-guard")
     resource = Resource.create({"service.name": service_name})
     _tracer_provider = TracerProvider(resource=resource)
     if endpoint:
@@ -115,7 +115,7 @@ def span(name: str, **attributes: Any) -> Iterator[Span]:
         # re-resolving the OTel global: the SDK only accepts the global being
         # set once per process, so relying on ``get_tracer`` here would silently
         # route spans to whatever provider was installed first.
-        tracer = _tracer_provider.get_tracer("helix-support")
+        tracer = _tracer_provider.get_tracer("helix-guard")
         with tracer.start_as_current_span(name) as otel_span:
             record._otel_span = otel_span
             for key, value in attributes.items():

@@ -1,18 +1,18 @@
-"""Backlog 多语言客服 — 语言切换/翻译动作 浏览器验收。
+"""Backlog 多语言审核 — 语言切换/翻译动作 浏览器验收。
 
 后端 M19 已具备自动语言检测(``conversations.language`` 由 orchestrator 写入)
 与 ``app/language.py`` 翻译服务,但缺人工操作面。本轮补:
-- 会话头「语言」下拉:手动覆盖自动检测(PATCH language,选「自动」恢复 null);
-- 每条客户消息的「翻译」工具条:按目标语言 POST translate,渲染结果行。
+- 审核单头「语言」下拉:手动覆盖自动检测(PATCH language,选「自动」恢复 null);
+- 每条待审内容的「翻译」工具条:按目标语言 POST translate,渲染结果行。
 
-本测在真实会话里闭环验证:
-1. API 预建 open 会话并写入两条客户消息,探针 POST translate 确认降级语义
+本测在真实审核单里闭环验证:
+1. API 预建 open 审核单并写入两条待审内容,探针 POST translate 确认降级语义
    (无模型配置时 ``was_translated=false`` / ``source="unconfigured"``,与部署无关);
-2. 工作台选中会话 → 语言 picker 默认「自动」→ 改选 ``en`` → PATCH 成功,
+2. 工作台选中审核单 → 语言 picker 默认「自动」→ 改选 ``en`` → PATCH 成功,
    头部 select 与 subtitle 同步为 English;改回「自动」→ PATCH null 清除;
-3. 第一条客户消息行的翻译条把目标改 ``zh`` → 点「翻译」→ POST translate 成功,
+3. 第一条待审内容行的翻译条把目标改 ``zh`` → 点「翻译」→ POST translate 成功,
    结果按探针布尔路径渲染(原文回显通知 或 译文行);
-4. 全程无 console/page/HTTP 4xx+ 错误;结束 resolve 会话出队列。
+4. 全程无 console/page/HTTP 4xx+ 错误;结束 resolve 审核单出队列。
 """
 
 from __future__ import annotations
@@ -83,7 +83,7 @@ def main() -> None:
     run_id = uuid4().hex[:6]
     customer = f"lang-{run_id}"
 
-    # 1) 预建会话 + 两条客户消息 + 探针翻译降级语义。
+    # 1) 预建审核单 + 两条待审内容 + 探针翻译降级语义。
     conv = api_post("/api/conversations", {"customer_name": customer, "channel": "web"})
     conv_id = conv["id"]
     for index in range(2):
@@ -97,7 +97,7 @@ def main() -> None:
         )
     detail = api_get(f"/api/conversations/{conv_id}")
     customer_messages = [m for m in detail.get("messages", []) if m.get("role") == "customer"]
-    assert customer_messages, "预置客户消息未出现在会话详情"
+    assert customer_messages, "预置待审内容未出现在审核单详情"
     msg_id = customer_messages[0]["id"]
     probe = api_post(
         f"/api/conversations/{conv_id}/messages/{msg_id}/translate",
@@ -199,7 +199,7 @@ def main() -> None:
 
         browser.close()
 
-    # 测试卫生:resolve 会话出队列,避免 open 会话在共享 DB 累积。
+    # 测试卫生:resolve 审核单出队列,避免 open 审核单在共享 DB 累积。
     try:
         api_post(f"/api/conversations/{conv_id}/resolve", {})
     except Exception:

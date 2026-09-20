@@ -82,10 +82,10 @@ def seed_shell_conversations(page: Page) -> None:
           const statuses = ['open', 'waiting_human', 'human_active', 'resolved'];
           const conversations = statuses.map((status, index) => ({
             id: `a11y_${index}`,
-            customer_name: `验收客户 ${index}`,
+            customer_name: `验收提交方 ${index}`,
             status,
             channel: 'web',
-            preview: '无障碍验收合成会话。',
+            preview: '无障碍验收合成审核单。',
             labels: [],
             updated_at: now,
             version: 1,
@@ -102,7 +102,7 @@ def seed_shell_conversations(page: Page) -> None:
           }));
         }"""
     )
-    expect(page.locator("#queueReactIsland")).to_contain_text("验收客户 1")
+    expect(page.locator("#queueReactIsland")).to_contain_text("验收提交方 1")
 
 
 def assert_island_labels_bind_inside_their_island(page: Page) -> None:

@@ -224,9 +224,9 @@ class SbomGenerationTests(unittest.TestCase):
                 for line in (root / "requirements.lock").read_text(encoding="utf-8").splitlines()
                 if line and not line.startswith("#") and "==" in line
             }
-            self.assertEqual(set(components), {"helix-support", *locked})
-            self.assertEqual(components["helix-support"], "1.3.0")
-            self.assertEqual(component_types["helix-support"], "application")
+            self.assertEqual(set(components), {"helix-guard", *locked})
+            self.assertEqual(components["helix-guard"], "1.3.0")
+            self.assertEqual(component_types["helix-guard"], "application")
             self.assertEqual(components["python-multipart"], "0.0.31")
             self.assertNotIn("pip", components)
 

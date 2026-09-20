@@ -38,7 +38,7 @@ for ($attempt = 0; $attempt -lt 30; $attempt++) {
 }
 
 if (-not $ready) {
-    throw "Helix Support did not become ready on port $port"
+    throw "Helix Guard did not become ready on port $port"
 }
 
 [ordered]@{

@@ -1,5 +1,5 @@
 /**
- * Helix Support — thread island tests (D3 long tail glue slice)
+ * Helix Guard — thread island tests (D3 long tail glue slice)
  *
  * The transcript is island-rendered but legacy-fed: js/thread.js publishes
  * helix-thread-state snapshots and owns the feedback/translate writes via
@@ -76,13 +76,13 @@ describe("ThreadIsland state rendering", () => {
   it("shows the loading state from a loading snapshot", () => {
     renderIsland();
     publish({ ...SNAPSHOT, loading: true, messages: [] });
-    expect(screen.getByText("正在加载会话")).toBeTruthy();
+    expect(screen.getByText("正在加载审核单")).toBeTruthy();
   });
 
   it("shows the empty state when the conversation has no messages", () => {
     renderIsland();
     publish({ ...SNAPSHOT, messages: [] });
-    expect(screen.getByText("等待第一条客户消息")).toBeTruthy();
+    expect(screen.getByText("等待第一条待审内容")).toBeTruthy();
   });
 
   it("mirrors the legacy transcript DOM for a loaded thread", () => {

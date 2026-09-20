@@ -1,5 +1,5 @@
 /**
- * Helix Support — summary banner React island (D3 long tail slice 15)
+ * Helix Guard — summary banner React island (D3 long tail slice 15)
  *
  * Island-rendered but legacy-fed: js/renderSummaries derives the banner
  * model via js/summary.js and publishes it via helix-summary-state; this

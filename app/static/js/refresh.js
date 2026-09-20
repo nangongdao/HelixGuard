@@ -1,5 +1,5 @@
 /**
- * Helix Support — refresh & queue stream lifecycle (app.js <500 slice 23).
+ * Helix Guard — refresh & queue stream lifecycle (app.js <500 slice 23).
  *
  * The foreground/background refresh cycle (refreshAll dedup + runRefresh
  * fan-out), the SSE queue stream connector with reconnect, the BroadcastChannel

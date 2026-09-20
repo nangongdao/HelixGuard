@@ -24,7 +24,7 @@ pub fn build_menu(app: &AppHandle) -> Result<tauri::menu::Menu<tauri::Wry>, taur
     let check_update = MenuItemBuilder::with_id("check_update", "检查更新...")
         .build(app)?;
 
-    let about = MenuItemBuilder::with_id("about", "关于 Helix Support")
+    let about = MenuItemBuilder::with_id("about", "关于 Helix Guard")
         .build(app)?;
 
     let help_menu = tauri::menu::SubmenuBuilder::new(app, "帮助")
@@ -83,10 +83,10 @@ pub async fn handle_menu_event(app: &AppHandle, event_id: &str) {
             let dialog = app.dialog();
             dialog
                 .message(format!(
-                    "Helix Support v{}\n\n可本地运行、租户隔离、关键操作可审计的多 Agent 智能客服平台",
+                    "Helix Guard v{}\n\n可本地运行、租户隔离、关键操作可审计的多 Agent 内容安全审核平台",
                     version
                 ))
-                .title("关于 Helix Support")
+                .title("关于 Helix Guard")
                 .blocking_show();
         }
         _ => {

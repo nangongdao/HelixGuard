@@ -564,10 +564,10 @@ def check_browser_budgets(base_url: str) -> tuple[dict[str, float | None], list[
               const now = new Date().toISOString();
               state.conversations = Array.from({ length: total }, (_, i) => ({
                 id: `perf_${i}`,
-                customer_name: `压测客户 ${i}`,
+                customer_name: `压测提交方 ${i}`,
                 status: i % 4 === 0 ? 'waiting_human' : 'open',
                 channel: ['web', 'email', 'chat'][i % 3],
-                preview: '预算门合成会话，仅用于渲染测量。',
+                preview: '预算门合成审核单，仅用于渲染测量。',
                 labels: [],
                 updated_at: now,
                 version: 1,
@@ -591,7 +591,7 @@ def check_browser_budgets(base_url: str) -> tuple[dict[str, float | None], list[
         # Paint and the 10k render are measured first: seeding a conversation
         # after the measurement keeps cls/lcp on the empty-queue load, while
         # the INP probe needs a real, clickable row to interact with.
-        _ensure_queue_row(page, "INP 探针客户")
+        _ensure_queue_row(page, "INP 探针提交方")
         metrics["inp_ms"] = _measure_interaction_inp(page)
 
         # --- desktop shell (Tauri) measurements -------------------------
@@ -631,7 +631,7 @@ def check_browser_budgets(base_url: str) -> tuple[dict[str, float | None], list[
             }
             for source_key, target_key in desktop_key_map.items():
                 metrics[target_key] = shell_paint[source_key]
-            _ensure_queue_row(shell_page, "INP 岛模式探针客户")
+            _ensure_queue_row(shell_page, "INP 岛模式探针提交方")
             metrics["inp_desktop_ms"] = _measure_interaction_inp(shell_page)
 
             # 10k-row island render: the queue's windowed path through React
@@ -644,10 +644,10 @@ def check_browser_budgets(base_url: str) -> tuple[dict[str, float | None], list[
                   const now = new Date().toISOString();
                   const conversations = Array.from({ length: total }, (_, i) => ({
                     id: `perf_island_${i}`,
-                    customer_name: `压测客户 ${i}`,
+                    customer_name: `压测提交方 ${i}`,
                     status: i % 4 === 0 ? 'waiting_human' : 'open',
                     channel: ['web', 'email', 'chat'][i % 3],
-                    preview: '预算门合成会话，仅用于渲染测量。',
+                    preview: '预算门合成审核单，仅用于渲染测量。',
                     labels: [],
                     updated_at: now,
                     version: 1,

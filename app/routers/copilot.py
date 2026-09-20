@@ -1,4 +1,4 @@
-"""AI-assisted operator copilot routes (backlog: AI 辅助坐席).
+"""AI-assisted operator copilot routes (backlog: AI 辅助审核).
 
 Three best-effort operator tools: reply suggestions, knowledge
 recommendations, and tone rewrites. All require ``operator:act`` — the

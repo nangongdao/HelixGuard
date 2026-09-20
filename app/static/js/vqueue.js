@@ -1,5 +1,5 @@
 /**
- * Helix Support — queue virtualization and diff helpers (ROADMAP §18.4).
+ * Helix Guard — queue virtualization and diff helpers (ROADMAP §18.4).
  *
  * Pure, DOM-free functions so they run under `node --test` (frontend gate).
  * The legacy app.js owns the DOM: it calls `computeWindow` to decide which

@@ -1,7 +1,7 @@
 """Desktop-shell real-machine verification for the workspace tabs island (D3 long tail).
 
 Launches the release helix-desktop.exe with a WebView2 remote-debugging port
-and drives the 队列/工单 tablist through the island: optimistic switch, the
+and drives the 队列/申诉单 tablist through the island: optimistic switch, the
 legacy pane actually following (queuePane dataset.mode), the island
 reconciling on a programmatic switch back, and the legacy tablist yielded.
 """
@@ -77,8 +77,8 @@ def main() -> int:
                 "() => Boolean(document.querySelector('#workspaceTabsReactIsland .workspace-tabs'))"
             )
 
-            # Click 工单 in the island: optimistic active state…
-            page.locator("#workspaceTabsReactIsland button", has_text="工单").click()
+            # Click 申诉单 in the island: optimistic active state…
+            page.locator("#workspaceTabsReactIsland button", has_text="申诉单").click()
             page.wait_for_function(
                 "() => document.querySelector('#workspaceTabsReactIsland button[data-wstab=tickets]')"
                 ".classList.contains('is-active')",

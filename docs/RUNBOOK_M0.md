@@ -39,7 +39,7 @@ M0 是停止线安全修复版本，解决三个发布阻断风险：
 
 - [ ] 已识别需要执行 DSR 导出/删除的管理员账号
 - [ ] 已在 `API_KEYS_FILE` 或 `tenant_members` 中授予 `privacy:admin` 权限
-- [ ] 已从普通坐席账号移除 DSR 路由访问权限（网络层或 RBAC）
+- [ ] 已从普通审核员账号移除 DSR 路由访问权限（网络层或 RBAC）
 - [ ] 已配置审计事件监控，告警 `dsr.*` 操作
 
 ### 2.2 队列可靠性准备（REL-001）
@@ -81,7 +81,7 @@ M0 是停止线安全修复版本，解决三个发布阻断风险：
 
 ```bash
 # 在一台实例上执行迁移
-cd /path/to/helix-support
+cd /path/to/helix-guard
 source .venv/bin/activate
 alembic upgrade head
 
@@ -98,7 +98,7 @@ python -c "from app.database import Database; db = Database(':memory:'); print(d
 # SEC-001: 如果启用 OIDC
 ENABLE_SESSION_AUTH=true
 OIDC_ISSUER_URL=https://idp.example.com/.well-known/openid-configuration
-OIDC_CLIENT_ID=helix-support-prod
+OIDC_CLIENT_ID=helix-guard-prod
 OIDC_CLIENT_SECRET=<从 secret manager 读取>
 BASE_URL=https://support.example.com
 
@@ -114,13 +114,13 @@ REDIS_URL=redis://redis-ha:6379/0
 
 ```bash
 # 逐台重启（每台等待 /health/ready 返回 200 后再重启下一台）
-systemctl restart helix-support-web-1
+systemctl restart helix-guard-web-1
 curl -f http://localhost:8000/health/ready || exit 1
 
-systemctl restart helix-support-web-2
+systemctl restart helix-guard-web-2
 curl -f http://localhost:8000/health/ready || exit 1
 
-systemctl restart helix-support-worker-1
+systemctl restart helix-guard-worker-1
 # Worker 实例无需等待外部健康检查，直接启动即可
 ```
 
@@ -140,7 +140,7 @@ systemctl restart helix-support-worker-1
 Stop-Process -Id <PID>
 
 # Linux
-systemctl stop helix-support
+systemctl stop helix-guard
 ```
 
 **步骤 2：备份数据库**
@@ -183,7 +183,7 @@ ENABLE_SESSION_AUTH=false  # 单实例演示通常继续使用 AUTH_MODE=demo
 powershell.exe -NoLogo -NoProfile -NonInteractive -File .\scripts\start_local.ps1
 
 # Linux
-systemctl start helix-support
+systemctl start helix-guard
 ```
 
 **步骤 7：验证**
@@ -226,7 +226,7 @@ curl -b "helix_session=<cookie值>" https://support.example.com/auth/session
 ### 4.2 DSR 权限分离（SEC-002）
 
 ```bash
-# 1. 使用普通坐席 API key 尝试创建 DSR 导出（应返回 403）
+# 1. 使用普通审核员 API key 尝试创建 DSR 导出（应返回 403）
 curl -X POST https://support.example.com/api/admin/dsr/export \
   -H "X-API-Key: <operator-key>" \
   -H "Content-Type: application/json" \
@@ -301,7 +301,7 @@ curl https://support.example.com/health/ready
 
 3. 检查 JWKS 验证日志：
    ```bash
-   tail -f /var/log/helix-support/app.log | grep "JWKS"
+   tail -f /var/log/helix-guard/app.log | grep "JWKS"
    # 如果看到 "JWKS fetch failed" 或 "Invalid signature"，检查网络连接和证书
    ```
 
@@ -363,7 +363,7 @@ curl https://support.example.com/health/ready
 
 3. 检查应用日志：
    ```bash
-   tail -f /var/log/helix-support/app.log | grep "queue"
+   tail -f /var/log/helix-guard/app.log | grep "queue"
    # 查找 "Redis connection failed" 或 "Queue backend unavailable"
    ```
 
@@ -479,8 +479,8 @@ QUEUE_FAILURE_MODE=fail_open
 **步骤 5：重启服务**
 
 ```bash
-systemctl restart helix-support-web-*
-systemctl restart helix-support-worker-*
+systemctl restart helix-guard-web-*
+systemctl restart helix-guard-worker-*
 ```
 
 **步骤 6：验证**

@@ -1,5 +1,5 @@
 /**
- * Helix Support — global keyboard shortcuts (app.js <500 campaign slice 24).
+ * Helix Guard — global keyboard shortcuts (app.js <500 campaign slice 24).
  *
  * §17.3 single-key shortcuts for the operator console: "/" focuses search,
  * "c" opens the new-conversation dialog, "r" refreshes, "i" toggles the

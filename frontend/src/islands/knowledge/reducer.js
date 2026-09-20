@@ -1,5 +1,5 @@
 /**
- * Helix Support — knowledge island reducer (§43.6 createState + reduce).
+ * Helix Guard — knowledge island reducer (§43.6 createState + reduce).
  *
  * The pure state machine behind the filters and the draft editor. Split out
  * of knowledge-island.jsx (400-line module limit); the island re-exports

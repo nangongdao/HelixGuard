@@ -1,4 +1,4 @@
-// Helix Support — nav DOM lifecycle unit tests (app.js <500 campaign)
+// Helix Guard — nav DOM lifecycle unit tests (app.js <500 campaign)
 // Run: node --test tests/frontend/app-nav.test.js
 
 import { afterEach, beforeEach, test } from "node:test";

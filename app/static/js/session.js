@@ -1,5 +1,5 @@
 /**
- * Helix Support — session lifecycle (ROADMAP §41.6 / ARC-001).
+ * Helix Guard — session lifecycle (ROADMAP §41.6 / ARC-001).
  *
  * Mentions inbox and the read-only live watch stream. Extracted from the
  * legacy app.js; app.js keeps thin delegating wrappers with identical

@@ -1,4 +1,4 @@
-"""Database tickets mixin (backlog: 工单化, Phase 27.1 style).
+"""Database tickets mixin (backlog: 申诉单化, Phase 27.1 style).
 
 Long-cycle work items decoupled from conversation state. A conversation is
 converted into a ticket (snapshotting the customer identity and the latest

@@ -1,7 +1,7 @@
 [project]
-name = "helix-support"
+name = "helix-guard"
 version = "1.3.0"
-description = "Tenant-aware, auditable multi-agent customer service platform"
+description = "Tenant-aware, auditable multi-agent content safety review platform"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [

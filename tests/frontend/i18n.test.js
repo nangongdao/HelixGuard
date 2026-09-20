@@ -1,4 +1,4 @@
-// Helix Support — i18n module unit tests (Phase 26.3)
+// Helix Guard — i18n module unit tests (Phase 26.3)
 // Run: node --test tests/frontend/i18n.test.js
 
 import { test } from "node:test";
@@ -30,7 +30,7 @@ test("resolveLocale ignores invalid stored preference", () => {
 test("t returns the zh-CN translation for known keys", () => {
   assert.equal(t("status.open"), "自动处理中");
   assert.equal(t("action.save"), "保存");
-  assert.equal(t("status.resolved"), "已解决");
+  assert.equal(t("status.resolved"), "已判定");
 });
 
 test("t falls back to the key when unknown", () => {

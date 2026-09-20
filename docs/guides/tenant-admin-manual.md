@@ -6,15 +6,15 @@
 
 - `POST /api/admin/tenants` 开通租户(幂等,自动种子默认知识 + 配额)。
 - 成员:邀请(`POST .../members`)、角色变更(`PATCH .../members/{actor}`)、停用(`POST .../members/{actor}/deactivate`)。
-- 角色:admin(全权)、supervisor(主管)、operator(坐席)、viewer(只读)、auditor(只读审计)、channel(渠道)。
+- 角色:admin(全权)、supervisor(主管)、operator(审核员)、viewer(只读)、auditor(只读审计)、channel(渠道)。
 
 ## 配额与用量(Phase 22.4)
 
-- `GET/PUT /api/admin/tenants/{id}/quota` 读写会话配额/存储配额。
-- `GET /api/admin/usage` 导出每日用量(会话/turn/消息)对账。
-- 超会话配额:新建会话返回 429 + Retry-After;解决会话释放名额。
+- `GET/PUT /api/admin/tenants/{id}/quota` 读写审核单配额/存储配额。
+- `GET /api/admin/usage` 导出每日用量(审核单/turn/消息)对账。
+- 超审核单配额:新建审核单返回 429 + Retry-After;解决审核单释放名额。
 
-## 知识库(Phase 21.3)
+## 策略库(Phase 21.3)
 
 - 创建条目进 `draft` 状态(检索不可见);审批 `POST /api/knowledge/{id}/review` 发布/退休。
 - 负反馈消息可一键生成 draft(`knowledge-draft` 端点),供编辑后发布。
@@ -34,8 +34,8 @@
 ## 监控
 
 - `GET /api/system/metrics`(`metrics:read`):队列/worker/数据库池/延迟。
-- `GET /api/supervisor/quality`:质量桶(升级率/负反馈率/首响)。
-- `GET /api/supervisor/knowledge-gaps`:负反馈无引用会话,知识回流起点。
+- `GET /api/supervisor/quality`:质量桶(升级率/负反馈率/首次响应)。
+- `GET /api/supervisor/knowledge-gaps`:负反馈无引用审核单,知识回流起点。
 
 ## 发布与升级
 

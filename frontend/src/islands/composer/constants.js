@@ -1,5 +1,5 @@
 /**
- * Helix Support — composer island bridge events + element ids.
+ * Helix Guard — composer island bridge events + element ids.
  *
  * Split out of composer-island.jsx (400-line module limit) so the tool-bar
  * components can read them without importing the island root back — the

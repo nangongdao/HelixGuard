@@ -1,5 +1,5 @@
 /**
- * Helix Support — knowledge island presentational components.
+ * Helix Guard — knowledge island presentational components.
  *
  * Summary counters, the article card and the draft editor. Split out of
  * knowledge-island.jsx (400-line module limit); the island root keeps the

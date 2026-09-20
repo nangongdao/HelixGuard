@@ -68,7 +68,7 @@ class OnlineFeedbackPipelineTests(unittest.TestCase):
         conversation = self.client.post(
             "/api/conversations",
             headers=self.admin,
-            json={"customer_name": f"客户-{self.id()[-4:]}", "channel": "web"},
+            json={"customer_name": f"提交方-{self.id()[-4:]}", "channel": "web"},
         ).json()
         conversation_id = conversation["id"]
         send = self.client.post(

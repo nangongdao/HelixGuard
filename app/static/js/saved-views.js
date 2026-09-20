@@ -1,5 +1,5 @@
 /**
- * Helix Support — saved queue views (app.js <500 campaign slice 21 + 23).
+ * Helix Guard — saved queue views (app.js <500 campaign slice 21 + 23).
  *
  * Owns the whole saved-views domain: the filter snapshot, the legacy
  * <select> render, the list reload, applying a stored view back onto the

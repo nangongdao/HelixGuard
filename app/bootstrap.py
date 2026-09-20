@@ -242,7 +242,7 @@ def build_application(settings: Settings) -> ApplicationContext:
         archive_batch=settings.conversation_archive_batch,
         archive_cadence_hours=settings.conversation_archive_cadence_hours,
     )
-    # Backlog (AI 辅助坐席): operator copilot — suggestions, knowledge
+    # Backlog (AI 辅助审核): operator copilot — suggestions, knowledge
     # recommendations, and tone rewrites, all model-first with deterministic
     # fallbacks; the orchestrator's LanguageService keeps suggestions in the
     # customer's language.

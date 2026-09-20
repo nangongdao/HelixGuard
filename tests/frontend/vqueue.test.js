@@ -1,4 +1,4 @@
-// Helix Support — queue virtualization module unit tests (ROADMAP §18.4)
+// Helix Guard — queue virtualization module unit tests (ROADMAP §18.4)
 // Run: node --test tests/frontend/vqueue.test.js
 
 import { test } from "node:test";

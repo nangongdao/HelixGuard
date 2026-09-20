@@ -1,5 +1,5 @@
 /**
- * Helix Support — knowledge domain React island (D3)
+ * Helix Guard — knowledge domain React island (D3)
  *
  * Migrates the knowledge operations view to React, using useReducer with
  * the existing pure functions from js/knowledge.js (normalize/filter/
@@ -152,7 +152,7 @@ export function KnowledgeIsland() {
 
   if (isLoading) {
     return (
-      <div className="qc-skeleton" role="status" aria-label="知识库加载中">
+      <div className="qc-skeleton" role="status" aria-label="策略库加载中">
         <div className="qc-skeleton-bar" />
         <div className="qc-skeleton-bar" />
       </div>
@@ -161,7 +161,7 @@ export function KnowledgeIsland() {
   if (error) {
     return (
       <div className="qc-error" role="alert">
-        知识库加载失败：{String(error.message || error)}
+        策略库加载失败：{String(error.message || error)}
       </div>
     );
   }

@@ -1,5 +1,5 @@
 /**
- * Helix Support — Zustand store (D2)
+ * Helix Guard — Zustand store (D2)
  *
  * A module-level singleton that mirrors the legacy state.js shape so the
  * dual-track period (legacy app.js + React islands) can read/write the

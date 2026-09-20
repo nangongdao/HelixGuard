@@ -314,7 +314,7 @@ class KnowledgeAgent:
         """Escalate without echoing the retrieved text."""
         return AgentResult(
             agent=KnowledgeAgent.name,
-            content="该资料包含受限内容，我不能直接展开；已为你转接人工客服核实。",
+            content="该资料包含受限内容，我不能直接展开；已为你转接人工复核确认。",
             confidence=0.2,
             requires_human=True,
             handoff_reason=handoff_reason,
@@ -343,14 +343,14 @@ class KnowledgeAgent:
                 )
             # Circuit-open / empty connector result: fall back to built-in FTS
             # so an external knowledge outage cannot force a false escalation.
-        # Backlog (多语言客服): retrieval prefers articles written in the
+        # Backlog (多语言审核): retrieval prefers articles written in the
         # customer's language (or language-agnostic ones) over cross-language
         # matches, without filtering other languages out entirely.
         articles = self.database.search_knowledge(tenant_id, message, language=language)
         if not articles:
             return AgentResult(
                 agent=self.name,
-                content="我暂时没有找到足够可靠的资料。已为你转接人工客服，避免给出不准确的信息。",
+                content="我暂时没有找到足够可靠的资料。已为你转接人工复核，避免给出不准确的信息。",
                 confidence=0.2,
                 requires_human=True,
                 handoff_reason="No approved knowledge matched the question",
@@ -415,7 +415,7 @@ class OrderAgent:
         if execution.code == "identity_required":
             return AgentResult(
                 agent=self.name,
-                content="当前会话尚未完成客户身份绑定。为保护订单信息，我已转交人工客服核验。",
+                content="当前审核单尚未完成提交方身份绑定。为保护订单信息，我已转交人工复核核验。",
                 confidence=1.0,
                 tool_calls=[tool_call],
                 requires_human=True,
@@ -425,7 +425,7 @@ class OrderAgent:
         if execution.code == "unavailable":
             return AgentResult(
                 agent=self.name,
-                content="订单系统暂时不可用。为避免给出过期信息，我已转交人工客服继续核实。",
+                content="订单系统暂时不可用。为避免给出过期信息，我已转交人工复核继续核实。",
                 confidence=1.0,
                 tool_calls=[tool_call],
                 requires_human=True,
@@ -435,7 +435,7 @@ class OrderAgent:
         if not execution.success:
             return AgentResult(
                 agent=self.name,
-                content=f"没有查到订单 {order_id}。请核对订单号；如仍有问题，我可以转接人工客服。",
+                content=f"没有查到订单 {order_id}。请核对订单号；如仍有问题，我可以转接人工复核。",
                 confidence=0.82,
                 tool_calls=[tool_call],
                 task_outcome=TaskOutcome.ANSWER,
@@ -461,7 +461,7 @@ class EscalationAgent:
     def respond(self, reason: str) -> AgentResult:
         return AgentResult(
             agent=self.name,
-            content="我已将会话和相关上下文转交人工客服，请稍候。客服接入后无需重复描述问题。",
+            content="我已将审核单和相关上下文转交人工复核，请稍候。审核员接手后无需重复描述问题。",
             confidence=1.0,
             requires_human=True,
             handoff_reason=reason,

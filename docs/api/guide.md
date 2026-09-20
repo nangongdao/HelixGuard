@@ -1,6 +1,6 @@
 # API Integration Guide
 
-How to integrate with the Helix Support HTTP API. Companion docs:
+How to integrate with the Helix Guard HTTP API. Companion docs:
 [API reference](reference.md), [error contract](../ERRORS.md),
 [versioning & deprecation policy](../API_POLICY.md).
 

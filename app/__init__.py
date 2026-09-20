@@ -1,1 +1,1 @@
-"""Helix Support application package."""
+"""Helix Guard application package."""

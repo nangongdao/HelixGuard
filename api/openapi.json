@@ -1,8 +1,8 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Helix Support",
-    "version": "2.22.0"
+    "title": "Helix Guard",
+    "version": "2.24.0"
   },
   "paths": {
     "/api/supervisor/knowledge-gaps": {
@@ -2619,7 +2619,7 @@
           "conversations"
         ],
         "summary": "Set (or clear, with null) the manual language override for a conversation",
-        "description": "Set (or clear) the manual language override for a conversation.\n\nBacklog (多语言客服): ``language`` null clears the override so the\nwriter path re-detects automatically. The endpoint is a full upsert —\nit returns the stored row so the frontend can sync its select.",
+        "description": "Set (or clear) the manual language override for a conversation.\n\nBacklog (多语言审核): ``language`` null clears the override so the\nwriter path re-detects automatically. The endpoint is a full upsert —\nit returns the stored row so the frontend can sync its select.",
         "operationId": "update_conversation_language_api_conversations__conversation_id__language_patch",
         "parameters": [
           {
@@ -2704,7 +2704,7 @@
           "conversations"
         ],
         "summary": "Translate one customer message; without a provider the original text is echoed",
-        "description": "Translate one customer message into ``target_language``.\n\nBacklog (多语言客服): never blocks on model availability — without a\nconfigured provider the original text is returned with\n``was_translated=False`` and ``source=\"rule\"`` so the frontend can\ndegrade gracefully.",
+        "description": "Translate one customer message into ``target_language``.\n\nBacklog (多语言审核): never blocks on model availability — without a\nconfigured provider the original text is returned with\n``was_translated=False`` and ``source=\"rule\"`` so the frontend can\ndegrade gracefully.",
         "operationId": "translate_message_api_conversations__conversation_id__messages__message_id__translate_post",
         "parameters": [
           {

@@ -39,7 +39,7 @@ HTTP API、`_check_expect` 断言、p95 统计、`compare` 基线对比）；`ap
     `redaction`（敏感值不得出现在 assistant 输出）与 `canary`（哨兵不得泄漏）。
 - 种子通道：间接注入经 `POST /api/knowledge` 写知识文章（检索即触发）；恶意附件
   经 `AttachmentService.upload` text/plain 注入；PII 哨兵经 `make_canary()` 注入
-  会话文本，断言输出与 `metadata` 无泄漏。
+  审核单文本，断言输出与 `metadata` 无泄漏。
 
 ### 2. 不可变评测报告（`app/eval_reports.py`）
 
@@ -54,7 +54,7 @@ HTTP API、`_check_expect` 断言、p95 统计、`compare` 基线对比）；`ap
 ### 3. 高风险工具再授权与写确认（`app/tools.py`）
 
 - `ToolGateway` 增加再授权校验：工具执行前校验调用方 tenant 与目标资源
-  tenant/customer 一致；工具参数中的资源 id（订单号、客户引用）由网关按
+  tenant/customer 一致；工具参数中的资源 id（订单号、提交方引用）由网关按
   参数化契约重建，不信任模型生成的拼接 id（既有 `safe_arguments` 模式扩展）。
 - 写操作注册表 + 人工确认：新增写工具类别（当前系统无写工具，注册表为空）；
   启用 `require_write_confirmation`（默认 true）时，未经确认的写工具调用被网关
@@ -83,7 +83,7 @@ HTTP API、`_check_expect` 断言、p95 统计、`compare` 基线对比）；`ap
 - 代价 / 风险：
   - 对抗集基于确定性路径，不覆盖 live-model 幻觉场景；真实 provider 接入前
     成本估算恒 0（预算参数为前向预留）。
-  - 间接注入经知识库种子，检索缓存可能掩盖未命中；用例显式固定知识文章。
+  - 间接注入经策略库种子，检索缓存可能掩盖未命中；用例显式固定知识文章。
   - 写确认端点无真实写工具可挂，机制为前向预留，需 code-review 确认无过度设计。
 - 迁移路径：
   - 新增文件不触碰既有路由/表；`evaluate.py` 保持原状，对抗集为独立 harness 并
@@ -100,7 +100,7 @@ HTTP API、`_check_expect` 断言、p95 统计、`compare` 基线对比）；`ap
 
 ## 修订 2026-09-17（2.21.0）：种子退役改为 fail-closed
 
-**背景**：上文「代价 / 风险」里那句「间接注入经知识库种子，检索缓存可能掩盖未命中」在
+**背景**：上文「代价 / 风险」里那句「间接注入经策略库种子，检索缓存可能掩盖未命中」在
 2026-09-17 真实发生了，但方向与预期相反——不是缓存掩盖了**未命中**，而是**未被退役的
 种子**污染了后续用例。
 

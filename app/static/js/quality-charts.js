@@ -1,5 +1,5 @@
 /**
- * Helix Support — quality dashboard SVG charts (ROADMAP §17.3).
+ * Helix Guard — quality dashboard SVG charts (ROADMAP §17.3).
  *
  * The quality dashboard page (and the inspector panel) render two native-SVG
  * charts without any charting library, keeping the zero-build constraint:
@@ -179,7 +179,7 @@ export function intentVersionHeatmapSvg(buckets, opts = {}) {
   const widthOut = pad + labelW + versions.length * cellW + pad;
   const heightOut = pad + labelH + intents.length * cellH + pad;
   return (
-    `<svg class="qc-heatmap" viewBox="0 0 ${widthOut} ${heightOut}" role="img" aria-label="意图 × 提示词版本热图">` +
+    `<svg class="qc-heatmap" viewBox="0 0 ${widthOut} ${heightOut}" role="img" aria-label="风险类别 × 提示词版本热图">` +
     headers +
     body +
     `</svg>`

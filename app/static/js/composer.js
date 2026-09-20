@@ -1,5 +1,5 @@
 /**
- * Helix Support — composer surface (ROADMAP §41.6 / ARC-001): drafts, claim
+ * Helix Guard — composer surface (ROADMAP §41.6 / ARC-001): drafts, claim
  * renewal, canned macros and the AI copilot bar. app.js keeps thin
  * delegating wrappers and calls configure() once with its singletons.
  *
@@ -181,7 +181,7 @@ export function renderCannedResponses() {
   }
   if (!ctx.els.cannedList) return;
   if (!ctx.state.cannedResponses.length) {
-    ctx.els.cannedList.innerHTML = '<span class="canned-empty">暂无快捷回复</span>';
+    ctx.els.cannedList.innerHTML = '<span class="canned-empty">暂无预置结论</span>';
     return;
   }
   ctx.els.cannedList.innerHTML = ctx.state.cannedResponses

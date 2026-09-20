@@ -4,9 +4,9 @@
 此前无前端;本轮把汇总接入管理视图「CSAT 评分汇总」卡:总体(样本数 /
 平均分 / 好评率)+ 近 14 天逐日趋势。
 
-本测在真实会话里闭环验证:
+本测在真实审核单里闭环验证:
 1. API 记录当前 CSAT 汇总基值(base_total,共享 DB 累积友好);
-2. API 创建 3 个会话并 resolve(csat_surveys 行 → 响应带 survey_url),
+2. API 创建 3 个审核单并 resolve(csat_surveys 行 → 响应带 survey_url),
    提取 token 后通过公开端点 POST 评分(4 / 5 / 2);
 3. 切到管理视图 → CSAT 卡可见,样本数 = base_total + 3,平均分为
    非零「x.xx / 5」,好评率 = 2/(base_total+3);
@@ -59,7 +59,7 @@ def submit_ratings(count: int, ratings: list[int]) -> int:
             "/api/conversations",
             {"customer_name": f"csat-{uuid4().hex[:6]}", "channel": "web"},
         )
-        assert status == 201, f"建会话失败: {status}"
+        assert status == 201, f"建审核单失败: {status}"
         status, resolved = api_post(f"/api/conversations/{conv['id']}/resolve", {})
         assert status == 200, f"resolve 失败: {status} {resolved}"
         token = resolved["survey_url"].rsplit("/", 1)[-1]

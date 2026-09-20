@@ -1,8 +1,8 @@
 {
-  "name": "helix-support-quality-gates",
+  "name": "helix-guard-quality-gates",
   "version": "1.0.0",
   "private": true,
-  "description": "Pinned browser-only quality gate dependencies for Helix Support.",
+  "description": "Pinned browser-only quality gate dependencies for Helix Guard.",
   "license": "UNLICENSED",
   "devDependencies": {
     "axe-core": "4.13.0"

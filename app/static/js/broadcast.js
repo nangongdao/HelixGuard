@@ -1,5 +1,5 @@
 /**
- * Helix Support — BroadcastChannel SSE leader election & relay (ROADMAP §18.4).
+ * Helix Guard — BroadcastChannel SSE leader election & relay (ROADMAP §18.4).
  *
  * Multiple tabs of the operator console would each open their own SSE stream
  * to `/api/events/queue`. To run a single connection, the tabs elect one

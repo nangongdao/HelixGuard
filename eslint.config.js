@@ -1,4 +1,4 @@
-// Helix Support — ESLint flat config (Phase 26.4)
+// Helix Guard — ESLint flat config (Phase 26.4)
 //
 // Zero-build constraint: ESLint is optional (not installed by default). The
 // CI gate `scripts/frontend_gate.py` runs `node --check` + the Node test

@@ -101,7 +101,7 @@ cosign verify --key cosign.pub <image-reference>
 **步骤 2：数据库迁移**
 
 ```bash
-cd /path/to/helix-support
+cd /path/to/helix-guard
 source .venv/bin/activate
 alembic upgrade head
 
@@ -134,13 +134,13 @@ TOOL_AUTHORIZATION_STRICT=true
 
 ```bash
 # 逐台重启（每台等待 /health/ready 返回 200 后再重启下一台）
-systemctl restart helix-support-web-1
+systemctl restart helix-guard-web-1
 curl -f http://localhost:8000/health/ready || exit 1
 
-systemctl restart helix-support-web-2
+systemctl restart helix-guard-web-2
 curl -f http://localhost:8000/health/ready || exit 1
 
-systemctl restart helix-support-worker-1
+systemctl restart helix-guard-worker-1
 ```
 
 **步骤 5：恢复流量**
@@ -184,7 +184,7 @@ python scripts/rotate_api_keys.py generate \
 # }
 
 # 步骤 2：通知下游客户端切换到新 key
-# （通过邮件、工单系统或自动化配置管理工具）
+# （通过邮件、申诉单系统或自动化配置管理工具）
 
 # 步骤 3：监控旧 key 使用情况
 python scripts/rotate_api_keys.py monitor \
@@ -294,7 +294,7 @@ python scripts/verify_audit_anchors.py \
 # 步骤 3：重建审计事件表（从锚点 + 应用日志）
 python scripts/rebuild_audit_from_anchors.py \
   --anchors ./audit-anchors-backup/ \
-  --logs /var/log/helix-support/ \
+  --logs /var/log/helix-guard/ \
   --output restored-audit.db
 
 # 步骤 4：对比恢复的数据与当前数据库
@@ -395,7 +395,7 @@ python scripts/golden_set_eval.py --env production --quick
 2. 验证客户端使用的是新 key（不是旧 key）：
    ```bash
    # 检查请求日志
-   tail -f /var/log/helix-support/access.log | grep "X-API-Key"
+   tail -f /var/log/helix-guard/access.log | grep "X-API-Key"
    # 确认客户端发送的 key 前缀为 hsk_new_
    ```
 
@@ -422,7 +422,7 @@ python scripts/golden_set_eval.py --env production --quick
    ```bash
    journalctl -u helix-audit-anchor-export.timer -n 50
    # 或
-   tail -f /var/log/helix-support/audit-anchor-export.log
+   tail -f /var/log/helix-guard/audit-anchor-export.log
    ```
 
 2. 验证对象存储连接：
@@ -537,8 +537,8 @@ ENABLE_AI_SAFETY_CHECKS=false
 **步骤 5：重启服务**
 
 ```bash
-systemctl restart helix-support-web-*
-systemctl restart helix-support-worker-*
+systemctl restart helix-guard-web-*
+systemctl restart helix-guard-worker-*
 ```
 
 **步骤 6：验证**

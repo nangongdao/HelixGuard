@@ -1,4 +1,4 @@
-"""Database collaboration mixin (backlog: 坐席协作).
+"""Database collaboration mixin (backlog: 审核协作).
 
 Operator-facing collaboration primitives:
 

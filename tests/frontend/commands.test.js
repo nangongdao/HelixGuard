@@ -1,4 +1,4 @@
-// Helix Support — command palette module unit tests (UI 升级 §17.1 Ctrl+K)
+// Helix Guard — command palette module unit tests (UI 升级 §17.1 Ctrl+K)
 // Run: node --test tests/frontend/commands.test.js
 
 import { test } from "node:test";

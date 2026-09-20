@@ -1,5 +1,5 @@
 /**
- * Helix Support — admin island component tests (D3 long tail)
+ * Helix Guard — admin island component tests (D3 long tail)
  *
  * The island owns the whole #adminContent card grid, but every write
  * bridges back to legacy via helix-admin-* events and identity arrives via
@@ -296,7 +296,7 @@ describe("pure card models", () => {
     const rows = quotaReadoutRows(makeQuota());
     expect(rows).toEqual([
       ["租户", "演示租户"],
-      ["会话配额", 1000],
+      ["审核单配额", 1000],
       ["存储配额", "64 MB"],
       ["每日 turn 预算", 5000],
       ["允许模型", "demo-model"],
@@ -317,8 +317,8 @@ describe("pure card models", () => {
   it("labels reuse the admin-report copy", () => {
     expect(slaPolicyLabel(makeSla())).toBe("高优 · 渠道 web");
     expect(slaPolicyLabel(makeSla({ priority: null, channel: null }))).toBe("默认 · 全渠道");
-    expect(routingRuleLabel(makeRule())).toBe("意图 退款");
-    expect(routingRuleLabel(makeRule({ intent: null }))).toBe("全部会话");
+    expect(routingRuleLabel(makeRule())).toBe("风险类别 退款");
+    expect(routingRuleLabel(makeRule({ intent: null }))).toBe("全部审核单");
   });
 
   it("csatModel keeps the W2 empty-state dashes", () => {
@@ -630,7 +630,7 @@ describe("write bridge contracts", () => {
     fireEvent.change(document.getElementById(CARD_IDS.webhookSecret), {
       target: { value: "browser-secret-1" },
     });
-    fireEvent.click(screen.getByLabelText(/会话创建/));
+    fireEvent.click(screen.getByLabelText(/审核单创建/));
     fireEvent.submit(document.getElementById(CARD_IDS.webhookForm));
     const register = eventsOfType(spy, ADMIN_EVENTS.REGISTER_WEBHOOK)[0];
     expect(register.detail).toEqual({

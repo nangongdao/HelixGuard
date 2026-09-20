@@ -1,4 +1,4 @@
-/* Helix Support — Control Room v1.4.0
+/* Helix Guard — Control Room v1.4.0
    Professional SaaS aesthetic: neutral slate-dark surfaces, a single
    restrained indigo accent, solid panels and soft corners. All
    functional selectors preserved. Design tokens are single-sourced in
@@ -2325,7 +2325,7 @@ body.is-low-perf #perfHint {
   white-space: nowrap;
 }
 
-/* Backlog (多语言客服): the conversation-subtitle row carries the manual
+/* Backlog (多语言审核): the conversation-subtitle row carries the manual
    language override select next to the id/channel/identity line. */
 .subtitle-line {
   display: flex;
@@ -2614,7 +2614,7 @@ body.is-inspector-collapsed .inspector-surface {
   height: 15px;
 }
 
-/* Backlog (多语言客服): per-customer-message translate bar. */
+/* Backlog (多语言审核): per-customer-message translate bar. */
 .translate-bar {
   display: flex;
   align-items: center;
@@ -4468,7 +4468,7 @@ body.is-low-perf .message-row {
   margin: 0;
   padding: 6px 4px;
 }
-/* backlog: 坐席协作 */
+/* backlog: 审核协作 */
 .queue-pane { position: relative; }
 .mentions-badge { position: relative; width: 32px; height: 32px; display: inline-grid; place-items: center; padding: 0; color: var(--ink-soft); background: transparent; border: 1px solid var(--line); border-radius: var(--radius-md); transition: background 150ms ease, border-color 150ms ease, color 150ms ease; }
 .mentions-badge:hover:not(:disabled) { color: var(--teal); background: var(--teal-soft); border-color: var(--line-strong); }

@@ -308,11 +308,11 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Build container image
-        run: docker build -t helix-support:ci .
+        run: docker build -t helix-guard:ci .
 
       - name: Container smoke test
         run: |
-          docker run -d --name helix -p 8000:8000 helix-support:ci
+          docker run -d --name helix -p 8000:8000 helix-guard:ci
           for i in $(seq 1 30); do
             if curl -fsS http://127.0.0.1:8000/health/ready > /dev/null 2>&1; then
               echo "ready"

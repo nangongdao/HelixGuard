@@ -1,5 +1,5 @@
 /**
- * Helix Support — dashboard island (D3 long tail: dashboard metrics).
+ * Helix Guard — dashboard island (D3 long tail: dashboard metrics).
  *
  * Owns the workspace metrics strip (#metrics) in the desktop shell: the
  * four-tile readout (自动/待响应/认领中/SLA 超时) fed by /api/dashboard.

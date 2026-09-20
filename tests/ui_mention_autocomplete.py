@@ -1,14 +1,14 @@
 """Backlog @提及 输入自动补全 — note composer 浏览器验收。
 
 后端 M18 已实现 note 内 ``@actor`` 提取与 ``/api/mentions`` 收件箱,本轮补
-输入侧 UX:在内部备注输入 ``@`` 时按当前租户成员名单弹出候选坐席,支持前缀
+输入侧 UX:在内部备注输入 ``@`` 时按当前租户成员名单弹出候选审核员,支持前缀
 过滤、方向键高亮、Enter/Tab/点击选中(选中后插入 ``@actor_id ``),Escape 取消。
 
-本测在真实会话里闭环验证:
-1. API 预建一个协作坐席(``mentor-{run_id}``)与一个 open 会话;
-2. 打开工作台选中该会话 → note 输入 ``@`` → 候选列表出现且含预建坐席
+本测在真实审核单里闭环验证:
+1. API 预建一个协作审核员(``mentor-{run_id}``)与一个 open 审核单;
+2. 打开工作台选中该审核单 → note 输入 ``@`` → 候选列表出现且含预建审核员
    (排除自己 demo.admin);
-3. 前缀 ``mentor-{run_id}`` 过滤只剩该坐席;
+3. 前缀 ``mentor-{run_id}`` 过滤只剩该审核员;
 4. ArrowDown 高亮 + Enter 选中 → 输入框变为 ``@mentor-{run_id} ``;
 5. 填正文提交 note → 后端 notes 端点成功;
 6. 全程无 console/page/HTTP 4xx+ 错误。
@@ -85,12 +85,12 @@ def main() -> None:
         "/api/admin/tenants/demo/members",
         {"actor_id": mentor, "role": "operator"},
     )
-    assert status == 201, f"预建协作坐席失败: {mentor}"
+    assert status == 201, f"预建协作审核员失败: {mentor}"
     status, conv = api_post(
         "/api/conversations",
         {"customer_name": customer, "channel": "web"},
     )
-    assert status == 201, f"预建会话失败: {customer}"
+    assert status == 201, f"预建审核单失败: {customer}"
     conv_id = conv["id"]
     # Promote to high priority so the seeded conversation sorts to the top of
     # the queue regardless of how many open rows the shared scratch DB already
@@ -128,7 +128,7 @@ def main() -> None:
         expect(suggest).not_to_contain_text("demo.admin")
         page.screenshot(path=ARTIFACTS / "ui-mention-roster.png", full_page=True)
 
-        # 2) 前缀过滤只剩该坐席(精确 actor,不受残留成员影响)。
+        # 2) 前缀过滤只剩该审核员(精确 actor,不受残留成员影响)。
         note_input.fill(f"@{mentor}")
         expect(suggest).to_contain_text(mentor)
         expect(suggest.locator(".macro-option")).to_have_count(1)
@@ -143,7 +143,7 @@ def main() -> None:
         expect(suggest).not_to_be_visible()
 
         # 5) 填正文提交 note → 后端成功。
-        note_input.fill(f"@{mentor} 交接:请复核退款工单 {run_id}")
+        note_input.fill(f"@{mentor} 交接:请复核退款申诉单 {run_id}")
         with page.expect_response(
             lambda response: (
                 "/notes" in response.url and response.request.method == "POST" and response.ok
@@ -156,7 +156,7 @@ def main() -> None:
 
         browser.close()
 
-    # 测试卫生:把会话 resolve 出队列,避免 open 会话在共享 DB 累积。
+    # 测试卫生:把审核单 resolve 出队列,避免 open 审核单在共享 DB 累积。
     try:
         api_post(f"/api/conversations/{conv_id}/resolve", {})
     except Exception:

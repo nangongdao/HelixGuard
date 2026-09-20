@@ -73,7 +73,7 @@ SEED_JS = """async () => {
     const gapTarget = { messageId: null, kind: null };
     const unknownRes = await fetch('/api/conversations/' + conv.id + '/messages', {
         method: 'POST', headers: tenant,
-        body: JSON.stringify({ content: 'zzqw 咨询一个知识库肯定没有的问题 0x7f' }),
+        body: JSON.stringify({ content: 'zzqw 咨询一个策略库肯定没有的问题 0x7f' }),
     });
     if (unknownRes.ok) {
         const unknownTurn = await unknownRes.json();

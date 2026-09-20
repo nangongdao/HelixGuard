@@ -1,5 +1,5 @@
 /**
- * Helix Support — knowledge view lifecycle (D3 long tail slice 17).
+ * Helix Guard — knowledge view lifecycle (D3 long tail slice 17).
  *
  * The knowledge page's DOM lifecycle (summary/filter/list, cached fetch,
  * editor + review flows, listeners and island bridges); app.js keeps a thin

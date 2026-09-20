@@ -1,5 +1,5 @@
 /**
- * Helix Support — copilot tool surfaces (ROADMAP H02).
+ * Helix Guard — copilot tool surfaces (ROADMAP H02).
  *
  * The AI copilot bar's three write cores — reply suggestions, knowledge
  * lookups and tone rewrites — extracted from composer.js so both the legacy

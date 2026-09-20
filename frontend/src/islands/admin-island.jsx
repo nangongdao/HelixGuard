@@ -1,5 +1,5 @@
 /**
- * Helix Support — admin island (D3 long tail: admin domain).
+ * Helix Guard — admin island (D3 long tail: admin domain).
  *
  * Owns the whole #adminContent card grid in the desktop shell: tenant
  * quota, members, webhooks, report subscriptions/export, CSAT summary,

@@ -1,5 +1,5 @@
 /**
- * Helix Support — knowledge island pure domain helpers.
+ * Helix Guard — knowledge island pure domain helpers.
  *
  * Verbatim from js/knowledge.js (§43.6 framework-agnostic): status/language
  * catalogues, tag parsing, the API payload shape, article normalization,

@@ -1,5 +1,5 @@
 /**
- * Helix Support — saved views island tests (D3 long tail)
+ * Helix Guard — saved views island tests (D3 long tail)
  *
  * The island owns the select/save/delete controls; the data lifecycle
  * (apply filters, POST with currentViewFilters, DELETE) stays legacy via

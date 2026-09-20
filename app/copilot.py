@@ -1,4 +1,4 @@
-"""AI-assisted operator copilot (backlog: AI 辅助坐席).
+"""AI-assisted operator copilot (backlog: AI 辅助审核).
 
 Keeps the product useful after a conversation is handed to a human operator:
 

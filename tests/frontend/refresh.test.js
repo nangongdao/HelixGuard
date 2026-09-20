@@ -1,4 +1,4 @@
-// Helix Support — refresh & stream lifecycle unit tests (app.js <500 slice 23)
+// Helix Guard — refresh & stream lifecycle unit tests (app.js <500 slice 23)
 // Run: node --test tests/frontend/refresh.test.js
 
 import { test, beforeEach } from "node:test";

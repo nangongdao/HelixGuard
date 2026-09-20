@@ -1,5 +1,5 @@
 /**
- * Helix Support — governance island bridges (2.7.0).
+ * Helix Guard — governance island bridges (2.7.0).
  *
  * The governance card's approve/reject and feedback review writes. The
  * island dispatches helix-admin-governance-* events; these handlers own

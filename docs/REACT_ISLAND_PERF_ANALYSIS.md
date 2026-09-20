@@ -22,7 +22,7 @@
 ### 1.3 关键性能瓶颈识别
 
 #### 瓶颈 1：队列行组件未 memo 化
-`frontend/src/islands/queue/components.jsx` 的 `QueueRow` 组件在队列更新时会全量重渲染，即使单个会话数据未变化。
+`frontend/src/islands/queue/components.jsx` 的 `QueueRow` 组件在队列更新时会全量重渲染，即使单个审核单数据未变化。
 
 ```jsx
 // 当前实现（无优化）
@@ -35,10 +35,10 @@ export function QueueRow({ conversation, active, selected, canOperate, compact, 
 }
 ```
 
-**影响**：200+ 会话队列下，SSE 事件触发快照更新时会重渲染所有行，即使只有一行数据变化。
+**影响**：200+ 审核队列下，SSE 事件触发快照更新时会重渲染所有行，即使只有一行数据变化。
 
 #### 瓶颈 2：重复计算 SLA 格式化
-`formatSla` 函数在每次渲染时都重新计算，对于未变化的会话这是纯浪费。
+`formatSla` 函数在每次渲染时都重新计算，对于未变化的审核单这是纯浪费。
 
 #### 瓶颈 3：虚拟滚动窗口计算未优化
 `queue-island.jsx` 的 `computeWindow` 在 scrollTop 变化时总是重新计算，即使结果相同。
@@ -197,7 +197,7 @@ export const QueueStrip = memo(function QueueStrip({ count, hasMore, loadingMore
 |--------|----------|----------|--------|
 | composer-island | 中（每次输入） | tool-bars 子组件 memo | P2 |
 | thread-island | 高（流式消息） | 消息行组件 memo | P1 |
-| inspector-island | 低（切换会话） | 各 section memo | P3 |
+| inspector-island | 低（切换审核单） | 各 section memo | P3 |
 | dashboard-island | 低（周期刷新） | 指标卡片 memo | P3 |
 | quality-island | 低（手动刷新） | 不需要 | - |
 | knowledge-island | 低（CRUD） | 文章行 memo（如有虚拟滚动） | P3 |

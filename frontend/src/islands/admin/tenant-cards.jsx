@@ -1,5 +1,5 @@
 /**
- * Helix Support — admin island tenant cards: quota, members, webhooks.
+ * Helix Guard — admin island tenant cards: quota, members, webhooks.
  *
  * Split out of admin-island.jsx (400-line module limit). Every write
  * bridges back to legacy via helix-admin-* events so api()/showToast()/
@@ -37,7 +37,7 @@ export function AdminQuotaCard({ quota }) {
       <h3>租户配额</h3>
       <AdminReadout id={CARD_IDS.quotaReadout} rows={quotaReadoutRows(quota || {})} />
       <form id={CARD_IDS.quotaForm} className="admin-form" onSubmit={submit}>
-        <label className="admin-field">会话配额
+        <label className="admin-field">审核单配额
           <input
             id={CARD_IDS.quotaConversations}
             type="number"
@@ -123,7 +123,7 @@ export function AdminMembersCard({ members, selfActor }) {
         ))}
       </ul>
       <form id={CARD_IDS.memberForm} className="admin-form" onSubmit={submit}>
-        <label className="admin-field">坐席标识
+        <label className="admin-field">审核员标识
           <input
             id={CARD_IDS.memberActorId}
             type="text"
@@ -142,7 +142,7 @@ export function AdminMembersCard({ members, selfActor }) {
             value={role}
             onChange={(e) => setRole(e.target.value)}
           >
-            <option value="operator">客服</option>
+            <option value="operator">审核员</option>
             <option value="supervisor">主管</option>
             <option value="admin">管理员</option>
             <option value="viewer">只读</option>

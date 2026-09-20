@@ -1,4 +1,4 @@
-// Helix Support — admin quota/member/webhook CRUD tests (app.js <500 slice 25)
+// Helix Guard — admin quota/member/webhook CRUD tests (app.js <500 slice 25)
 // Run: node --test tests/frontend/admin-actions.test.js
 
 import { test, beforeEach } from "node:test";
@@ -73,7 +73,7 @@ function configureDeps({ me, apiImpl, isAdmin = true } = {}) {
     showToast: async (message, isError) => calls.toasts.push({ message, isError }),
     escapeHtml: (v) => String(v ?? ""),
     TENANT: "demo",
-    roleLabels: { admin: "管理员", operator: "坐席" },
+    roleLabels: { admin: "管理员", operator: "审核员" },
     canManage: () => isAdmin,
     actions: {
       renderReportWebhookOptions: () => calls.actions.push("renderReportWebhookOptions"),
@@ -103,7 +103,7 @@ test("renderWebhookEventCheckboxes renders one checkbox per contract event", () 
   const { els } = configureDeps();
   renderWebhookEventCheckboxes();
   assert.match(els.webhookEvents.innerHTML, /value="conversation\.created"/);
-  assert.match(els.webhookEvents.innerHTML, /会话创建/);
+  assert.match(els.webhookEvents.innerHTML, /审核单创建/);
 });
 
 test("renderMembers excludes nobody but disables self-deactivation for the current admin", () => {

@@ -81,7 +81,7 @@ def main() -> int:
             initial_count = page.evaluate(
                 "() => document.querySelector('#queueReactIsland .queue-footer span')?.textContent || ''"
             )
-            checks["initial_count_format"] = initial_count.endswith("个会话")
+            checks["initial_count_format"] = initial_count.endswith("个审核单")
 
             # Seed enough conversations to overflow the first page (50 rows).
             uuid4().hex[:6]
@@ -108,7 +108,7 @@ def main() -> int:
             # A foreground refresh (header button) picks up the new rows.
             page.locator("#refreshList").click()
             page.wait_for_function(
-                "() => /\\d+\\+ 个会话/.test("
+                "() => /\\d+\\+ 个审核单/.test("
                 "document.querySelector('#queueReactIsland .queue-footer span')?.textContent || '')",
                 timeout=30000,
             )

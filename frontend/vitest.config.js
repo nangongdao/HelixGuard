@@ -1,5 +1,5 @@
 /**
- * Helix Support — vitest config (D2, §3.5)
+ * Helix Guard — vitest config (D2, §3.5)
  *
  * Runs the React island component tests with jsdom + @testing-library/react.
  * The Node test runner (tests/frontend/*.test.js) covers the legacy

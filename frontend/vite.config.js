@@ -1,5 +1,5 @@
 /**
- * Helix Support — Vite build configuration (D2 island scaffold)
+ * Helix Guard — Vite build configuration (D2 island scaffold)
  *
  * Source: frontend/src/  →  Output: app/static/dist/
  *

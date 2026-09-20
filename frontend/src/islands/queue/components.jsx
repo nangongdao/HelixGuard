@@ -1,5 +1,5 @@
 /**
- * Helix Support — queue island row, footer strip and bulk toolbar.
+ * Helix Guard — queue island row, footer strip and bulk toolbar.
  *
  * Split out of queue-island.jsx (400-line module limit). Each component
  * mirrors the legacy DOM contract it replaces — queueRowHtml's class names,
@@ -33,7 +33,7 @@ const STATUS_LABELS = {
   open: "自动处理中",
   waiting_human: "等待人工",
   human_active: "人工处理中",
-  resolved: "已解决",
+  resolved: "已判定",
 };
 
 /* ── SLA text (mirror legacy formatSla) ────────────────────────────────── */
@@ -170,7 +170,7 @@ export const QueueRow = memo(function QueueRow({ conversation, active, selected,
 export const QueueStrip = memo(function QueueStrip({ count, hasMore, loadingMore }) {
   return (
     <div className="queue-footer">
-      <span>{count}{hasMore ? "+" : ""} 个会话</span>
+      <span>{count}{hasMore ? "+" : ""} 个审核单</span>
       <button
         className="queue-more"
         type="button"

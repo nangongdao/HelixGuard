@@ -1,4 +1,4 @@
-"""Backlog: AI-assisted operator copilot (AI 辅助坐席).
+"""Backlog: AI-assisted operator copilot (AI 辅助审核).
 
 Covers the roadmap acceptance:
 - reply suggestions are non-empty with the correct source; model-first with a
@@ -122,7 +122,7 @@ class CopilotAppTests(unittest.TestCase):
             "/api/knowledge",
             json={
                 "title": title,
-                "content": f"关于 {title} 的详细说明，供知识库检索使用。",
+                "content": f"关于 {title} 的详细说明，供策略库检索使用。",
                 "tags": tags,
                 "category": "policy",
                 "source_url": "https://example.com/policy",
@@ -184,7 +184,7 @@ class CopilotAppTests(unittest.TestCase):
         self._send(conversation_id, "你好", "copilot-key-4")
         self.client.post(
             f"/api/conversations/{conversation_id}/notes",
-            json={"content": "内部机密：客户是 VIP，先稳住不要承诺退款"},
+            json={"content": "内部机密：提交方是 VIP，先稳住不要承诺退款"},
             headers=self.admin,
         )
         self.client.post(

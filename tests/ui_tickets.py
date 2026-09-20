@@ -1,16 +1,16 @@
-"""Backlog 工单化 — 列表 / 详情 / 状态机前端闭环(浏览器验收)。
+"""Backlog 申诉单化 — 列表 / 详情 / 状态机前端闭环(浏览器验收)。
 
 后端 `POST/GET /api/tickets`、`GET/PATCH /api/tickets/{id}`、
 `POST /api/tickets/{id}/transition|link` 已就绪;本轮把"仅单向创建"升级为
-生命周期 UI:workspace「队列/工单」tab、工单列表(状态过滤)、工单详情
-(字段/关联会话/状态机按钮)、transition 状态机(open→in_progress/closed、→
-closed、closed→open)、关联当前会话。
+生命周期 UI:workspace「队列/申诉单」tab、申诉单列表(状态过滤)、申诉单详情
+(字段/关联审核单/状态机按钮)、transition 状态机(open→in_progress/closed、→
+closed、closed→open)、关联当前审核单。
 
-本测在真实会话里闭环验证:
-1. 打开会话 → 点「转工单」(接受 prompt 主题)→ 工单徽章出现;
-2. 切到「工单」tab → 列表含该工单;点击进详情;
+本测在真实审核单里闭环验证:
+1. 打开审核单 → 点「转申诉单」(接受 prompt 主题)→ 申诉单徽章出现;
+2. 切到「申诉单」tab → 列表含该申诉单;点击进详情;
 3. 状态机:待处理 →「开始处理」→ 处理中 →「关闭」→ 已关闭 →「重开」→ 待处理;
-4. 「关联当前会话」把另一个会话挂到本工单,详情关联列表出现;
+4. 「关联当前审核单」把另一个审核单挂到本申诉单,详情关联列表出现;
 5. 全程无 console/page/HTTP 4xx+ 错误。
 """
 
@@ -32,15 +32,15 @@ ARTIFACTS = Path(__file__).resolve().parents[1] / "artifacts"
 
 def open_new_conversation(page: Page, name: str) -> None:
     page.get_by_role("button", name="新建").click()
-    expect(page.get_by_role("heading", name="新建会话")).to_be_visible()
-    page.get_by_label("客户名称").fill(name)
+    expect(page.get_by_role("heading", name="新建审核单")).to_be_visible()
+    page.get_by_label("提交方名称").fill(name)
     with page.expect_response(
         lambda response: (
             response.url.endswith("/api/conversations") and response.request.method == "POST"
         )
     ) as response_info:
-        page.get_by_role("button", name="创建会话").click()
-    assert response_info.value.ok, f"会话创建失败: {response_info.value.status}"
+        page.get_by_role("button", name="创建审核单").click()
+    assert response_info.value.ok, f"审核单创建失败: {response_info.value.status}"
     conv_id = response_info.value.json()["id"]
     # Wait for the UI to finish selecting the new conversation BEFORE promoting
     # priority.  The newConversationForm submit handler calls loadDetail then
@@ -84,7 +84,7 @@ def main() -> None:
 
     def on_dialog(dialog) -> None:
         if dialog.type == "prompt":
-            dialog.accept("退款单提交失败工单")
+            dialog.accept("退款单提交失败申诉单")
         else:
             dialog.dismiss()
 
@@ -109,12 +109,12 @@ def main() -> None:
         )
         page.goto(BASE_URL)
         expect(page.locator("#operatorIdentity")).to_contain_text("demo.admin")
-        expect(page.get_by_role("heading", name="会话队列")).to_be_visible()
+        expect(page.get_by_role("heading", name="审核队列")).to_be_visible()
 
         run_id = uuid4().hex[:6]
-        open_new_conversation(page, f"工单验收-{run_id}")
+        open_new_conversation(page, f"申诉单验收-{run_id}")
 
-        # 打开会话后「转工单」可用 → 创建,徽章出现。
+        # 打开审核单后「转申诉单」可用 → 创建,徽章出现。
         ticket_button = page.locator("#ticketBtn")
         expect(ticket_button).to_be_visible()
         with page.expect_response(
@@ -124,12 +124,14 @@ def main() -> None:
         ) as create_info:
             ticket_button.click()
         create_response = create_info.value
-        assert create_response.ok, f"转工单失败: {create_response.status} {create_response.text()}"
+        assert create_response.ok, (
+            f"转申诉单失败: {create_response.status} {create_response.text()}"
+        )
         ticket_id = create_response.json()["id"]
         expect(page.locator("#ticketBadge")).to_be_visible()
         expect(page.locator("#ticketBadge")).to_contain_text(ticket_id)
 
-        # 切到「工单」tab → 列表含该工单。matcher 收紧为列表 URL(/api/tickets
+        # 切到「申诉单」tab → 列表含该申诉单。matcher 收紧为列表 URL(/api/tickets
         # 或 ?status= 查询),避免命中 enrichTicketBadge 安排的 GET /api/tickets/{id}。
         with page.expect_response(
             lambda response: (
@@ -137,10 +139,10 @@ def main() -> None:
                 and response.request.method == "GET"
             )
         ):
-            page.get_by_role("tab", name="工单").click()
+            page.get_by_role("tab", name="申诉单").click()
         expect(page.locator("#ticketPane")).to_be_visible()
         ticket_row = page.locator(f".ticket-row[data-ticket-id='{ticket_id}']")
-        expect(ticket_row).to_contain_text("退款单提交失败工单")
+        expect(ticket_row).to_contain_text("退款单提交失败申诉单")
         page.screenshot(path=ARTIFACTS / "ui-ticket-list.png", full_page=True)
 
         # 进详情:待处理 →「开始处理」。
@@ -191,14 +193,14 @@ def main() -> None:
         assert reopen_info.value.json()["status"] == "open", reopen_info.value.json()
         expect(page.locator("#ticketDetailStatus")).to_have_text("待处理")
 
-        # 切回队列 tab(关闭工单详情)→ 打开第二个会话。
+        # 切回队列 tab(关闭申诉单详情)→ 打开第二个审核单。
         page.get_by_role("tab", name="队列").click()
         expect(page.locator("#ticketDetailView")).to_be_hidden()
         expect(page.locator("#ticketPane")).to_be_hidden()
-        open_new_conversation(page, f"工单关联-{run_id}")
+        open_new_conversation(page, f"申诉单关联-{run_id}")
 
-        # 再切工单 tab 进详情:selectedId=第二个会话(未关联)→「关联当前会话」可见。
-        page.get_by_role("tab", name="工单").click()
+        # 再切申诉单 tab 进详情:selectedId=第二个审核单(未关联)→「关联当前审核单」可见。
+        page.get_by_role("tab", name="申诉单").click()
         expect(page.locator("#ticketPane")).to_be_visible()
         with page.expect_response(
             lambda response: (
@@ -208,38 +210,38 @@ def main() -> None:
         ):
             page.locator(f".ticket-row[data-ticket-id='{ticket_id}']").click()
         expect(page.locator("#ticketDetailView")).to_be_visible()
-        expect(page.get_by_role("button", name="关联当前会话")).to_be_visible()
+        expect(page.get_by_role("button", name="关联当前审核单")).to_be_visible()
         with page.expect_response(
             lambda response: (
                 response.url.endswith(f"/api/tickets/{ticket_id}/link")
                 and response.request.method == "POST"
             )
         ) as link_info:
-            page.get_by_role("button", name="关联当前会话").click()
+            page.get_by_role("button", name="关联当前审核单").click()
         assert link_info.value.ok, f"关联失败: {link_info.value.status} {link_info.value.text()}"
-        expect(page.locator("#ticketDetailConvs")).to_contain_text("工单关联")
+        expect(page.locator("#ticketDetailConvs")).to_contain_text("申诉单关联")
         expect(page.locator("#ticketDetailConvs .ticket-conv-row")).to_have_count(2)
 
-        # 点详情关联列表中「工单验收」那行 → 跳回队列并打开该会话(回归
+        # 点详情关联列表中「申诉单验收」那行 → 跳回队列并打开该审核单(回归
         # jumpToTicketConversation:不得因 selectedId 为空抢开队列第一条,
-        # 也不得停在详情)。has_text 按客户名锁定行,不依赖后端排序。
+        # 也不得停在详情)。has_text 按提交方名锁定行,不依赖后端排序。
         with page.expect_response(
             lambda response: (
                 response.url.startswith(f"{BASE_URL}/api/conversations/")
                 and response.request.method == "GET"
             )
         ):
-            page.locator("#ticketDetailConvs .ticket-conv-row", has_text="工单验收").click()
+            page.locator("#ticketDetailConvs .ticket-conv-row", has_text="申诉单验收").click()
         expect(page.locator("#ticketDetailView")).to_be_hidden()
         expect(page.locator("#ticketPane")).to_be_hidden()
-        expect(page.get_by_role("heading", name="会话队列")).to_be_visible()
-        expect(page.locator("#conversationTitle")).to_contain_text("工单验收")
+        expect(page.get_by_role("heading", name="审核队列")).to_be_visible()
+        expect(page.locator("#conversationTitle")).to_contain_text("申诉单验收")
 
-        # 切回队列 tab:工单详情视图被关闭,队列恢复。
+        # 切回队列 tab:申诉单详情视图被关闭,队列恢复。
         page.get_by_role("tab", name="队列").click()
         expect(page.locator("#ticketDetailView")).to_be_hidden()
         expect(page.locator("#ticketPane")).to_be_hidden()
-        expect(page.get_by_role("heading", name="会话队列")).to_be_visible()
+        expect(page.get_by_role("heading", name="审核队列")).to_be_visible()
         page.screenshot(path=ARTIFACTS / "ui-ticket-detail.png", full_page=True)
 
         browser.close()

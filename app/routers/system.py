@@ -224,7 +224,7 @@ def build_router(deps: RouteDeps) -> APIRouter:
     def operator_home() -> HTMLResponse:
         index = deps.static_dir / "index.html"
         if not index.exists():
-            return HTMLResponse("<h1>Helix Support API</h1><p>Operator UI missing.</p>")
+            return HTMLResponse("<h1>Helix Guard API</h1><p>Operator UI missing.</p>")
         return HTMLResponse(index.read_text(encoding="utf-8"))
 
     @router.get("/widget", response_class=HTMLResponse, include_in_schema=False)

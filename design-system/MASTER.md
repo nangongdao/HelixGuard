@@ -1,4 +1,4 @@
-Design system: Helix Support
+Design system: Helix Guard
 
 - Query: customer support operations console dense utilitarian teal responsive
 - Matched profile: saas

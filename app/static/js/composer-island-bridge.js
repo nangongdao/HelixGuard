@@ -1,5 +1,5 @@
 /**
- * Helix Support — composer island bridge (D3 + tools slice)
+ * Helix Guard — composer island bridge (D3 + tools slice)
  *
  * Routes the React composer island's interactions back to the legacy
  * composer lifecycle (drafts, operator send, copilot tools, canned macros,

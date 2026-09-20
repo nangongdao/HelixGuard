@@ -1,4 +1,4 @@
-// Helix Support — queue helper unit tests (app.js <500 campaign)
+// Helix Guard — queue helper unit tests (app.js <500 campaign)
 // Run: node --test tests/frontend/queue-helpers.test.js
 
 import { afterEach, beforeEach, test } from "node:test";

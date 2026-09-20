@@ -1,5 +1,5 @@
 /**
- * Helix Support — local draft utilities (D3 long tail slice 14).
+ * Helix Guard — local draft utilities (D3 long tail slice 14).
  *
  * Per-conversation operator draft persistence (localStorage, TTL-gated by
  * the operator's local_drafts_enabled/local_draft_ttl_minutes settings).

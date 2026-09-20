@@ -1,5 +1,5 @@
 /**
- * Helix Support — sse module (Phase 26.1)
+ * Helix Guard — sse module (Phase 26.1)
  *
  * SSE connection lifecycle with exponential-backoff reconnect. Pure logic:
  * the transport is injected so tests can simulate event streams without a

@@ -147,7 +147,7 @@ class WidgetMessageCursorTests(_WidgetFixture):
         conversation_id, token = self._session("Stall")
         self._add(conversation_id, "internal_note", "内部备注一")
         self._add(conversation_id, "internal_note", "内部备注二")
-        visible_id = self._add(conversation_id, "operator", "客户可见答复")
+        visible_id = self._add(conversation_id, "operator", "提交方可见答复")
 
         status, headers, body = self._list(conversation_id, token, "?limit=2")
         self.assertEqual(status, 200)

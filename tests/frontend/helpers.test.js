@@ -1,4 +1,4 @@
-// Helix Support — shared UI/format helper unit tests (app.js <500 helpers slice)
+// Helix Guard — shared UI/format helper unit tests (app.js <500 helpers slice)
 // Run: node --test tests/frontend/helpers.test.js
 
 import { afterEach, beforeEach, mock, test } from "node:test";
@@ -51,13 +51,13 @@ test("statusLabel prefers i18n and keeps the raw code when untranslated", () => 
 });
 
 test("statusLabel uses the hardcoded labels when i18n is absent", () => {
-  assert.equal(statusLabel("resolved"), "已解决");
+  assert.equal(statusLabel("resolved"), "已判定");
   assert.equal(statusLabel("mystery"), "mystery", "an unknown code passes through");
   assert.equal(statusLabel(null), "未知");
 });
 
 test("roleLabel falls back to the hardcoded labels without i18n", () => {
-  assert.equal(roleLabel("operator"), "客服");
+  assert.equal(roleLabel("operator"), "审核员");
   assert.equal(roleLabel("not-a-role"), "not-a-role");
 });
 

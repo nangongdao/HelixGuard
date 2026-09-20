@@ -1,5 +1,5 @@
 /**
- * Helix Support — message thread domain module (D3 long tail glue slice).
+ * Helix Guard — message thread domain module (D3 long tail glue slice).
  *
  * The conversation transcript: bubble rendering, upward pagination
  * (ROADMAP §18.4 keyset cursors), per-message feedback and translation
@@ -37,9 +37,9 @@ export const THREAD_EVENTS = Object.freeze({
 
 /** Role display names for the message meta line (legacy parity). */
 export const ROLE_NAMES = Object.freeze({
-  customer: "客户",
-  assistant: "自动客服",
-  operator: "人工客服",
+  customer: "提交方",
+  assistant: "自动审核",
+  operator: "人工复核",
   internal_note: "内部备注",
 });
 
@@ -83,7 +83,7 @@ export function renderMessages(messages, { preserveAnchor = false } = {}) {
   }
   const oldThreadScrollHeight = preserveAnchor ? ctx.els.messages.scrollHeight : 0;
   if (!messages.length) {
-    ctx.els.messages.innerHTML = '<div class="thread-empty">等待第一条客户消息</div>';
+    ctx.els.messages.innerHTML = '<div class="thread-empty">等待第一条待审内容</div>';
     return;
   }
   const visibleMessages = ctx.state.lowPerf && messages.length > 80 ? messages.slice(-80) : messages;
@@ -101,7 +101,7 @@ export function renderMessages(messages, { preserveAnchor = false } = {}) {
             <button class="feedback-button" type="button" data-feedback="-1" data-message-id="${ctx.escapeHtml(message.id)}" title="需改进" aria-label="需改进" aria-pressed="false">${ctx.icon("thumbs-down")}</button>
           </div>`
       : "";
-    // Backlog (多语言客服): customer messages carry a per-message translate
+    // Backlog (多语言审核): customer messages carry a per-message translate
     // bar. Without a configured provider the backend echoes the original text
     // with was_translated=false and the result line degrades to a notice.
     const translateBar = message.role === "customer" && ctx.canWriteConversations()
@@ -185,7 +185,7 @@ export async function loadOlderMessages() {
 /** Shared feedback write (legacy button flow + island bridge). Silent —
  * callers own the UI acknowledgement. */
 export async function recordFeedback({ messageId, rating }) {
-  if (!ctx.state.selectedId) throw new Error("未选择会话");
+  if (!ctx.state.selectedId) throw new Error("未选择审核单");
   await ctx.api(`/api/conversations/${encodeURIComponent(ctx.state.selectedId)}/feedback`, {
     method: "POST",
     body: JSON.stringify({
@@ -216,7 +216,7 @@ export async function submitFeedback(button) {
 /** Shared translation write (legacy button flow + island bridge). Silent —
  * callers own the UI acknowledgement. */
 export async function requestTranslation({ messageId, language }) {
-  if (!ctx.state.selectedId) throw new Error("未选择会话");
+  if (!ctx.state.selectedId) throw new Error("未选择审核单");
   return ctx.api(
     `/api/conversations/${encodeURIComponent(ctx.state.selectedId)}/messages/${encodeURIComponent(messageId)}/translate`,
     {
@@ -237,7 +237,7 @@ export function buildTranslateResultHtml(out, language) {
     );
   }
   if (out.source === "none") {
-    // Backlog (多语言客服): target == service language — nothing to translate,
+    // Backlog (多语言审核): target == service language — nothing to translate,
     // don't blame a missing model.
     return "目标语言与当前服务语言一致，无需翻译";
   }

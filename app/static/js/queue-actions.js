@@ -1,5 +1,5 @@
 /**
- * Helix Support — queue pagination & bulk actions (app.js <500 slice 24).
+ * Helix Guard — queue pagination & bulk actions (app.js <500 slice 24).
  *
  * The queue's write/pagination operations: upward-less keyset pagination
  * (loadMoreConversations with the query-key staleness guard) and the bulk
@@ -82,7 +82,7 @@ export async function applyBulkAction(source = null) {
       method: "POST",
       body: JSON.stringify(payload),
     });
-    ctx.showToast(`已更新 ${result.updated} 个会话`);
+    ctx.showToast(`已更新 ${result.updated} 个审核单`);
     ctx.state.bulkSelected.clear();
     ctx.els.bulkLabelInput.value = "";
     if (["add-label", "remove-label"].includes(selectedAction)) ctx.state.labelsLoadedAt = 0;

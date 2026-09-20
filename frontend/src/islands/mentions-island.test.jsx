@@ -1,5 +1,5 @@
 /**
- * Helix Support — mentions island tests (D3 long tail)
+ * Helix Guard — mentions island tests (D3 long tail)
  *
  * The island owns the mentions badge (portal) and panel drawer; mark-read
  * and conversation jumps stay legacy via helix-mentions bridges. These

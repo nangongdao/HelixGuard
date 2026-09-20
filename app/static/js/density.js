@@ -1,5 +1,5 @@
 /**
- * Helix Support — density module (UI 升级 §17.2 三档密度)
+ * Helix Guard — density module (UI 升级 §17.2 三档密度)
  *
  * Pure level registry for the queue/message density: comfortable (default),
  * compact, and dense. The legacy binary toggle (is-compact) is upgraded to a

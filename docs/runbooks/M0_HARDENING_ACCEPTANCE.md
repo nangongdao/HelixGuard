@@ -90,7 +90,7 @@ PY
 
 ## 5. 安全报告闭环演练(SEC-007)
 
-1. 部署方确认报告渠道非 placeholder(真实邮箱/工单)。
+1. 部署方确认报告渠道非 placeholder(真实邮箱/申诉单)。
 2. 发送一封测试报告 → 确认接收 → 分级(Critical/High/…)→ 关闭。
 3. 在 `supplychain/security-drills.json` 记录该次演练(drill_type=`report_intake`,
    满足 `scripts/threat_model_gate.py --check-today` 的字段要求)。

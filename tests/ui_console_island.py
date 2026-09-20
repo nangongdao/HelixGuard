@@ -27,25 +27,25 @@ ARTIFACTS = Path(__file__).resolve().parents[1] / "artifacts"
 def open_new_conversation(page: Page, name: str, customer_ref: str = "") -> None:
     dialog = page.locator("#conversationDialogReactIsland")
     page.get_by_role("button", name="新建").click()
-    expect(dialog.get_by_role("heading", name="新建会话")).to_be_visible()
-    dialog.get_by_label("客户名称").fill(name)
+    expect(dialog.get_by_role("heading", name="新建审核单")).to_be_visible()
+    dialog.get_by_label("提交方名称").fill(name)
     if customer_ref:
-        dialog.get_by_label("客户身份标识 可选").fill(customer_ref)
+        dialog.get_by_label("提交方标识 可选").fill(customer_ref)
     with page.expect_response(
         lambda response: (
             response.url.endswith("/api/conversations") and response.request.method == "POST"
         )
     ) as response_info:
-        dialog.get_by_role("button", name="创建会话").click()
+        dialog.get_by_role("button", name="创建审核单").click()
     response = response_info.value
     assert response.ok, f"Conversation creation failed: {response.status} {response.text()}"
-    expect(dialog.get_by_role("heading", name="新建会话")).not_to_be_visible()
+    expect(dialog.get_by_role("heading", name="新建审核单")).not_to_be_visible()
     expect(page.locator("#conversationTitle")).to_have_text(name)
 
 
 def send_customer_message(page: Page, message: str) -> None:
     composer = page.locator("#composerReactIsland")
-    composer.get_by_label("客户消息", exact=True).fill(message)
+    composer.get_by_label("待审内容", exact=True).fill(message)
     with page.expect_response(
         lambda response: (
             "/api/conversations/" in response.url
@@ -53,7 +53,7 @@ def send_customer_message(page: Page, message: str) -> None:
             and response.request.method == "POST"
         )
     ) as response_info:
-        composer.get_by_role("button", name="发送客户消息").click()
+        composer.get_by_role("button", name="发送待审内容").click()
     response = response_info.value
     assert response.ok, f"Customer message failed: {response.status} {response.text()}"
 
@@ -117,7 +117,7 @@ def main() -> None:
         page.goto(BASE_URL, wait_until="domcontentloaded")
         page.evaluate("() => window.dispatchEvent(new Event('helix-backend-ready'))")
         expect(page.get_by_text("demo.admin", exact=False).first).to_be_visible(timeout=30000)
-        expect(page.get_by_role("heading", name="会话队列")).to_be_visible()
+        expect(page.get_by_role("heading", name="审核队列")).to_be_visible()
 
         # Low-perf probes depending on the runner's core count: 4-core CI
         # hosts auto-enable it (detectConstrainedDevice), dev machines do
@@ -205,7 +205,7 @@ def main() -> None:
         page.screenshot(path=ARTIFACTS / "ui-console-island.png", full_page=True)
 
         open_new_conversation(page, f"人工接管-{run_id}")
-        send_customer_message(page, "我要退款并投诉，请转人工")
+        send_customer_message(page, "我要退款并投诉，请转人工复核")
         expect(page.locator("#conversationStatus")).to_have_text("等待人工")
         with page.expect_response(
             lambda response: response.url.endswith("/accept") and response.request.method == "POST"
@@ -220,8 +220,8 @@ def main() -> None:
         composer.get_by_label("人工回复", exact=True).fill("已接入，正在核验退款条件。")
         composer.get_by_role("button", name="发送人工回复", exact=True).click()
         expect(thread).to_contain_text("已接入，正在核验退款条件。")
-        page.get_by_role("button", name="解决", exact=True).click()
-        expect(page.locator("#conversationStatus")).to_have_text("已解决")
+        page.get_by_role("button", name="判定", exact=True).click()
+        expect(page.locator("#conversationStatus")).to_have_text("已判定")
         expect(page.get_by_role("button", name="重开", exact=True)).to_be_visible()
         checkboxes = page.locator("#queueReactIsland .conversation-checkbox")
         assert checkboxes.count() >= 2
@@ -266,11 +266,11 @@ def main() -> None:
         mobile.goto(BASE_URL, wait_until="domcontentloaded")
         mobile.evaluate("() => window.dispatchEvent(new Event('helix-backend-ready'))")
         expect(mobile.get_by_text("demo.admin", exact=False).first).to_be_visible(timeout=30000)
-        expect(mobile.get_by_role("button", name="打开会话队列")).to_be_visible()
-        mobile.get_by_role("button", name="打开会话队列").click()
+        expect(mobile.get_by_role("button", name="打开审核队列")).to_be_visible()
+        mobile.get_by_role("button", name="打开审核队列").click()
         expect(mobile.locator("#queuePane")).to_have_class("queue-pane is-open")
         expect(mobile.locator("#queuePane")).to_have_css("transform", "matrix(1, 0, 0, 1, 0, 0)")
-        expect(mobile.get_by_role("heading", name="会话队列")).to_be_visible()
+        expect(mobile.get_by_role("heading", name="审核队列")).to_be_visible()
         expect(mobile.locator(".queue-scrim")).to_be_visible()
         expect(mobile.locator("#queuePane")).to_have_attribute("aria-modal", "true")
         assert mobile.locator(".conversation-pane").get_attribute("inert") is not None

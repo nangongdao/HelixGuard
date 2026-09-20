@@ -1,5 +1,5 @@
 /**
- * Helix Support — admin island cost dashboard card (2.3.0 analytics API).
+ * Helix Guard — admin island cost dashboard card (2.3.0 analytics API).
  *
  * The ninth admin card: read-only visibility over inference cost
  * attribution — cumulative spend (costs/daily), today-vs-baseline anomaly

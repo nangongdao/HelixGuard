@@ -131,7 +131,7 @@ class Settings:
     # (``/api/csat/{token}``); production should set this so emailed
     # survey links point at the right host.
     csat_base_url: str = ""
-    # Backlog (多语言客服): the language the support team writes replies in.
+    # Backlog (多语言审核): the language the support team writes replies in.
     # Customer messages detected in another language get their replies
     # translated to that language when a model provider is configured.
     service_language: str = "zh"

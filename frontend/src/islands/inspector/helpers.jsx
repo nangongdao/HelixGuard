@@ -1,5 +1,5 @@
 /**
- * Helix Support — inspector island constants + shared formatters.
+ * Helix Guard — inspector island constants + shared formatters.
  *
  * Split out of inspector-island.jsx (400-line module limit). The bridge
  * event names, the tab catalogue and the escape/URL/time helpers that the

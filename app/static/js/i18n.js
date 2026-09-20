@@ -1,5 +1,5 @@
 /**
- * Helix Support — i18n module (Phase 26.3)
+ * Helix Guard — i18n module (Phase 26.3)
  *
  * Central language packs for UI copy. zh-CN is complete; en is a
  * translation skeleton (keys exist, many still carry the zh-CN text as
@@ -20,11 +20,11 @@ const ZH_CN = {
   "status.open": "自动处理中",
   "status.waiting_human": "等待人工",
   "status.human_active": "人工处理中",
-  "status.resolved": "已解决",
+  "status.resolved": "已判定",
   "status.unknown": "未知",
   "role.admin": "管理员",
   "role.supervisor": "主管",
-  "role.operator": "客服",
+  "role.operator": "审核员",
   "role.channel": "渠道",
   "role.viewer": "只读",
   "role.auditor": "审计员",
@@ -42,28 +42,28 @@ const ZH_CN = {
   "feedback.helpful": "有帮助",
   "feedback.unhelpful": "无帮助",
   // conversation
-  "conv.customer": "客户",
-  "conv.operator": "客服",
+  "conv.customer": "提交方",
+  "conv.operator": "审核员",
   "conv.internal_note": "内部备注",
   "conv.internal_note_added": "内部备注已添加",
   "conv.no_messages": "尚无消息",
-  "conv.created": "会话已创建",
-  "conv.claimed": "会话已认领",
-  "conv.reopened": "会话已重开",
-  "conv.resolved": "会话已解决",
-  "conv.assigned_self": "会话已转派给自己",
-  "conv.need_reopen": "会话已解决，请先重开",
+  "conv.created": "审核单已创建",
+  "conv.claimed": "审核单已认领",
+  "conv.reopened": "审核单已重开",
+  "conv.resolved": "审核单已判定",
+  "conv.assigned_self": "审核单已转派给自己",
+  "conv.need_reopen": "审核单已判定，请先重开",
   "conv.priority_high": "已提升为高优先级",
   "conv.priority_normal": "已调整为普通优先级",
-  "conv.entered_human_queue": "客户消息已进入人工队列",
-  "conv.human_connected": "人工客服",
-  "conv.human_active": "会话已接入",
+  "conv.entered_human_queue": "待审内容已进入人工队列",
+  "conv.human_connected": "人工复核",
+  "conv.human_active": "审核单已接入",
   // queue
-  "queue.closed": "关闭会话队列",
-  "queue.open": "打开会话队列",
+  "queue.closed": "关闭审核队列",
+  "queue.open": "打开审核队列",
   "queue.all_labels": "全部标签",
   "queue.more": "加载更多",
-  "queue.empty": "暂无会话",
+  "queue.empty": "暂无审核单",
   "queue.sla_breached": "SLA 超时",
   "queue.pending_response": "待响应",
   "queue.waiting": "待人工",
@@ -79,10 +79,10 @@ const ZH_CN = {
   "labels.save": "保存标签",
   "views.save_name": "保存视图名称",
   // dialog
-  "dialog.new_conversation": "新建会话",
-  "dialog.customer_name": "客户名称",
-  "dialog.customer_ref": "客户身份标识 可选",
-  "dialog.create": "创建会话",
+  "dialog.new_conversation": "新建审核单",
+  "dialog.customer_name": "提交方名称",
+  "dialog.customer_ref": "提交方标识 可选",
+  "dialog.create": "创建审核单",
   // misc
   "misc.vip_refund_risk": "VIP, 退款风险",
   "misc.supervisor": "主管",
@@ -92,8 +92,8 @@ const ZH_CN = {
   "misc.quality_gate": "质量门",
   "misc.route_mode": "路由模式",
   "misc.assigned": "分配",
-  "misc.customer_ref": "客户标识",
-  "misc.intent": "意图",
+  "misc.customer_ref": "提交方标识",
+  "misc.intent": "风险类别",
   "misc.labels": "标签",
   "misc.claimed": "认领",
   "misc.answer_feedback": "回答反馈",
@@ -102,7 +102,7 @@ const ZH_CN = {
   "misc.pending_route": "待路由",
   "misc.pending_identify": "待识别",
   "misc.pending_review": "待审核",
-  // languages (backlog: 多语言客服)
+  // languages (backlog: 多语言审核)
   "lang.zh": "中文",
   "lang.en": "English",
   "lang.ja": "日本語",
@@ -117,7 +117,7 @@ const ZH_CN = {
   "lang.fr": "Français",
   "lang.de": "Deutsch",
   "lang.pt": "Português",
-  // copilot (backlog: AI 辅助坐席)
+  // copilot (backlog: AI 辅助审核)
   "copilot.suggest": "智能建议",
   "copilot.rewrite": "语气改写…",
   "copilot.tone.friendly": "亲切",
@@ -130,10 +130,10 @@ const ZH_CN = {
   "copilot.empty_draft": "先输入草稿再改写",
   "copilot.failed": "生成失败",
   "copilot.no_suggestions": "暂无建议",
-  // tickets (backlog: 工单化)
-  "ticket.convert": "转工单",
-  "ticket.subject_prompt": "转工单主题（长周期问题描述）",
-  "ticket.convert_failed": "转工单失败",
+  // tickets (backlog: 申诉单化)
+  "ticket.convert": "转申诉单",
+  "ticket.subject_prompt": "转申诉单主题（长周期问题描述）",
+  "ticket.convert_failed": "转申诉单失败",
   "ticket.status.open": "待处理",
   "ticket.status.in_progress": "处理中",
   "ticket.status.closed": "已关闭",
@@ -144,15 +144,15 @@ const ZH_CN = {
   // global nav (UI 升级 §17.1)
   "nav.workspace": "工作台",
   "nav.quality": "质量看板",
-  "nav.knowledge": "知识库",
+  "nav.knowledge": "策略库",
   "nav.admin": "管理",
   "nav.settings": "设置",
   // command palette (UI 升级 §17.1 Ctrl+K)
-  "command.placeholder": "输入命令或会话… Ctrl+K",
-  "command.empty": "没有匹配的命令或会话",
+  "command.placeholder": "输入命令或审核单… Ctrl+K",
+  "command.empty": "没有匹配的命令或审核单",
   "command.group.view": "视图",
   "command.group.action": "动作",
-  "command.group.conversation": "会话",
+  "command.group.conversation": "审核单",
   // density (UI 升级 §17.2)
   "density.comfortable": "舒适",
   "density.compact": "紧凑",

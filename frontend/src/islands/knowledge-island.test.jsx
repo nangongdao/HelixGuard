@@ -1,5 +1,5 @@
 /**
- * Helix Support — knowledge island component tests (D3)
+ * Helix Guard — knowledge island component tests (D3)
  *
  * The island owns the whole knowledge surface including the draft editor, but
  * every write bridges back to legacy via events. These tests cover the reducer

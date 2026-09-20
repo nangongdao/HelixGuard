@@ -1,5 +1,5 @@
 /**
- * Helix Support — request transport (app.js <500 campaign).
+ * Helix Guard — request transport (app.js <500 campaign).
  *
  * The legacy request()/api()/apiWithHeaders() triple, extracted verbatim from
  * app.js so the console keeps its exact request semantics: multipart FormData

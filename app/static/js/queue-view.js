@@ -1,5 +1,5 @@
 /**
- * Helix Support — queue view module (ROADMAP §43.6 / ARC-001 第三步).
+ * Helix Guard — queue view module (ROADMAP §43.6 / ARC-001 第三步).
  *
  * The conversation queue column: row markup, full and windowed (virtual)
  * renders, the rAF-throttled scroll window updater, the bulk-selection
@@ -209,14 +209,14 @@ export function renderQueue() {
     );
     return;
   }
-  els.queueCount.textContent = `${state.conversations.length}${state.queueHasMore ? "+" : ""} 个会话`;
+  els.queueCount.textContent = `${state.conversations.length}${state.queueHasMore ? "+" : ""} 个审核单`;
   els.loadMore.hidden = !state.queueHasMore;
   els.loadMore.disabled = state.queueLoadingMore;
   els.loadMore.setAttribute("aria-busy", String(state.queueLoadingMore));
   els.list.setAttribute("aria-busy", "false");
   if (!state.conversations.length) {
     els.loadMore.hidden = true;
-    els.list.innerHTML = '<div class="queue-empty">当前筛选条件下没有会话</div>';
+    els.list.innerHTML = '<div class="queue-empty">当前筛选条件下没有审核单</div>';
     return;
   }
   const opts = {
@@ -243,7 +243,7 @@ export function renderLoadingQueue() {
   // Island mode: the React queue island owns the list DOM (see renderQueue).
   if (window.__HELIX_ISLAND_MODE__) return;
   els.list.setAttribute("aria-busy", "true");
-  els.list.innerHTML = '<div class="queue-loading">正在同步会话队列</div>';
+  els.list.innerHTML = '<div class="queue-loading">正在同步审核队列</div>';
 }
 
 // ROADMAP §18.4: refresh only when the visible band or its content signature
@@ -327,7 +327,7 @@ export function openQueueDrawer() {
     queueScrim = document.createElement("button");
     queueScrim.type = "button";
     queueScrim.className = "queue-scrim";
-    queueScrim.setAttribute("aria-label", "关闭会话队列");
+    queueScrim.setAttribute("aria-label", "关闭审核队列");
     queueScrim.addEventListener("click", closeQueueDrawer);
     ctx.els.queuePane.parentElement.insertBefore(queueScrim, ctx.els.queuePane);
   }

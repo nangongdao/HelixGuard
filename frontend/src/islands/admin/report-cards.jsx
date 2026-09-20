@@ -1,5 +1,5 @@
 /**
- * Helix Support — admin island report cards: subscriptions, export, CSAT.
+ * Helix Guard — admin island report cards: subscriptions, export, CSAT.
  *
  * Split out of admin-island.jsx (400-line module limit). The export card
  * reads `submitter` off the native event on purpose — React's synthetic

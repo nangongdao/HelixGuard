@@ -1,4 +1,4 @@
-// Helix Support — format/util module unit tests (Phase 26.1)
+// Helix Guard — format/util module unit tests (Phase 26.1)
 // Run: node --test tests/frontend/format.test.js
 
 import { test } from "node:test";
@@ -31,7 +31,7 @@ test("statusLabel maps known statuses in zh-CN", () => {
   assert.equal(statusLabel("open"), "自动处理中");
   assert.equal(statusLabel("waiting_human"), "等待人工");
   assert.equal(statusLabel("human_active"), "人工处理中");
-  assert.equal(statusLabel("resolved"), "已解决");
+  assert.equal(statusLabel("resolved"), "已判定");
 });
 
 test("statusLabel returns the raw value for unknown statuses", () => {

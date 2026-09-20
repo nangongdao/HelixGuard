@@ -1,5 +1,5 @@
 /**
- * Helix Support — inspector island tests (D3 long tail glue slice)
+ * Helix Guard — inspector island tests (D3 long tail glue slice)
  *
  * The inspector island has mirrored tabs/panels since its D3 take-over;
  * this slice closed the quality-tab gap: the island's quality panel was an
@@ -23,8 +23,8 @@ const QUALITY_HTML = {
 
 const COLLABORATORS = [
   { actor_id: "demo.admin", roleLabel: "管理员" },
-  { actor_id: "colleague.a", roleLabel: "坐席" },
-  { actor_id: "colleague.b", roleLabel: "坐席" },
+  { actor_id: "colleague.a", roleLabel: "审核员" },
+  { actor_id: "colleague.b", roleLabel: "审核员" },
 ];
 
 function renderIsland() {
@@ -229,10 +229,10 @@ describe("InspectorIsland note composer (island-owned)", () => {
     renderIsland();
     showConversation();
     const input = document.getElementById("noteInput");
-    fireEvent.change(input, { target: { value: "核对完毕，可以解决" } });
+    fireEvent.change(input, { target: { value: "核对完毕，可以判定" } });
     fireEvent.submit(document.getElementById("noteForm"));
     const submitEvent = dispatchSpy.mock.calls.map(([ev]) => ev).find((ev) => ev.type === INSPECTOR_EVENTS.NOTE_SUBMIT);
-    expect(submitEvent.detail).toEqual({ content: "核对完毕，可以解决" });
+    expect(submitEvent.detail).toEqual({ content: "核对完毕，可以判定" });
     expect(input.value).not.toBe("");
     act(() => {
       window.dispatchEvent(

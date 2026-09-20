@@ -1,5 +1,5 @@
 /**
- * Helix Support — summary island component tests (D3 long tail slice 15)
+ * Helix Guard — summary island component tests (D3 long tail slice 15)
  *
  * The summary banner is island-rendered but legacy-fed: js/renderSummaries
  * derives the model via js/summary.js and publishes helix-summary-state.
@@ -35,7 +35,7 @@ describe("SummaryIsland", () => {
     publish({
       visible: true,
       title: "前情摘要（接入参考）",
-      text: "客户此前咨询过配送时效。（自动投影）",
+      text: "提交方此前咨询过配送时效。（自动投影）",
     });
     const banner = document.querySelector(".summary-banner");
     expect(banner.hidden).toBe(false);
@@ -43,7 +43,7 @@ describe("SummaryIsland", () => {
       "前情摘要（接入参考）",
     );
     expect(banner.querySelector(".summary-text").textContent).toBe(
-      "客户此前咨询过配送时效。（自动投影）",
+      "提交方此前咨询过配送时效。（自动投影）",
     );
   });
 

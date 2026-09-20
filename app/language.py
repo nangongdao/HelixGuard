@@ -1,4 +1,4 @@
-"""Multi-language customer service (backlog: 多语言客服).
+"""Multi-language customer service (backlog: 多语言审核).
 
 Language detection is script-based and deterministic (no dependencies): the
 customer message's dominant Unicode script maps to an ISO 639-1-ish language
