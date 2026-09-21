@@ -108,7 +108,7 @@ def main() -> int:
             page.fill("#knowledgeTagsReact", "desktop, island-verify")
             page.fill("#knowledgeSourceReact", "internal:desktop/verify")
             with page.expect_response(
-                lambda r: "/api/knowledge/drafts" in r.url and r.request.method == "POST"
+                lambda r: "/api/policy/drafts" in r.url and r.request.method == "POST"
             ):
                 page.locator("#knowledgeFormReact button[type='submit']").click()
             page.wait_for_timeout(1200)

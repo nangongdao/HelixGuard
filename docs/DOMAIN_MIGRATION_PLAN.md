@@ -122,7 +122,8 @@
 | R3 | T5 的 5,572 处机械替换，遗漏一处即测试红 | 返工 | 先替换 + 后全量门禁；用 `\bconversation\b` 词边界而非裸串替换，人工复核 diff |
 | R4 | 视觉基线 / 性能预算需重新锚定，可能触发 `MAX_STATIC_HEADROOM`（预算不得高于载荷 25%）断言 | 门禁红 | 按既有口径重锚（LF 归一化 tracked 载荷），不改断言 |
 | R5 | 截图重捕获依赖 clean-DB 本地服务 + Playwright | P2 无法验收 | 复用 `scripts/readme_screenshots.py` 既有流程 |
-| R6 | `app/database.py.bak`、`app/main.py.bak` 为遗留文件 | 仓库噪声 | P5 顺带清理（需确认无人依赖） |
+| R6 | `app/main.py.bak`、`app/database.py.bak` 曾按「遗留文件」登记 | 误删即断链 | **P3a 轮次核实后修正前提**：`app/main.py.bak` **不是噪声**——它是 `scripts/rebuild_main.py:23` 与 `scripts/split_main.py:20` 的输入（1.3.0 时代拆分前的单文件快照），且 `tests/test_script_guards.py:62` 直接断言它存在。P5 只能删 `app/database.py.bak`（全仓唯一引用是本表与 `CHANGELOG.md`）；要删 `main.py.bak` 必须同时退役那两个脚本与该守护测试 |
+| R7 | **文案层的两类漏网**：① 词表按**现成词**枚举 —— `知识` 家族只迁移了映射表列出的 `知识库 → 策略库`，同族复合词未动；② 扫描集按**目录表**限定 —— `desktop/` 不在 P2/P2b 的替换范围 | 用户可见面同时出现「策略库」与「知识文章 / 知识草稿 / 知识缺口 / 知识管理员」——迁移集内部自相矛盾，与 `docs/DOMAIN.md` §3.3 的 `服务台`（词表内）/ `服务团队`（词表外）是同一失败模式；`desktop/` 侧同理（`催单回复` / `退款指引` / `您的订单正在加急处理。` / `退款将在 3 个工作日内到账。`） | 记为一个**独立的文案层补漏增量**，不并入 P3a（P3a 声明「用户可见文案不变」，且改 UI 文案要 `visual_gate` 重锚）。命中面（P3a 轮次实测，按 `知识` 计）：`app/static/index.html` 8、`app/static/js/knowledge-view.js` 11、`app/static/js/quality-panel.js` 4、`app/static/js/inspector.js` 3、`app/static/app.js` 2、`frontend/src/islands/*` 23、`desktop/verify_composer_tools_desktop.py` 2 行（客服域，另一族）。词表须按**构词**枚举（`知识X`），扫描须**从仓库根**而非目录表出发；`commands.js` 的检索别名 `["knowledge","知识"]` 需单独判定是否作为可检索同义词保留 |
 
 ---
 

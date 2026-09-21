@@ -245,7 +245,7 @@ The read path stays transparent (`GET /api/conversations/{id}`, `GET .../message
 
 `POST /api/conversations/{id}/claim` reserves an unresolved conversation for `CLAIM_TTL_SECONDS`; repeating by the same operator renews the claim. Another operator receives `409`, while supervisors/admins can override. `POST /api/conversations/{id}/release` returns it to the queue. Accepting or resolving clears the claim atomically.
 
-Tenant canned responses are listed at `GET /api/canned-responses`. Supervisors/admins manage them with `POST` and `PATCH`; operators record an insertion with `POST /api/canned-responses/{id}/use`. Shortcut uniqueness is enforced per tenant for active entries.
+Tenant canned responses are listed at `GET /api/canned-verdicts`. Supervisors/admins manage them with `POST` and `PATCH`; operators record an insertion with `POST /api/canned-verdicts/{id}/use`. Shortcut uniqueness is enforced per tenant for active entries.
 
 Supervisor/admin audit export is available from `GET /api/audit-events` with conversation, event type, time, limit, and offset filters. Results remain tenant-scoped and audit payloads retain secret redaction.
 

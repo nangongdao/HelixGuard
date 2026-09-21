@@ -64,23 +64,25 @@ tag 收敛 22 处（`knowledge`→`policy` 6、`tickets`→`appeals` 6、`widget
 
 **（六）文档里的 `csat-summary` 漏改，因为校验不变量太弱。** `docs/api/reference.md` 的对齐脚本把锚点写成 `/api/csat-summary`，而目标路径是 `/api/admin/csat-summary` —— 前者不是后者的前缀，漏掉 `/admin` 段（与代码侧 `artifacts/p3a_fix_csat_summary.py` 修掉的是**同一个错误**，在文档侧复发了）。更值得记的是**它为什么会通过校验**：当时的判据是「文档中每条路径都必须存在于 spec」，而退役路径在 spec 里**确实存在**（作为弃用别名），所以判据为真、漏改被放过。换成本版最终的强判据 ——「文档中每条路径都**不得**在 spec 里是 `deprecated`」—— 才把它逼出来。**弱判据给出绿灯，比没有判据更危险。**
 
+**（七）改名脚本的扫描范围本身就是一处盲区。** `artifacts/p3a_path_rename.py` 只走 `INCLUDE_DIRS = (app, tests, scripts, clients, frontend/src, docs)`，所以「复跑收敛为 0」这句话**只对那个子集成立** —— 脚本自己的报告永远无法说 `desktop/` 有没有漏，而报告读起来与「全仓已干净」一模一样。改用**全仓兜底扫描 + 尾部匹配**（`artifacts/p3a_blindspot_scan.py`、`artifacts/p3a_tail_scan.py`）后，在 9 个文件里抓出 9 处真实残留：`desktop/verify_composer_tools_desktop.py`（`'/api/canned-responses'` 2 处 + 裸片段 `"/canned-responses/"` 2 处）、`desktop/verify_knowledge_island_desktop.py`（`/api/knowledge/drafts`）、`DEPLOYMENT.md`（`/api/canned-responses` 2 处）、`docs/adr/0014` 的现状性句子（`POST /api/knowledge`，与 `scripts/evaluate_adversarial.py` 已改用 `/api/policy` 相矛盾）、`tests/ui_routing.py` 与 `tests/test_phase21.py` 的 docstring、`app/static/js/quality-panel.js` 的 JSDoc、`app/static/js/admin-actions.js` 的注释。**9 处全部落在原扫描集之外，其中 6 处连 `/api/` 前缀都没有**（裸片段与散文形态），所以「换一张更宽的目录表」替代不了「换匹配口径」——两者各自会漏一半。修法：`artifacts/p3a_fix_blindspots.py`（逐条写死期望计数，计数不符即失败，因此静默空跑不可能），并把口径固化为守护测试 `RetiredIdentifierSweepTests`：从仓库根遍历，按**有意的白名单**放行（弃用注册表 / 别名声明 / 术语映射文档 / 日期化档案 / 冻结快照 / 本守护），其他任何文件出现退役名即判红。红灯验证：在工作树里放一个含 `/api/knowledge/drafts` 的探针文件，该测试报 `desktop/_probe_retired.py: ['/api/knowledge', '/api/tickets', 'knowledge/drafts']` 并失败，删除后复绿。
+
 ### 四个同源根因（判据，非叙述）
 
 1. **子串替换对上下文无感知。** 同一个 `{ticket_id}` 在路由模板里是路径参数、在 f-string 里是 Python 变量，在同一次 `str.replace` 里长得一模一样。（一）（二）（三）都是它的变体。
 2. **「收敛为 0」只证明幂等，不证明落盘正确。** 脚本 `--apply` 复跑报 0 改动，而（一）的 422、（二）的 NameError 都已经被冻结在树里。必须另配**独立扫描**（`artifacts/p3a_residue_scan.py`，17 个词 × 原形/转义形两态，571 文件过筛），且扫描口径要**故意过宽**、逐条人工判定。
-3. **门禁只覆盖它覆盖的那部分。** （二）落在 `pytest` 与浏览器作业的**双重盲区**里，（三）让一条测试静默失效，（四）只在 `pyright app` 下暴露。增量必须逐个门禁问「这条改动若写错，谁会红」，写不出来就是在裸奔。
+3. **门禁只覆盖它覆盖的那部分。** （二）落在 `pytest` 与浏览器作业的**双重盲区**里，（三）让一条测试静默失效，（四）只在 `pyright app` 下暴露。增量必须逐个门禁问「这条改动若写错，谁会红」，写不出来就是在裸奔。（七）是它的镜像：这次的盲区不在**门禁**，而在**验证脚本自己** —— 一张 `INCLUDE_DIRS` 目录表，就让「已扫描」与「已扫描全仓」成了同一句话。
 4. **「收敛为 0」在机制落地后会失效。** 路径改名脚本的幂等判据在别名层存在前成立；`legacy_route` 与注册表一落地，退役字符串就**应当**存在于树中，「又扫出 64 处待改」恰恰是正确状态。此时盲跑 `--apply` 会把别名声明改回新名，**等于删除弃用窗口**。本版给该脚本加了硬失败（检测到 `legacy_route(` 即 `exit 3`）并在注释里写明它已用完。**校验判据与被校验的机制是共同演化的，不是一次写死的。**
 
 ### 验证
 
-- 新增 `tests/test_domain_path_renames.py`（11 例）：注册表合法/在窗口内、successor 均为活路径、每条弃用 operation 实际注册且标 `deprecated` 且带迁移注释、别名文档继承 successor、**路径占位符与声明的 path 参数一致**、**别名动词与主路由一致**、退役路径端到端服务且带 `Deprecation`/`Sunset` 头、退役与现行路径返回一致、`/api/csat/{token}` 属 `OFF_SCHEMA`、健康与现行路径绝不带弃用头。`tests/test_deprecation.py` 的「空注册表是合法的」改为「注册表合法且非空」。
-- 全量 `pytest tests`（带覆盖率）：**1952 passed / 44 skipped / 2 failed**，较 2.25.1 的 1941 多 11 —— 恰为本版新增守护用例数。两例失败与前八个版本记录一致，是**本机既有环境噪声**（site-packages 装有 `opentelemetry`，走不到「未安装」分支），CI 全绿；`coverage report --fail-under=85` 实测 **TOTAL 89%**。
+- 新增 `tests/test_domain_path_renames.py`（12 例）：注册表合法/在窗口内、successor 均为活路径、每条弃用 operation 实际注册且标 `deprecated` 且带迁移注释、别名文档继承 successor、**路径占位符与声明的 path 参数一致**、**别名动词与主路由一致**、退役路径端到端服务且带 `Deprecation`/`Sunset` 头、退役与现行路径返回一致、`/api/csat/{token}` 属 `OFF_SCHEMA`、健康与现行路径绝不带弃用头，以及**全仓退役标识符清扫**（`RetiredIdentifierSweepTests`，见（七）：从仓库根遍历，白名单之外出现任何退役名即判红）。`tests/test_deprecation.py` 的「空注册表是合法的」改为「注册表合法且非空」。
+- 全量 `pytest tests`（带覆盖率）：**1953 passed / 44 skipped / 2 failed**，较 2.25.1 的 1941 多 12 —— 恰为本版新增守护用例数（收尾补的（七）清扫用例计入）。两例失败与前八个版本记录一致，是**本机既有环境噪声**（site-packages 装有 `opentelemetry`，走不到「未安装」分支），CI 全绿；`coverage report --fail-under=85` 实测 **TOTAL 89%**（14800 语句 / 1350 未覆盖）。
 - `scripts/openapi_snapshot.py`（比较模式）`openapi spec matches snapshot`，`api/openapi.json` 用 `--dump` 重生成（版本号先行、快照后生成，否则 `tests/test_openapi_gate.py` 的全等断言必红）。
 - `scripts/frontend_gate.py` 400 tests 通过（修复前 399/400）；`scripts/evaluate.py --min-pass-rate 1.0`、`scripts/evaluate_adversarial.py` 通过。
 - `scripts/migration_gate.py`（48 migrations）、`verify_migration_registry`、`tauri_config_gate --allow-empty-pubkey`、`scan_secrets`、`check_workflows`、`license_gate`、`vuln_review`、`threat_model_gate`、`release_manifest --build/--verify`、`node --check app/static/app.js` 全通过。
 - `clients/python` SDK 测试 28 例通过（该套件不在 CI 门禁内，本版主动复跑）。
 - ruff 0.9.9 `format --check app tests scripts`（375 files）与 `check` 全过；`pyright app` 报 `0 errors, 0 warnings`。
-- 独立残留扫描（`artifacts/p3a_residue_scan.py`，17 个词 ×「原形 / 转义形」两态，过筛 571 文件）：报告 **122 条命中，全部逐条判定**，无一条属于「该改未改」——
+- 独立残留扫描（`artifacts/p3a_residue_scan.py`，17 个词 ×「原形 / 转义形」两态，过筛 571 文件）：报告 **122 条命中，全部逐条判定**，无一条属于「该改未改」（**该扫描的词表与目录集两处口径不足在收尾时由（七）暴露并补扫**）——
   - **29 条属有意保留**：`app/deprecation.py` 的注册表（24）与 `tests/test_domain_path_renames.py` 的退役路径断言（5）；
   - **48 条属本阶段范围外**：JS 状态键 / 函数名（`cannedResponses`、`agentGroupsCache`、`renderCannedResponses` 等，P5）；
   - **44 条属别名声明与标识符**：各 router 的 `@legacy_route(...)` 与 handler / 测试函数名（`cost_by_agent`、`KnowledgeGapsRobustnessTests` 等）；
@@ -98,6 +100,7 @@ tag 收敛 22 处（`knowledge`→`policy` 6、`tickets`→`appeals` 6、`widget
 - **代码标识符**：JS 侧状态键与函数名（`cannedResponses`、`renderCannedResponses`、`agentGroupsCache`）、Python handler 名（`cost_by_agent`、`list_knowledge_gaps`）、DB 方法名（`get_ticket`、`list_ticket_conversations`）仍是旧域词汇。P3 的范围是「模块与路由」，标识符改名属 P4/P5；本版只登记，不改。
 - **契约类字段**：响应体/请求体字段与请求头（`widget_token`、`X-Widget-Token`）是 API 契约，改名需各自的弃用窗口，不在本版。
 - **历史档案不改写**：`CHANGELOG.md` 历史条目、`docs/RELEASE_1_2_0*`、`docs/PHASE_21_COMPLETION.md`、`supplychain/*.json`（含 `tests/test_widget_routes.py` 这类当时的测试名）按 `docs/DOMAIN.md` §6 保持原样。两处 ADR 的**现状性**句子随术语更新（`0006` 的路由清单 `knowledge`→`policy`、`widget_routes`→`portal_routes`；`0009` 的 `app/widget_token.py`→`app/portal_token.py`），其结论、数字、日期不动。
+- **（七）顺带查实的、本版不修的残留**：① `app/main.py.bak` 与 `app/database.py.bak` 都不在清理范围，但原因不同 —— 前者是 `scripts/rebuild_main.py`/`scripts/split_main.py` 的输入且被 `tests/test_script_guards.py:62` 断言存在，**不是**遗留噪声（`docs/DOMAIN_MIGRATION_PLAN.md` R6 的前提已据此修正）；后者全仓无引用，可随 P5 清。② 新登记的**文案层构词式漏网**（R7）：`知识` 家族只迁移了映射表列出的 `知识库 → 策略库`，同族的「知识文章 / 知识草稿 / 知识缺口 / 知识管理员」仍留在 `app/static/index.html`、`app/static/js/knowledge-view.js`、`frontend/src/islands/*` 等用户可见面，与同屏的「策略库」自相矛盾。它与 P3a 的层不同（P3a 声明「用户可见文案不变」），且改 UI 文案需 `visual_gate` 重锚，故记为独立增量。
 - **`docs/api/reference.md` 未重生成，只做改名对齐**（58 处：路径、`{ticket_id}`→`{appeal_id}`、tag 名、章节标题）。该文件由 `scripts/api_docs.py` 从快照生成，但在 HEAD 时**已落后 spec 26 个端点（107 vs 133）**——重生成会把 3541/1493 行无关漂移夹带进本增量。`git diff --numstat` 为 54/54（纯改名、行数对称），已用强判据复核（见「验证」）。**该既存漂移登记为独立事项**，不在本版处理。
 
 ## 2.25.1 — 哨兵不再自伤: canary 生成器改为无数字形态 (2026-09-21)

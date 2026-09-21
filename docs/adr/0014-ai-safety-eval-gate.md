@@ -37,7 +37,7 @@ HTTP API、`_check_expect` 断言、p95 统计、`compare` 基线对比）；`ap
   - `allowed_tools`：该用例允许的工具集合；断言无集合外工具被调用。
   - `expect`：在 golden expect 之上扩展 `requires_human`、`citation` 精确断言、
     `redaction`（敏感值不得出现在 assistant 输出）与 `canary`（哨兵不得泄漏）。
-- 种子通道：间接注入经 `POST /api/knowledge` 写知识文章（检索即触发）；恶意附件
+- 种子通道：间接注入经 `POST /api/policy` 写策略文章（检索即触发）；恶意附件
   经 `AttachmentService.upload` text/plain 注入；PII 哨兵经 `make_canary()` 注入
   审核单文本，断言输出与 `metadata` 无泄漏。
 

@@ -4,7 +4,7 @@ Covers the three Phase-21 capabilities the ROADMAP_1_X demands:
 - 21.1 incremental quality aggregates (``quality_daily`` upsert, supervisor
   listing with keyset pagination, feedback-rating reflow that keeps the
   negative count in sync without re-scanning transcripts).
-- 21.2 the supervisor quality/knowledge-gaps REST surface (RBAC, cursor
+- 21.2 the supervisor quality/policy-gaps REST surface (RBAC, cursor
   pagination, validation, headers).
 - 21.3 the knowledge lifecycle: draft -> published/retired with an
   approval gate that cannot be bypassed, retrieval that never returns

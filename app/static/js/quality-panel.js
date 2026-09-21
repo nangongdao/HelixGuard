@@ -195,7 +195,7 @@ export function buildQualityBucketsHtml(buckets) {
   return charts + cards.join("");
 }
 
-/** Build the knowledge-gaps HTML for the quality panel (buttons excluded —
+/** Build the policy-gaps HTML for the quality panel (buttons excluded —
  * the caller binds their click handlers). */
 export function buildQualityGapsHtml(gaps) {
   if (!gaps.length) {

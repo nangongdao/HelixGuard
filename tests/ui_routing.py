@@ -4,7 +4,7 @@
 `DELETE /api/admin/routing-rules/{id}`、`GET/POST /api/admin/reviewer-groups`
 此前已就绪;本轮前端接线:管理视图「SLA 策略」卡(列表 + 表单 upsert +
 编辑回填)与「自动路由规则」卡(列表 + 创建 + 删除,分配组下拉来自
-agent-groups)。
+reviewer-groups)。
 
 本测在真实审核单里闭环验证:
 1. API 预建一个审核组供下拉选择;

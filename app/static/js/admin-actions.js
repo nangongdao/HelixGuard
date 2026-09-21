@@ -139,7 +139,7 @@ export async function loadAdminView() {
     renderWebhooks(Array.isArray(webhooks) ? webhooks : []);
     ctx.actions.renderReportWebhookOptions(webhooks);
     await ctx.actions.loadReportSubscriptions();
-    // 先填充 agent-groups cache 再渲染路由规则,否则首屏每条规则
+    // 先填充 agentGroupsCache 再渲染路由规则,否则首屏每条规则
     // group_id 落入 id fallback(组名不可解析)。
     await ctx.actions.loadRuleGroups();
     await ctx.actions.loadSlaPolicies();

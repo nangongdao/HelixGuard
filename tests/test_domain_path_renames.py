@@ -39,6 +39,84 @@ OFF_SCHEMA = {"GET /api/csat/{token}"}
 
 VERBS = {"GET", "POST", "PATCH", "PUT", "DELETE"}
 
+# Retired names the sweep below refuses to let survive outside the files whose
+# job is to declare them.  Includes the distinctive *tails* on purpose: the
+# rewriter only matched "/api/..." prefixes, so a prose mention or a
+# \/-escaped JS regex literal was invisible to it.
+P3A_RETIRED: tuple[str, ...] = (
+    # retired path prefixes
+    "/api/tickets",
+    "/api/csat",
+    "/api/widget",
+    "/api/knowledge",
+    "/api/canned-responses",
+    "/api/admin/agent-groups",
+    "/api/analytics/costs/by_agent",
+    "/api/supervisor/knowledge-gaps",
+    "/api/copilot/knowledge",
+    # retired tails -- prose, bare fragments, escaped regex literals
+    "canned-responses",
+    "agent-groups",
+    "knowledge-gaps",
+    "copilot/knowledge",
+    "widget/sessions",
+    "csat-summary",
+    "costs/by_agent",
+    "knowledge/drafts",
+    # retired module paths
+    "routers/tickets",
+    "routers/knowledge",
+    "routers/csat",
+    "widget_routes",
+    "widget_token.py",
+    "app.widget_token",
+)
+
+# Files that are *supposed* to contain retired names.
+P3A_SWEEP_EXEMPT: frozenset[str] = frozenset(
+    {
+        "app/deprecation.py",  # the registry names every retired path
+        "app/main.py",  # inline @legacy_route on the FastAPI instance
+        "app/portal_routes.py",  # the submission-portal aliases
+        "api/openapi.json",  # generated; must carry the deprecated operations
+        "CHANGELOG.md",  # release notes spell retired -> current
+        "docs/DOMAIN.md",  # the term contract itself
+        "docs/DOMAIN_MIGRATION_PLAN.md",
+        "docs/adr/0002-sse-seq-streaming.md",  # dated "2023 (Phase 23)" narrative
+        "scripts/split_main.py",  # line anchors into the frozen .bak
+        "app/main.py.bak",  # frozen 1.3.0 snapshot; rebuild_main.py reads it
+        "app/database.py.bak",
+        "tests/ui_csat.py",  # P5 renames this file and its artifact names
+        "tests/test_domain_path_renames.py",  # this guard
+    }
+)
+
+P3A_SWEEP_EXEMPT_PREFIX: tuple[str, ...] = (
+    # Aliases are declared beside their primary route.  That the retired set is
+    # exactly the registered set is asserted by RegistryCoverageTests.
+    "app/routers/",
+    # Dated factual archives (docs/DOMAIN.md 6).
+    "docs/RELEASE_",
+    "docs/PHASE_",
+    "docs/PROGRESS_REPORT_",
+    "supplychain/",
+)
+
+# Untracked / generated / build output: absent in CI, so skipping keeps the
+# local run in agreement with the CI run.  Matched on the path *component* so
+# nested forms (``frontend/node_modules``, ``app/__pycache__``) are covered.
+P3A_SWEEP_SKIP_NAMES: tuple[str, ...] = (
+    ".git",
+    "node_modules",
+    "__pycache__",
+    ".ruff_cache",
+    ".pytest_cache",
+    ".workbuddy",
+    "artifacts",
+)
+
+P3A_SWEEP_SKIP_PATHS: tuple[str, ...] = ("app/static/dist/",)
+
 
 class RegistryCoverageTests(unittest.TestCase):
     """Every rename is registered, and every registration points somewhere real."""
@@ -206,6 +284,52 @@ class RetiredPathServingTests(unittest.TestCase):
         for url in ("/health/ready", "/api/appeals", "/api/policy"):
             response = self.client.get(url, headers=self.headers)
             self.assertNotIn(DEPRECATION_HEADER, response.headers, url)
+
+
+class RetiredIdentifierSweepTests(unittest.TestCase):
+    """No retired name may survive outside a file whose job is to name it.
+
+    The rewriter walked a fixed ``INCLUDE_DIRS`` list (``app tests scripts
+    clients frontend/src docs``), so its "converged to 0" check was a statement
+    about that subset, not about the tree. Two live verifiers under ``desktop/``
+    kept posting to ``/api/canned-responses`` and ``/api/knowledge/drafts``, and
+    the rewriter's own report could never say so -- a partial scan that reports
+    a whole is worse than no scan, because it reads as coverage.
+
+    Drop an entry from the exempt sets and this test fails; retire a name and
+    forget one directory and it fails too.
+    """
+
+    def test_retired_identifiers_stay_inside_the_files_that_declare_them(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        offenders: list[str] = []
+        for path in sorted(root.rglob("*")):
+            if not path.is_file():
+                continue
+            relative = path.relative_to(root).as_posix()
+            if _sweep_exempt(relative):
+                continue
+            try:
+                text = path.read_text(encoding="utf-8")
+            except (UnicodeDecodeError, OSError):
+                continue
+            hits = sorted({segment for segment in P3A_RETIRED if segment in text})
+            if hits:
+                offenders.append(f"{relative}: {hits}")
+        self.assertEqual(offenders, [], offenders)
+
+
+def _sweep_exempt(relative: str) -> bool:
+    if relative in P3A_SWEEP_EXEMPT:
+        return True
+    if any(name in relative.split("/") for name in P3A_SWEEP_SKIP_NAMES):
+        return True
+    if any(relative.startswith(path) for path in P3A_SWEEP_SKIP_PATHS):
+        return True
+    return any(
+        relative == prefix.rstrip("/") or relative.startswith(prefix)
+        for prefix in P3A_SWEEP_EXEMPT_PREFIX
+    )
 
 
 def _auth() -> dict[str, str]:
