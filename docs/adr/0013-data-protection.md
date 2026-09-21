@@ -44,7 +44,7 @@ M0（Phase 40）已落地 DSR maker-checker 状态机与加密导出（`app/rete
 - **Key 通道**：字段名匹配敏感词（`password`、`token`、`secret`、`key`、`authorization`、`cookie` 等）或分类为 confidential/restricted 时，值替换为 `[REDACTED]`。
 - **Value 通道**：值匹配 secret 形态（JWT、Bearer、sk-*、ghp_、xox、AKIA、PEM、40+ hex、base64）时替换为 `[REDACTED]`。
 
-提供 `make_canary()` / `scan_for_canary()` / `assert_no_canary_leaks()` 用于测试：生成 `canary-<32hex>` 哨兵值，断言其不会出现在红action 后的输出中。
+提供 `make_canary()` / `scan_for_canary()` / `assert_no_canary_leaks()` 用于测试：生成 `canary-<32 位十六进制字母（a-f，不含数字）>` 哨兵值，断言其不会出现在红action 后的输出中。主体不含十进制数字，因此不会被内容风控的形态检测（支付卡/手机号正则）命中——2.25.1 修正：旧形态 `canary-<32hex>` 有 0.38% 的概率含 15 位以上连续数字，被判为支付卡后升级人工，哨兵自身改变了它本该观察的路由。`scan_for_canary()` 的匹配式仍保持 `[0-9a-f]{32}`（泄漏检查 fail-closed，并兼容历史哨兵）。详见 `CHANGELOG.md` 2.25.1。
 
 ### 3. DSR SLA 与审批看板
 

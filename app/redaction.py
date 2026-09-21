@@ -20,14 +20,17 @@ never disagree.
 
 ``canary`` support seeds a unique marker into a value so a leakage test can
 scan arbitrary output for the marker after a redaction path; finding it means
-the redaction failed.
+the redaction failed.  The marker is generated *inert* with respect to the
+content risk detectors (no decimal digit in its body): a sentinel whose own
+shape reads as a payment card would escalate the very turn it was injected to
+observe, turning a fixture into the cause of its own failure.
 """
 
 from __future__ import annotations
 
 import logging
 import re
-import uuid
+import secrets
 from dataclasses import dataclass
 from typing import Any
 
@@ -239,14 +242,38 @@ def redaction_snapshot() -> dict[str, Any]:
 
 CANARY_PREFIX = "canary"
 
+# The sentinel body is drawn from the hex *letters* only, so it cannot contain
+# a decimal digit run and therefore cannot match a digit-shaped detector.
+# 32 random hex characters used to contain 15+ consecutive digits 0.38% of the
+# time (``PolicyAgent._CARD``: payment card) and 11 digits starting 1[3-9]
+# 0.15% of the time (``_PHONE``: mobile number); both set ``requires_human``,
+# so the adversarial canary case intermittently escalated instead of answering.
+# Excluding digits removes the entire class of collision by construction.  The
+# alternative -- loosening the detectors -- would trade a PII control for a
+# deterministic test; over-redacting a digit run is the deliberate ADR-013
+# stance.  6**32 ~ 2**83 keeps markers collision-free in practice.
+CANARY_BODY_ALPHABET = "abcdef"
+CANARY_BODY_LENGTH = 32
+
 
 def make_canary() -> str:
-    """Build a unique marker to plant inside sensitive material during a test."""
-    return f"{CANARY_PREFIX}-{uuid.uuid4().hex}"
+    """Build a unique marker to plant inside sensitive material during a test.
+
+    The marker is inert with respect to the content risk detectors: its body
+    carries no decimal digit, so no digit-run pattern (payment card, phone)
+    can match it and change the route of the turn under test.
+    """
+    body = "".join(secrets.choice(CANARY_BODY_ALPHABET) for _ in range(CANARY_BODY_LENGTH))
+    return f"{CANARY_PREFIX}-{body}"
 
 
 def scan_for_canary(text: str) -> list[str]:
-    """Return every canary marker present in ``text`` (empty means clean)."""
+    """Return every canary marker present in ``text`` (empty means clean).
+
+    The matcher stays deliberately wider than the generator (``[0-9a-f]``
+    rather than ``[a-f]``): a leak check fails closed, and this way it also
+    recognises the digit-bearing markers older releases produced.
+    """
     return re.findall(rf"{CANARY_PREFIX}-[0-9a-f]{{32}}", text)
 
 
