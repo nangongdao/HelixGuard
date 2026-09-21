@@ -16,7 +16,7 @@
     "MIT/Apache-2.0"
   ],
   "packages": {
-    "annotated-doc": { "license": "LicenseRef-TBD", "approved_until": "2026-09-20", "note": "0.0.4 上游许可声明待人工确认" },
+    "annotated-doc": { "license": "MIT", "note": "Sebastián Ramírez（fastapi 组织）；fastapi 传递依赖；0.0.4 无 classic license 字段也无 license classifier（这正是它先前记 LicenseRef-TBD 的原因），2026-09-21 以 PyPI PEP 639 License-Expression 与上游 LICENSE（tag 0.0.4）两处独立证据确认" },
     "annotated-types": { "license": "MIT", "note": "pydantic 团队（Pydantic）" },
     "anyio": { "license": "MIT", "note": "AG Plomp" },
     "certifi": { "license": "MPL-2.0", "note": "Mozilla Foundation" },

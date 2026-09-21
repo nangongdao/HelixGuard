@@ -112,6 +112,53 @@ Version 2.23.0 不改任何运行时行为，只改**产品身份**：应用名�
 - **⚠️ 中间态是预期的**：本版只完成 P1（叙事层）。`app/` 下仍可见 `conversation` / `ticket` / `csat` / `widget` 等旧域标识符，README 的领域描述与代码命名暂时不一致——这是分阶段迁移的正常中间态，已在 README 底部与 `docs/DOMAIN.md` 显式标注，并按 P2–P5 收口。
 - **未覆盖**：P2（UI 文案与截图）、P3（模块与 API 路径）、P4（数据库对象，含 48 个迁移的一致改写）、P5（测试与视觉/性能基线重锚）。T5（`conversation` → `review_case`，约 5,572 处）建议作为最后一步单独收口。
 
+## 2.22.1 — 供应链门禁解锁: anyio 升到 4.14.2 + 完成 annotated-doc 许可确认 (2026-09-21)
+
+本版不碰产品行为，只把 **main 上已经红了的两个供应链门禁**修回绿。两处都不是在途工作引入的，是**时间驱动的既存回归**——同一份代码由绿转红，没有任何提交：
+
+| 时间 (UTC) | run | sha | 结果 |
+| --- | --- | --- | --- |
+| 09-18 09:12 | `35328360928` | `32ab1758` | **5/5 全绿** |
+| 09-19 07:55 | `35430621466` | `32ab1758` | `quality` + `supply-chain` 红 |
+| 09-20 08:26 | `35499551339` | `32ab1758` | 同上 |
+
+**问题一：`pip-audit` 命中 anyio 4.13.0 的两个 CVE**
+
+- 两处红灯都发生在跑 `pip-audit` 的步骤：`supply-chain` 的 "Dependency audit + exception coverage" 与 `quality` 的 "Dependency vulnerability audit"。`requirements.lock` 里的 `anyio 4.13.0` 命中 `CVE-2026-63374`、`CVE-2026-64847`，修复版 `4.14.2`。
+- **改法**：`requirements.lock` 的 `anyio==4.13.0` → `anyio==4.14.2`。取修复版中的**最低可行版本**，不追最新（`4.15.1`）——与仓内既有取舍同一条线：pin 的是"已审计的版本"而非"最新的版本"（见 `pyproject.toml` 对 `cryptography` 的注释 "50.0.1 is the audited version"）。
+- **不登记漏洞例外**：`supplychain/vulnerability-exceptions.json` 的登记前提是"不可达证据 + 补偿控制"。anyio 是 HTTP 栈的**运行时**依赖，可达性无从证明，且修复版已存在——用例外掩盖可修复的漏洞会把台账变成噪音，也会把下一个真正需要例外登记的项淹掉。
+- anyio 的依赖闭包（`idna` / `sniffio` / `typing-extensions`）本就在锁内；CI 走 `pip install --no-deps -r requirements.lock`，`pip check` 不受影响。
+- **这一行是手工改的，没有走 `scripts/freeze_lock.py`** —— 该脚本冻结的是「当前已安装闭包」而非解析结果，而本机环境相对锁已漂移 11 个包（见下「未覆盖」）。照跑会把 11 项无关升级夹带进本次安全修复，破坏可 bisect 性。单行改动的完整性依据：`anyio 4.14.2` 的 `Requires-Dist` 为 `idna>=2.8` / `sniffio>=1.1` / `typing_extensions>=4.5`，三者已以 `idna==3.18` / `sniffio` / `typing-extensions==4.15.0` 在锁内，闭包不新增条目。
+
+**问题二：`annotated-doc` 的临时许可批准于 09-20 到期**
+
+- `license_gate` 的政策是：未完成法务确认的许可以 `LicenseRef-TBD` 登记并携带 `approved_until`，**逾期红灯**。`annotated-doc 0.0.4` 的批准日正是 09-20，今日（09-21）起 `supply-chain` job 的 `License policy gate (Phase 41.2)` 步骤必然红灯——**即使 anyio 修好也过不去**，所以两件事必须在同一版里解决。
+- 这类红项的纪律是**完成确认，不是续期**。0.0.4 之所以被记 TBD，是因为它的 PyPI 元数据**既无 classic `license` 字段、也无 license classifier**，自动检查无从判定。人工确认取到两处独立证据：
+  1. PyPI PEP 639 `License-Expression: MIT`（版本 `0.0.4`，非仅最新版）。
+  2. 上游 `LICENSE`（tag `0.0.4`）正文："The MIT License (MIT) / Copyright (c) 2025 Sebastián Ramírez"。
+  - 本地安装元数据 `Required-by: fastapi` 亦确认它是 fastapi 的合法传递依赖，属闭包内该有的包。
+- **改法**：`supplychain/license-policy.json` 把该条从 `LicenseRef-TBD` + `approved_until` 改为 `MIT`，note 里写明"为何曾是 TBD""两处证据""核对日期"——下一个人不必重做这次核对。`MIT` 本就在 `allowed_licenses` 内，无需放宽白名单。
+
+**版本位**
+
+`APP_VERSION` 2.22.0 → 2.22.1；`api/openapi.json` 用 `scripts/openapi_snapshot.py --dump` 重生成，比较模式复跑通过。
+
+**验证**
+
+- `python -m pip_audit -r requirements.lock`：修复前 `Found 2 known vulnerabilities in 1 package`（anyio 4.13.0 ×2），修复后 **0 vulnerabilities / 27 dependencies**。
+- `supply-chain` job 的门禁本地全绿：`scan_secrets` / `check_workflows` / **`license_gate`** / `migration_gate` / `vuln_review`（含 `--require-coverage`）/ `threat_model_gate`（含 `--check-today --drill-max-days 90`）/ `release_manifest --build|--verify` / `image_admission_check --no-digest-required`；`quality` job 侧 `openapi_snapshot` 比较模式亦通过。
+- 本机解释器已同步装到 `anyio 4.14.2`（即锁上的版本），因此**测试是在实际要发布的闭包上跑的**，而非旧版：`pytest tests` 全量重跑，除下述两例环境噪声外全过。
+- `python -m pip check`：`No broken requirements found`（`--no-deps` 安装路径下 anyio 的依赖闭包完整）。
+- 四个改动文件（`requirements.lock` / `app/main.py` / `api/openapi.json` / `supplychain/license-policy.json`）的 `git diff --numstat` 均为 **1/1 对称**，可判定为单行改动、未触发换行翻转；`requirements.lock` 与 `openapi.json` 保持 LF。
+
+**未覆盖（有意为之）**
+
+- **本机两例既有环境噪声仍失败**：`tests/test_telemetry_edge.py::test_debug_log_emitted_at_span_end` 与 `tests/test_telemetry_otel_branches.py::test_configure_logs_nothing_when_otel_absent` —— 本机 site-packages 装有 `opentelemetry`，走不到测试断言的「未安装」分支；与 2.20.0–2.22.0 各版记录一致，CI 全绿，非本次改动引起。
+- **README 首屏徽章本版不动**。该徽章自 2.11.0（见 2.11.0 条目"徽章版本 v2.4.0 → v2.10.0"）起停在 `v2.10.0`，**已漏更 12 个版本**（2.12.0–2.22.0）。在途的 2.24.0 会把它一次性收敛到 `v2.24.0`；此处再动既制造无谓冲突，也会把"依赖安全修复"和"文档展示"混成一个 PR。
+- **不升 `annotated-doc` 到 0.0.5**：本版只解决许可确认与审计红灯，取最小改动；升版是独立决定。
+- **不处理「本机环境相对 `requirements.lock` 漂移 11 个包」**：本版在核对锁可复现性时发现，本机解释器已装有一批比锁更新的版本（`annotated-doc` 0.0.4→0.0.5、`annotated-types` 0.7.0→0.8.0、`certifi` 2026.2.25→2026.7.22、`click` 8.4.2→8.5.0、`fastapi` 0.139.2→0.141.1、`idna` 3.18→3.19、`pydantic` 2.11.7→2.13.4、`pydantic-core` 2.33.2→2.46.4、`python-dotenv` 1.2.2→1.2.3、`typing-inspection` 0.4.2→0.4.4、`uvicorn` 0.51.0→0.52.4）。**这是既有情况，非本版引入**；处置需要单独一个「依赖批量升级」增量，带齐全量测试与决策记录（尤其 `pydantic` 跨次版本）。此处只登记，不顺手升级。
+- **夜间 `browser` job 的 "Nightly performance and visual gates"**：`schedule` 触发的 run 上仍红（09-18/09-19/09-20 三次均如此），但该步骤 `if: github.event_name == 'schedule'`，PR 运行不执行，不阻塞合并。其红因（runner 敏感的性能/像素基线）与本研究无关，留作独立排查。
+
 ## 2.22.0 — H01 第一片: 客户侧可恢复发送与增量持续接收 (2026-09-17)
 
 Version 2.22.0 起，Widget 客户不再需要「再发一条消息」或手动刷新，就能看到人工答复、解决状态与满意度评价——这正是路线图 H01 记录的 [HX05] 缺口；同时修掉一处**客户投影的角色口径与全仓不一致**造成的内部消息外泄。
