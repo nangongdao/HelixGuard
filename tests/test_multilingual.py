@@ -332,7 +332,7 @@ class KnowledgeLanguageTests(unittest.TestCase):
 
     def _create_article(self, title: str, tags: list[str], language: str | None) -> dict[str, Any]:
         response = self.client.post(
-            "/api/knowledge",
+            "/api/policy",
             json={
                 "title": title,
                 "content": f"关于 {title} 的详细说明，供策略库检索使用。",
@@ -356,7 +356,7 @@ class KnowledgeLanguageTests(unittest.TestCase):
 
     def test_invalid_language_rejected(self) -> None:
         response = self.client.post(
-            "/api/knowledge",
+            "/api/policy",
             json={
                 "title": "坏语言",
                 "content": "这是一段足够长的内容用于创建知识条目。",
@@ -372,7 +372,7 @@ class KnowledgeLanguageTests(unittest.TestCase):
     def test_update_article_language(self) -> None:
         article = self._create_article("退换货政策", ["refund"], "zh")
         response = self.client.patch(
-            f"/api/knowledge/{article['id']}",
+            f"/api/policy/{article['id']}",
             json={"language": "en"},
             headers=self.admin,
         )

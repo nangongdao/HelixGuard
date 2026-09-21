@@ -52,9 +52,7 @@ def attach_failure_recorders(
 
 
 def open_knowledge(page: Page, *, include_inactive: bool) -> None:
-    expected_suffix = (
-        "/api/knowledge?include_inactive=true" if include_inactive else "/api/knowledge"
-    )
+    expected_suffix = "/api/policy?include_inactive=true" if include_inactive else "/api/policy"
     with page.expect_response(
         lambda response: (
             response.url == f"{BASE_URL}{expected_suffix}" and response.request.method == "GET"
@@ -105,7 +103,7 @@ def main() -> None:
         page.locator("#knowledgeSource").fill(f"https://example.com/knowledge/{run_id}")
         with page.expect_response(
             lambda response: (
-                response.url.endswith("/api/knowledge/drafts") and response.request.method == "POST"
+                response.url.endswith("/api/policy/drafts") and response.request.method == "POST"
             )
         ) as create_info:
             page.get_by_role("button", name="保存草稿").click()
@@ -129,7 +127,7 @@ def main() -> None:
         page.locator("#knowledgeContent").fill(revised_content)
         with page.expect_response(
             lambda response: (
-                response.url.endswith(f"/api/knowledge/{article['id']}")
+                response.url.endswith(f"/api/policy/{article['id']}")
                 and response.request.method == "PATCH"
             )
         ) as update_info:
@@ -141,7 +139,7 @@ def main() -> None:
 
         with page.expect_response(
             lambda response: (
-                response.url.endswith(f"/api/knowledge/{article['id']}/review")
+                response.url.endswith(f"/api/policy/{article['id']}/review")
                 and response.request.method == "POST"
             )
         ) as publish_info:
@@ -176,7 +174,7 @@ def main() -> None:
         page.on("dialog", lambda dialog: dialog.accept())
         with page.expect_response(
             lambda response: (
-                response.url.endswith(f"/api/knowledge/{article['id']}/review")
+                response.url.endswith(f"/api/policy/{article['id']}/review")
                 and response.request.method == "POST"
             )
         ) as retire_info:
@@ -195,7 +193,7 @@ def main() -> None:
             "request",
             lambda request: (
                 reader_requests.append(f"{request.method} {request.url}")
-                if "/api/knowledge" in request.url
+                if "/api/policy" in request.url
                 else None
             ),
         )
@@ -229,7 +227,7 @@ def main() -> None:
         expect(reader_page.locator("#knowledgeEditor")).to_be_hidden()
         expect(reader_page.locator(".knowledge-action")).to_have_count(0)
         reader_page.wait_for_timeout(250)
-        assert reader_requests == [f"GET {BASE_URL}/api/knowledge"], reader_requests
+        assert reader_requests == [f"GET {BASE_URL}/api/policy"], reader_requests
 
         reader_context.close()
         context.close()

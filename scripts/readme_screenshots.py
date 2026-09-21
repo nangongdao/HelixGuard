@@ -95,7 +95,7 @@ def capture_desktop_shell(context, name_hint: str) -> None:
 
 
 def widget_url() -> str:
-    from app.widget_token import sign_token
+    from app.portal_token import sign_token
 
     token = sign_token(
         secret=WIDGET_SECRET,

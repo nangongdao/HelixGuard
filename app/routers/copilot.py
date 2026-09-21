@@ -13,7 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from app.copilot import CopilotService
 from app.main import require_permission
-from app.routers.common import RouteDeps
+from app.routers.common import RouteDeps, legacy_route
 from app.schemas import (
     CopilotKnowledgeArticleOut,
     CopilotKnowledgeOut,
@@ -48,7 +48,10 @@ def build_router(deps: RouteDeps) -> APIRouter:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         return CopilotSuggestOut(suggestions=[CopilotSuggestionOut(**item) for item in suggestions])
 
-    @router.post("/api/copilot/knowledge", response_model=CopilotKnowledgeOut)
+    @router.post("/api/copilot/policy", response_model=CopilotKnowledgeOut)
+    @legacy_route(
+        router, "/api/copilot/knowledge", methods=["POST"], response_model=CopilotKnowledgeOut
+    )
     def copilot_knowledge(
         payload: CopilotKnowledgeRequest,
         principal: Annotated[Principal, Depends(require_permission("operator:act"))],
@@ -67,7 +70,22 @@ def build_router(deps: RouteDeps) -> APIRouter:
         )
 
     @router.post(
+        "/api/copilot/policy-draft",
+        tags=["copilot"],
+        summary="Draft a pending-review knowledge article (governed tool)",
+        description=(
+            "ROADMAP 2.5.0: the first mutating tool call. The payload runs "
+            "through the orchestrator's ToolGateway — governance policy "
+            "(mutating side effect), argument schema, and a short-lived "
+            "capability token when CAPABILITY_SECRET is configured — and "
+            "the draft lands in draft status for human review before it "
+            "can ever be retrieved. Requires ``operator:act``."
+        ),
+    )
+    @legacy_route(
+        router,
         "/api/copilot/knowledge-draft",
+        methods=["POST"],
         tags=["copilot"],
         summary="Draft a pending-review knowledge article (governed tool)",
         description=(

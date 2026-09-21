@@ -1,7 +1,7 @@
 """Backlog 申诉单化 — 列表 / 详情 / 状态机前端闭环(浏览器验收)。
 
-后端 `POST/GET /api/tickets`、`GET/PATCH /api/tickets/{id}`、
-`POST /api/tickets/{id}/transition|link` 已就绪;本轮把"仅单向创建"升级为
+后端 `POST/GET /api/appeals`、`GET/PATCH /api/appeals/{id}`、
+`POST /api/appeals/{id}/transition|link` 已就绪;本轮把"仅单向创建"升级为
 生命周期 UI:workspace「队列/申诉单」tab、申诉单列表(状态过滤)、申诉单详情
 (字段/关联审核单/状态机按钮)、transition 状态机(open→in_progress/closed、→
 closed、closed→open)、关联当前审核单。
@@ -119,7 +119,7 @@ def main() -> None:
         expect(ticket_button).to_be_visible()
         with page.expect_response(
             lambda response: (
-                response.url.endswith("/api/tickets") and response.request.method == "POST"
+                response.url.endswith("/api/appeals") and response.request.method == "POST"
             )
         ) as create_info:
             ticket_button.click()
@@ -131,11 +131,11 @@ def main() -> None:
         expect(page.locator("#ticketBadge")).to_be_visible()
         expect(page.locator("#ticketBadge")).to_contain_text(ticket_id)
 
-        # 切到「申诉单」tab → 列表含该申诉单。matcher 收紧为列表 URL(/api/tickets
-        # 或 ?status= 查询),避免命中 enrichTicketBadge 安排的 GET /api/tickets/{id}。
+        # 切到「申诉单」tab → 列表含该申诉单。matcher 收紧为列表 URL(/api/appeals
+        # 或 ?status= 查询),避免命中 enrichTicketBadge 安排的 GET /api/appeals/{id}。
         with page.expect_response(
             lambda response: (
-                bool(re.search(r"/api/tickets(?:\?|$)", response.url))
+                bool(re.search(r"/api/appeals(?:\?|$)", response.url))
                 and response.request.method == "GET"
             )
         ):
@@ -148,7 +148,7 @@ def main() -> None:
         # 进详情:待处理 →「开始处理」。
         with page.expect_response(
             lambda response: (
-                response.url.endswith(f"/api/tickets/{ticket_id}")
+                response.url.endswith(f"/api/appeals/{ticket_id}")
                 and response.request.method == "GET"
             )
         ):
@@ -160,7 +160,7 @@ def main() -> None:
 
         with page.expect_response(
             lambda response: (
-                response.url.endswith(f"/api/tickets/{ticket_id}/transition")
+                response.url.endswith(f"/api/appeals/{ticket_id}/transition")
                 and response.request.method == "POST"
             )
         ) as transition_info:
@@ -173,7 +173,7 @@ def main() -> None:
         # 关闭 → 已关闭 → 重开。
         with page.expect_response(
             lambda response: (
-                response.url.endswith(f"/api/tickets/{ticket_id}/transition")
+                response.url.endswith(f"/api/appeals/{ticket_id}/transition")
                 and response.request.method == "POST"
             )
         ) as close_info:
@@ -185,7 +185,7 @@ def main() -> None:
 
         with page.expect_response(
             lambda response: (
-                response.url.endswith(f"/api/tickets/{ticket_id}/transition")
+                response.url.endswith(f"/api/appeals/{ticket_id}/transition")
                 and response.request.method == "POST"
             )
         ) as reopen_info:
@@ -204,7 +204,7 @@ def main() -> None:
         expect(page.locator("#ticketPane")).to_be_visible()
         with page.expect_response(
             lambda response: (
-                response.url.endswith(f"/api/tickets/{ticket_id}")
+                response.url.endswith(f"/api/appeals/{ticket_id}")
                 and response.request.method == "GET"
             )
         ):
@@ -213,7 +213,7 @@ def main() -> None:
         expect(page.get_by_role("button", name="关联当前审核单")).to_be_visible()
         with page.expect_response(
             lambda response: (
-                response.url.endswith(f"/api/tickets/{ticket_id}/link")
+                response.url.endswith(f"/api/appeals/{ticket_id}/link")
                 and response.request.method == "POST"
             )
         ) as link_info:

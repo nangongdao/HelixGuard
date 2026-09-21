@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, Query
 
 from app.cost_attribution import CostAttributionService
 from app.main import require_permission
-from app.routers.common import RouteDeps
+from app.routers.common import RouteDeps, legacy_route
 from app.security import Principal
 
 
@@ -41,8 +41,19 @@ def build_router(deps: RouteDeps) -> APIRouter:
         return costs.get_tenant_cost_summary(principal.tenant_id, since=start_date, until=end_date)
 
     @router.get(
+        "/costs/by_reviewer",
+        summary="Break down inference cost by reviewer",
+        description=(
+            "Per-agent spend (triage, language_detect, language_translate, "
+            "copilot_suggest, copilot_rewrite, summary) for one date, from the "
+            "per-inference detail table. Requires ``admin:manage``."
+        ),
+    )
+    @legacy_route(
+        router,
         "/costs/by_agent",
-        summary="Break down inference cost by agent",
+        methods=["GET"],
+        summary="Break down inference cost by reviewer",
         description=(
             "Per-agent spend (triage, language_detect, language_translate, "
             "copilot_suggest, copilot_rewrite, summary) for one date, from the "

@@ -11,7 +11,7 @@
   吊销靠 Phase 28.2 静态弃用集合（进程内立即、跨实例靠重启 seed）。
 - **正式渠道 secret**（`app/channel_webhooks.py`）：每账户一个静态 HMAC
   secret，签名既无 key_id 也无版本选择，轮换需改配置并重启。
-- **widget signing key**（`app/widget_token.py` + `widget_secret`）：单一共享
+- **widget signing key**（`app/portal_token.py` + `widget_secret`）：单一共享
   secret，无版本/过期，轮换即全量失效。
 - **session key**（`app/session_auth.py` `SESSION_SECRETS_JSON`）：已有 kid
   滚动轮换雏形，但未纳入统一生命周期。

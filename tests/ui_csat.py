@@ -1,6 +1,6 @@
 """Backlog CSAT 评分汇总 — 管理视图卡片浏览器验收。
 
-后端 `summarize_csat`(需响应 `POST /api/csat/{token}` 已入 `csat_surveys`)
+后端 `summarize_csat`(需响应 `POST /api/qa-spot-check/{token}` 已入 `csat_surveys`)
 此前无前端;本轮把汇总接入管理视图「CSAT 评分汇总」卡:总体(样本数 /
 平均分 / 好评率)+ 近 14 天逐日趋势。
 
@@ -65,7 +65,7 @@ def submit_ratings(count: int, ratings: list[int]) -> int:
         token = resolved["survey_url"].rsplit("/", 1)[-1]
         # 公开单次评分端点(无鉴权);JSON body。
         request = urllib.request.Request(
-            f"{BASE_URL}/api/csat/{token}",
+            f"{BASE_URL}/api/qa-spot-check/{token}",
             data=json.dumps({"rating": rating}).encode("utf-8"),
             headers={"Content-Type": "application/json"},
             method="POST",
@@ -94,7 +94,7 @@ def main() -> None:
             return
         failed_requests.append(f"{request.method} {request.url} {failure}")
 
-    base = api_get("/api/admin/csat-summary")
+    base = api_get("/api/admin/qa-spot-check-summary")
     base_total = int(base.get("total") or 0)
     added = submit_ratings(3, [4, 5, 2])
     assert added == 3, f"应提交 3 条评分,实际 {added}"
@@ -127,7 +127,7 @@ def main() -> None:
         # 切到管理视图 → CSAT 卡可见。
         with page.expect_response(
             lambda response: (
-                response.url.endswith("/api/admin/csat-summary")
+                response.url.endswith("/api/admin/qa-spot-check-summary")
                 and response.request.method == "GET"
             )
         ):

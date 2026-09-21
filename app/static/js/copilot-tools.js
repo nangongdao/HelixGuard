@@ -113,7 +113,7 @@ export async function loadCopilotKnowledge() {
   if (ctx.state.lastCopilotConv === conversationId) return;
   const ticket = beginCommand("copilot-knowledge", conversationId);
   try {
-    const payload = await ctx.api("/api/copilot/knowledge", {
+    const payload = await ctx.api("/api/copilot/policy", {
       method: "POST",
       body: JSON.stringify({ conversation_id: conversationId }),
     });

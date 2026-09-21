@@ -1,10 +1,10 @@
-"""Tests for app/widget_token.py signed customer tokens."""
+"""Tests for app/portal_token.py signed customer tokens."""
 
 from unittest import mock
 
 import pytest
 
-from app.widget_token import (
+from app.portal_token import (
     WidgetTokenError,
     sign_token,
     verify_token,

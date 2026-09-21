@@ -71,10 +71,10 @@ test("conversation status drives the handoff and CSAT banners", () => {
   });
   assert.equal(conversationSignals("human_active", "").handoff, true);
   assert.equal(conversationSignals("open", "").handoff, false);
-  assert.deepEqual(conversationSignals("resolved", "/api/csat/tok"), {
+  assert.deepEqual(conversationSignals("resolved", "/api/qa-spot-check/tok"), {
     handoff: false,
     resolved: true,
-    resolvedSurveyUrl: "/api/csat/tok",
+    resolvedSurveyUrl: "/api/qa-spot-check/tok",
   });
   // Resolved without a survey link must not show a dead rating control.
   assert.equal(conversationSignals("resolved", "").resolved, false);

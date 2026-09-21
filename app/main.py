@@ -36,7 +36,7 @@ configure_logging()
 configure_tracing()
 logger = logging.getLogger("helix")
 IDEMPOTENCY_KEY_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{8,128}$")
-APP_VERSION = "2.25.1"
+APP_VERSION = "2.26.0"
 
 
 def _conversation_quota_exceeded(database: Any, tenant_id: str) -> str | None:
@@ -422,15 +422,18 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
     register_request_controls(app, settings=settings, database=database, services=services)
     register_error_handlers(app)
 
-    @app.get("/api/supervisor/knowledge-gaps", tags=["quality"])
+    from app.routers.common import legacy_route
+
+    @app.get("/api/supervisor/policy-gaps", tags=["quality"])
+    @legacy_route(app, "/api/supervisor/knowledge-gaps", methods=["GET"], tags=["quality"])
     def list_knowledge_gaps(
         principal: Annotated[Principal, Depends(require_permission("metrics:read"))],
         limit: int = 20,
     ) -> list[dict[str, Any]]:
-        """Surface negative-feedback turns with no knowledge citations.
+        """Surface negative-feedback turns with no policy citations.
 
         Used by the supervisor quality panel (Phase 21.2) to locate where the
-        knowledge base is failing customers and seed draft articles.
+        policy library is failing submitters and seed draft articles.
         """
         return database.list_knowledge_gaps(principal.tenant_id, limit=limit)
 
@@ -445,15 +448,15 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
     # Phase 27.2: domain routers (extracted from create_app).
     from app.routers.admin import build_router as build_admin_router
     from app.routers.analytics import build_router as build_analytics_router
+    from app.routers.appeals import build_router as build_appeals_router
     from app.routers.attachments import build_router as build_attachments_router
     from app.routers.auth import build_router as build_auth_router
     from app.routers.common import RouteDeps
     from app.routers.conversations import build_router as build_conversations_router
     from app.routers.copilot import build_router as build_copilot_router
-    from app.routers.knowledge import build_router as build_knowledge_router
+    from app.routers.policy import build_router as build_policy_router
     from app.routers.reports import build_router as build_reports_router
     from app.routers.system import build_router as build_system_router
-    from app.routers.tickets import build_router as build_tickets_router
 
     route_deps = RouteDeps(
         settings=settings,
@@ -471,11 +474,11 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
     )
     app.include_router(build_system_router(route_deps))
     app.include_router(build_conversations_router(route_deps))
-    app.include_router(build_knowledge_router(route_deps))
+    app.include_router(build_policy_router(route_deps))
     app.include_router(build_admin_router(route_deps))
     app.include_router(build_auth_router(route_deps))
     app.include_router(build_copilot_router(route_deps))
-    app.include_router(build_tickets_router(route_deps))
+    app.include_router(build_appeals_router(route_deps))
     app.include_router(build_reports_router(route_deps))
     app.include_router(build_attachments_router(route_deps))
     app.include_router(build_analytics_router(route_deps))
@@ -504,16 +507,16 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
 
     app.include_router(quality_router)
 
-    # Phase 23.1: mount the public Web Chat widget router (signed-token auth,
-    # no API key required for the customer browser).
-    from app.widget_routes import router as widget_router
+    # Phase 23.1: mount the public submission-portal router (signed-token
+    # auth, no API key required for the submitter's browser).
+    from app.portal_routes import router as portal_router
 
-    app.include_router(widget_router)
+    app.include_router(portal_router)
 
-    # Backlog: mount the public CSAT survey router (one-time token link).
-    from app.routers.csat import router as csat_router
+    # Backlog: mount the public QA spot-check router (one-time token link).
+    from app.routers.qa_spot_check import router as qa_spot_check_router
 
-    app.include_router(csat_router)
+    app.include_router(qa_spot_check_router)
 
     # Phase 25.2: enrich the OpenAPI spec with per-endpoint summaries, tags,
     # and RBAC notes before the snapshot gate reads it.

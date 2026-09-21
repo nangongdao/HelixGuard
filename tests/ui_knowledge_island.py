@@ -72,7 +72,7 @@ def open_view(page: Page, view: str, view_id: str) -> None:
 def open_knowledge_island(page: Page) -> None:
     """Click the knowledge nav item and wait for the island's own list.
 
-    The island fetches /api/knowledge at boot (before the nav click), so
+    The island fetches /api/policy at boot (before the nav click), so
     the settled marker is rendered article rows, not the response.
     """
     open_view(page, "knowledge", "#knowledgeView")
@@ -127,7 +127,7 @@ def main() -> None:
         island.locator("#knowledgeSourceReact").fill(f"https://example.com/knowledge/{run_id}")
         with page.expect_response(
             lambda response: (
-                response.url.endswith("/api/knowledge/drafts") and response.request.method == "POST"
+                response.url.endswith("/api/policy/drafts") and response.request.method == "POST"
             )
         ) as save_info:
             island.get_by_role("button", name="保存草稿").click()
@@ -153,7 +153,7 @@ def main() -> None:
         island.locator("#knowledgeContentReact").fill(revised_content)
         with page.expect_response(
             lambda response: (
-                response.url.endswith(f"/api/knowledge/{article['id']}")
+                response.url.endswith(f"/api/policy/{article['id']}")
                 and response.request.method == "PATCH"
             )
         ) as update_info:
@@ -165,7 +165,7 @@ def main() -> None:
         # Publish through the review bridge.
         with page.expect_response(
             lambda response: (
-                response.url.endswith(f"/api/knowledge/{article['id']}/review")
+                response.url.endswith(f"/api/policy/{article['id']}/review")
                 and response.request.method == "POST"
             )
         ) as publish_info:
@@ -201,7 +201,7 @@ def main() -> None:
         page.on("dialog", lambda dialog: dialog.accept())
         with page.expect_response(
             lambda response: (
-                response.url.endswith(f"/api/knowledge/{article['id']}/review")
+                response.url.endswith(f"/api/policy/{article['id']}/review")
                 and response.request.method == "POST"
             )
         ) as retire_info:
@@ -223,7 +223,7 @@ def main() -> None:
             "request",
             lambda request: (
                 reader_requests.append(f"{request.method} {request.url}")
-                if "/api/knowledge" in request.url
+                if "/api/policy" in request.url
                 else None
             ),
         )

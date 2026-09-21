@@ -100,11 +100,11 @@ def main() -> int:
                         return { ok: res.ok, status: res.status, data: res.ok ? await res.json() : null };
                     };
                     const suffix = Math.random().toString(36).slice(2, 6);
-                    const macro1 = await post('/api/canned-responses', {
+                    const macro1 = await post('/api/canned-verdicts', {
                         title: '催单回复 ' + suffix, shortcut: 'cudan' + suffix, body: '您的订单正在加急处理。',
                     });
                     if (!macro1.ok) return { error: 'macro1 ' + macro1.status };
-                    const macro2 = await post('/api/canned-responses', {
+                    const macro2 = await post('/api/canned-verdicts', {
                         title: '退款指引 ' + suffix, shortcut: 'tuik' + suffix, body: '退款将在 3 个工作日内到账。',
                     });
                     if (!macro2.ok) return { error: 'macro2 ' + macro2.status };
@@ -157,7 +157,7 @@ def main() -> int:
 
             # ── Canned chip → island insertion + real /use POST ──
             with page.expect_response(
-                lambda r: "/canned-responses/" in r.url
+                lambda r: "/canned-verdicts/" in r.url
                 and r.url.endswith("/use")
                 and r.request.method == "POST"
             ) as use_info:
@@ -187,7 +187,7 @@ def main() -> int:
                 timeout=10000,
             )
             with page.expect_response(
-                lambda r: "/canned-responses/" in r.url
+                lambda r: "/canned-verdicts/" in r.url
                 and r.url.endswith("/use")
                 and r.request.method == "POST"
             ) as use_info2:

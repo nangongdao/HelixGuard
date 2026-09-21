@@ -21,7 +21,7 @@ from app.envelope_crypto import EnvelopeCryptoError
 from app.main import (
     require_permission,
 )
-from app.routers.common import RouteDeps
+from app.routers.common import RouteDeps, legacy_route
 from app.schemas import (
     AgentGroupCreateRequest,
     AgentGroupMemberOut,
@@ -768,13 +768,23 @@ def build_router(deps: RouteDeps) -> APIRouter:
 
     # ------------------------------------------------------- auto routing (backlog)
 
-    @router.get("/api/admin/agent-groups", response_model=list[AgentGroupOut])
+    @router.get("/api/admin/reviewer-groups", response_model=list[AgentGroupOut])
+    @legacy_route(
+        router, "/api/admin/agent-groups", methods=["GET"], response_model=list[AgentGroupOut]
+    )
     def list_agent_groups(
         principal: Annotated[Principal, Depends(require_permission("admin:manage"))],
     ) -> list[AgentGroupOut]:
         return [AgentGroupOut(**group) for group in database.list_agent_groups(principal.tenant_id)]
 
-    @router.post("/api/admin/agent-groups", response_model=AgentGroupOut, status_code=201)
+    @router.post("/api/admin/reviewer-groups", response_model=AgentGroupOut, status_code=201)
+    @legacy_route(
+        router,
+        "/api/admin/agent-groups",
+        methods=["POST"],
+        response_model=AgentGroupOut,
+        status_code=201,
+    )
     def create_agent_group(
         payload: AgentGroupCreateRequest,
         principal: Annotated[Principal, Depends(require_permission("admin:manage"))],
@@ -791,7 +801,8 @@ def build_router(deps: RouteDeps) -> APIRouter:
         )
         return AgentGroupOut(**group)
 
-    @router.delete("/api/admin/agent-groups/{group_id}", status_code=204)
+    @router.delete("/api/admin/reviewer-groups/{group_id}", status_code=204)
+    @legacy_route(router, "/api/admin/agent-groups/{group_id}", methods=["DELETE"], status_code=204)
     def delete_agent_group(
         group_id: str,
         principal: Annotated[Principal, Depends(require_permission("admin:manage"))],
@@ -800,7 +811,14 @@ def build_router(deps: RouteDeps) -> APIRouter:
             raise HTTPException(status_code=404, detail="Agent group not found")
 
     @router.post(
+        "/api/admin/reviewer-groups/{group_id}/reviewers",
+        response_model=AgentGroupMemberOut,
+        status_code=201,
+    )
+    @legacy_route(
+        router,
         "/api/admin/agent-groups/{group_id}/agents",
+        methods=["POST"],
         response_model=AgentGroupMemberOut,
         status_code=201,
     )
@@ -829,7 +847,13 @@ def build_router(deps: RouteDeps) -> APIRouter:
             added_at=member.get("added_at") or "",
         )
 
-    @router.delete("/api/admin/agent-groups/{group_id}/agents/{actor_id}", status_code=204)
+    @router.delete("/api/admin/reviewer-groups/{group_id}/reviewers/{actor_id}", status_code=204)
+    @legacy_route(
+        router,
+        "/api/admin/agent-groups/{group_id}/agents/{actor_id}",
+        methods=["DELETE"],
+        status_code=204,
+    )
     def remove_group_agent(
         group_id: str,
         actor_id: str,
@@ -879,7 +903,8 @@ def build_router(deps: RouteDeps) -> APIRouter:
 
     # ------------------------------------------------------------ CSAT summary
 
-    @router.get("/api/admin/csat-summary", response_model=CsatSummaryOut)
+    @router.get("/api/admin/qa-spot-check-summary", response_model=CsatSummaryOut)
+    @legacy_route(router, "/api/admin/csat-summary", methods=["GET"], response_model=CsatSummaryOut)
     def csat_summary(
         principal: Annotated[Principal, Depends(require_permission("admin:manage"))],
         days: Annotated[int, Query(ge=1, le=90)] = 14,

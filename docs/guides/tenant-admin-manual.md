@@ -16,7 +16,7 @@
 
 ## 策略库(Phase 21.3)
 
-- 创建条目进 `draft` 状态(检索不可见);审批 `POST /api/knowledge/{id}/review` 发布/退休。
+- 创建条目进 `draft` 状态(检索不可见);审批 `POST /api/policy/{id}/review` 发布/退休。
 - 负反馈消息可一键生成 draft(`knowledge-draft` 端点),供编辑后发布。
 - 检索只命中 `published`;草稿需审批后上线。
 
@@ -35,7 +35,7 @@
 
 - `GET /api/system/metrics`(`metrics:read`):队列/worker/数据库池/延迟。
 - `GET /api/supervisor/quality`:质量桶(升级率/负反馈率/首次响应)。
-- `GET /api/supervisor/knowledge-gaps`:负反馈无引用审核单,知识回流起点。
+- `GET /api/supervisor/policy-gaps`:负反馈无引用审核单,知识回流起点。
 
 ## 发布与升级
 

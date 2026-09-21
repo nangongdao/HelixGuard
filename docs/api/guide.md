@@ -68,7 +68,7 @@ Session message/history/stream calls must use that fresh token in
 `X-Widget-Token`; a token for another conversation returns 404.
 
 Messages use a unique `channel_message_id` and `?async_mode=true`. Consume
-`GET /api/widget/sessions/{id}/stream` with authenticated streaming `fetch`,
+`GET /api/submission-portal/sessions/{id}/stream` with authenticated streaming `fetch`,
 not native `EventSource` (which cannot set the token header). Internal notes
 are never returned by the widget history endpoint.
 

@@ -357,7 +357,7 @@ async function insertCannedResponse(responseId) {
   els.operatorInput.value = prefix ? `${prefix}\n${macro.body}` : macro.body;
   els.operatorInput.focus();
   try {
-    await api(`/api/canned-responses/${encodeURIComponent(responseId)}/use`, { method: "POST" });
+    await api(`/api/canned-verdicts/${encodeURIComponent(responseId)}/use`, { method: "POST" });
   } catch {
     // usage tracking is best-effort
   }

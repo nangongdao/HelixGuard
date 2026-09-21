@@ -205,7 +205,7 @@ async function loadHistory() {
   // instead of re-reading (and possibly skipping) the transcript.
   const query = state.cursor ? `?limit=200&cursor=${encodeURIComponent(state.cursor)}` : "?limit=200";
   const response = await request(
-    `/api/widget/sessions/${encodeURIComponent(state.conversationId)}/messages${query}`,
+    `/api/submission-portal/sessions/${encodeURIComponent(state.conversationId)}/messages${query}`,
   );
   // ROADMAP 2.10.0: when the operator resolved the conversation, surface
   // the resolved banner and the CSAT rating link — the customer side of
@@ -323,7 +323,7 @@ async function streamLatestTurn() {
       await new Promise((resolve) => setTimeout(resolve, 400 * attempt));
     }
     state.pendingAssistant = "";
-    const response = await request(`/api/widget/sessions/${encodeURIComponent(state.conversationId)}/stream?timeout=20`);
+    const response = await request(`/api/submission-portal/sessions/${encodeURIComponent(state.conversationId)}/stream?timeout=20`);
     const result = await readStream(response);
     completed = result.completed;
     if (!result.reconnect) break;
@@ -345,7 +345,7 @@ async function startSession(event) {
   button.disabled = true;
   try {
     const customerName = $("customerName").value.trim();
-    const response = await request("/api/widget/sessions", {
+    const response = await request("/api/submission-portal/sessions", {
       method: "POST",
       body: JSON.stringify(customerName ? { customer_name: customerName } : {}),
     });
@@ -392,7 +392,7 @@ async function sendMessage(event) {
   setBusy(true);
   showBanner("", false);
   try {
-    const queued = await request(`/api/widget/sessions/${encodeURIComponent(state.conversationId)}/messages?async_mode=true`, {
+    const queued = await request(`/api/submission-portal/sessions/${encodeURIComponent(state.conversationId)}/messages?async_mode=true`, {
       method: "POST",
       body: JSON.stringify({ content: attempt.content, channel_message_id: attempt.channelMessageId }),
     });

@@ -4,7 +4,7 @@ Covers the three Phase-21 capabilities the ROADMAP_1_X demands:
 - 21.1 incremental quality aggregates (``quality_daily`` upsert, supervisor
   listing with keyset pagination, feedback-rating reflow that keeps the
   negative count in sync without re-scanning transcripts).
-- 21.2 the supervisor quality/knowledge-gaps REST surface (RBAC, cursor
+- 21.2 the supervisor quality/policy-gaps REST surface (RBAC, cursor
   pagination, validation, headers).
 - 21.3 the knowledge lifecycle: draft -> published/retired with an
   approval gate that cannot be bypassed, retrieval that never returns
@@ -389,11 +389,11 @@ class QualityApiTests(unittest.TestCase):
             json={"message_id": aid, "rating": -1},
             headers=self.admin,
         )
-        gaps = self.client.get("/api/supervisor/knowledge-gaps", headers=self.viewer)
+        gaps = self.client.get("/api/supervisor/policy-gaps", headers=self.viewer)
         self.assertEqual(gaps.status_code, 200)
         self.assertEqual(len(gaps.json()), 1)
         self.assertEqual(gaps.json()[0]["message_id"], aid)
-        forbidden = self.client.get("/api/supervisor/knowledge-gaps", headers=self.operator)
+        forbidden = self.client.get("/api/supervisor/policy-gaps", headers=self.operator)
         self.assertEqual(forbidden.status_code, 403)
 
     def test_tenant_isolation(self) -> None:
@@ -434,65 +434,63 @@ class KnowledgeLifecycleApiTests(unittest.TestCase):
     }
 
     def test_operator_cannot_create_draft(self) -> None:
-        r = self.client.post("/api/knowledge/drafts", json=self._DRAFT, headers=self.operator)
+        r = self.client.post("/api/policy/drafts", json=self._DRAFT, headers=self.operator)
         self.assertEqual(r.status_code, 403)
 
     def test_only_writers_can_list_inactive_articles(self) -> None:
-        draft = self.client.post(
-            "/api/knowledge/drafts", json=self._DRAFT, headers=self.admin
-        ).json()
+        draft = self.client.post("/api/policy/drafts", json=self._DRAFT, headers=self.admin).json()
 
-        complete = self.client.get("/api/knowledge?include_inactive=true", headers=self.admin)
+        complete = self.client.get("/api/policy?include_inactive=true", headers=self.admin)
         self.assertEqual(complete.status_code, 200, complete.text)
         self.assertIn(draft["id"], [article["id"] for article in complete.json()])
 
-        forbidden = self.client.get("/api/knowledge?include_inactive=true", headers=self.operator)
+        forbidden = self.client.get("/api/policy?include_inactive=true", headers=self.operator)
         self.assertEqual(forbidden.status_code, 403, forbidden.text)
-        published_only = self.client.get("/api/knowledge", headers=self.operator)
+        published_only = self.client.get("/api/policy", headers=self.operator)
         self.assertEqual(published_only.status_code, 200, published_only.text)
         self.assertNotIn(draft["id"], [article["id"] for article in published_only.json()])
 
     def test_draft_is_invisible_until_published(self) -> None:
-        created = self.client.post("/api/knowledge/drafts", json=self._DRAFT, headers=self.admin)
+        created = self.client.post("/api/policy/drafts", json=self._DRAFT, headers=self.admin)
         self.assertEqual(created.status_code, 201)
         body = created.json()
         self.assertEqual(body["status"], "draft")
         self.assertFalse(body["active"])
         draft_id = body["id"]
         # Not in the public knowledge listing.
-        listed = self.client.get("/api/knowledge", headers=self.admin).json()
+        listed = self.client.get("/api/policy", headers=self.admin).json()
         self.assertFalse(any(k["id"] == draft_id for k in listed))
         # Not retrievable via search either.
-        searched = self.client.get("/api/knowledge?q=shipping", headers=self.admin).json()
+        searched = self.client.get("/api/policy?q=shipping", headers=self.admin).json()
         self.assertFalse(any(k["id"] == draft_id for k in searched))
 
     def test_publish_makes_draft_retrievable(self) -> None:
         draft_id = self.client.post(
-            "/api/knowledge/drafts", json=self._DRAFT, headers=self.admin
+            "/api/policy/drafts", json=self._DRAFT, headers=self.admin
         ).json()["id"]
         pub = self.client.post(
-            f"/api/knowledge/{draft_id}/review",
+            f"/api/policy/{draft_id}/review",
             json={"action": "publish", "notes": "approved"},
             headers=self.admin,
         )
         self.assertEqual(pub.status_code, 200)
         self.assertEqual(pub.json()["status"], "published")
         self.assertTrue(pub.json()["active"])
-        listed = self.client.get("/api/knowledge", headers=self.admin).json()
+        listed = self.client.get("/api/policy", headers=self.admin).json()
         self.assertTrue(any(k["id"] == draft_id for k in listed))
 
     def test_publish_cannot_be_bypassed(self) -> None:
         draft_id = self.client.post(
-            "/api/knowledge/drafts", json=self._DRAFT, headers=self.admin
+            "/api/policy/drafts", json=self._DRAFT, headers=self.admin
         ).json()["id"]
         self.client.post(
-            f"/api/knowledge/{draft_id}/review",
+            f"/api/policy/{draft_id}/review",
             json={"action": "publish"},
             headers=self.admin,
         )
         # Second publish attempt is rejected with 409.
         second = self.client.post(
-            f"/api/knowledge/{draft_id}/review",
+            f"/api/policy/{draft_id}/review",
             json={"action": "publish"},
             headers=self.admin,
         )
@@ -500,15 +498,15 @@ class KnowledgeLifecycleApiTests(unittest.TestCase):
 
     def test_retire_and_re_retire(self) -> None:
         draft_id = self.client.post(
-            "/api/knowledge/drafts", json=self._DRAFT, headers=self.admin
+            "/api/policy/drafts", json=self._DRAFT, headers=self.admin
         ).json()["id"]
         self.client.post(
-            f"/api/knowledge/{draft_id}/review",
+            f"/api/policy/{draft_id}/review",
             json={"action": "publish"},
             headers=self.admin,
         )
         retire = self.client.post(
-            f"/api/knowledge/{draft_id}/review",
+            f"/api/policy/{draft_id}/review",
             json={"action": "retire"},
             headers=self.admin,
         )
@@ -517,7 +515,7 @@ class KnowledgeLifecycleApiTests(unittest.TestCase):
         self.assertFalse(retire.json()["active"])
         # Retiring again is rejected.
         again = self.client.post(
-            f"/api/knowledge/{draft_id}/review",
+            f"/api/policy/{draft_id}/review",
             json={"action": "retire"},
             headers=self.admin,
         )
@@ -525,7 +523,7 @@ class KnowledgeLifecycleApiTests(unittest.TestCase):
 
     def test_review_unknown_article_404(self) -> None:
         r = self.client.post(
-            "/api/knowledge/does-not-exist/review",
+            "/api/policy/does-not-exist/review",
             json={"action": "publish"},
             headers=self.admin,
         )
@@ -540,7 +538,7 @@ class KnowledgeLifecycleApiTests(unittest.TestCase):
             json={"message_id": aid, "rating": -1},
             headers=self.admin,
         )
-        gaps = self.client.get("/api/supervisor/knowledge-gaps", headers=self.admin).json()
+        gaps = self.client.get("/api/supervisor/policy-gaps", headers=self.admin).json()
         self.assertEqual(len(gaps), 1)
         draft = self.client.post(
             f"/api/conversations/{cid}/messages/{aid}/knowledge-draft",

@@ -63,7 +63,7 @@ SEC-006 quarantine flow: an external AV/CDR engine promotes a quarantined upload
 
 ## Admin
 
-### GET `/api/admin/agent-groups`
+### GET `/api/admin/reviewer-groups`
 
 **List agent groups (skills + capacity)**
 
@@ -102,7 +102,7 @@ List agent groups (skills + capacity). Requires: admin:manage.
     detail: array
   }
 
-### POST `/api/admin/agent-groups`
+### POST `/api/admin/reviewer-groups`
 
 **Create an agent group**
 
@@ -150,7 +150,7 @@ Create an agent group. Requires: admin:manage.
     detail: array
   }
 
-### DELETE `/api/admin/agent-groups/{group_id}`
+### DELETE `/api/admin/reviewer-groups/{group_id}`
 
 **Delete an agent group**
 
@@ -178,7 +178,7 @@ Delete an agent group. Requires: admin:manage.
     detail: array
   }
 
-### POST `/api/admin/agent-groups/{group_id}/agents`
+### POST `/api/admin/reviewer-groups/{group_id}/reviewers`
 
 **Add an agent to a group**
 
@@ -221,7 +221,7 @@ object
     detail: array
   }
 
-### DELETE `/api/admin/agent-groups/{group_id}/agents/{actor_id}`
+### DELETE `/api/admin/reviewer-groups/{group_id}/reviewers/{actor_id}`
 
 **Remove an agent from a group**
 
@@ -250,7 +250,7 @@ Remove an agent from a group. Requires: admin:manage.
     detail: array
   }
 
-### GET `/api/admin/csat-summary`
+### GET `/api/admin/qa-spot-check-summary`
 
 **Aggregate answered CSAT surveys; days only bounds the per-day trend (readouts are all-history)**
 
@@ -1800,15 +1800,15 @@ Current session. Requires: any authenticated session.
 
   object
 
-## Canned-responses
+## Canned-verdicts
 
-### GET `/api/canned-responses`
+### GET `/api/canned-verdicts`
 
 **List canned responses**
 
 List canned responses. Requires: conversation:read.
 
-*Tags:* `canned-responses`
+*Tags:* `canned-verdicts`
 
 **Parameters**
 
@@ -1849,13 +1849,13 @@ List canned responses. Requires: conversation:read.
     detail: array
   }
 
-### POST `/api/canned-responses`
+### POST `/api/canned-verdicts`
 
 **Create a canned response**
 
 Create a canned response. Requires: knowledge:write.
 
-*Tags:* `canned-responses`
+*Tags:* `canned-verdicts`
 
 **Parameters**
 
@@ -1904,13 +1904,13 @@ Create a canned response. Requires: knowledge:write.
     detail: array
   }
 
-### PATCH `/api/canned-responses/{response_id}`
+### PATCH `/api/canned-verdicts/{response_id}`
 
 **Update a canned response**
 
 Update a canned response. Requires: knowledge:write.
 
-*Tags:* `canned-responses`
+*Tags:* `canned-verdicts`
 
 **Parameters**
 
@@ -1961,13 +1961,13 @@ Update a canned response. Requires: knowledge:write.
     detail: array
   }
 
-### POST `/api/canned-responses/{response_id}/use`
+### POST `/api/canned-verdicts/{response_id}/use`
 
 **Record canned-response usage**
 
 Record canned-response usage. Requires: operator:act.
 
-*Tags:* `canned-responses`
+*Tags:* `canned-verdicts`
 
 **Parameters**
 
@@ -3512,7 +3512,7 @@ Resolve a conversation. Requires: operator:act.
 
 ## Copilot
 
-### POST `/api/copilot/knowledge`
+### POST `/api/copilot/policy`
 
 **Recommend knowledge articles for the latest customer message**
 
@@ -3642,9 +3642,9 @@ Suggest 1-3 customer-facing reply drafts for a conversation. Requires: operator:
     detail: array
   }
 
-## Csat
+## Qa_spot_check
 
-### POST `/api/csat/{token}`
+### POST `/api/qa-spot-check/{token}`
 
 **Submit a one-time CSAT satisfaction rating**
 
@@ -3655,7 +3655,7 @@ browser ``application/x-www-form-urlencoded`` submission from the survey
 form. Both are routed through the same atomic single-use write, and a
 browser submission receives a thank-you page back.
 
-*Tags:* `csat`
+*Tags:* `qa_spot_check`
 
 **Parameters**
 
@@ -3727,7 +3727,7 @@ Queue and quality dashboard indicators. Requires: conversation:read.
     detail: array
   }
 
-## Knowledge
+## Policy
 
 ### POST `/api/conversations/{conversation_id}/messages/{message_id}/knowledge-draft`
 
@@ -3739,7 +3739,7 @@ Reflows negative feedback into the knowledge base (Phase 21.3): the
 assistant message's content seeds a draft the reviewer can edit and
 publish.  Returns 404 if the message or conversation does not exist.
 
-*Tags:* `knowledge`
+*Tags:* `policy`
 
 **Parameters**
 
@@ -3781,13 +3781,13 @@ publish.  Returns 404 if the message or conversation does not exist.
     detail: array
   }
 
-### GET `/api/knowledge`
+### GET `/api/policy`
 
 **List published knowledge articles**
 
 List published knowledge articles. Requires: conversation:read.
 
-*Tags:* `knowledge`
+*Tags:* `policy`
 
 **Parameters**
 
@@ -3829,13 +3829,13 @@ List published knowledge articles. Requires: conversation:read.
     detail: array
   }
 
-### POST `/api/knowledge`
+### POST `/api/policy`
 
 **Create a published knowledge article**
 
 Create a published knowledge article. Requires: knowledge:write.
 
-*Tags:* `knowledge`
+*Tags:* `policy`
 
 **Parameters**
 
@@ -3888,7 +3888,7 @@ Create a published knowledge article. Requires: knowledge:write.
     detail: array
   }
 
-### POST `/api/knowledge/drafts`
+### POST `/api/policy/drafts`
 
 **Create a knowledge draft (invisible until approved)**
 
@@ -3897,7 +3897,7 @@ Create a knowledge article in ``draft`` status (Phase 21.3).
 Drafts are invisible to retrieval until explicitly published through
 the review endpoint, so an approval step is mandatory.
 
-*Tags:* `knowledge`
+*Tags:* `policy`
 
 **Parameters**
 
@@ -3950,13 +3950,13 @@ the review endpoint, so an approval step is mandatory.
     detail: array
   }
 
-### PATCH `/api/knowledge/{article_id}`
+### PATCH `/api/policy/{article_id}`
 
 **Update a knowledge article**
 
 Update a knowledge article. Requires: knowledge:write.
 
-*Tags:* `knowledge`
+*Tags:* `policy`
 
 **Parameters**
 
@@ -4011,7 +4011,7 @@ Update a knowledge article. Requires: knowledge:write.
     detail: array
   }
 
-### POST `/api/knowledge/{article_id}/review`
+### POST `/api/policy/{article_id}/review`
 
 **Publish or retire a pending knowledge article**
 
@@ -4021,7 +4021,7 @@ The approval cannot be bypassed: only ``draft`` or ``pending_review``
 articles can be published, so a reviewer must act before the article
 becomes retrievable.
 
-*Tags:* `knowledge`
+*Tags:* `policy`
 
 **Parameters**
 
@@ -4555,7 +4555,7 @@ Activate, canary, or rollback a prompt version. Requires: admin:manage.
 
 ## Quality
 
-### GET `/api/supervisor/knowledge-gaps`
+### GET `/api/supervisor/policy-gaps`
 
 **Negative-feedback turns without knowledge citations**
 
@@ -5187,15 +5187,15 @@ readiness=ok while it initializes.
 
 
 
-## Tickets
+## Appeals
 
-### POST `/api/tickets`
+### POST `/api/appeals`
 
 **Convert a conversation into a long-cycle ticket (idempotent)**
 
 Convert a conversation into a long-cycle ticket (idempotent). Requires: operator:act.
 
-*Tags:* `tickets`
+*Tags:* `appeals`
 
 **Parameters**
 
@@ -5245,13 +5245,13 @@ Convert a conversation into a long-cycle ticket (idempotent). Requires: operator
     detail: array
   }
 
-### GET `/api/tickets`
+### GET `/api/appeals`
 
 **List tickets (filter by status or customer reference)**
 
 List tickets (filter by status or customer reference). Requires: conversation:read.
 
-*Tags:* `tickets`
+*Tags:* `appeals`
 
 **Parameters**
 
@@ -5294,13 +5294,13 @@ List tickets (filter by status or customer reference). Requires: conversation:re
     detail: array
   }
 
-### GET `/api/tickets/{ticket_id}`
+### GET `/api/appeals/{appeal_id}`
 
 **Ticket detail with linked conversations**
 
 Ticket detail with linked conversations. Requires: conversation:read.
 
-*Tags:* `tickets`
+*Tags:* `appeals`
 
 **Parameters**
 
@@ -5341,13 +5341,13 @@ Ticket detail with linked conversations. Requires: conversation:read.
     detail: array
   }
 
-### PATCH `/api/tickets/{ticket_id}`
+### PATCH `/api/appeals/{appeal_id}`
 
 **Update ticket subject/description/priority/assignee**
 
 Update ticket subject/description/priority/assignee. Requires: operator:act.
 
-*Tags:* `tickets`
+*Tags:* `appeals`
 
 **Parameters**
 
@@ -5398,13 +5398,13 @@ Update ticket subject/description/priority/assignee. Requires: operator:act.
     detail: array
   }
 
-### POST `/api/tickets/{ticket_id}/link`
+### POST `/api/appeals/{appeal_id}/link`
 
 **Link another conversation to the ticket (cross-conversation tracking)**
 
 Link another conversation to the ticket (cross-conversation tracking). Requires: operator:act.
 
-*Tags:* `tickets`
+*Tags:* `appeals`
 
 **Parameters**
 
@@ -5452,13 +5452,13 @@ Link another conversation to the ticket (cross-conversation tracking). Requires:
     detail: array
   }
 
-### POST `/api/tickets/{ticket_id}/transition`
+### POST `/api/appeals/{appeal_id}/transition`
 
 **Move a ticket through its state machine (open/in_progress/closed)**
 
 Move a ticket through its state machine (open/in_progress/closed). Requires: operator:act.
 
-*Tags:* `tickets`
+*Tags:* `appeals`
 
 **Parameters**
 
@@ -6068,15 +6068,15 @@ Delete a webhook endpoint. Requires: admin:manage.
     detail: array
   }
 
-## Widget
+## Submission_portal
 
-### POST `/api/widget/sessions`
+### POST `/api/submission-portal/sessions`
 
 **Open a widget chat session (signed token)**
 
 Open a widget chat session bound to the token's tenant.
 
-*Tags:* `widget`
+*Tags:* `submission_portal`
 
 **Parameters**
 
@@ -6145,7 +6145,7 @@ Open a widget chat session bound to the token's tenant.
     detail: array
   }
 
-### POST `/api/widget/sessions/{conversation_id}/messages`
+### POST `/api/submission-portal/sessions/{conversation_id}/messages`
 
 **Send a widget message (channel-id idempotent)**
 
@@ -6157,7 +6157,7 @@ response is ``{"job_id": ..., "status": "queued"}``; the client then
 streams progressive output from ``GET /stream``. Either way, replaying
 the same ``channel_message_id`` never creates a second turn.
 
-*Tags:* `widget`
+*Tags:* `submission_portal`
 
 **Parameters**
 
@@ -6192,13 +6192,13 @@ the same ``channel_message_id`` never creates a second turn.
     detail: array
   }
 
-### GET `/api/widget/sessions/{conversation_id}/messages`
+### GET `/api/submission-portal/sessions/{conversation_id}/messages`
 
 **List widget conversation messages**
 
 List widget conversation messages. Requires: X-Widget-Token (signed, no API key).
 
-*Tags:* `widget`
+*Tags:* `submission_portal`
 
 **Parameters**
 
@@ -6233,7 +6233,7 @@ List widget conversation messages. Requires: X-Widget-Token (signed, no API key)
     detail: array
   }
 
-### GET `/api/widget/sessions/{conversation_id}/stream`
+### GET `/api/submission-portal/sessions/{conversation_id}/stream`
 
 **SSE stream for the widget conversation's latest turn**
 
@@ -6242,7 +6242,7 @@ SSE stream of the conversation's latest turn job (Phase 23.1).
 Reuses the same token/job events as the operator turn-job stream so the
 widget gets progressive output without holding an API key.
 
-*Tags:* `widget`
+*Tags:* `submission_portal`
 
 **Parameters**
 

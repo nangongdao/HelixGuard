@@ -4,7 +4,7 @@
  * Migrates the ticket list rendering to React. The legacy ticket-view.js
  * module is heavily DOM-coupled (uses configure(deps) + ctx.els); this
  * island extracts the list rendering into a self-contained component that
- * fetches from /api/tickets and renders ticket rows with the same DOM
+ * fetches from /api/appeals and renders ticket rows with the same DOM
  * structure/class names so visual gates stay green.
  *
  * Mounts into #ticketReactIsland. The detail view stays in the legacy
@@ -59,7 +59,7 @@ function TicketIsland() {
     queryKey: ["tickets", statusFilter],
     queryFn: async () => {
       const query = statusFilter ? `?status=${encodeURIComponent(statusFilter)}` : "";
-      const res = await fetch(`/api/tickets${query}`, {
+      const res = await fetch(`/api/appeals${query}`, {
         headers: { "X-Tenant-Id": "demo" },
       });
       if (!res.ok) throw new Error(`tickets API ${res.status}`);

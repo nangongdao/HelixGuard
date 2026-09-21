@@ -186,7 +186,7 @@ class KnowledgeDraftToolTests(unittest.TestCase):
 
     def test_mutating_call_lands_pending_review_and_audits(self) -> None:
         response = self.client.post(
-            "/api/copilot/knowledge-draft", headers=self.admin, json=self._draft_body()
+            "/api/copilot/policy-draft", headers=self.admin, json=self._draft_body()
         )
         self.assertEqual(response.status_code, 200, response.text)
         body = response.json()
@@ -212,14 +212,14 @@ class KnowledgeDraftToolTests(unittest.TestCase):
         token = gateway.mint_capability_token("knowledge.draft", "demo")
         self.assertIsNotNone(token)
         response = self.client.post(
-            "/api/copilot/knowledge-draft", headers=self.admin, json=self._draft_body()
+            "/api/copilot/policy-draft", headers=self.admin, json=self._draft_body()
         )
         self.assertEqual(response.status_code, 200, response.text)
 
         # Schema denial: the tool refuses out-of-bounds arguments and the
         # denial is audited.
         bad = self.client.post(
-            "/api/copilot/knowledge-draft",
+            "/api/copilot/policy-draft",
             headers=self.admin,
             json=self._draft_body(content="太短"),
         )
@@ -237,7 +237,7 @@ class KnowledgeDraftToolTests(unittest.TestCase):
 
     def test_viewer_cannot_call_the_mutating_tool(self) -> None:
         forbidden = self.client.post(
-            "/api/copilot/knowledge-draft", headers=self.viewer, json=self._draft_body()
+            "/api/copilot/policy-draft", headers=self.viewer, json=self._draft_body()
         )
         self.assertEqual(forbidden.status_code, 403)
 

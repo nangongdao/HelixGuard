@@ -10,7 +10,7 @@ from uuid import uuid4
 from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Page, expect, sync_playwright
 
-from app.widget_token import sign_token
+from app.portal_token import sign_token
 
 BASE_URL = os.getenv("HELIX_BASE_URL", "http://127.0.0.1:8774").rstrip("/")
 WIDGET_SECRET = os.getenv("WIDGET_SECRET", "helix-widget-dev-secret")
@@ -30,7 +30,7 @@ def unexpected_request_failures(failures: list[str]) -> list[str]:
         failure
         for failure in failures
         if not (
-            failure.startswith(f"GET {BASE_URL}/api/widget/sessions/")
+            failure.startswith(f"GET {BASE_URL}/api/submission-portal/sessions/")
             and "/stream?" in failure
             and "ERR_ABORTED" in failure
         )
@@ -97,7 +97,8 @@ def main() -> None:
         page.get_by_label("怎么称呼你？（可选）").fill(f"访客-{run_id}")
         with page.expect_response(
             lambda response: (
-                response.url.endswith("/api/widget/sessions") and response.request.method == "POST"
+                response.url.endswith("/api/submission-portal/sessions")
+                and response.request.method == "POST"
             )
         ) as session_info:
             page.get_by_role("button", name="开始提交").click()
@@ -115,7 +116,7 @@ def main() -> None:
         page.get_by_label("发送消息").fill("违规内容怎么分级？")
         with page.expect_response(
             lambda response: (
-                "/api/widget/sessions/" in response.url
+                "/api/submission-portal/sessions/" in response.url
                 and "/messages?async_mode=true" in response.url
                 and response.request.method == "POST"
             )
@@ -150,7 +151,7 @@ def main() -> None:
             else:
                 route.continue_()
 
-        stream_pattern = "**/api/widget/sessions/*/stream?timeout=20"
+        stream_pattern = "**/api/submission-portal/sessions/*/stream?timeout=20"
         page.route(stream_pattern, recover_stream)
         page.get_by_label("发送消息").fill("申诉时限是多久？")
         page.get_by_label("发送消息").press("Enter")
@@ -199,7 +200,7 @@ def main() -> None:
             headers["x-conversation-status"] = "waiting_human"
             route.fulfill(response=response, headers=headers)
 
-        history_pattern = "**/api/widget/sessions/*/messages?limit=200"
+        history_pattern = "**/api/submission-portal/sessions/*/messages?limit=200"
         page.route(history_pattern, handoff_history)
         page.reload(wait_until="domcontentloaded")
         expect(page.locator(".system-note")).to_contain_text("已转交人工复核")
@@ -241,7 +242,7 @@ def main() -> None:
         expect(resolved_banner).to_be_visible(timeout=30000)
         expect(resolved_banner).to_contain_text("审核单已判定")
         csat_href = resolved_banner.locator("#csatLink").get_attribute("href")
-        assert csat_href and "/api/csat/" in csat_href, csat_href
+        assert csat_href and "/api/qa-spot-check/" in csat_href, csat_href
         survey_token = csat_href.rsplit("/", 1)[-1]
 
         # The customer follows the rating link: the one-time survey page
@@ -252,7 +253,7 @@ def main() -> None:
         survey_page.get_by_label("评分").select_option("5")
         with survey_page.expect_response(
             lambda response: (
-                response.url.endswith(f"/api/csat/{survey_token}")
+                response.url.endswith(f"/api/qa-spot-check/{survey_token}")
                 and response.request.method == "POST"
             )
         ) as rating_info:
@@ -278,7 +279,7 @@ def main() -> None:
         expired_page.get_by_role("button", name="开始提交").click()
         expect(expired_page.locator("#chatView")).to_be_visible()
         expired_page.route(
-            "**/api/widget/sessions/*/messages?async_mode=true",
+            "**/api/submission-portal/sessions/*/messages?async_mode=true",
             lambda route: route.fulfill(
                 status=401,
                 content_type="application/problem+json",

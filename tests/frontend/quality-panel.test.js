@@ -114,7 +114,7 @@ test("island-mode loadQualityPanel publishes the built panel HTML to the inspect
   configureDeps({
     api: async (url) => {
       apiCalls += 1;
-      return url.includes("knowledge-gaps") ? GAPS : BUCKETS;
+      return url.includes("policy-gaps") ? GAPS : BUCKETS;
     },
     showToast: async () => {},
   });

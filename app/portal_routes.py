@@ -1,21 +1,25 @@
-"""Embeddable Web Chat widget endpoints (Phase 23).
+"""Embeddable submission-portal endpoints (Phase 23).
 
 Public endpoints that authenticate via a signed ``X-Widget-Token`` instead of
-an API key, so a customer's browser can open a session and chat without
-credentials:
+an API key, so a submitter's browser can open a session and submit content
+without credentials:
 
-- ``POST /api/widget/sessions`` — create a conversation bound to the token's
-  tenant (anonymous or named customer), return the conversation plus a fresh
-  per-session token.
-- ``POST /api/widget/sessions/{conversation_id}/messages`` — send a customer
-  message; ``channel_message_id`` dedup means replaying the same channel
-  message never creates a second turn (Phase 23.2).
-- ``GET /api/widget/sessions/{conversation_id}/messages`` — list messages.
-- ``GET /api/widget/sessions/{conversation_id}/stream`` — SSE event stream of
-  the latest turn job for the conversation.
+- ``POST /api/submission-portal/sessions`` — create a review case bound to the
+  token's tenant (anonymous or named submitter), return the review case plus a
+  fresh per-session token.
+- ``POST /api/submission-portal/sessions/{conversation_id}/messages`` — send a
+  submitter message; ``channel_message_id`` dedup means replaying the same
+  channel message never creates a second turn (Phase 23.2).
+- ``GET /api/submission-portal/sessions/{conversation_id}/messages`` — list messages.
+- ``GET /api/submission-portal/sessions/{conversation_id}/stream`` — SSE event stream of
+  the latest turn job for the review case.
 
 The router is mounted on the app so it inherits the request-controls
 middleware (CSP, security headers) automatically.
+
+The previous prefix was ``/api/widget``; it keeps serving as a deprecated
+alias (``docs/API_POLICY.md`` §2) until the sunset registered in
+``app.deprecation._DEPRECATIONS``.
 """
 
 from __future__ import annotations
@@ -41,6 +45,7 @@ from app.pagination import (
     decode_message_cursor,
     encode_message_cursor,
 )
+from app.routers.common import legacy_route
 from app.schemas import (
     ConversationOut,
     MessageOut,
@@ -49,9 +54,9 @@ from app.schemas import (
     WidgetSessionCreateRequest,
     WidgetSessionOut,
 )
-from app.widget_token import WidgetToken, WidgetTokenError, sign_token, verify_token
+from app.portal_token import WidgetToken, WidgetTokenError, sign_token, verify_token
 
-router = APIRouter(prefix="/api/widget", tags=["widget"])
+router = APIRouter(tags=["submission_portal"])
 
 
 def _services(request: Request) -> AppServices:
@@ -107,7 +112,14 @@ def _ensure_session_token(token: WidgetToken, conversation_id: str) -> None:
         raise HTTPException(status_code=404, detail="Conversation not found")
 
 
-@router.post("/sessions", response_model=WidgetSessionOut, status_code=201)
+@router.post("/api/submission-portal/sessions", response_model=WidgetSessionOut, status_code=201)
+@legacy_route(
+    router,
+    "/api/widget/sessions",
+    methods=["POST"],
+    response_model=WidgetSessionOut,
+    status_code=201,
+)
 def create_widget_session(
     request: Request,
     payload: WidgetSessionCreateRequest,
@@ -139,7 +151,12 @@ def create_widget_session(
 
 
 @router.post(
-    "/sessions/{conversation_id}/messages",
+    "/api/submission-portal/sessions/{conversation_id}/messages",
+)
+@legacy_route(
+    router,
+    "/api/widget/sessions/{conversation_id}/messages",
+    methods=["POST"],
 )
 def send_widget_message(
     request: Request,
@@ -234,7 +251,13 @@ def send_widget_message(
 
 
 @router.get(
-    "/sessions/{conversation_id}/messages",
+    "/api/submission-portal/sessions/{conversation_id}/messages",
+    response_model=list[MessageOut],
+)
+@legacy_route(
+    router,
+    "/api/widget/sessions/{conversation_id}/messages",
+    methods=["GET"],
     response_model=list[MessageOut],
 )
 def list_widget_messages(
@@ -273,7 +296,7 @@ def list_widget_messages(
         survey = database.get_pending_csat_survey(token.tenant_id, conversation_id)
         if survey:
             base = services.settings.csat_base_url or ""
-            response.headers["X-CSAT-Survey-URL"] = f"{base}/api/csat/{survey['token']}"
+            response.headers["X-CSAT-Survey-URL"] = f"{base}/api/qa-spot-check/{survey['token']}"
     try:
         decoded_cursor = decode_message_cursor(cursor) if cursor else None
     except InvalidCursorError as exc:
@@ -294,7 +317,8 @@ def list_widget_messages(
     return [message_out(row) for row in page if not is_internal_message_role(row.get("role"))]
 
 
-@router.get("/sessions/{conversation_id}/stream")
+@router.get("/api/submission-portal/sessions/{conversation_id}/stream")
+@legacy_route(router, "/api/widget/sessions/{conversation_id}/stream", methods=["GET"])
 async def stream_widget_turn(
     request: Request,
     conversation_id: str,
