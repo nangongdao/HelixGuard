@@ -9,8 +9,8 @@ Version 2.24.0 承接 2.23.0（P1 产品身份），改的是**用户看得见�
 **规模**
 
 - 受控脚本做 **743 处替换**（第一遍 703 + 补漏 40），另有 **4 处误伤回修**；跨 283 个受跟踪文件（272 个文本 + 11 个二进制：4 个视觉基线 + 7 张 README 截图）。
-- `git diff --shortstat` = `283 files changed, 1142 insertions(+), 1038 deletions(-)`。**增删不对称只有 3 个文件、净 +104 行**，全部有据：本条目 +109、`README.md` 重写 −7、`tests/ui_tickets.py` ruff 折行 +2（T11 改写后行宽超限，用 pin 版 ruff 重排）。**其余 269 个文本文件逐行增删完全对称**，可判定为行内字符串替换，无行结构改动。
-  - 口径说明：上面是**工作树 diff**（只含已跟踪文件）。合并提交落定后 `git show --stat` 为 `285 files changed, 1406 insertions(+), 1038 deletions(-)`——多出的 2 个文件与 264 行是新增的 `docs/DOMAIN.md`、`docs/DOMAIN_MIGRATION_PLAN.md`（P1 产出，此前未被 git 跟踪），三者不矛盾。
+- `git diff --shortstat` = `283 files changed, 1142 insertions(+), 1038 deletions(-)`。**增删不对称只有 3 个文件、净 +105 行**，全部有据：本条目 +110、`README.md` 重写 −7、`tests/ui_tickets.py` ruff 折行 +2（T11 改写后行宽超限，用 pin 版 ruff 重排）。**其余 269 个文本文件逐行增删完全对称**，可判定为行内字符串替换，无行结构改动。
+  - 口径说明：上面是**工作树 diff**（只含已跟踪文件）。最终 squash 提交落定后 `git show --stat` 为 `285 files changed, 1407 insertions(+), 1038 deletions(-)`——多出的 2 个文件与 264 行是新增的 `docs/DOMAIN.md`、`docs/DOMAIN_MIGRATION_PLAN.md`（P1 产出，此前未被 git 跟踪）；余下 +1 行是补写本「口径说明」子项本身（`CHANGELOG` 条目最终 +110 行）。三个口径自洽：1142 + 264 + 1 = 1407。
 - **换行保真**：读写两侧禁用换行转换。抽查 `app/static/index.html` CRLF=904 / LF-only=0、`app/static/widget.html`、`app/main.py`，与替换前逐项一致（本工作树 `core.autocrlf=true`，全仓 CRLF；若用默认 universal-newline 读法会把文件行尾整体翻成 LF，制造一个掩盖真实改动的巨型 diff——P1 已踩过这个坑）。
 
 **第一遍：术语契约 T1–T15 的机械替换（703 处）**
