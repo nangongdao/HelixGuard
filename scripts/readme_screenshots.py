@@ -53,7 +53,7 @@ def open_new_conversation(page: Page, name: str, customer_ref: str = "") -> None
     if customer_ref:
         page.get_by_label("提交方标识 可选").fill(customer_ref)
     with page.expect_response(
-        lambda r: r.url.endswith("/api/conversations") and r.request.method == "POST"
+        lambda r: r.url.endswith("/api/review-cases") and r.request.method == "POST"
     ):
         page.get_by_role("button", name="创建审核单").click()
     expect(page.get_by_role("heading", name=name)).to_be_visible()
@@ -62,7 +62,7 @@ def open_new_conversation(page: Page, name: str, customer_ref: str = "") -> None
 def send_customer_message(page: Page, message: str) -> None:
     page.get_by_label("待审内容", exact=True).fill(message)
     with page.expect_response(
-        lambda r: "/api/conversations/" in r.url and r.url.endswith("/messages")
+        lambda r: "/api/review-cases/" in r.url and r.url.endswith("/messages")
     ):
         page.get_by_role("button", name="发送待审内容").click()
 

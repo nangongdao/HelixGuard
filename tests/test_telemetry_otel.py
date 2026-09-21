@@ -125,12 +125,12 @@ class OpenTelemetryEndToEndTests(unittest.TestCase):
         exporter = self._route_spans_to_memory()
 
         created = self.client.post(
-            "/api/conversations",
+            "/api/review-cases",
             json={"customer_name": "OTel E2E", "channel": "web"},
             headers=self.headers,
         )
         self.assertEqual(created.status_code, 201, created.text)
-        self.client.get("/api/conversations", headers=self.headers)
+        self.client.get("/api/review-cases", headers=self.headers)
 
         spans = exporter.get_finished_spans()
         request_spans = [s for s in spans if s.name == "http.request"]
@@ -141,10 +141,10 @@ class OpenTelemetryEndToEndTests(unittest.TestCase):
         }
         # The route attribute is added after the span starts (resolved by the
         # router), proving post-creation attributes are forwarded.
-        get_span = by_method_route.get(("GET", "/api/conversations"))
-        post_span = by_method_route.get(("POST", "/api/conversations"))
-        assert get_span is not None, "no GET /api/conversations span exported"
-        assert post_span is not None, "no POST /api/conversations span exported"
+        get_span = by_method_route.get(("GET", "/api/review-cases"))
+        post_span = by_method_route.get(("POST", "/api/review-cases"))
+        assert get_span is not None, "no GET /api/review-cases span exported"
+        assert post_span is not None, "no POST /api/review-cases span exported"
         self.assertEqual(get_span.attributes.get("status_code"), 200)
         self.assertEqual(post_span.attributes.get("status_code"), 201)
         for span in request_spans:

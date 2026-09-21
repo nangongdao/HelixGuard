@@ -231,8 +231,8 @@ def main() -> None:
         # Handoff/claim so the lifecycle reaches human_active first (the
         # console's 判定 button is available from open too, but claim makes
         # the flow deterministic), then resolve — creating the CSAT survey.
-        api_post(f"/api/conversations/{conversation_id}/accept", {})
-        api_post(f"/api/conversations/{conversation_id}/resolve", {})
+        api_post(f"/api/review-cases/{conversation_id}/accept", {})
+        api_post(f"/api/review-cases/{conversation_id}/resolve", {})
 
         # The widget page polls history on reload: the resolved banner and
         # the rating link appear, pointing at the one-time survey.

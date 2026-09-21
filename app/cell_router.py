@@ -170,7 +170,7 @@ async def forward_request_to_cell(
     Args:
         cell: Target cell
         method: HTTP method (GET, POST, etc.)
-        path: Request path (e.g., "/api/conversations")
+        path: Request path (e.g., "/api/review-cases")
         headers: Request headers
         json_body: JSON request body for POST/PUT/PATCH
         timeout_seconds: Request timeout

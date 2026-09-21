@@ -63,13 +63,13 @@ class ApiKeyRevocationTests(unittest.TestCase):
     def test_revoke_disables_key_immediately(self) -> None:
         credential = self._operator_credential()
         self.assertEqual(
-            self.client.get("/api/conversations", headers=self.operator).status_code, 200
+            self.client.get("/api/review-cases", headers=self.operator).status_code, 200
         )
         revoked = self.client.post(f"/api/admin/keys/{credential}/revoke", headers=self.admin)
         self.assertEqual(revoked.status_code, 200)
         self.assertTrue(revoked.json()["revoked"])
         self.assertEqual(
-            self.client.get("/api/conversations", headers=self.operator).status_code, 401
+            self.client.get("/api/review-cases", headers=self.operator).status_code, 401
         )
 
     def test_revoke_is_audited(self) -> None:
@@ -90,7 +90,7 @@ class ApiKeyRevocationTests(unittest.TestCase):
         self.client = TestClient(create_app(_settings(self.db_path)))
         self.services = cast(Any, self.client.app).state.services
         self.assertEqual(
-            self.client.get("/api/conversations", headers=self.operator).status_code, 401
+            self.client.get("/api/review-cases", headers=self.operator).status_code, 401
         )
 
     def test_operator_cannot_revoke(self) -> None:
@@ -188,9 +188,9 @@ class AuditChainEndToEndTests(unittest.TestCase):
         from app.audit_chain import verify_chain
         from scripts.verify_audit_chain import load_rows
 
-        self.client.get("/api/conversations", headers=self.admin)
+        self.client.get("/api/review-cases", headers=self.admin)
         self.client.post(
-            "/api/conversations",
+            "/api/review-cases",
             json={"customer_name": "Chain", "channel": "web"},
             headers=self.admin,
         )

@@ -176,7 +176,7 @@ test("island-mode loadQualityPanel reports a fetch failure as the buckets messag
   assert.match(events[0].bucketsHtml, /质量数据加载失败/);
 });
 
-test("bindQuality bridges helix-quality-draft to the knowledge-draft write", async () => {
+test("bindQuality bridges helix-quality-draft to the policy-draft write", async () => {
   const windowStub = installWindow({ islandMode: false });
   const calls = [];
   configureDeps({
@@ -196,6 +196,6 @@ test("bindQuality bridges helix-quality-draft to the knowledge-draft write", asy
   );
   await new Promise((resolve) => setTimeout(resolve, 0));
   const post = calls.find((call) => call.url);
-  assert.ok(post, "expected the knowledge-draft POST");
-  assert.match(post.url, /\/api\/conversations\/conv-9\/messages\/msg-9\/knowledge-draft/);
+  assert.ok(post, "expected the policy-draft POST");
+  assert.match(post.url, /\/api\/review-cases\/conv-9\/messages\/msg-9\/policy-draft/);
 });

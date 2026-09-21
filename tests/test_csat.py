@@ -53,14 +53,14 @@ class CsatSurveyTests(unittest.TestCase):
     def _resolve_conversation(self, name: str = "C") -> tuple[str, str]:
         """Resolve a fresh conversation; returns (id, survey token)."""
         conv = self.client.post(
-            "/api/conversations", json={"customer_name": name}, headers=self.admin
+            "/api/review-cases", json={"customer_name": name}, headers=self.admin
         ).json()
         self.client.post(
-            f"/api/conversations/{conv['id']}/messages",
+            f"/api/review-cases/{conv['id']}/messages",
             json={"content": "ORD-10482 的来源"},
             headers={**self.admin, "Idempotency-Key": f"csat-t-{name}"},
         )
-        response = self.client.post(f"/api/conversations/{conv['id']}/resolve", headers=self.admin)
+        response = self.client.post(f"/api/review-cases/{conv['id']}/resolve", headers=self.admin)
         self.assertEqual(response.status_code, 200, response.text)
         body = response.json()
         self.assertIsNotNone(body.get("survey_url"), "resolve response must carry survey_url")
@@ -179,14 +179,14 @@ class CsatSurveyTests(unittest.TestCase):
             services = cast(Any, client.app).state.services
             admin = {"X-API-Key": ADMIN_KEY, "X-Tenant-Id": "demo"}
             conv = client.post(
-                "/api/conversations", json={"customer_name": "abs"}, headers=admin
+                "/api/review-cases", json={"customer_name": "abs"}, headers=admin
             ).json()
             client.post(
-                f"/api/conversations/{conv['id']}/messages",
+                f"/api/review-cases/{conv['id']}/messages",
                 json={"content": "ORD-10482 的来源"},
                 headers={**admin, "Idempotency-Key": "csat-t-abs"},
             )
-            response = client.post(f"/api/conversations/{conv['id']}/resolve", headers=admin)
+            response = client.post(f"/api/review-cases/{conv['id']}/resolve", headers=admin)
             url = response.json()["survey_url"]
             self.assertTrue(url.startswith("https://support.example.com/api/qa-spot-check/"))
             services.database.close()

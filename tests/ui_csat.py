@@ -56,11 +56,11 @@ def submit_ratings(count: int, ratings: list[int]) -> int:
     answered = 0
     for rating in ratings[:count]:
         status, conv = api_post(
-            "/api/conversations",
+            "/api/review-cases",
             {"customer_name": f"csat-{uuid4().hex[:6]}", "channel": "web"},
         )
         assert status == 201, f"建审核单失败: {status}"
-        status, resolved = api_post(f"/api/conversations/{conv['id']}/resolve", {})
+        status, resolved = api_post(f"/api/review-cases/{conv['id']}/resolve", {})
         assert status == 200, f"resolve 失败: {status} {resolved}"
         token = resolved["survey_url"].rsplit("/", 1)[-1]
         # 公开单次评分端点(无鉴权);JSON body。

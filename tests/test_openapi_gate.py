@@ -129,7 +129,7 @@ class OpenApiComparatorDepthTests(unittest.TestCase):
     Each case below returned ``[]`` before the shapes were resolved
     recursively and parameters/requestBody were compared. The array case is
     the load-bearing one: 31 of the 141 live operations return arrays,
-    including ``GET /api/conversations``, so dropping a field from any
+    including ``GET /api/review-cases``, so dropping a field from any
     conversation-list row was invisible.
     """
 

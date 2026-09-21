@@ -2102,7 +2102,7 @@ matches the trailing ``@token`` client-side.
     detail: array
   }
 
-### GET `/api/conversations/{conversation_id}/events`
+### GET `/api/review-cases/{conversation_id}/events`
 
 **Supervisor live view: SSE revision stream for a conversation**
 
@@ -2141,7 +2141,7 @@ touching the conversation.
     detail: array
   }
 
-### GET `/api/conversations/{conversation_id}/threads`
+### GET `/api/review-cases/{conversation_id}/threads`
 
 **List internal discussion threads for a conversation**
 
@@ -2257,7 +2257,7 @@ Mark one of my mentions as read (idempotent). Requires: conversation:read.
 
 ## Conversations
 
-### GET `/api/conversation-labels`
+### GET `/api/review-case-labels`
 
 **Label catalog with counts**
 
@@ -2292,7 +2292,7 @@ Label catalog with counts. Requires: conversation:read.
     detail: array
   }
 
-### GET `/api/conversations`
+### GET `/api/review-cases`
 
 **List conversations**
 
@@ -2373,7 +2373,7 @@ List conversations. Requires: conversation:read.
     detail: array
   }
 
-### POST `/api/conversations`
+### POST `/api/review-cases`
 
 **Create a conversation**
 
@@ -2446,7 +2446,7 @@ Create a conversation. Requires: conversation:write.
     detail: array
   }
 
-### POST `/api/conversations/bulk-actions`
+### POST `/api/review-cases/bulk-actions`
 
 **Bulk priority/label/claim actions**
 
@@ -2493,7 +2493,7 @@ Bulk priority/label/claim actions. Requires: operator:act.
     detail: array
   }
 
-### PATCH `/api/conversations/{conversation_id}`
+### PATCH `/api/review-cases/{conversation_id}`
 
 **Update conversation priority**
 
@@ -2565,7 +2565,7 @@ Update conversation priority. Requires: operator:act.
     detail: array
   }
 
-### GET `/api/conversations/{conversation_id}`
+### GET `/api/review-cases/{conversation_id}`
 
 **Conversation detail with messages, audit events, and summaries**
 
@@ -2638,7 +2638,7 @@ Conversation detail with messages, audit events, and summaries. Requires: conver
     detail: array
   }
 
-### POST `/api/conversations/{conversation_id}/accept`
+### POST `/api/review-cases/{conversation_id}/accept`
 
 **Accept a conversation into human_active**
 
@@ -2702,7 +2702,7 @@ Accept a conversation into human_active. Requires: operator:act.
     detail: array
   }
 
-### POST `/api/conversations/{conversation_id}/assign`
+### POST `/api/review-cases/{conversation_id}/assign`
 
 **Assign to an operator**
 
@@ -2774,7 +2774,7 @@ Assign to an operator. Requires: operator:act.
     detail: array
   }
 
-### POST `/api/conversations/{conversation_id}/claim`
+### POST `/api/review-cases/{conversation_id}/claim`
 
 **Claim a conversation**
 
@@ -2838,7 +2838,7 @@ Claim a conversation. Requires: operator:act.
     detail: array
   }
 
-### POST `/api/conversations/{conversation_id}/feedback`
+### POST `/api/review-cases/{conversation_id}/feedback`
 
 **Rate an assistant message**
 
@@ -2890,7 +2890,7 @@ Rate an assistant message. Requires: conversation:read.
     detail: array
   }
 
-### PUT `/api/conversations/{conversation_id}/labels`
+### PUT `/api/review-cases/{conversation_id}/labels`
 
 **Replace conversation labels**
 
@@ -2962,7 +2962,7 @@ Replace conversation labels. Requires: operator:act.
     detail: array
   }
 
-### PATCH `/api/conversations/{conversation_id}/language`
+### PATCH `/api/review-cases/{conversation_id}/language`
 
 **Set (or clear, with null) the manual language override for a conversation**
 
@@ -3038,7 +3038,7 @@ it returns the stored row so the frontend can sync its select.
     detail: array
   }
 
-### GET `/api/conversations/{conversation_id}/messages`
+### GET `/api/review-cases/{conversation_id}/messages`
 
 **List conversation messages**
 
@@ -3082,7 +3082,7 @@ List conversation messages. Requires: conversation:read.
     detail: array
   }
 
-### POST `/api/conversations/{conversation_id}/messages`
+### POST `/api/review-cases/{conversation_id}/messages`
 
 **Send a customer turn (idempotent)**
 
@@ -3170,7 +3170,7 @@ Send a customer turn (idempotent). Requires: conversation:write.
     detail: array
   }
 
-### POST `/api/conversations/{conversation_id}/messages/{message_id}/translate`
+### POST `/api/review-cases/{conversation_id}/messages/{message_id}/translate`
 
 **Translate one customer message; without a provider the original text is echoed**
 
@@ -3220,7 +3220,7 @@ degrade gracefully.
     detail: array
   }
 
-### POST `/api/conversations/{conversation_id}/notes`
+### POST `/api/review-cases/{conversation_id}/notes`
 
 **Add an internal note (supports @mention colleagues and reply threads)**
 
@@ -3269,7 +3269,7 @@ Add an internal note (supports @mention colleagues and reply threads). Requires:
     detail: array
   }
 
-### POST `/api/conversations/{conversation_id}/operator-messages`
+### POST `/api/review-cases/{conversation_id}/operator-messages`
 
 **Send an operator reply**
 
@@ -3318,7 +3318,7 @@ Send an operator reply. Requires: operator:act.
     detail: array
   }
 
-### POST `/api/conversations/{conversation_id}/release`
+### POST `/api/review-cases/{conversation_id}/release`
 
 **Release a claim**
 
@@ -3382,7 +3382,7 @@ Release a claim. Requires: operator:act.
     detail: array
   }
 
-### POST `/api/conversations/{conversation_id}/reopen`
+### POST `/api/review-cases/{conversation_id}/reopen`
 
 **Reopen a resolved conversation**
 
@@ -3446,7 +3446,7 @@ Reopen a resolved conversation. Requires: operator:act.
     detail: array
   }
 
-### POST `/api/conversations/{conversation_id}/resolve`
+### POST `/api/review-cases/{conversation_id}/resolve`
 
 **Resolve a conversation**
 
@@ -3729,7 +3729,7 @@ Queue and quality dashboard indicators. Requires: conversation:read.
 
 ## Policy
 
-### POST `/api/conversations/{conversation_id}/messages/{message_id}/knowledge-draft`
+### POST `/api/review-cases/{conversation_id}/messages/{message_id}/policy-draft`
 
 **Create a draft from a negatively-rated message**
 
@@ -5509,7 +5509,7 @@ Move a ticket through its state machine (open/in_progress/closed). Requires: ope
 
 ## Turn-jobs
 
-### POST `/api/conversations/{conversation_id}/turn-jobs`
+### POST `/api/review-cases/{conversation_id}/turn-jobs`
 
 **Enqueue an async turn**
 
@@ -5762,7 +5762,7 @@ Operator workspace. Requires: none (unauthenticated).
 
 ## V2:conversations
 
-### GET `/api/v2/conversations`
+### GET `/api/v2/review-cases`
 
 **List conversations (cursor-paginated)**
 
@@ -5797,7 +5797,7 @@ Keyset-paginated queue listing. Cursors are opaque and live in the response body
     detail: array
   }
 
-### POST `/api/v2/conversations`
+### POST `/api/v2/review-cases`
 
 **Create a conversation (Idempotency-Key honoured)**
 
@@ -5835,7 +5835,7 @@ object
     detail: array
   }
 
-### GET `/api/v2/conversations/{conversation_id}`
+### GET `/api/v2/review-cases/{conversation_id}`
 
 **Fetch one conversation**
 
@@ -5867,7 +5867,7 @@ Single conversation by id; archived conversations resolve transparently, mirrori
     detail: array
   }
 
-### GET `/api/v2/conversations/{conversation_id}/messages`
+### GET `/api/v2/review-cases/{conversation_id}/messages`
 
 **List messages (keyset-paginated)**
 

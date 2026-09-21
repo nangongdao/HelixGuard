@@ -235,20 +235,20 @@ class TenantModelPolicyApiTests(unittest.TestCase):
             headers=self.headers,
         )
         created = self.client.post(
-            "/api/conversations",
+            "/api/review-cases",
             json={"customer_name": "Budget Customer", "channel": "web"},
             headers=self.headers,
         ).json()
         cid = created["id"]
         first = self.client.post(
-            f"/api/conversations/{cid}/messages",
+            f"/api/review-cases/{cid}/messages",
             json={"content": "违规内容怎么分级？"},
             headers=dict(self.headers, **{"Idempotency-Key": "idem-api-1"}),
         )
         self.assertEqual(first.status_code, 200, first.text)
         self.assertFalse(first.json()["assistant_message"]["metadata"]["budget_exceeded"])
         second = self.client.post(
-            f"/api/conversations/{cid}/messages",
+            f"/api/review-cases/{cid}/messages",
             json={"content": "退货政策是什么？"},
             headers=dict(self.headers, **{"Idempotency-Key": "idem-api-2"}),
         )

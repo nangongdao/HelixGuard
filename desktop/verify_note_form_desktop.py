@@ -8,7 +8,7 @@ it against the real sidecar:
 
 - selecting a not-resolved conversation shows the island note form while the
   legacy #noteForm stays yielded (hidden);
-- submitting a note POSTs to /api/conversations/{id}/notes, toasts and clears
+- submitting a note POSTs to /api/review-cases/{id}/notes, toasts and clears
   the island textarea (helix-inspector-note-submitted ok echo);
 - typing a trailing @token renders mention candidates from the tenant roster
   (self excluded), and clicking one replaces the token at the caret;
@@ -96,11 +96,11 @@ def main() -> int:
                         actor_id: 'supervisor.b', role: 'operator',
                     });
                     if (!member.ok && member.status !== 200) return { error: 'member ' + member.status };
-                    const conv = await post('/api/conversations', {
+                    const conv = await post('/api/review-cases', {
                         customer_name: '备注岛验证 ' + Math.random().toString(36).slice(2, 8),
                     });
                     if (!conv.ok) return { error: 'conversation ' + conv.status };
-                    const turn = await post('/api/conversations/' + conv.data.id + '/messages', {
+                    const turn = await post('/api/review-cases/' + conv.data.id + '/messages', {
                         content: '配送一般多久能到？',
                     });
                     if (!turn.ok) return { error: 'turn ' + turn.status };

@@ -33,7 +33,7 @@ stays for compliance.
 
 ### Quota And Metering
 
-- Conversation quota: `POST /api/conversations` counts active
+- Conversation quota: `POST /api/review-cases` counts active
   (`status != 'resolved'`) conversations and returns `429 rate_limited` with
   `Retry-After` when the tenant's `conversation_quota` is exhausted;
   resolving a conversation frees a slot.
@@ -349,7 +349,7 @@ changelog entry.
 - **`inp_ms` / `inp_desktop_ms` = 0.0**: the probe found no interaction
   events — the click target (`.conversation-row button.conversation-item`)
   was missing or the seed failed. Seed the queue (the gate does this via
-  `POST /api/conversations`) and re-run; the gate refuses to read 0 as a
+  `POST /api/review-cases`) and re-run; the gate refuses to read 0 as a
   pass.
 - **Desktop LCP persistently near 1000 ms**: re-run on an idle machine with a
   clean DB. Historical local spread is 860–984 ms against a 1000 ms budget;
@@ -550,7 +550,7 @@ and the governance API (all `admin:manage`):
   any pending/rejected id in the batch aborts with 409.
 - **Capability tokens**: set `CAPABILITY_SECRET` (>= 32 bytes) to turn on
   token verification for gateway-mediated tool calls; the copilot
-  knowledge-draft endpoint mints a short-TTL token per call. Without the
+  policy-draft endpoint mints a short-TTL token per call. Without the
   secret, presented tokens fail closed (`token_unsupported`) and the
   process logs `capability_secret.unset` at boot.
 

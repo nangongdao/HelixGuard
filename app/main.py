@@ -36,7 +36,7 @@ configure_logging()
 configure_tracing()
 logger = logging.getLogger("helix")
 IDEMPOTENCY_KEY_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{8,128}$")
-APP_VERSION = "2.27.0"
+APP_VERSION = "2.28.0"
 
 
 def _conversation_quota_exceeded(database: Any, tenant_id: str) -> str | None:
@@ -452,7 +452,7 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
     from app.routers.attachments import build_router as build_attachments_router
     from app.routers.auth import build_router as build_auth_router
     from app.routers.common import RouteDeps
-    from app.routers.conversations import build_router as build_conversations_router
+    from app.routers.review_cases import build_router as build_review_cases_router
     from app.routers.copilot import build_router as build_copilot_router
     from app.routers.policy import build_router as build_policy_router
     from app.routers.reports import build_router as build_reports_router
@@ -473,7 +473,7 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
         telemetry_metrics=telemetry_metrics,
     )
     app.include_router(build_system_router(route_deps))
-    app.include_router(build_conversations_router(route_deps))
+    app.include_router(build_review_cases_router(route_deps))
     app.include_router(build_policy_router(route_deps))
     app.include_router(build_admin_router(route_deps))
     app.include_router(build_auth_router(route_deps))

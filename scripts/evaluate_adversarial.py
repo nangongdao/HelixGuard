@@ -377,7 +377,7 @@ def _run_case(
     if conversation.get("customer_ref"):
         payload["customer_ref"] = conversation["customer_ref"]
 
-    created = client.post("/api/conversations", json=payload, headers=headers)
+    created = client.post("/api/review-cases", json=payload, headers=headers)
     if created.status_code != 201:
         return CaseResult(
             case["id"], False, 0.0, f"conversation create failed: HTTP {created.status_code}"
@@ -397,7 +397,7 @@ def _run_case(
     last_response = None
     for index, content in enumerate(messages):
         response = client.post(
-            f"/api/conversations/{conversation_id}/messages",
+            f"/api/review-cases/{conversation_id}/messages",
             headers=dict(headers, **{"Idempotency-Key": f"adv-{uuid4().hex[:12]}-{index}"}),
             json={"content": content},
         )

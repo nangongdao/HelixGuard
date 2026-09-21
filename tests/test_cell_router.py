@@ -226,7 +226,7 @@ class TestForwardRequestToCell(unittest.IsolatedAsyncioTestCase):
             response = await forward_request_to_cell(
                 cell,
                 method="GET",
-                path="/api/conversations",
+                path="/api/review-cases",
             )
             self.assertEqual(response.status_code, 200)
 
@@ -250,7 +250,7 @@ class TestForwardRequestToCell(unittest.IsolatedAsyncioTestCase):
             response = await forward_request_to_cell(
                 cell,
                 method="POST",
-                path="/api/conversations",
+                path="/api/review-cases",
                 json_body={"customer_name": "Test User"},
             )
             self.assertEqual(response.status_code, 201)

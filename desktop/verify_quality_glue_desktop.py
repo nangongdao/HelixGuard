@@ -11,7 +11,7 @@ drives the quality surface end-to-end in island mode:
 - the inspector 质量 tab — island-rendered, legacy-fed — shows the aggregates
   published via helix-inspector-quality (it used to be an empty div), the hidden
   legacy inspector containers stay untouched, and a 生成策略草稿 click travels
-  the helix-quality-draft bridge to a real knowledge-draft POST.
+  the helix-quality-draft bridge to a real policy-draft POST.
 
 Seed data: one conversation, one customer turn (deterministic fallback agent) and
 a negative feedback rating on the assistant reply, which is exactly the
@@ -52,13 +52,13 @@ def wait_for_cdp(deadline_s: float = 90.0) -> list[dict]:
 
 SEED_JS = """async () => {
     const tenant = { 'Content-Type': 'application/json', 'X-Tenant-Id': 'demo' };
-    const convRes = await fetch('/api/conversations', {
+    const convRes = await fetch('/api/review-cases', {
         method: 'POST', headers: tenant,
         body: JSON.stringify({ customer_name: '质量胶水验证 ' + Math.random().toString(36).slice(2, 8) }),
     });
     if (!convRes.ok) return { error: 'conversation ' + convRes.status };
     const conv = await convRes.json();
-    const turnRes = await fetch('/api/conversations/' + conv.id + '/messages', {
+    const turnRes = await fetch('/api/review-cases/' + conv.id + '/messages', {
         method: 'POST', headers: tenant,
         body: JSON.stringify({ content: '违规内容怎么分级？' }),
     });
@@ -71,7 +71,7 @@ SEED_JS = """async () => {
     // the knowledge base cannot match; if the fallback still cites, rate the
     // (always citation-free) customer message instead so the gap exists.
     const gapTarget = { messageId: null, kind: null };
-    const unknownRes = await fetch('/api/conversations/' + conv.id + '/messages', {
+    const unknownRes = await fetch('/api/review-cases/' + conv.id + '/messages', {
         method: 'POST', headers: tenant,
         body: JSON.stringify({ content: 'zzqw 咨询一个策略库肯定没有的问题 0x7f' }),
     });
@@ -87,7 +87,7 @@ SEED_JS = """async () => {
         gapTarget.messageId = turn.customer_message.id;
         gapTarget.kind = 'customer_message';
     }
-    const fbRes = await fetch('/api/conversations/' + conv.id + '/feedback', {
+    const fbRes = await fetch('/api/review-cases/' + conv.id + '/feedback', {
         method: 'POST', headers: tenant,
         body: JSON.stringify({ message_id: gapTarget.messageId, rating: -1 }),
     });
@@ -211,7 +211,7 @@ def main() -> int:
 
             # ── 生成策略草稿 bridges to the real legacy write ──
             with page.expect_response(
-                lambda r: "/knowledge-draft" in r.url and r.request.method == "POST"
+                lambda r: "/policy-draft" in r.url and r.request.method == "POST"
             ) as draft_info:
                 page.locator("#inspectorReactIsland #qualityPanel .quality-gap-draft").first.click()
             checks["draft_post_status"] = draft_info.value.status

@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <code>v2.27.0</code>&nbsp;
+  <code>v2.28.0</code>&nbsp;
   <code>Python 3.11+</code>&nbsp;
   <code>FastAPI</code>&nbsp;
   <code>SQLite / PostgreSQL</code>&nbsp;
@@ -366,7 +366,7 @@ tests/                后端、前端、PG/Redis 和 Playwright 验收
 | README 截图重捕获 | `HELIX_BASE_URL=http://127.0.0.1:8766 python scripts/readme_screenshots.py`（对 clean-DB 服务，覆盖 `docs/assets/screenshots/`，七张含桌面壳） |
 
 > [!NOTE]
-> **域迁移进行中**：本产品原定位为多 Agent 智能客服平台，正在迁移到内容安全审核领域。产品名、README 叙事、术语契约（[`docs/DOMAIN.md`](docs/DOMAIN.md)）、**用户可见文案**（P1–P2，2.23.0/2.24.0）、**内容夹具**（P2b，2.25.0：种子策略正文、来源记录状态串、`golden/*` 评测集）、**模块名与 API 路径**（P3a，2.26.0：`tickets→appeals`、`csat→qa_spot_check`、`knowledge→policy`、`widget→submission_portal` 等 T4/T6–T9/T12/T13 面，旧路径经弃用窗口继续服务）与**文案层构词补漏**（P2c，2.27.0：`知识文章 / 知识草稿 / 知识缺口` 等 `知识` 族复合词按 T9 统一到「策略」，含 `commands.js` 的检索别名）已更新；审核单（T5 `conversation`）、数据库对象与测试/基线仍按 [`docs/DOMAIN_MIGRATION_PLAN.md`](docs/DOMAIN_MIGRATION_PLAN.md) 的阶段 P3b–P5 推进。当前 `conversation` / `ticket` 一类**代码标识符与表名**仍是旧域命名，属预期中间态。
+> **域迁移进行中**：本产品原定位为多 Agent 智能客服平台，正在迁移到内容安全审核领域。产品名、README 叙事、术语契约（[`docs/DOMAIN.md`](docs/DOMAIN.md)）、**用户可见文案**（P1–P2，2.23.0/2.24.0）、**内容夹具**（P2b，2.25.0：种子策略正文、来源记录状态串、`golden/*` 评测集）、**模块名与 API 路径**（P3a，2.26.0：`tickets→appeals`、`csat→qa_spot_check`、`knowledge→policy`、`widget→submission_portal` 等 T4/T6–T9/T12/T13 面，旧路径经弃用窗口继续服务）、**文案层构词补漏**（P2c，2.27.0：`知识文章 / 知识草稿 / 知识缺口` 等 `知识` 族复合词按 T9 统一到「策略」，含 `commands.js` 的检索别名）与**审核单模块与路径**（P3b，2.28.0：`conversations→review_cases` 模块、`/api/review-cases` 全量路径面与弃用窗口，含 `knowledge-draft` 尾段补漏）已更新；数据库对象与测试/基线仍按 [`docs/DOMAIN_MIGRATION_PLAN.md`](docs/DOMAIN_MIGRATION_PLAN.md) 的阶段 P4–P5 推进。当前 `conversation` 一类**处理器/测试/前端标识符与数据库表名**仍是旧域命名，属预期中间态。
 
 ## 安全与生产边界
 

@@ -128,7 +128,7 @@ class TraceContextTests(unittest.TestCase):
 
     def test_unsupplied_requests_get_a_generated_id_not_none(self) -> None:
         created = self.client.post(
-            "/api/conversations",
+            "/api/review-cases",
             json={"customer_name": "No Header", "channel": "web"},
             headers=self.headers,
         )

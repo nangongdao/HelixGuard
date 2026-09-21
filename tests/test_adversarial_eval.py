@@ -224,12 +224,12 @@ class IndirectInjectionTraceabilityTests(unittest.TestCase):
                     )
                     self.assertEqual(created.status_code, 201)
                     conversation = client.post(
-                        "/api/conversations",
+                        "/api/review-cases",
                         json={"customer_name": "adv-trace", "channel": "web"},
                         headers=headers,
                     ).json()
                     response = client.post(
-                        f"/api/conversations/{conversation['id']}/messages",
+                        f"/api/review-cases/{conversation['id']}/messages",
                         json={"content": "违规内容怎么分级"},
                         headers=headers,
                     )

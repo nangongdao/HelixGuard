@@ -26,7 +26,7 @@ export async function loadMoreConversations() {
   ctx.state.queueLoadingMore = true;
   ctx.actions.renderQueue();
   try {
-    const page = await ctx.apiWithHeaders(`/api/conversations?${query.toString()}`);
+    const page = await ctx.apiWithHeaders(`/api/review-cases?${query.toString()}`);
     const activeQueryKey = `${ctx.els.searchInput.value.trim()}|${ctx.els.statusFilter.value}|${ctx.els.labelFilter.value}|${ctx.els.priorityFilter.value}|${ctx.els.ownershipFilter.value}|${ctx.els.channelFilter?.value || ""}|${ctx.els.sortFilter?.value || "priority"}`;
     if (activeQueryKey !== queryKey) return;
     const existing = new Set(ctx.state.conversations.map((conversation) => conversation.id));
@@ -78,7 +78,7 @@ export async function applyBulkAction(source = null) {
   }
   ctx.setFormBusy(ctx.els.bulkToolbar, true);
   try {
-    const result = await ctx.api("/api/conversations/bulk-actions", {
+    const result = await ctx.api("/api/review-cases/bulk-actions", {
       method: "POST",
       body: JSON.stringify(payload),
     });

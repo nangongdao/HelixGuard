@@ -110,12 +110,12 @@ def main() -> int:
             page.wait_for_selector("#commandPaletteReactIsland .command-item", timeout=10000)
             before = page.evaluate(
                 "() => performance.getEntriesByType('resource')"
-                ".filter((e) => e.name.includes('/api/conversations?')).length"
+                ".filter((e) => e.name.includes('/api/review-cases?')).length"
             )
             page.locator("#commandPaletteReactIsland .command-item", has_text="刷新队列").first.click()
             page.wait_for_function(
                 """(before) => performance.getEntriesByType('resource')
-                    .filter((e) => e.name.includes('/api/conversations?')).length > before""",
+                    .filter((e) => e.name.includes('/api/review-cases?')).length > before""",
                 arg=before,
                 timeout=20000,
             )

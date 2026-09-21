@@ -211,7 +211,7 @@ export async function runRefresh({ silent = false, refreshDetail = true, backgro
       staleDashboard && !islandDashboard
         ? ctx.api("/api/dashboard")
         : Promise.resolve(state.dashboard),
-      ctx.apiWithHeaders(`/api/conversations?${actions.conversationQuery()}`),
+      ctx.apiWithHeaders(`/api/review-cases?${actions.conversationQuery()}`),
       queueOnly
         ? Promise.resolve(state.labelCatalog)
         : actions.loadLabelCatalog({ force: !state.labelsLoadedAt }),

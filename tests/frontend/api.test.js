@@ -18,7 +18,7 @@ function okResponse(body, status = 200) {
 
 test("request returns parsed data on success", async () => {
   const fetchImpl = async () => okResponse({ id: "c1" });
-  const { response, data } = await request("/api/conversations", {}, fetchImpl);
+  const { response, data } = await request("/api/review-cases", {}, fetchImpl);
   assert.equal(response.ok, true);
   assert.equal(data.id, "c1");
 });

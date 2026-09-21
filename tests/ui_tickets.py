@@ -36,7 +36,7 @@ def open_new_conversation(page: Page, name: str) -> None:
     page.get_by_label("提交方名称").fill(name)
     with page.expect_response(
         lambda response: (
-            response.url.endswith("/api/conversations") and response.request.method == "POST"
+            response.url.endswith("/api/review-cases") and response.request.method == "POST"
         )
     ) as response_info:
         page.get_by_role("button", name="创建审核单").click()
@@ -50,7 +50,7 @@ def open_new_conversation(page: Page, name: str) -> None:
     # Promote to high priority so the seeded conversation stays at the top of
     # the queue regardless of how many open rows the shared scratch DB already
     # holds (load-test seeding promotes rows to high).
-    api_patch(f"/api/conversations/{conv_id}", {"priority": "high"})
+    api_patch(f"/api/review-cases/{conv_id}", {"priority": "high"})
 
 
 def api_patch(path: str, body: dict) -> dict:
@@ -227,7 +227,7 @@ def main() -> None:
         # 也不得停在详情)。has_text 按提交方名锁定行,不依赖后端排序。
         with page.expect_response(
             lambda response: (
-                response.url.startswith(f"{BASE_URL}/api/conversations/")
+                response.url.startswith(f"{BASE_URL}/api/review-cases/")
                 and response.request.method == "GET"
             )
         ):

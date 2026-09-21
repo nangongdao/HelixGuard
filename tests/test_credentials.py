@@ -352,7 +352,7 @@ class CredentialRegistryIntegrationTests(unittest.TestCase):
             200,
         )
         headers = self._fresh_instance_headers()
-        self.assertEqual(self.client.get("/api/conversations", headers=headers).status_code, 401)
+        self.assertEqual(self.client.get("/api/review-cases", headers=headers).status_code, 401)
 
     def test_registry_row_change_is_observed_without_restart(self) -> None:
         """The authenticator reads the persisted registry per request — a state
@@ -363,7 +363,7 @@ class CredentialRegistryIntegrationTests(unittest.TestCase):
         self.services.credential_lifecycle.rotate(credential, now=utc_now(), by="admin")
         self.services.credential_lifecycle.revoke(credential, now=utc_now(), by="admin")
         self.assertEqual(
-            self.client.get("/api/conversations", headers=self.operator).status_code, 401
+            self.client.get("/api/review-cases", headers=self.operator).status_code, 401
         )
 
     def test_expired_row_blocks_new_instance(self) -> None:
@@ -376,7 +376,7 @@ class CredentialRegistryIntegrationTests(unittest.TestCase):
                 (utc_after_seconds(-10), credential),
             )
         headers = self._fresh_instance_headers()
-        self.assertEqual(self.client.get("/api/conversations", headers=headers).status_code, 401)
+        self.assertEqual(self.client.get("/api/review-cases", headers=headers).status_code, 401)
 
     def test_staged_activation_blocks_until_not_before(self) -> None:
         # Seed a credential whose not_before lies in the future, then prove a
@@ -393,20 +393,20 @@ class CredentialRegistryIntegrationTests(unittest.TestCase):
         )
         headers = {"X-API-Key": pending_key, "X-Tenant-Id": "demo"}
         # The live instance, which does not know the key, rejects it (401, not 404).
-        self.assertEqual(self.client.get("/api/conversations", headers=headers).status_code, 401)
+        self.assertEqual(self.client.get("/api/review-cases", headers=headers).status_code, 401)
         # Promote the staged key on a fresh peer whose config declares it; the
         # registry's not_before still vetoes it until the boundary passes.
         promoted = {pending_key: {"tenant_id": "demo", "actor_id": "o", "role": "operator"}}
         headers = self._fresh_instance_headers(extra_principals=promoted)
         headers["X-API-Key"] = pending_key
-        self.assertEqual(self.client.get("/api/conversations", headers=headers).status_code, 401)
+        self.assertEqual(self.client.get("/api/review-cases", headers=headers).status_code, 401)
         # Move the window to the past, staged activation unlocks it.
         with self.services.database.connect() as conn:
             conn.execute(
                 "UPDATE credential_registry SET not_before=?, status='active' WHERE credential_id=?",
                 (utc_after_seconds(-60), credential_id),
             )
-        self.assertEqual(self.client.get("/api/conversations", headers=headers).status_code, 200)
+        self.assertEqual(self.client.get("/api/review-cases", headers=headers).status_code, 200)
 
     def test_legacy_revocations_seed_registry_status(self) -> None:
         """Backward-path: a key revoked through the legacy table (old instance)
@@ -415,7 +415,7 @@ class CredentialRegistryIntegrationTests(unittest.TestCase):
         credential = self.client.get("/api/me", headers=self.operator).json()["credential_id"]
         self.services.database.revoke_api_key(credential, "admin.user")
         headers = self._fresh_instance_headers()
-        self.assertEqual(self.client.get("/api/conversations", headers=headers).status_code, 401)
+        self.assertEqual(self.client.get("/api/review-cases", headers=headers).status_code, 401)
 
 
 if __name__ == "__main__":

@@ -61,7 +61,7 @@ class TicketAppTests(unittest.TestCase):
 
     def _open_conversation(self, name: str = "S", customer_ref: str | None = None) -> str:
         conv = self.client.post(
-            "/api/conversations",
+            "/api/review-cases",
             json={"customer_name": name, "customer_ref": customer_ref},
             headers=self.admin,
         ).json()
@@ -69,7 +69,7 @@ class TicketAppTests(unittest.TestCase):
 
     def _send(self, conversation_id: str, content: str, key: str) -> None:
         response = self.client.post(
-            f"/api/conversations/{conversation_id}/messages",
+            f"/api/review-cases/{conversation_id}/messages",
             json={"content": content},
             headers={**self.admin, "Idempotency-Key": key},
         )
@@ -95,7 +95,7 @@ class TicketAppTests(unittest.TestCase):
         self.assertEqual(ticket["customer_ref"], "CUST-1001")
         self.assertEqual(ticket["source_conversation_id"], conversation_id)
         self.assertIn("ORD-888", ticket["description"])
-        detail = self.client.get(f"/api/conversations/{conversation_id}", headers=self.admin).json()
+        detail = self.client.get(f"/api/review-cases/{conversation_id}", headers=self.admin).json()
         self.assertEqual(detail["conversation"]["ticket_id"], ticket["id"])
 
     def test_convert_is_idempotent(self) -> None:
@@ -203,7 +203,7 @@ class TicketAppTests(unittest.TestCase):
         self.assertIn(first, conversation_ids)
         self.assertIn(second, conversation_ids)
         # The linked conversation is marked too.
-        detail2 = self.client.get(f"/api/conversations/{second}", headers=self.admin).json()
+        detail2 = self.client.get(f"/api/review-cases/{second}", headers=self.admin).json()
         self.assertEqual(detail2["conversation"]["ticket_id"], ticket["id"])
 
     def test_link_unknown_404(self) -> None:
@@ -219,7 +219,7 @@ class TicketAppTests(unittest.TestCase):
     def test_ticket_detail_never_leaks_internal_notes(self) -> None:
         conversation_id = self._open_conversation()
         self.client.post(
-            f"/api/conversations/{conversation_id}/notes",
+            f"/api/review-cases/{conversation_id}/notes",
             json={"content": "内部机密：提交方准备投诉到消协"},
             headers=self.admin,
         )

@@ -95,13 +95,13 @@ class CopilotAppTests(unittest.TestCase):
 
     def _open_conversation(self, name: str = "S") -> str:
         conv = self.client.post(
-            "/api/conversations", json={"customer_name": name}, headers=self.admin
+            "/api/review-cases", json={"customer_name": name}, headers=self.admin
         ).json()
         return conv["id"]
 
     def _send(self, conversation_id: str, content: str, key: str) -> None:
         response = self.client.post(
-            f"/api/conversations/{conversation_id}/messages",
+            f"/api/review-cases/{conversation_id}/messages",
             json={"content": content},
             headers={**self.admin, "Idempotency-Key": key},
         )
@@ -183,7 +183,7 @@ class CopilotAppTests(unittest.TestCase):
         conversation_id = self._open_conversation()
         self._send(conversation_id, "你好", "copilot-key-4")
         self.client.post(
-            f"/api/conversations/{conversation_id}/notes",
+            f"/api/review-cases/{conversation_id}/notes",
             json={"content": "内部机密：提交方是 VIP，先稳住不要承诺退款"},
             headers=self.admin,
         )

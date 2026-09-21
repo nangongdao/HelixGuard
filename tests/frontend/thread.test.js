@@ -178,7 +178,7 @@ test("recordFeedback posts to the conversation feedback endpoint", async () => {
   const { apiCalls } = configureDeps();
   await recordFeedback({ messageId: "msg-2", rating: "-1" });
   assert.equal(apiCalls.length, 1);
-  assert.match(apiCalls[0].url, /\/api\/conversations\/conv-1\/feedback$/);
+  assert.match(apiCalls[0].url, /\/api\/review-cases\/conv-1\/feedback$/);
   assert.deepEqual(JSON.parse(apiCalls[0].options.body), { message_id: "msg-2", rating: -1 });
 });
 
@@ -186,7 +186,7 @@ test("requestTranslation posts the target language for the message", async () =>
   installWindow({ islandMode: true });
   const { apiCalls } = configureDeps();
   await requestTranslation({ messageId: "msg-1", language: "en" });
-  assert.match(apiCalls[0].url, /\/api\/conversations\/conv-1\/messages\/msg-1\/translate$/);
+  assert.match(apiCalls[0].url, /\/api\/review-cases\/conv-1\/messages\/msg-1\/translate$/);
   assert.deepEqual(JSON.parse(apiCalls[0].options.body), { target_language: "en" });
 });
 

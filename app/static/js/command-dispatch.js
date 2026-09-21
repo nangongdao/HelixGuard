@@ -33,7 +33,7 @@ export async function loadConversationCommands({ force = false } = {}) {
     return conversationCommands;
   }
   try {
-    const rows = await ctx.api("/api/conversations?limit=50");
+    const rows = await ctx.api("/api/review-cases?limit=50");
     conversationCommands.length = 0;
     conversationCommands.push(...(Array.isArray(rows) ? rows : []).map(conversationCommand));
     conversationCommandsLoadedAt = Date.now();

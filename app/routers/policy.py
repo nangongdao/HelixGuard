@@ -37,9 +37,7 @@ def build_router(deps: RouteDeps) -> APIRouter:
     database = deps.database
 
     @router.get("/api/canned-verdicts", response_model=list[CannedResponseOut])
-    @legacy_route(
-        router, "/api/canned-responses", methods=["GET"], response_model=list[CannedResponseOut]
-    )
+    @legacy_route(router, "/api/canned-responses", methods=["GET"], response_model=list)
     def list_canned_responses(
         principal: Annotated[Principal, Depends(require_permission("conversation:read"))],
         search: Annotated[str | None, Query(max_length=120)] = None,
@@ -244,7 +242,10 @@ def build_router(deps: RouteDeps) -> APIRouter:
 
     @router.patch("/api/policy/{article_id}", response_model=KnowledgeArticleOut)
     @legacy_route(
-        router, "/api/knowledge/{article_id}", methods=["PATCH"], response_model=KnowledgeArticleOut
+        router,
+        "/api/knowledge/{article_id}",
+        methods=["PATCH"],
+        response_model=KnowledgeArticleOut,
     )
     def update_knowledge(
         article_id: str,
@@ -361,12 +362,19 @@ def build_router(deps: RouteDeps) -> APIRouter:
         return knowledge_out(article)
 
     @router.post(
-        "/api/conversations/{conversation_id}/messages/{message_id}/knowledge-draft",
+        "/api/review-cases/{review_case_id}/messages/{message_id}/policy-draft",
+        response_model=KnowledgeArticleOut,
+        status_code=201,
+    )
+    @legacy_route(
+        router,
+        "/api/conversations/{review_case_id}/messages/{message_id}/knowledge-draft",
+        methods=["POST"],
         response_model=KnowledgeArticleOut,
         status_code=201,
     )
     def create_knowledge_draft_from_feedback(
-        conversation_id: str,
+        review_case_id: str,
         message_id: str,
         principal: Annotated[Principal, Depends(require_permission("knowledge:write"))],
     ) -> KnowledgeArticleOut:
@@ -376,10 +384,10 @@ def build_router(deps: RouteDeps) -> APIRouter:
         assistant message's content seeds a draft the reviewer can edit and
         publish.  Returns 404 if the message or conversation does not exist.
         """
-        message = database.get_message(principal.tenant_id, conversation_id, message_id)
+        message = database.get_message(principal.tenant_id, review_case_id, message_id)
         if not message:
             raise LookupError("Message not found")
-        conversation = database.get_conversation(principal.tenant_id, conversation_id)
+        conversation = database.get_conversation(principal.tenant_id, review_case_id)
         if not conversation:
             raise LookupError("Conversation not found")
         intent = (conversation.get("intent") or "unknown")[:80]
@@ -391,18 +399,18 @@ def build_router(deps: RouteDeps) -> APIRouter:
             content=content,
             tags=[intent],
             category="feedback_draft",
-            source_url=f"conversation:{conversation_id}",
+            source_url=f"conversation:{review_case_id}",
             actor_id=principal.actor_id,
         )
         database.audit(
             principal.tenant_id,
-            conversation_id,
+            review_case_id,
             principal.actor_id,
             "knowledge.draft_from_feedback",
             {
                 "article_id": article["id"],
                 "message_id": message_id,
-                "conversation_id": conversation_id,
+                "conversation_id": review_case_id,
             },
         )
         return knowledge_out(article)

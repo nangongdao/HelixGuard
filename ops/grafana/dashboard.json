@@ -16,7 +16,7 @@
       "options": { "legend": { "displayMode": "list" }, "tooltip": { "mode": "multi" } },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum(rate(helix_http_request_duration_ms_bucket{route=\"/api/conversations/{conversation_id}/messages\"}[5m])) by (le))",
+          "expr": "histogram_quantile(0.95, sum(rate(helix_http_request_duration_ms_bucket{route=\"/api/review-cases/{conversation_id}/messages\"}[5m])) by (le))",
           "legendFormat": "P95 turn latency"
         }
       ],

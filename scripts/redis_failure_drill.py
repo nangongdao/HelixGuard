@@ -246,7 +246,7 @@ class FailClosedApiTests(unittest.TestCase):
             # The async turn intake endpoint goes through the queue; a fail-closed
             # queue that is down must answer 503 + Retry-After + queue_unavailable.
             response = client.post(
-                f"/api/conversations/{conv['id']}/turn-jobs",
+                f"/api/review-cases/{conv['id']}/turn-jobs",
                 headers=headers,
                 json={"content": "hello"},
             )
@@ -326,7 +326,7 @@ class RecoveryTests(unittest.TestCase):
             )
             headers = {"X-API-Key": DRILL_ADMIN_KEY, "X-Tenant-Id": "drill-tenant"}
             response = client.post(
-                f"/api/conversations/{conv['id']}/messages",
+                f"/api/review-cases/{conv['id']}/messages",
                 headers=headers,
                 json={"content": "hello back"},
             )

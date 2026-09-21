@@ -2,6 +2,48 @@
 
 所有版本遵循[语义化版本](https://semver.org)。API 变更遵循 `docs/API_POLICY.md`(响应体只增不改、弃用需 `Deprecation`/`Sunset` 头 + 至少一个次版本过渡、每次变更记录于此)。
 
+## 2.28.0 — 域迁移 P3b：审核单（T5）模块与 API 路径迁移 (2026-09-21)
+
+本版把 T5 `conversation → review_case` 的**模块名与 API 路径层**迁到审核域：`app/routers/conversations.py` → `review_cases.py`（git mv），`/api/conversations`、`/api/v2/conversations`、`/api/conversation-labels` 三族路径全量改名 `/api/review-cases` 等，**24 组路径 / 28 个操作**按 `docs/API_POLICY.md` §2 走完整弃用过渡——旧路径经 `legacy_route` 双挂载继续服务，窗口 **2026-09-21 → 2027-09-21**（12 个月），每个旧路径响应带 `Deprecation`/`Sunset` 头 + `Link: rel="successor-version"`，OpenAPI 标 `deprecated: true` 并附迁移注记。顺带修复 **P3a 漏改**：`/api/conversations/{id}/messages/{message_id}/knowledge-draft` 的尾段未随 T9 改名，本版随 T5 一并迁为 `policy-draft` 并注册弃用条目。
+
+### 机制教训一：占位符与 handler 形参是同一条契约的两半
+
+首推前自测抓到全线 422：别名模板仍写 `{conversation_id}` 而 handler 形参已改 `review_case_id`，FastAPI 把形参**降级为 query 参数**——URL 照样匹配、没有任何报错，每个真实调用都 422。守护测试 `test_path_placeholders_match_declared_path_parameters` 正是为这一失败类而设。修复时把对齐推到底：中间件按**注册模板**解析弃用 operation key（`app/middleware.py`），`openapi_meta` 按 successor 反查回填别名文档，所以 `app/deprecation.py` 的 T5 retired 路径占位符（20 处模板）与 5 个 router 文件的别名模板必须与形参**三方一致**（P3a 的 T8 条目已是此先例）。占位符名是服务器内部模板记号，客户端只见 URL 形状，**wire 契约不变**。
+
+### 机制教训二：别名注册必须镜像主装饰器的可镜像 kwargs
+
+批量插入的 `@legacy_route` 只传了 `methods`，三处静默劣化被逐一定性并修复：
+
+- **`status_code`**：`add_api_route` 默认 200——不带 `status_code=201` 的旧路径 `POST /api/conversations` 会把 201 静默降级成 200，属**行为回归**（P3a 先例明确传了 201）；
+- **`response_model`**：缺失则弃用操作在 OpenAPI 里丢失响应 schema；
+- **`summary`/`tags`**：`test_alias_documents_itself_like_its_successor` 抓到 operator-messages 别名 summary 与 successor 不一致——元数据表 `openapi_meta` 的文案漂移在主装饰器显式传参后不可见（「(Idempotency-Key honoured)」后缀），别名必须抄**主装饰器**而非表。
+
+`artifacts/p3b_fix_aliases.py` 完成 28 个别名调用的规范化与 kwargs 镜像（计数断言 + AST 校验 + 幂等复跑），过程中两处脚本缺陷（泛型 `list[X]` 被截断、多行分支丢 `router` 实参）均被 `test_domain_path_renames.py` / AST 参数校验当场抓红后修复。
+
+### 机制教训三：标识符改名的哨兵护不住属性访问
+
+参数改名脚本的哨兵保护了字符串字面量与 kwarg 键，但**点号属性访问**漏了：`portal_routes.py` 的 `token.conversation_id` 被改成 `token.review_case_id`，而 `WidgetToken`（`app/portal_token.py`）的签名令牌字段仍是 `conversation_id`——**改字段名会使全部已发令牌失效**，属性访问必须跟随字段而非形参。全量测试 38 例红（widget 路由/续传/phase23 汇聚在这一个断言上）定位到单行后修复；改名文件中残留的 15 处 `conversation_id` 逐条复核均为合法契约存活者（响应键、令牌字段、Query 参数名、db 列键、`payload.conversation_ids` schema 字段）。
+
+### 判定后刻意保留（不改）
+
+- **wire 契约键**：响应体的 `"conversation_id"` 键、请求模型字段、`conversation:read/write` 权限串、`conversation.created` webhook 事件名、SSE payload 键——按 `docs/API_POLICY.md`「响应体只增不改」保留，P4/P5 另议；
+- **`.bak` 锚点**：`scripts/rebuild_main.py` / `scripts/split_main.py` 中的 `app.routers.conversations` 引用服务于 1.3.0 冻结快照（见 `docs/DOMAIN_MIGRATION_PLAN.md` R6），保留并在守护中豁免；
+- **handler 函数名 / 测试文件名 / JS 变量名**（`list_conversations`、`test_conversation_routes.py` 等）——P5 收口面，本版不动。
+
+### 守护扩展
+
+`tests/test_domain_path_renames.py` 的残留 sweep 新增 `P3B_RETIRED`：3 个路径族 + `v2/conversations`、`conversation-labels` 两个尾巴 + `app.routers.conversations`/`routers/conversations` 模块名 + **`\/api\/conversations` 转义正则形态**（P3a 教训的第三次复发——5 个前端测试用正则字面量断言 fetch URL，字符串扫描两次都不可见，本版把转义形态钉进守护）；豁免 `docs/RUNBOOK_*`（日期化档案）、`scripts/rebuild_main.py`、`tests/test_deprecation.py`（夹具故意驱动 retired 操作）。模块路径引用的两处陈旧注释随手修正（`app/static/js/composer-command.js`、`tests/test_conversation_routes.py` docstring）。
+
+### 验证
+
+- `openapi_snapshot.py --dump` 重生成（版本号先行），`tests/test_openapi_gate.py` 全等断言 15 例全绿；快照 +3447/−727（新增 26 个弃用别名操作与改名路径）。
+- 核心回归（弃用/会话路由/v2/协作/系统/守护）**97 例全绿**；`test_domain_path_renames.py` 12 例全绿。
+- `frontend_gate.py` **红→绿两轮**：首跑 5 个转义正则断言失败（见守护扩展），修复后 400/400；`test_frontend_gate.py` 随全量红、随修复转绿。
+- 全量 `pytest tests`（coverage run）**40 红 → 定性为两个根因**：38 例同一根因（机制教训三的单行属性误改，修复后涉及 4 文件 93 例全绿）+ 2 例本机既知 `opentelemetry` 环境噪声（CI 全绿）；`coverage` **TOTAL 88%**。
+- `ruff 0.9.9 check` 干净；`migration_gate.py` ok（48 migrations / 16 phased）；`performance_gate.py` 通过（`operator_js_bytes` 415771，低于 2.27.0 的 415796）。
+- 评测集 `evaluate.py` **27/27**、对抗集 `evaluate_adversarial.py` **24/24**。
+- 视觉面无可见变化，`visual_gate` 基线不动；全量终验由 CI 5/5 承担。
+
 ## 2.27.0 — 域迁移 P2c：`知识` 族的构词式漏网补漏 (2026-09-21)
 
 本版把**文案层**残留的 `知识` 族构词统一到术语契约 T9「策略」：**27 文件 / 79 处**。产品行为、API 路径、数据库对象均不变；**用户可见文案变化**，故 `visual_gate` 基线重锚一次。

@@ -71,14 +71,14 @@ def _send_message(
 ) -> dict[str, Any]:
     """Create a conversation, send one customer message, return the turn body."""
     conv = client.post(
-        "/api/conversations",
+        "/api/review-cases",
         json={"customer_name": "phase21", "channel": "web", "customer_ref": "CUST-1001"},
         headers=headers,
     ).json()
     return cast(
         dict[str, Any],
         client.post(
-            f"/api/conversations/{conv['id']}/messages",
+            f"/api/review-cases/{conv['id']}/messages",
             json={"content": content},
             headers={**headers, "Idempotency-Key": f"phase21-{idx}-{conv['id'][-8:]}"},
         ).json(),
@@ -364,7 +364,7 @@ class QualityApiTests(unittest.TestCase):
         cid = turn["conversation"]["id"]
         # Rate negative -> negative_feedback_count becomes 1.
         fb = self.client.post(
-            f"/api/conversations/{cid}/feedback",
+            f"/api/review-cases/{cid}/feedback",
             json={"message_id": aid, "rating": -1},
             headers=self.admin,
         )
@@ -373,7 +373,7 @@ class QualityApiTests(unittest.TestCase):
         self.assertEqual(bucket["negative_feedback_count"], 1)
         # Flip to positive -> decrements back to 0.
         self.client.post(
-            f"/api/conversations/{cid}/feedback",
+            f"/api/review-cases/{cid}/feedback",
             json={"message_id": aid, "rating": 1},
             headers=self.admin,
         )
@@ -385,7 +385,7 @@ class QualityApiTests(unittest.TestCase):
         aid = turn["assistant_message"]["id"]
         cid = turn["conversation"]["id"]
         self.client.post(
-            f"/api/conversations/{cid}/feedback",
+            f"/api/review-cases/{cid}/feedback",
             json={"message_id": aid, "rating": -1},
             headers=self.admin,
         )
@@ -534,14 +534,14 @@ class KnowledgeLifecycleApiTests(unittest.TestCase):
         aid = turn["assistant_message"]["id"]
         cid = turn["conversation"]["id"]
         self.client.post(
-            f"/api/conversations/{cid}/feedback",
+            f"/api/review-cases/{cid}/feedback",
             json={"message_id": aid, "rating": -1},
             headers=self.admin,
         )
         gaps = self.client.get("/api/supervisor/policy-gaps", headers=self.admin).json()
         self.assertEqual(len(gaps), 1)
         draft = self.client.post(
-            f"/api/conversations/{cid}/messages/{aid}/knowledge-draft",
+            f"/api/review-cases/{cid}/messages/{aid}/policy-draft",
             headers=self.admin,
         )
         self.assertEqual(draft.status_code, 201)
@@ -554,7 +554,7 @@ class KnowledgeLifecycleApiTests(unittest.TestCase):
         turn = _send_message(self.client, self.admin, "帮我查一下来源", idx=0)
         cid = turn["conversation"]["id"]
         r = self.client.post(
-            f"/api/conversations/{cid}/messages/no-such-msg/knowledge-draft",
+            f"/api/review-cases/{cid}/messages/no-such-msg/policy-draft",
             headers=self.admin,
         )
         self.assertEqual(r.status_code, 404)

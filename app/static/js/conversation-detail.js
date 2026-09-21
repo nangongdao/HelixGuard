@@ -54,7 +54,7 @@ async function loadDetail(id) {
   // X-Prev-Cursor header (docs/API_POLICY.md §3 — clients never parse cursors).
   const limit = ctx.state.lowPerf ? 80 : ctx.threadPageLimit;
   const { response, data: detail } = await ctx.apiWithHeaders(
-    `/api/conversations/${encodeURIComponent(id)}?message_limit=${limit}&messages_before=true`,
+    `/api/review-cases/${encodeURIComponent(id)}?message_limit=${limit}&messages_before=true`,
   );
   if (ctx.state.selectedId !== id || sequence !== ctx.state.detailSequence) return false;
   ctx.state.threadPrevCursor = response.headers.get("X-Prev-Cursor") || null;

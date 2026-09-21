@@ -30,7 +30,7 @@ export async function sendCustomerMessage(content) {
   ctx.setFormBusy(ctx.els.customerForm, true);
   try {
     const result = await ctx.api(
-      `/api/conversations/${encodeURIComponent(conversationId)}/messages`,
+      `/api/review-cases/${encodeURIComponent(conversationId)}/messages`,
       {
         method: "POST",
         headers: { "Idempotency-Key": newIdempotencyKey() },
@@ -52,7 +52,7 @@ export async function performConversationAction(action, successMessage) {
   if (!ctx.state.selectedId) return;
   const conversationId = ctx.state.selectedId;
   try {
-    const result = await ctx.api(`/api/conversations/${encodeURIComponent(conversationId)}/${action}`, {
+    const result = await ctx.api(`/api/review-cases/${encodeURIComponent(conversationId)}/${action}`, {
       method: "POST",
     });
     if (action === "resolve") {
@@ -96,7 +96,7 @@ export function bindConversationActions() {
       if (!ctx.state.selectedId) return;
       const language = ctx.els.conversationLanguageSelect.value || null;
       try {
-        await ctx.api(`/api/conversations/${encodeURIComponent(ctx.state.selectedId)}/language`, {
+        await ctx.api(`/api/review-cases/${encodeURIComponent(ctx.state.selectedId)}/language`, {
           method: "PATCH",
           body: JSON.stringify({ language }),
         });
@@ -121,7 +121,7 @@ export function bindConversationActions() {
       if (!ctx.state.selectedId || !ctx.state.me?.actor_id) return;
       const conversationId = ctx.state.selectedId;
       try {
-        await ctx.api(`/api/conversations/${encodeURIComponent(conversationId)}/assign`, {
+        await ctx.api(`/api/review-cases/${encodeURIComponent(conversationId)}/assign`, {
           method: "POST",
           body: JSON.stringify({ assignee_id: ctx.state.me.actor_id }),
         });
@@ -180,7 +180,7 @@ export function closeConversationDialog() {
 export async function createConversation(payload) {
   ctx.setFormBusy(ctx.els.newConversationForm, true);
   try {
-    const created = await ctx.api("/api/conversations", {
+    const created = await ctx.api("/api/review-cases", {
       method: "POST",
       body: JSON.stringify(payload),
     });

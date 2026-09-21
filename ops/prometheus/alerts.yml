@@ -30,7 +30,7 @@ groups:
       - alert: HelixTurnP95Latency
         expr: |
           histogram_quantile(0.95,
-            sum(rate(helix_http_request_duration_ms_bucket{route="/api/conversations/{conversation_id}/messages"}[5m])) by (le))
+            sum(rate(helix_http_request_duration_ms_bucket{route="/api/review-cases/{conversation_id}/messages"}[5m])) by (le))
           > 4000
         for: 5m
         labels:

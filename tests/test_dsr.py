@@ -78,14 +78,14 @@ class DsrWorkflowTests(unittest.TestCase):
 
     def _seed_conversation(self, customer_ref: str) -> str:
         response = self.client.post(
-            "/api/conversations",
+            "/api/review-cases",
             json={"customer_name": "Customer", "customer_ref": customer_ref},
             headers=_headers(ADMIN_A_KEY),
         )
         self.assertEqual(response.status_code, 201, response.text)
         conversation_id = response.json()["id"]
         sent = self.client.post(
-            f"/api/conversations/{conversation_id}/messages",
+            f"/api/review-cases/{conversation_id}/messages",
             json={"content": "Hello from the customer"},
             headers=_headers(ADMIN_A_KEY),
         )
@@ -268,14 +268,14 @@ class DsrExportTests(unittest.TestCase):
         self.client = TestClient(create_app(_settings(self.db_path)))
         self.services = cast(Any, self.client.app).state.services
         response = self.client.post(
-            "/api/conversations",
+            "/api/review-cases",
             json={"customer_name": "Export Me", "customer_ref": "CUST-EXP"},
             headers=_headers(ADMIN_A_KEY),
         )
         self.assertEqual(response.status_code, 201, response.text)
         conversation_id = response.json()["id"]
         sent = self.client.post(
-            f"/api/conversations/{conversation_id}/messages",
+            f"/api/review-cases/{conversation_id}/messages",
             json={"content": "Secret message content"},
             headers=_headers(ADMIN_A_KEY),
         )

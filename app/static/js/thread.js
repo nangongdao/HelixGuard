@@ -161,7 +161,7 @@ export async function loadOlderMessages() {
   const cursor = ctx.state.threadPrevCursor;
   try {
     const { response, data } = await ctx.apiWithHeaders(
-      `/api/conversations/${encodeURIComponent(ctx.state.selectedId)}/messages?limit=${ctx.olderPageSize}&before=true&cursor=${encodeURIComponent(cursor)}`,
+      `/api/review-cases/${encodeURIComponent(ctx.state.selectedId)}/messages?limit=${ctx.olderPageSize}&before=true&cursor=${encodeURIComponent(cursor)}`,
     );
     const older = Array.isArray(data) ? data : [];
     const merged = [...older, ...(ctx.state.detail?.messages || [])];
@@ -186,7 +186,7 @@ export async function loadOlderMessages() {
  * callers own the UI acknowledgement. */
 export async function recordFeedback({ messageId, rating }) {
   if (!ctx.state.selectedId) throw new Error("未选择审核单");
-  await ctx.api(`/api/conversations/${encodeURIComponent(ctx.state.selectedId)}/feedback`, {
+  await ctx.api(`/api/review-cases/${encodeURIComponent(ctx.state.selectedId)}/feedback`, {
     method: "POST",
     body: JSON.stringify({
       message_id: messageId,
@@ -218,7 +218,7 @@ export async function submitFeedback(button) {
 export async function requestTranslation({ messageId, language }) {
   if (!ctx.state.selectedId) throw new Error("未选择审核单");
   return ctx.api(
-    `/api/conversations/${encodeURIComponent(ctx.state.selectedId)}/messages/${encodeURIComponent(messageId)}/translate`,
+    `/api/review-cases/${encodeURIComponent(ctx.state.selectedId)}/messages/${encodeURIComponent(messageId)}/translate`,
     {
       method: "POST",
       body: JSON.stringify({ target_language: language }),

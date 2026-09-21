@@ -63,7 +63,7 @@ class ReportAppTests(unittest.TestCase):
 
     def _send_turn(self, conversation_id: str, content: str, key: str) -> None:
         response = self.client.post(
-            f"/api/conversations/{conversation_id}/messages",
+            f"/api/review-cases/{conversation_id}/messages",
             json={"content": content},
             headers={**self.admin, "Idempotency-Key": key},
         )
@@ -71,7 +71,7 @@ class ReportAppTests(unittest.TestCase):
 
     def _seed_usage(self) -> None:
         conv = self.client.post(
-            "/api/conversations", json={"customer_name": "S"}, headers=self.admin
+            "/api/review-cases", json={"customer_name": "S"}, headers=self.admin
         ).json()
         self._send_turn(conv["id"], "我的订单什么时候发货", "report-key-1")
         self._send_turn(conv["id"], "ORD-123 退款", "report-key-2")

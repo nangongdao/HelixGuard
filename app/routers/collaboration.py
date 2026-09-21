@@ -16,7 +16,7 @@ from app.main import (
     conversation_out,
     require_permission,
 )
-from app.routers.common import RouteDeps
+from app.routers.common import RouteDeps, legacy_route
 from app.schemas import (
     TranslateOut,
     TranslateMessageRequest,
@@ -47,11 +47,17 @@ def build_collaboration_router(deps: RouteDeps, router: APIRouter) -> None:
         return [CollaboratorOut(**row) for row in database.list_collaborators(principal.tenant_id)]
 
     @router.patch(
-        "/api/conversations/{conversation_id}/language",
+        "/api/review-cases/{review_case_id}/language",
+        response_model=ConversationOut,
+    )
+    @legacy_route(
+        router,
+        "/api/conversations/{review_case_id}/language",
+        methods=["PATCH"],
         response_model=ConversationOut,
     )
     def update_conversation_language(
-        conversation_id: str,
+        review_case_id: str,
         payload: SetConversationLanguageRequest,
         principal: Annotated[Principal, Depends(require_permission("conversation:write"))],
     ) -> ConversationOut:
@@ -61,28 +67,34 @@ def build_collaboration_router(deps: RouteDeps, router: APIRouter) -> None:
         writer path re-detects automatically. The endpoint is a full upsert —
         it returns the stored row so the frontend can sync its select.
         """
-        existing = database.get_conversation(principal.tenant_id, conversation_id)
+        existing = database.get_conversation(principal.tenant_id, review_case_id)
         if existing is None:
             raise HTTPException(status_code=404, detail="conversation not found")
-        database.set_conversation_language(principal.tenant_id, conversation_id, payload.language)
+        database.set_conversation_language(principal.tenant_id, review_case_id, payload.language)
         database.audit(
             principal.tenant_id,
-            conversation_id,
+            review_case_id,
             principal.actor_id,
             "conversation.language_changed",
             {"language": payload.language},
         )
-        updated = database.get_conversation(principal.tenant_id, conversation_id)
+        updated = database.get_conversation(principal.tenant_id, review_case_id)
         if updated is None:
             raise HTTPException(status_code=404, detail="conversation not found")
         return conversation_out(updated)
 
     @router.post(
-        "/api/conversations/{conversation_id}/messages/{message_id}/translate",
+        "/api/review-cases/{review_case_id}/messages/{message_id}/translate",
+        response_model=TranslateOut,
+    )
+    @legacy_route(
+        router,
+        "/api/conversations/{review_case_id}/messages/{message_id}/translate",
+        methods=["POST"],
         response_model=TranslateOut,
     )
     def translate_message(
-        conversation_id: str,
+        review_case_id: str,
         message_id: str,
         payload: TranslateMessageRequest,
         principal: Annotated[Principal, Depends(require_permission("conversation:write"))],
@@ -94,7 +106,7 @@ def build_collaboration_router(deps: RouteDeps, router: APIRouter) -> None:
         ``was_translated=False`` and ``source="rule"`` so the frontend can
         degrade gracefully.
         """
-        message = database.get_message(principal.tenant_id, conversation_id, message_id)
+        message = database.get_message(principal.tenant_id, review_case_id, message_id)
         if message is None:
             raise HTTPException(status_code=404, detail="message not found")
         if message.get("role") != "customer":
@@ -109,7 +121,7 @@ def build_collaboration_router(deps: RouteDeps, router: APIRouter) -> None:
         )
         database.audit(
             principal.tenant_id,
-            conversation_id,
+            review_case_id,
             principal.actor_id,
             "message.translated",
             {

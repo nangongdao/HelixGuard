@@ -73,6 +73,22 @@ P3A_RETIRED: tuple[str, ...] = (
     "app.widget_token",
 )
 
+# P3b: the conversation -> review-case module and path rename (T5). The
+# retired *paths* must not outlive the files that declare the aliases; the
+# retired *module* name must not survive anywhere the .bak anchors need it.
+P3B_RETIRED: tuple[str, ...] = (
+    "/api/conversations",
+    "/api/v2/conversations",
+    "/api/conversation-labels",
+    "v2/conversations",
+    "conversation-labels",
+    # the \/-escaped regex-literal shape the string sweep cannot see
+    # (P3a's own lesson, repeated at P3b on five test assertions)
+    "\\/api\\/conversations",
+    "app.routers.conversations",
+    "routers/conversations",
+)
+
 # Files that are *supposed* to contain retired names.
 P3A_SWEEP_EXEMPT: frozenset[str] = frozenset(
     {
@@ -85,6 +101,8 @@ P3A_SWEEP_EXEMPT: frozenset[str] = frozenset(
         "docs/DOMAIN_MIGRATION_PLAN.md",
         "docs/adr/0002-sse-seq-streaming.md",  # dated "2023 (Phase 23)" narrative
         "scripts/split_main.py",  # line anchors into the frozen .bak
+        "scripts/rebuild_main.py",  # ditto -- regenerates the frozen snapshot
+        "tests/test_deprecation.py",  # fixtures drive the registry via retired ops
         "app/main.py.bak",  # frozen 1.3.0 snapshot; rebuild_main.py reads it
         "app/database.py.bak",
         "tests/ui_csat.py",  # P5 renames this file and its artifact names
@@ -99,6 +117,7 @@ P3A_SWEEP_EXEMPT_PREFIX: tuple[str, ...] = (
     # Dated factual archives (docs/DOMAIN.md 6).
     "docs/RELEASE_",
     "docs/PHASE_",
+    "docs/RUNBOOK_",
     "docs/PROGRESS_REPORT_",
     "supplychain/",
 )
@@ -321,7 +340,7 @@ class RetiredIdentifierSweepTests(unittest.TestCase):
                 text = path.read_text(encoding="utf-8")
             except (UnicodeDecodeError, OSError):
                 continue
-            hits = sorted({segment for segment in P3A_RETIRED if segment in text})
+            hits = sorted({segment for segment in P3A_RETIRED + P3B_RETIRED if segment in text})
             if hits:
                 offenders.append(f"{relative}: {hits}")
         self.assertEqual(offenders, [], offenders)

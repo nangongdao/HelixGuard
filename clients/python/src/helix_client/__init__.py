@@ -234,7 +234,7 @@ class HelixClient:
 
     def list_conversations(self, **params: Any) -> list[dict[str, Any]]:
         """List conversations; pass queue filters as keyword args."""
-        return self._request("GET", "/api/conversations", params=params)
+        return self._request("GET", "/api/review-cases", params=params)
 
     def create_conversation(
         self,
@@ -246,10 +246,10 @@ class HelixClient:
         body: dict[str, Any] = {"customer_name": customer_name, "channel": channel}
         if customer_ref:
             body["customer_ref"] = customer_ref
-        return self._request("POST", "/api/conversations", json_body=body)
+        return self._request("POST", "/api/review-cases", json_body=body)
 
     def get_conversation(self, conversation_id: str) -> dict[str, Any]:
-        return self._request("GET", f"/api/conversations/{conversation_id}")
+        return self._request("GET", f"/api/review-cases/{conversation_id}")
 
     def send_message(
         self,
@@ -261,7 +261,7 @@ class HelixClient:
         """Send a customer turn; returns the assistant reply."""
         return self._request(
             "POST",
-            f"/api/conversations/{conversation_id}/messages",
+            f"/api/review-cases/{conversation_id}/messages",
             json_body={"content": content},
             idempotency_key=idempotency_key,
         )
@@ -287,7 +287,7 @@ class HelixClient:
             params["cursor"] = cursor
         if status:
             params["status"] = status
-        body, response = self._request_raw("GET", "/api/v2/conversations", params=params)
+        body, response = self._request_raw("GET", "/api/v2/review-cases", params=params)
         return ConversationPage(
             data=list(body.get("data") or []),
             next_cursor=body.get("next_cursor"),
@@ -324,7 +324,7 @@ class HelixClient:
 
     def get_conversation_v2(self, conversation_id: str) -> dict[str, Any]:
         """Fetch one conversation under the v2 contract (shadow-read fields)."""
-        return self._request("GET", f"/api/v2/conversations/{conversation_id}")
+        return self._request("GET", f"/api/v2/review-cases/{conversation_id}")
 
     def list_messages_v2(
         self,
@@ -338,7 +338,7 @@ class HelixClient:
         if cursor:
             params["cursor"] = cursor
         body, response = self._request_raw(
-            "GET", f"/api/v2/conversations/{conversation_id}/messages", params=params
+            "GET", f"/api/v2/review-cases/{conversation_id}/messages", params=params
         )
         return ConversationPage(
             data=list(body.get("data") or []),
@@ -368,7 +368,7 @@ class HelixClient:
             body["customer_ref"] = customer_ref
         result, response = self._request_raw(
             "POST",
-            "/api/v2/conversations",
+            "/api/v2/review-cases",
             json=body,
             headers={"Idempotency-Key": idempotency_key} if idempotency_key else None,
         )
@@ -388,7 +388,7 @@ class HelixClient:
     ) -> dict[str, Any]:
         return self._request(
             "POST",
-            f"/api/conversations/{conversation_id}/turn-jobs",
+            f"/api/review-cases/{conversation_id}/turn-jobs",
             json_body={"content": content},
             idempotency_key=idempotency_key,
         )
@@ -429,7 +429,7 @@ class HelixClient:
         if reason:
             body["reason"] = reason
         return self._request(
-            "POST", f"/api/conversations/{conversation_id}/feedback", json_body=body
+            "POST", f"/api/review-cases/{conversation_id}/feedback", json_body=body
         )
 
     # --------------------------------------------------------------- knowledge

@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Helix Guard",
-    "version": "2.27.0"
+    "version": "2.28.0"
   },
   "paths": {
     "/api/supervisor/knowledge-gaps": {
@@ -622,8 +622,9 @@
           "conversations"
         ],
         "summary": "List conversations",
-        "description": "List conversations. Requires: conversation:read.",
+        "description": "List conversations. Requires: conversation:read.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
         "operationId": "list_conversations_api_conversations_get",
+        "deprecated": true,
         "parameters": [
           {
             "name": "status",
@@ -934,8 +935,397 @@
           "conversations"
         ],
         "summary": "Create a conversation",
-        "description": "Create a conversation. Requires: conversation:write.",
+        "description": "Create a conversation. Requires: conversation:write.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
         "operationId": "create_conversation_api_conversations_post",
+        "deprecated": true,
+        "parameters": [
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateConversationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/review-cases": {
+      "get": {
+        "tags": [
+          "conversations"
+        ],
+        "summary": "List conversations",
+        "description": "List conversations. Requires: conversation:read.",
+        "operationId": "list_conversations_api_review_cases_get",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(open|waiting_human|human_active|resolved)$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 120
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            }
+          },
+          {
+            "name": "label",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 32
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Label"
+            }
+          },
+          {
+            "name": "priority",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(normal|high)$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Priority"
+            }
+          },
+          {
+            "name": "channel",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 40,
+                  "pattern": "^[a-zA-Z0-9_-]+$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Channel"
+            }
+          },
+          {
+            "name": "assigned_to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 80
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Assigned To"
+            }
+          },
+          {
+            "name": "claimed_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 80
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Claimed By"
+            }
+          },
+          {
+            "name": "mine",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Mine"
+            }
+          },
+          {
+            "name": "unassigned",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Unassigned"
+            }
+          },
+          {
+            "name": "unclaimed",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Unclaimed"
+            }
+          },
+          {
+            "name": "sla_breached",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Sla Breached"
+            }
+          },
+          {
+            "name": "needs_response",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Needs Response"
+            }
+          },
+          {
+            "name": "archived",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Archived"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^(priority|waiting|sla|updated)$",
+              "default": "priority",
+              "title": "Sort"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100000,
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 512
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ConversationOut"
+                  },
+                  "title": "Response List Conversations Api Review Cases Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "conversations"
+        ],
+        "summary": "Create a conversation",
+        "description": "Create a conversation. Requires: conversation:write.",
+        "operationId": "create_conversation_api_review_cases_post",
         "parameters": [
           {
             "name": "X-API-Key",
@@ -1298,8 +1688,9 @@
           "conversations"
         ],
         "summary": "Label catalog with counts",
-        "description": "Label catalog with counts. Requires: conversation:read.",
+        "description": "Label catalog with counts. Requires: conversation:read.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-case-labels. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
         "operationId": "list_conversation_labels_api_conversation_labels_get",
+        "deprecated": true,
         "parameters": [
           {
             "name": "X-API-Key",
@@ -1362,14 +1753,85 @@
         }
       }
     },
+    "/api/review-case-labels": {
+      "get": {
+        "tags": [
+          "conversations"
+        ],
+        "summary": "Label catalog with counts",
+        "description": "Label catalog with counts. Requires: conversation:read.",
+        "operationId": "list_conversation_labels_api_review_case_labels_get",
+        "parameters": [
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ConversationLabelOut"
+                  },
+                  "title": "Response List Conversation Labels Api Review Case Labels Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/conversations/bulk-actions": {
       "post": {
         "tags": [
           "conversations"
         ],
         "summary": "Bulk priority/label/claim actions",
-        "description": "Bulk priority/label/claim actions. Requires: operator:act.",
+        "description": "Bulk priority/label/claim actions. Requires: operator:act.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/bulk-actions. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
         "operationId": "bulk_conversation_action_api_conversations_bulk_actions_post",
+        "deprecated": true,
         "parameters": [
           {
             "name": "X-API-Key",
@@ -1438,22 +1900,99 @@
         }
       }
     },
-    "/api/conversations/{conversation_id}": {
+    "/api/review-cases/bulk-actions": {
+      "post": {
+        "tags": [
+          "conversations"
+        ],
+        "summary": "Bulk priority/label/claim actions",
+        "description": "Bulk priority/label/claim actions. Requires: operator:act.",
+        "operationId": "bulk_conversation_action_api_review_cases_bulk_actions_post",
+        "parameters": [
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkConversationActionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkConversationActionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/conversations/{review_case_id}": {
       "patch": {
         "tags": [
           "conversations"
         ],
         "summary": "Update conversation priority",
-        "description": "Update conversation priority. Requires: operator:act.",
-        "operationId": "update_conversation_api_conversations__conversation_id__patch",
+        "description": "Update conversation priority. Requires: operator:act.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
+        "operationId": "update_conversation_api_conversations__review_case_id__patch",
+        "deprecated": true,
         "parameters": [
           {
-            "name": "conversation_id",
+            "name": "review_case_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Conversation Id"
+              "title": "Review Case Id"
             }
           },
           {
@@ -1527,16 +2066,17 @@
           "conversations"
         ],
         "summary": "Conversation detail with messages, audit events, and summaries",
-        "description": "Conversation detail with messages, audit events, and summaries. Requires: conversation:read.",
-        "operationId": "get_conversation_api_conversations__conversation_id__get",
+        "description": "Conversation detail with messages, audit events, and summaries. Requires: conversation:read.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
+        "operationId": "get_conversation_api_conversations__review_case_id__get",
+        "deprecated": true,
         "parameters": [
           {
-            "name": "conversation_id",
+            "name": "review_case_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Conversation Id"
+              "title": "Review Case Id"
             }
           },
           {
@@ -1641,22 +2181,226 @@
         }
       }
     },
-    "/api/conversations/{conversation_id}/labels": {
+    "/api/review-cases/{review_case_id}": {
+      "patch": {
+        "tags": [
+          "conversations"
+        ],
+        "summary": "Update conversation priority",
+        "description": "Update conversation priority. Requires: operator:act.",
+        "operationId": "update_conversation_api_review_cases__review_case_id__patch",
+        "parameters": [
+          {
+            "name": "review_case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Review Case Id"
+            }
+          },
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConversationPriorityRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "conversations"
+        ],
+        "summary": "Conversation detail with messages, audit events, and summaries",
+        "description": "Conversation detail with messages, audit events, and summaries. Requires: conversation:read.",
+        "operationId": "get_conversation_api_review_cases__review_case_id__get",
+        "parameters": [
+          {
+            "name": "review_case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Review Case Id"
+            }
+          },
+          {
+            "name": "message_limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 500,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Message Limit"
+            }
+          },
+          {
+            "name": "message_cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 512
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Message Cursor"
+            }
+          },
+          {
+            "name": "messages_before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Messages Before"
+            }
+          },
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/conversations/{review_case_id}/labels": {
       "put": {
         "tags": [
           "conversations"
         ],
         "summary": "Replace conversation labels",
-        "description": "Replace conversation labels. Requires: operator:act.",
-        "operationId": "replace_conversation_labels_api_conversations__conversation_id__labels_put",
+        "description": "Replace conversation labels. Requires: operator:act.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}/labels. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
+        "operationId": "replace_conversation_labels_api_conversations__review_case_id__labels_put",
+        "deprecated": true,
         "parameters": [
           {
-            "name": "conversation_id",
+            "name": "review_case_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Conversation Id"
+              "title": "Review Case Id"
             }
           },
           {
@@ -1726,22 +2470,108 @@
         }
       }
     },
-    "/api/conversations/{conversation_id}/messages": {
+    "/api/review-cases/{review_case_id}/labels": {
+      "put": {
+        "tags": [
+          "conversations"
+        ],
+        "summary": "Replace conversation labels",
+        "description": "Replace conversation labels. Requires: operator:act.",
+        "operationId": "replace_conversation_labels_api_review_cases__review_case_id__labels_put",
+        "parameters": [
+          {
+            "name": "review_case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Review Case Id"
+            }
+          },
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConversationLabelsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/conversations/{review_case_id}/messages": {
       "get": {
         "tags": [
           "conversations"
         ],
         "summary": "List conversation messages",
-        "description": "List conversation messages. Requires: conversation:read.",
-        "operationId": "list_conversation_messages_api_conversations__conversation_id__messages_get",
+        "description": "List conversation messages. Requires: conversation:read.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}/messages. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
+        "operationId": "list_conversation_messages_api_conversations__review_case_id__messages_get",
+        "deprecated": true,
         "parameters": [
           {
-            "name": "conversation_id",
+            "name": "review_case_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Conversation Id"
+              "title": "Review Case Id"
             }
           },
           {
@@ -1823,10 +2653,8 @@
               "application/json": {
                 "schema": {
                   "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/MessageOut"
-                  },
-                  "title": "Response List Conversation Messages Api Conversations  Conversation Id  Messages Get"
+                  "items": {},
+                  "title": "Response List Conversation Messages Api Conversations  Review Case Id  Messages Get"
                 }
               }
             }
@@ -1848,16 +2676,17 @@
           "conversations"
         ],
         "summary": "Send a customer turn (idempotent)",
-        "description": "Send a customer turn (idempotent). Requires: conversation:write.",
-        "operationId": "post_customer_message_api_conversations__conversation_id__messages_post",
+        "description": "Send a customer turn (idempotent). Requires: conversation:write.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}/messages. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
+        "operationId": "post_customer_message_api_conversations__review_case_id__messages_post",
+        "deprecated": true,
         "parameters": [
           {
-            "name": "conversation_id",
+            "name": "review_case_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Conversation Id"
+              "title": "Review Case Id"
             }
           },
           {
@@ -1943,22 +2772,315 @@
         }
       }
     },
-    "/api/conversations/{conversation_id}/claim": {
+    "/api/review-cases/{review_case_id}/messages": {
+      "get": {
+        "tags": [
+          "conversations"
+        ],
+        "summary": "List conversation messages",
+        "description": "List conversation messages. Requires: conversation:read.",
+        "operationId": "list_conversation_messages_api_review_cases__review_case_id__messages_get",
+        "parameters": [
+          {
+            "name": "review_case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Review Case Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 512
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Before"
+            }
+          },
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MessageOut"
+                  },
+                  "title": "Response List Conversation Messages Api Review Cases  Review Case Id  Messages Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "conversations"
+        ],
+        "summary": "Send a customer turn (idempotent)",
+        "description": "Send a customer turn (idempotent). Requires: conversation:write.",
+        "operationId": "post_customer_message_api_review_cases__review_case_id__messages_post",
+        "parameters": [
+          {
+            "name": "review_case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Review Case Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MessageRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TurnResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/conversations/{review_case_id}/claim": {
+      "post": {
+        "tags": [
+          "conversations"
+        ],
+        "summary": "Claim a conversation",
+        "description": "Claim a conversation. Requires: operator:act.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}/claim. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
+        "operationId": "claim_conversation_api_conversations__review_case_id__claim_post",
+        "deprecated": true,
+        "parameters": [
+          {
+            "name": "review_case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Review Case Id"
+            }
+          },
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/review-cases/{review_case_id}/claim": {
       "post": {
         "tags": [
           "conversations"
         ],
         "summary": "Claim a conversation",
         "description": "Claim a conversation. Requires: operator:act.",
-        "operationId": "claim_conversation_api_conversations__conversation_id__claim_post",
+        "operationId": "claim_conversation_api_review_cases__review_case_id__claim_post",
         "parameters": [
           {
-            "name": "conversation_id",
+            "name": "review_case_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Conversation Id"
+              "title": "Review Case Id"
             }
           },
           {
@@ -2018,22 +3140,98 @@
         }
       }
     },
-    "/api/conversations/{conversation_id}/release": {
+    "/api/conversations/{review_case_id}/release": {
+      "post": {
+        "tags": [
+          "conversations"
+        ],
+        "summary": "Release a claim",
+        "description": "Release a claim. Requires: operator:act.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}/release. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
+        "operationId": "release_conversation_api_conversations__review_case_id__release_post",
+        "deprecated": true,
+        "parameters": [
+          {
+            "name": "review_case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Review Case Id"
+            }
+          },
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/review-cases/{review_case_id}/release": {
       "post": {
         "tags": [
           "conversations"
         ],
         "summary": "Release a claim",
         "description": "Release a claim. Requires: operator:act.",
-        "operationId": "release_conversation_api_conversations__conversation_id__release_post",
+        "operationId": "release_conversation_api_review_cases__review_case_id__release_post",
         "parameters": [
           {
-            "name": "conversation_id",
+            "name": "review_case_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Conversation Id"
+              "title": "Review Case Id"
             }
           },
           {
@@ -2093,22 +3291,23 @@
         }
       }
     },
-    "/api/conversations/{conversation_id}/assign": {
+    "/api/conversations/{review_case_id}/assign": {
       "post": {
         "tags": [
           "conversations"
         ],
         "summary": "Assign to an operator",
-        "description": "Assign to an operator. Requires: operator:act.",
-        "operationId": "assign_conversation_api_conversations__conversation_id__assign_post",
+        "description": "Assign to an operator. Requires: operator:act.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}/assign. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
+        "operationId": "assign_conversation_api_conversations__review_case_id__assign_post",
+        "deprecated": true,
         "parameters": [
           {
-            "name": "conversation_id",
+            "name": "review_case_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Conversation Id"
+              "title": "Review Case Id"
             }
           },
           {
@@ -2178,22 +3377,209 @@
         }
       }
     },
-    "/api/conversations/{conversation_id}/turn-jobs": {
+    "/api/review-cases/{review_case_id}/assign": {
+      "post": {
+        "tags": [
+          "conversations"
+        ],
+        "summary": "Assign to an operator",
+        "description": "Assign to an operator. Requires: operator:act.",
+        "operationId": "assign_conversation_api_review_cases__review_case_id__assign_post",
+        "parameters": [
+          {
+            "name": "review_case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Review Case Id"
+            }
+          },
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignConversationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/conversations/{review_case_id}/turn-jobs": {
+      "post": {
+        "tags": [
+          "turn-jobs"
+        ],
+        "summary": "Enqueue an async turn",
+        "description": "Enqueue an async turn. Requires: conversation:write.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}/turn-jobs. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
+        "operationId": "enqueue_turn_job_api_conversations__review_case_id__turn_jobs_post",
+        "deprecated": true,
+        "parameters": [
+          {
+            "name": "review_case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Review Case Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MessageRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TurnJobOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/review-cases/{review_case_id}/turn-jobs": {
       "post": {
         "tags": [
           "turn-jobs"
         ],
         "summary": "Enqueue an async turn",
         "description": "Enqueue an async turn. Requires: conversation:write.",
-        "operationId": "enqueue_turn_job_api_conversations__conversation_id__turn_jobs_post",
+        "operationId": "enqueue_turn_job_api_review_cases__review_case_id__turn_jobs_post",
         "parameters": [
           {
-            "name": "conversation_id",
+            "name": "review_case_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Conversation Id"
+              "title": "Review Case Id"
             }
           },
           {
@@ -2695,22 +4081,23 @@
         }
       }
     },
-    "/api/conversations/{conversation_id}/language": {
+    "/api/conversations/{review_case_id}/language": {
       "patch": {
         "tags": [
           "conversations"
         ],
         "summary": "Set (or clear, with null) the manual language override for a conversation",
-        "description": "Set (or clear) the manual language override for a conversation.\n\nBacklog (多语言审核): ``language`` null clears the override so the\nwriter path re-detects automatically. The endpoint is a full upsert —\nit returns the stored row so the frontend can sync its select.",
-        "operationId": "update_conversation_language_api_conversations__conversation_id__language_patch",
+        "description": "Set (or clear) the manual language override for a conversation.\n\nBacklog (多语言审核): ``language`` null clears the override so the\nwriter path re-detects automatically. The endpoint is a full upsert —\nit returns the stored row so the frontend can sync its select.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}/language. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
+        "operationId": "update_conversation_language_api_conversations__review_case_id__language_patch",
+        "deprecated": true,
         "parameters": [
           {
-            "name": "conversation_id",
+            "name": "review_case_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Conversation Id"
+              "title": "Review Case Id"
             }
           },
           {
@@ -2780,22 +4167,202 @@
         }
       }
     },
-    "/api/conversations/{conversation_id}/messages/{message_id}/translate": {
+    "/api/review-cases/{review_case_id}/language": {
+      "patch": {
+        "tags": [
+          "conversations"
+        ],
+        "summary": "Set (or clear, with null) the manual language override for a conversation",
+        "description": "Set (or clear) the manual language override for a conversation.\n\nBacklog (多语言审核): ``language`` null clears the override so the\nwriter path re-detects automatically. The endpoint is a full upsert —\nit returns the stored row so the frontend can sync its select.",
+        "operationId": "update_conversation_language_api_review_cases__review_case_id__language_patch",
+        "parameters": [
+          {
+            "name": "review_case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Review Case Id"
+            }
+          },
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetConversationLanguageRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/conversations/{review_case_id}/messages/{message_id}/translate": {
+      "post": {
+        "tags": [
+          "conversations"
+        ],
+        "summary": "Translate one customer message; without a provider the original text is echoed",
+        "description": "Translate one customer message into ``target_language``.\n\nBacklog (多语言审核): never blocks on model availability — without a\nconfigured provider the original text is returned with\n``was_translated=False`` and ``source=\"rule\"`` so the frontend can\ndegrade gracefully.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}/messages/{message_id}/translate. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
+        "operationId": "translate_message_api_conversations__review_case_id__messages__message_id__translate_post",
+        "deprecated": true,
+        "parameters": [
+          {
+            "name": "review_case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Review Case Id"
+            }
+          },
+          {
+            "name": "message_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Message Id"
+            }
+          },
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TranslateMessageRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TranslateOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/review-cases/{review_case_id}/messages/{message_id}/translate": {
       "post": {
         "tags": [
           "conversations"
         ],
         "summary": "Translate one customer message; without a provider the original text is echoed",
         "description": "Translate one customer message into ``target_language``.\n\nBacklog (多语言审核): never blocks on model availability — without a\nconfigured provider the original text is returned with\n``was_translated=False`` and ``source=\"rule\"`` so the frontend can\ndegrade gracefully.",
-        "operationId": "translate_message_api_conversations__conversation_id__messages__message_id__translate_post",
+        "operationId": "translate_message_api_review_cases__review_case_id__messages__message_id__translate_post",
         "parameters": [
           {
-            "name": "conversation_id",
+            "name": "review_case_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Conversation Id"
+              "title": "Review Case Id"
             }
           },
           {
@@ -3048,22 +4615,23 @@
         }
       }
     },
-    "/api/conversations/{conversation_id}/accept": {
+    "/api/conversations/{review_case_id}/accept": {
       "post": {
         "tags": [
           "conversations"
         ],
         "summary": "Accept a conversation into human_active",
-        "description": "Accept a conversation into human_active. Requires: operator:act.",
-        "operationId": "accept_conversation_api_conversations__conversation_id__accept_post",
+        "description": "Accept a conversation into human_active. Requires: operator:act.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}/accept. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
+        "operationId": "accept_conversation_api_conversations__review_case_id__accept_post",
+        "deprecated": true,
         "parameters": [
           {
-            "name": "conversation_id",
+            "name": "review_case_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Conversation Id"
+              "title": "Review Case Id"
             }
           },
           {
@@ -3123,22 +4691,98 @@
         }
       }
     },
-    "/api/conversations/{conversation_id}/operator-messages": {
+    "/api/review-cases/{review_case_id}/accept": {
+      "post": {
+        "tags": [
+          "conversations"
+        ],
+        "summary": "Accept a conversation into human_active",
+        "description": "Accept a conversation into human_active. Requires: operator:act.",
+        "operationId": "accept_conversation_api_review_cases__review_case_id__accept_post",
+        "parameters": [
+          {
+            "name": "review_case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Review Case Id"
+            }
+          },
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/conversations/{review_case_id}/operator-messages": {
       "post": {
         "tags": [
           "conversations"
         ],
         "summary": "Send an operator reply (Idempotency-Key honoured)",
-        "description": "Stores the operator's reply and, when an Idempotency-Key is supplied, records it as the send receipt for that attempt. Replaying the same key returns the original message with X-Idempotent-Replay: true instead of creating a second reply.",
-        "operationId": "operator_message_api_conversations__conversation_id__operator_messages_post",
+        "description": "Send an operator reply. Requires: operator:act.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}/operator-messages. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
+        "operationId": "operator_message_api_conversations__review_case_id__operator_messages_post",
+        "deprecated": true,
         "parameters": [
           {
-            "name": "conversation_id",
+            "name": "review_case_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Conversation Id"
+              "title": "Review Case Id"
             }
           },
           {
@@ -3225,22 +4869,125 @@
         }
       }
     },
-    "/api/conversations/{conversation_id}/notes": {
+    "/api/review-cases/{review_case_id}/operator-messages": {
+      "post": {
+        "tags": [
+          "conversations"
+        ],
+        "summary": "Send an operator reply (Idempotency-Key honoured)",
+        "description": "Stores the operator's reply and, when an Idempotency-Key is supplied, records it as the send receipt for that attempt. Replaying the same key returns the original message with X-Idempotent-Replay: true instead of creating a second reply.",
+        "operationId": "operator_message_api_review_cases__review_case_id__operator_messages_post",
+        "parameters": [
+          {
+            "name": "review_case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Review Case Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OperatorMessageRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/conversations/{review_case_id}/notes": {
       "post": {
         "tags": [
           "conversations"
         ],
         "summary": "Add an internal note (supports @mention colleagues and reply threads)",
-        "description": "Add an internal note (supports @mention colleagues and reply threads). Requires: operator:act.",
-        "operationId": "internal_note_api_conversations__conversation_id__notes_post",
+        "description": "Add an internal note (supports @mention colleagues and reply threads). Requires: operator:act.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}/notes. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
+        "operationId": "internal_note_api_conversations__review_case_id__notes_post",
+        "deprecated": true,
         "parameters": [
           {
-            "name": "conversation_id",
+            "name": "review_case_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Conversation Id"
+              "title": "Review Case Id"
             }
           },
           {
@@ -3310,22 +5057,183 @@
         }
       }
     },
-    "/api/conversations/{conversation_id}/resolve": {
+    "/api/review-cases/{review_case_id}/notes": {
+      "post": {
+        "tags": [
+          "conversations"
+        ],
+        "summary": "Add an internal note (supports @mention colleagues and reply threads)",
+        "description": "Add an internal note (supports @mention colleagues and reply threads). Requires: operator:act.",
+        "operationId": "internal_note_api_review_cases__review_case_id__notes_post",
+        "parameters": [
+          {
+            "name": "review_case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Review Case Id"
+            }
+          },
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InternalNoteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/conversations/{review_case_id}/resolve": {
+      "post": {
+        "tags": [
+          "conversations"
+        ],
+        "summary": "Resolve a conversation",
+        "description": "Resolve a conversation. Requires: operator:act.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}/resolve. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
+        "operationId": "resolve_conversation_api_conversations__review_case_id__resolve_post",
+        "deprecated": true,
+        "parameters": [
+          {
+            "name": "review_case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Review Case Id"
+            }
+          },
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/review-cases/{review_case_id}/resolve": {
       "post": {
         "tags": [
           "conversations"
         ],
         "summary": "Resolve a conversation",
         "description": "Resolve a conversation. Requires: operator:act.",
-        "operationId": "resolve_conversation_api_conversations__conversation_id__resolve_post",
+        "operationId": "resolve_conversation_api_review_cases__review_case_id__resolve_post",
         "parameters": [
           {
-            "name": "conversation_id",
+            "name": "review_case_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Conversation Id"
+              "title": "Review Case Id"
             }
           },
           {
@@ -3385,22 +5293,98 @@
         }
       }
     },
-    "/api/conversations/{conversation_id}/reopen": {
+    "/api/conversations/{review_case_id}/reopen": {
+      "post": {
+        "tags": [
+          "conversations"
+        ],
+        "summary": "Reopen a resolved conversation",
+        "description": "Reopen a resolved conversation. Requires: operator:act.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}/reopen. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
+        "operationId": "reopen_conversation_api_conversations__review_case_id__reopen_post",
+        "deprecated": true,
+        "parameters": [
+          {
+            "name": "review_case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Review Case Id"
+            }
+          },
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/review-cases/{review_case_id}/reopen": {
       "post": {
         "tags": [
           "conversations"
         ],
         "summary": "Reopen a resolved conversation",
         "description": "Reopen a resolved conversation. Requires: operator:act.",
-        "operationId": "reopen_conversation_api_conversations__conversation_id__reopen_post",
+        "operationId": "reopen_conversation_api_review_cases__review_case_id__reopen_post",
         "parameters": [
           {
-            "name": "conversation_id",
+            "name": "review_case_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Conversation Id"
+              "title": "Review Case Id"
             }
           },
           {
@@ -3460,22 +5444,23 @@
         }
       }
     },
-    "/api/conversations/{conversation_id}/feedback": {
+    "/api/conversations/{review_case_id}/feedback": {
       "post": {
         "tags": [
           "conversations"
         ],
         "summary": "Rate an assistant message",
-        "description": "Rate an assistant message. Requires: conversation:read.",
-        "operationId": "submit_feedback_api_conversations__conversation_id__feedback_post",
+        "description": "Rate an assistant message. Requires: conversation:read.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}/feedback. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
+        "operationId": "submit_feedback_api_conversations__review_case_id__feedback_post",
+        "deprecated": true,
         "parameters": [
           {
-            "name": "conversation_id",
+            "name": "review_case_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Conversation Id"
+              "title": "Review Case Id"
             }
           },
           {
@@ -3545,22 +5530,108 @@
         }
       }
     },
-    "/api/conversations/{conversation_id}/threads": {
+    "/api/review-cases/{review_case_id}/feedback": {
+      "post": {
+        "tags": [
+          "conversations"
+        ],
+        "summary": "Rate an assistant message",
+        "description": "Rate an assistant message. Requires: conversation:read.",
+        "operationId": "submit_feedback_api_review_cases__review_case_id__feedback_post",
+        "parameters": [
+          {
+            "name": "review_case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Review Case Id"
+            }
+          },
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedbackRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/conversations/{review_case_id}/threads": {
       "get": {
         "tags": [
           "collaboration"
         ],
         "summary": "List internal discussion threads for a conversation",
-        "description": "List internal discussion threads for a conversation. Requires: conversation:read.",
-        "operationId": "list_conversation_threads_api_conversations__conversation_id__threads_get",
+        "description": "List internal discussion threads for a conversation. Requires: conversation:read.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}/threads. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
+        "operationId": "list_conversation_threads_api_conversations__review_case_id__threads_get",
+        "deprecated": true,
         "parameters": [
           {
-            "name": "conversation_id",
+            "name": "review_case_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Conversation Id"
+              "title": "Review Case Id"
             }
           },
           {
@@ -3620,22 +5691,183 @@
         }
       }
     },
-    "/api/conversations/{conversation_id}/events": {
+    "/api/review-cases/{review_case_id}/threads": {
+      "get": {
+        "tags": [
+          "collaboration"
+        ],
+        "summary": "List internal discussion threads for a conversation",
+        "description": "List internal discussion threads for a conversation. Requires: conversation:read.",
+        "operationId": "list_conversation_threads_api_review_cases__review_case_id__threads_get",
+        "parameters": [
+          {
+            "name": "review_case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Review Case Id"
+            }
+          },
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationThreadsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/conversations/{review_case_id}/events": {
+      "get": {
+        "tags": [
+          "collaboration"
+        ],
+        "summary": "Supervisor live view: SSE revision stream for a conversation",
+        "description": "Supervisor live view (旁观模式) for an in-progress conversation.\n\nRead-only SSE: emits a ``snapshot`` with the current revision, then a\n``conversation`` event whenever the conversation's updated_at or the\nlatest message seq changes. ``conversation:read`` suffices (no\n``operator:act``), so a supervisor can watch without claiming or\ntouching the conversation.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}/events. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
+        "operationId": "stream_conversation_events_api_conversations__review_case_id__events_get",
+        "deprecated": true,
+        "parameters": [
+          {
+            "name": "review_case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Review Case Id"
+            }
+          },
+          {
+            "name": "timeout",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 120,
+              "minimum": 5,
+              "default": 45,
+              "title": "Timeout"
+            }
+          },
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/review-cases/{review_case_id}/events": {
       "get": {
         "tags": [
           "collaboration"
         ],
         "summary": "Supervisor live view: SSE revision stream for a conversation",
         "description": "Supervisor live view (旁观模式) for an in-progress conversation.\n\nRead-only SSE: emits a ``snapshot`` with the current revision, then a\n``conversation`` event whenever the conversation's updated_at or the\nlatest message seq changes. ``conversation:read`` suffices (no\n``operator:act``), so a supervisor can watch without claiming or\ntouching the conversation.",
-        "operationId": "stream_conversation_events_api_conversations__conversation_id__events_get",
+        "operationId": "stream_conversation_events_api_review_cases__review_case_id__events_get",
         "parameters": [
           {
-            "name": "conversation_id",
+            "name": "review_case_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Conversation Id"
+              "title": "Review Case Id"
             }
           },
           {
@@ -3782,9 +6014,7 @@
               "application/json": {
                 "schema": {
                   "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/CannedResponseOut"
-                  },
+                  "items": {},
                   "title": "Response List Canned Responses Api Canned Responses Get"
                 }
               }
@@ -5507,22 +7737,107 @@
         }
       }
     },
-    "/api/conversations/{conversation_id}/messages/{message_id}/knowledge-draft": {
+    "/api/conversations/{review_case_id}/messages/{message_id}/knowledge-draft": {
+      "post": {
+        "tags": [
+          "policy"
+        ],
+        "summary": "Create a draft from a negatively-rated message",
+        "description": "Generate a draft knowledge article from a negatively-rated message.\n\nReflows negative feedback into the knowledge base (Phase 21.3): the\nassistant message's content seeds a draft the reviewer can edit and\npublish.  Returns 404 if the message or conversation does not exist.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}/messages/{message_id}/policy-draft. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
+        "operationId": "create_knowledge_draft_from_feedback_api_conversations__review_case_id__messages__message_id__knowledge_draft_post",
+        "deprecated": true,
+        "parameters": [
+          {
+            "name": "review_case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Review Case Id"
+            }
+          },
+          {
+            "name": "message_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Message Id"
+            }
+          },
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KnowledgeArticleOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/review-cases/{review_case_id}/messages/{message_id}/policy-draft": {
       "post": {
         "tags": [
           "policy"
         ],
         "summary": "Create a draft from a negatively-rated message",
         "description": "Generate a draft knowledge article from a negatively-rated message.\n\nReflows negative feedback into the knowledge base (Phase 21.3): the\nassistant message's content seeds a draft the reviewer can edit and\npublish.  Returns 404 if the message or conversation does not exist.",
-        "operationId": "create_knowledge_draft_from_feedback_api_conversations__conversation_id__messages__message_id__knowledge_draft_post",
+        "operationId": "create_knowledge_draft_from_feedback_api_review_cases__review_case_id__messages__message_id__policy_draft_post",
         "parameters": [
           {
-            "name": "conversation_id",
+            "name": "review_case_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Conversation Id"
+              "title": "Review Case Id"
             }
           },
           {
@@ -13674,11 +15989,11 @@
     "/api/v2/conversations": {
       "get": {
         "tags": [
-          "v2:conversations"
+          "v2:review-cases"
         ],
         "summary": "List conversations (cursor-paginated)",
-        "description": "Keyset-paginated queue listing. Cursors are opaque and live in the response body next_cursor field; core fields match v1 exactly (shadow-read contract).",
         "operationId": "list_conversations_v2_api_v2_conversations_get",
+        "deprecated": true,
         "parameters": [
           {
             "name": "cursor",
@@ -13791,15 +16106,16 @@
               }
             }
           }
-        }
+        },
+        "description": "Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/v2/review-cases. Domain migration: the customer-support shell became content review (docs/DOMAIN.md)."
       },
       "post": {
         "tags": [
-          "v2:conversations"
+          "v2:review-cases"
         ],
         "summary": "Create a conversation (Idempotency-Key honoured)",
-        "description": "Creates a conversation and records its domain event in the same transaction (transactional outbox). Replaying the same Idempotency-Key returns the original resource with X-Idempotent-Replay: true.",
         "operationId": "create_conversation_v2_api_v2_conversations_post",
+        "deprecated": true,
         "parameters": [
           {
             "name": "Idempotency-Key",
@@ -13886,25 +16202,72 @@
               }
             }
           }
-        }
+        },
+        "description": "Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/v2/review-cases. Domain migration: the customer-support shell became content review (docs/DOMAIN.md)."
       }
     },
-    "/api/v2/conversations/{conversation_id}": {
+    "/api/v2/review-cases": {
       "get": {
         "tags": [
-          "v2:conversations"
+          "v2:review-cases"
         ],
-        "summary": "Fetch one conversation",
-        "description": "Single conversation by id; archived conversations resolve transparently, mirroring v1 semantics.",
-        "operationId": "get_conversation_v2_api_v2_conversations__conversation_id__get",
+        "summary": "List conversations (cursor-paginated)",
+        "description": "Keyset-paginated queue listing. Cursors are opaque and live in the response body next_cursor field; core fields match v1 exactly (shadow-read contract).",
+        "operationId": "list_conversations_v2_api_v2_review_cases_get",
         "parameters": [
           {
-            "name": "conversation_id",
-            "in": "path",
-            "required": true,
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 512
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
             "schema": {
               "type": "string",
-              "title": "Conversation Id"
+              "default": "updated",
+              "title": "Sort"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
             }
           },
           {
@@ -13948,7 +16311,102 @@
                 "schema": {
                   "type": "object",
                   "additionalProperties": true,
-                  "title": "Response Get Conversation V2 Api V2 Conversations  Conversation Id  Get"
+                  "title": "Response List Conversations V2 Api V2 Review Cases Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "v2:review-cases"
+        ],
+        "summary": "Create a conversation (Idempotency-Key honoured)",
+        "description": "Creates a conversation and records its domain event in the same transaction (transactional outbox). Replaying the same Idempotency-Key returns the original resource with X-Idempotent-Replay: true.",
+        "operationId": "create_conversation_v2_api_v2_review_cases_post",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "title": "Payload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Create Conversation V2 Api V2 Review Cases Post"
                 }
               }
             }
@@ -13966,22 +16424,177 @@
         }
       }
     },
-    "/api/v2/conversations/{conversation_id}/messages": {
+    "/api/v2/conversations/{review_case_id}": {
       "get": {
         "tags": [
-          "v2:conversations"
+          "v2:review-cases"
         ],
-        "summary": "List messages (keyset-paginated)",
-        "description": "Stable keyset pagination over (created_at, seq) so equal-timestamp messages never skip or repeat.",
-        "operationId": "list_messages_v2_api_v2_conversations__conversation_id__messages_get",
+        "summary": "Fetch one conversation",
+        "operationId": "get_conversation_v2_api_v2_conversations__review_case_id__get",
+        "deprecated": true,
         "parameters": [
           {
-            "name": "conversation_id",
+            "name": "review_case_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Conversation Id"
+              "title": "Review Case Id"
+            }
+          },
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Conversation V2 Api V2 Conversations  Review Case Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "description": "Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/v2/review-cases/{review_case_id}. Domain migration: the customer-support shell became content review (docs/DOMAIN.md)."
+      }
+    },
+    "/api/v2/review-cases/{review_case_id}": {
+      "get": {
+        "tags": [
+          "v2:review-cases"
+        ],
+        "summary": "Fetch one conversation",
+        "description": "Single conversation by id; archived conversations resolve transparently, mirroring v1 semantics.",
+        "operationId": "get_conversation_v2_api_v2_review_cases__review_case_id__get",
+        "parameters": [
+          {
+            "name": "review_case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Review Case Id"
+            }
+          },
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Conversation V2 Api V2 Review Cases  Review Case Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/conversations/{review_case_id}/messages": {
+      "get": {
+        "tags": [
+          "v2:review-cases"
+        ],
+        "summary": "List messages (keyset-paginated)",
+        "operationId": "list_messages_v2_api_v2_conversations__review_case_id__messages_get",
+        "deprecated": true,
+        "parameters": [
+          {
+            "name": "review_case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Review Case Id"
             }
           },
           {
@@ -14054,7 +16667,114 @@
                 "schema": {
                   "type": "object",
                   "additionalProperties": true,
-                  "title": "Response List Messages V2 Api V2 Conversations  Conversation Id  Messages Get"
+                  "title": "Response List Messages V2 Api V2 Conversations  Review Case Id  Messages Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "description": "Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/v2/review-cases/{review_case_id}/messages. Domain migration: the customer-support shell became content review (docs/DOMAIN.md)."
+      }
+    },
+    "/api/v2/review-cases/{review_case_id}/messages": {
+      "get": {
+        "tags": [
+          "v2:review-cases"
+        ],
+        "summary": "List messages (keyset-paginated)",
+        "description": "Stable keyset pagination over (created_at, seq) so equal-timestamp messages never skip or repeat.",
+        "operationId": "list_messages_v2_api_v2_review_cases__review_case_id__messages_get",
+        "parameters": [
+          {
+            "name": "review_case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Review Case Id"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 512
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response List Messages V2 Api V2 Review Cases  Review Case Id  Messages Get"
                 }
               }
             }
@@ -14464,23 +17184,23 @@
         }
       }
     },
-    "/api/widget/sessions/{conversation_id}/messages": {
+    "/api/widget/sessions/{review_case_id}/messages": {
       "post": {
         "tags": [
           "submission_portal"
         ],
         "summary": "Send a widget message (channel-id idempotent)",
-        "description": "Send a customer message; channel_message_id replays are idempotent.\n\nDefault (sync) returns the completed ``TurnResponse``. With\n``async_mode=true`` the message is enqueued as a turn job and the\nresponse is ``{\"job_id\": ..., \"status\": \"queued\"}``; the client then\nstreams progressive output from ``GET /stream``. Either way, replaying\nthe same ``channel_message_id`` never creates a second turn.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/submission-portal/sessions/{conversation_id}/messages. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
-        "operationId": "send_widget_message_api_widget_sessions__conversation_id__messages_post",
+        "description": "Send a customer message; channel_message_id replays are idempotent.\n\nDefault (sync) returns the completed ``TurnResponse``. With\n``async_mode=true`` the message is enqueued as a turn job and the\nresponse is ``{\"job_id\": ..., \"status\": \"queued\"}``; the client then\nstreams progressive output from ``GET /stream``. Either way, replaying\nthe same ``channel_message_id`` never creates a second turn.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/submission-portal/sessions/{review_case_id}/messages. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
+        "operationId": "send_widget_message_api_widget_sessions__review_case_id__messages_post",
         "deprecated": true,
         "parameters": [
           {
-            "name": "conversation_id",
+            "name": "review_case_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Conversation Id"
+              "title": "Review Case Id"
             }
           },
           {
@@ -14528,7 +17248,7 @@
                 "schema": {
                   "type": "object",
                   "additionalProperties": true,
-                  "title": "Response Send Widget Message Api Widget Sessions  Conversation Id  Messages Post"
+                  "title": "Response Send Widget Message Api Widget Sessions  Review Case Id  Messages Post"
                 }
               }
             }
@@ -14550,17 +17270,17 @@
           "submission_portal"
         ],
         "summary": "List widget conversation messages",
-        "description": "List the customer-visible transcript, resumable through ``cursor``.\n\nResponses carry ``X-Conversation-Status`` (and ``X-CSAT-Survey-URL`` once a\nsurvey is pending) alongside the shared opaque pagination headers\n``X-Next-Cursor`` / ``X-Has-More``, so a client can poll for the delta and\nresume a dropped read instead of re-fetching the whole transcript.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/submission-portal/sessions/{conversation_id}/messages. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
-        "operationId": "list_widget_messages_api_widget_sessions__conversation_id__messages_get",
+        "description": "List the customer-visible transcript, resumable through ``cursor``.\n\nResponses carry ``X-Conversation-Status`` (and ``X-CSAT-Survey-URL`` once a\nsurvey is pending) alongside the shared opaque pagination headers\n``X-Next-Cursor`` / ``X-Has-More``, so a client can poll for the delta and\nresume a dropped read instead of re-fetching the whole transcript.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/submission-portal/sessions/{review_case_id}/messages. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
+        "operationId": "list_widget_messages_api_widget_sessions__review_case_id__messages_get",
         "deprecated": true,
         "parameters": [
           {
-            "name": "conversation_id",
+            "name": "review_case_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Conversation Id"
+              "title": "Review Case Id"
             }
           },
           {
@@ -14619,7 +17339,7 @@
                   "items": {
                     "$ref": "#/components/schemas/MessageOut"
                   },
-                  "title": "Response List Widget Messages Api Widget Sessions  Conversation Id  Messages Get"
+                  "title": "Response List Widget Messages Api Widget Sessions  Review Case Id  Messages Get"
                 }
               }
             }
@@ -14637,22 +17357,22 @@
         }
       }
     },
-    "/api/submission-portal/sessions/{conversation_id}/messages": {
+    "/api/submission-portal/sessions/{review_case_id}/messages": {
       "post": {
         "tags": [
           "submission_portal"
         ],
         "summary": "Send a widget message (channel-id idempotent)",
         "description": "Send a customer message; channel_message_id replays are idempotent.\n\nDefault (sync) returns the completed ``TurnResponse``. With\n``async_mode=true`` the message is enqueued as a turn job and the\nresponse is ``{\"job_id\": ..., \"status\": \"queued\"}``; the client then\nstreams progressive output from ``GET /stream``. Either way, replaying\nthe same ``channel_message_id`` never creates a second turn.",
-        "operationId": "send_widget_message_api_submission_portal_sessions__conversation_id__messages_post",
+        "operationId": "send_widget_message_api_submission_portal_sessions__review_case_id__messages_post",
         "parameters": [
           {
-            "name": "conversation_id",
+            "name": "review_case_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Conversation Id"
+              "title": "Review Case Id"
             }
           },
           {
@@ -14700,7 +17420,7 @@
                 "schema": {
                   "type": "object",
                   "additionalProperties": true,
-                  "title": "Response Send Widget Message Api Submission Portal Sessions  Conversation Id  Messages Post"
+                  "title": "Response Send Widget Message Api Submission Portal Sessions  Review Case Id  Messages Post"
                 }
               }
             }
@@ -14723,15 +17443,15 @@
         ],
         "summary": "List widget conversation messages",
         "description": "List the customer-visible transcript, resumable through ``cursor``.\n\nResponses carry ``X-Conversation-Status`` (and ``X-CSAT-Survey-URL`` once a\nsurvey is pending) alongside the shared opaque pagination headers\n``X-Next-Cursor`` / ``X-Has-More``, so a client can poll for the delta and\nresume a dropped read instead of re-fetching the whole transcript.",
-        "operationId": "list_widget_messages_api_submission_portal_sessions__conversation_id__messages_get",
+        "operationId": "list_widget_messages_api_submission_portal_sessions__review_case_id__messages_get",
         "parameters": [
           {
-            "name": "conversation_id",
+            "name": "review_case_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Conversation Id"
+              "title": "Review Case Id"
             }
           },
           {
@@ -14790,7 +17510,7 @@
                   "items": {
                     "$ref": "#/components/schemas/MessageOut"
                   },
-                  "title": "Response List Widget Messages Api Submission Portal Sessions  Conversation Id  Messages Get"
+                  "title": "Response List Widget Messages Api Submission Portal Sessions  Review Case Id  Messages Get"
                 }
               }
             }
@@ -14808,23 +17528,23 @@
         }
       }
     },
-    "/api/widget/sessions/{conversation_id}/stream": {
+    "/api/widget/sessions/{review_case_id}/stream": {
       "get": {
         "tags": [
           "submission_portal"
         ],
         "summary": "SSE stream for the widget conversation's latest turn",
-        "description": "SSE stream of the conversation's latest turn job (Phase 23.1).\n\nReuses the same token/job events as the operator turn-job stream so the\nwidget gets progressive output without holding an API key.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/submission-portal/sessions/{conversation_id}/stream. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
-        "operationId": "stream_widget_turn_api_widget_sessions__conversation_id__stream_get",
+        "description": "SSE stream of the conversation's latest turn job (Phase 23.1).\n\nReuses the same token/job events as the operator turn-job stream so the\nwidget gets progressive output without holding an API key.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/submission-portal/sessions/{review_case_id}/stream. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
+        "operationId": "stream_widget_turn_api_widget_sessions__review_case_id__stream_get",
         "deprecated": true,
         "parameters": [
           {
-            "name": "conversation_id",
+            "name": "review_case_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Conversation Id"
+              "title": "Review Case Id"
             }
           },
           {
@@ -14878,22 +17598,22 @@
         }
       }
     },
-    "/api/submission-portal/sessions/{conversation_id}/stream": {
+    "/api/submission-portal/sessions/{review_case_id}/stream": {
       "get": {
         "tags": [
           "submission_portal"
         ],
         "summary": "SSE stream for the widget conversation's latest turn",
         "description": "SSE stream of the conversation's latest turn job (Phase 23.1).\n\nReuses the same token/job events as the operator turn-job stream so the\nwidget gets progressive output without holding an API key.",
-        "operationId": "stream_widget_turn_api_submission_portal_sessions__conversation_id__stream_get",
+        "operationId": "stream_widget_turn_api_submission_portal_sessions__review_case_id__stream_get",
         "parameters": [
           {
-            "name": "conversation_id",
+            "name": "review_case_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Conversation Id"
+              "title": "Review Case Id"
             }
           },
           {

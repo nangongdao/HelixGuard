@@ -21,7 +21,7 @@ def open_new_conversation(page: Page, name: str, customer_ref: str = "") -> None
         page.get_by_label("提交方标识 可选").fill(customer_ref)
     with page.expect_response(
         lambda response: (
-            response.url.endswith("/api/conversations") and response.request.method == "POST"
+            response.url.endswith("/api/review-cases") and response.request.method == "POST"
         )
     ) as response_info:
         page.get_by_role("button", name="创建审核单").click()
@@ -35,7 +35,7 @@ def send_customer_message(page: Page, message: str) -> None:
     page.get_by_label("待审内容", exact=True).fill(message)
     with page.expect_response(
         lambda response: (
-            "/api/conversations/" in response.url
+            "/api/review-cases/" in response.url
             and response.url.endswith("/messages")
             and response.request.method == "POST"
         )
@@ -110,7 +110,7 @@ def main() -> None:
             expect(page.locator("#perfHint")).to_be_hidden()
 
         with page.expect_response(
-            lambda response: "/api/conversations?" in response.url and "limit=20" in response.url
+            lambda response: "/api/review-cases?" in response.url and "limit=20" in response.url
         ):
             page.get_by_role("button", name="开启低配模式").click()
         # §17.2 三档密度: low-perf forces ``data-density="compact"`` (the
@@ -169,13 +169,13 @@ def main() -> None:
         ).to_have_count(1)
         with page.expect_response(
             lambda response: (
-                "/api/conversations?" in response.url and f"label={browser_label}" in response.url
+                "/api/review-cases?" in response.url and f"label={browser_label}" in response.url
             )
         ):
             page.locator("#labelFilter").select_option(browser_label)
         expect(page.locator(".conversation-item")).to_have_count(1)
         with page.expect_response(
-            lambda response: "/api/conversations?" in response.url and "label=" not in response.url
+            lambda response: "/api/review-cases?" in response.url and "label=" not in response.url
         ):
             page.locator("#labelFilter").select_option("")
         page.locator("#noteInput").fill("Browser verification note")
@@ -207,7 +207,7 @@ def main() -> None:
         page.locator("#bulkAction").select_option("priority-normal")
         with page.expect_response(
             lambda response: (
-                response.url.endswith("/api/conversations/bulk-actions")
+                response.url.endswith("/api/review-cases/bulk-actions")
                 and response.request.method == "POST"
             )
         ) as bulk_response_info:

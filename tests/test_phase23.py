@@ -127,7 +127,7 @@ class WidgetSessionTests(unittest.TestCase):
         ).json()
         conversation_id = created["conversation"]["id"]
         admin = {"X-API-Key": ADMIN_KEY, "X-Tenant-Id": "demo"}
-        detail = self.client.get(f"/api/conversations/{conversation_id}", headers=admin).json()
+        detail = self.client.get(f"/api/review-cases/{conversation_id}", headers=admin).json()
         self.assertEqual(detail["conversation"]["channel"], "web_chat")
 
 
@@ -243,7 +243,7 @@ class WidgetChannelIdempotencyTests(unittest.TestCase):
 
     def test_internal_notes_are_not_exposed_to_widget(self) -> None:
         self.client.post(
-            f"/api/conversations/{self.conversation_id}/notes",
+            f"/api/review-cases/{self.conversation_id}/notes",
             json={"content": "private operator note"},
             headers={"X-API-Key": ADMIN_KEY, "X-Tenant-Id": "demo"},
         )

@@ -187,13 +187,13 @@ class MultilingualAppTests(unittest.TestCase):
 
     def _open_conversation(self, name: str = "S") -> str:
         conv = self.client.post(
-            "/api/conversations", json={"customer_name": name}, headers=self.admin
+            "/api/review-cases", json={"customer_name": name}, headers=self.admin
         ).json()
         return conv["id"]
 
     def _send(self, conversation_id: str, content: str, key: str) -> dict[str, Any]:
         response = self.client.post(
-            f"/api/conversations/{conversation_id}/messages",
+            f"/api/review-cases/{conversation_id}/messages",
             json={"content": content},
             headers={**self.admin, "Idempotency-Key": key},
         )
@@ -266,7 +266,7 @@ class MultilingualAppTests(unittest.TestCase):
         self.services.orchestrator.languages = LanguageService(provider, "zh")
         conversation_id = self._open_conversation()
         response = self.client.patch(
-            f"/api/conversations/{conversation_id}/language",
+            f"/api/review-cases/{conversation_id}/language",
             json={"language": "en"},
             headers=self.admin,
         )
@@ -289,7 +289,7 @@ class MultilingualAppTests(unittest.TestCase):
         # operator's pinned value.
         conversation_id = self._open_conversation()
         self.client.patch(
-            f"/api/conversations/{conversation_id}/language",
+            f"/api/review-cases/{conversation_id}/language",
             json={"language": "ja"},
             headers=self.admin,
         )
@@ -302,12 +302,12 @@ class MultilingualAppTests(unittest.TestCase):
         # re-detect and persist the detected language.
         conversation_id = self._open_conversation()
         self.client.patch(
-            f"/api/conversations/{conversation_id}/language",
+            f"/api/review-cases/{conversation_id}/language",
             json={"language": "en"},
             headers=self.admin,
         )
         self.client.patch(
-            f"/api/conversations/{conversation_id}/language",
+            f"/api/review-cases/{conversation_id}/language",
             json={"language": None},
             headers=self.admin,
         )

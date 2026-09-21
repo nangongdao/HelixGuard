@@ -106,7 +106,7 @@ export function scheduleClaimRenewal(detail) {
   ctx.state.claimRenewTimer = window.setTimeout(async () => {
     if (ctx.state.selectedId !== conversation.id) return;
     try {
-      await ctx.api(`/api/conversations/${encodeURIComponent(conversation.id)}/claim`, {
+      await ctx.api(`/api/review-cases/${encodeURIComponent(conversation.id)}/claim`, {
         method: "POST",
       });
       if (ctx.state.selectedId === conversation.id) await ctx.loadDetail(conversation.id);
@@ -274,7 +274,7 @@ export async function sendOperatorMessage(content) {
   try {
     const body = { content: text };
     if (pendingIds_.length) body.attachment_ids = [...pendingIds_];
-    await ctx.api(`/api/conversations/${encodeURIComponent(conversationId)}/operator-messages`, {
+    await ctx.api(`/api/review-cases/${encodeURIComponent(conversationId)}/operator-messages`, {
       method: "POST",
       headers: { "Idempotency-Key": sendKey },
       body: JSON.stringify(body),

@@ -87,7 +87,7 @@ def main() -> None:
     )
     assert status == 201, f"预建协作审核员失败: {mentor}"
     status, conv = api_post(
-        "/api/conversations",
+        "/api/review-cases",
         {"customer_name": customer, "channel": "web"},
     )
     assert status == 201, f"预建审核单失败: {customer}"
@@ -95,7 +95,7 @@ def main() -> None:
     # Promote to high priority so the seeded conversation sorts to the top of
     # the queue regardless of how many open rows the shared scratch DB already
     # holds (load-test seeding promotes rows to high).
-    api_patch(f"/api/conversations/{conv_id}", {"priority": "high"})
+    api_patch(f"/api/review-cases/{conv_id}", {"priority": "high"})
 
     with sync_playwright() as playwright:
         try:
@@ -158,7 +158,7 @@ def main() -> None:
 
     # 测试卫生:把审核单 resolve 出队列,避免 open 审核单在共享 DB 累积。
     try:
-        api_post(f"/api/conversations/{conv_id}/resolve", {})
+        api_post(f"/api/review-cases/{conv_id}/resolve", {})
     except Exception:
         pass
 

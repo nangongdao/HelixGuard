@@ -135,7 +135,7 @@ class PatchDrill:
         # 2. Canary: scratch instance healthy + one golden round trip.
         self._record("readiness", self.client.get("/health/live").status_code == 200)
         conv = self.client.post(
-            "/api/conversations",
+            "/api/review-cases",
             headers=self.admin_headers(),
             json={"customer_name": "测试顾客", "channel": "web"},
         )

@@ -118,7 +118,7 @@ def _find_conversation_id(name: str) -> str | None:
     for _ in range(5):
         query = "limit=50" + (f"&cursor={urllib.parse.quote(cursor)}" if cursor else "")
         request = urllib.request.Request(
-            f"{BASE_URL}/api/conversations?{query}",
+            f"{BASE_URL}/api/review-cases?{query}",
             headers={"X-API-Key": API_KEY},
         )
         with urllib.request.urlopen(request, timeout=15) as response:
@@ -139,7 +139,7 @@ def count_conversations() -> int:
     while True:
         query = "limit=50" + (f"&cursor={urllib.parse.quote(cursor)}" if cursor else "")
         request = urllib.request.Request(
-            f"{BASE_URL}/api/conversations?{query}",
+            f"{BASE_URL}/api/review-cases?{query}",
             headers={"X-API-Key": API_KEY},
         )
         with urllib.request.urlopen(request, timeout=15) as response:
@@ -225,7 +225,7 @@ def main() -> None:
         # timer.
         #
         # Each conversation is created then promoted to ``high`` priority via
-        # ``PATCH /api/conversations/{id}`` so it sorts above the hundreds of
+        # ``PATCH /api/review-cases/{id}`` so it sorts above the hundreds of
         # ``waiting_human`` rows the shared scratch DB may already hold
         # (load-test seeding promotes rows to high).  Without this the seeded
         # names fall past the first queue page and the per-name assertion can
@@ -234,7 +234,7 @@ def main() -> None:
         for index in (1, 2):
             seed_name = f"relay-{seed_tag}-{index:02d}"
             create_status = api_post(
-                "/api/conversations",
+                "/api/review-cases",
                 {"customer_name": seed_name, "channel": "web"},
             )
             assert create_status == 201, (
@@ -244,7 +244,7 @@ def main() -> None:
             conv_id = _find_conversation_id(seed_name)
             assert conv_id, f"could not resolve id for {seed_name}"
             promote_status = api_patch(
-                f"/api/conversations/{conv_id}",
+                f"/api/review-cases/{conv_id}",
                 {"priority": "high"},
             )
             assert promote_status == 200, (

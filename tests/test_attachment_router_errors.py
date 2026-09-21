@@ -61,7 +61,7 @@ class AttachmentRouterErrorTests(unittest.TestCase):
 
     def _open_conversation(self) -> str:
         conv = self.client.post(
-            "/api/conversations", json={"customer_name": "S"}, headers=self.admin
+            "/api/review-cases", json={"customer_name": "S"}, headers=self.admin
         ).json()
         return conv["id"]
 

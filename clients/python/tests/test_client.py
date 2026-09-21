@@ -54,7 +54,7 @@ def test_create_conversation_sends_auth_and_tenant_headers() -> None:
     request = call_log[0]
     assert request.headers["X-API-Key"] == "test-key-12345678"
     assert request.headers["X-Tenant-Id"] == "demo"
-    assert request.url.path == "/api/conversations"
+    assert request.url.path == "/api/review-cases"
     assert json.loads(request.content)["customer_name"] == "Ada"
 
 
@@ -73,7 +73,7 @@ def test_not_found_raises_typed_error() -> None:
         "title": "Not Found",
         "status": 404,
         "detail": "Conversation not found",
-        "instance": "/api/conversations/conv-nope",
+        "instance": "/api/review-cases/conv-nope",
         "request_id": "req_123",
         "code": "not_found",
     }

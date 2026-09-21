@@ -66,23 +66,23 @@ class OnlineFeedbackPipelineTests(unittest.TestCase):
 
     def _rate_assistant_message(self, rating: int, reason: str = "") -> str:
         conversation = self.client.post(
-            "/api/conversations",
+            "/api/review-cases",
             headers=self.admin,
             json={"customer_name": f"提交方-{self.id()[-4:]}", "channel": "web"},
         ).json()
         conversation_id = conversation["id"]
         send = self.client.post(
-            f"/api/conversations/{conversation_id}/messages",
+            f"/api/review-cases/{conversation_id}/messages",
             headers=self.admin,
             json={"content": "违规内容怎么分级？"},
         )
         assert send.status_code == 200, send.text
         messages = self.client.get(
-            f"/api/conversations/{conversation_id}/messages", headers=self.admin
+            f"/api/review-cases/{conversation_id}/messages", headers=self.admin
         ).json()
         assistant = next(m for m in messages if m["role"] == "assistant")
         feedback = self.client.post(
-            f"/api/conversations/{conversation_id}/feedback",
+            f"/api/review-cases/{conversation_id}/feedback",
             headers=self.admin,
             json={
                 "message_id": assistant["id"],
@@ -116,11 +116,11 @@ class OnlineFeedbackPipelineTests(unittest.TestCase):
         conversation_id = self._rate_assistant_message(-1, "第一次")
         # Re-submitting the same -1 must not duplicate the staged row.
         messages = self.client.get(
-            f"/api/conversations/{conversation_id}/messages", headers=self.admin
+            f"/api/review-cases/{conversation_id}/messages", headers=self.admin
         ).json()
         assistant = next(m for m in messages if m["role"] == "assistant")
         again = self.client.post(
-            f"/api/conversations/{conversation_id}/feedback",
+            f"/api/review-cases/{conversation_id}/feedback",
             headers=self.admin,
             json={"message_id": assistant["id"], "rating": -1, "reason": "重复"},
         )

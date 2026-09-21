@@ -238,7 +238,7 @@ export function renderQualityPanel(targetBuckets = ctx.els.qualityBuckets, targe
 export async function createKnowledgeDraftFromFeedback(conversationId, messageId) {
   try {
     const draft = await ctx.api(
-      `/api/conversations/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}/knowledge-draft`,
+      `/api/review-cases/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}/policy-draft`,
       { method: "POST" },
     );
     ctx.showToast(`已生成策略草稿:${draft.title}`);

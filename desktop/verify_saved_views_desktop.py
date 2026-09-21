@@ -111,7 +111,7 @@ def main() -> int:
             # the saved view (stored with clean filters) must rewrite it via
             # the apply bridge and fire a fresh queue request.
             page.evaluate("() => { document.querySelector('#statusFilter').value = 'waiting_human'; }")
-            with page.expect_response(lambda r: "/api/conversations?" in r.url):
+            with page.expect_response(lambda r: "/api/review-cases?" in r.url):
                 page.select_option("#savedViewSelectReact", view_id)
             checks["apply_rewrites_filters"] = page.evaluate(
                 "() => document.querySelector('#statusFilter').value === ''"

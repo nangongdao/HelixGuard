@@ -100,7 +100,7 @@ class SdkEndToEndTests(unittest.TestCase):
             self.client.get_conversation("conv-nope")
         self.assertEqual(ctx.exception.code, "not_found")
         self.assertIsNotNone(ctx.exception.request_id)
-        self.assertEqual(ctx.exception.instance, "/api/conversations/conv-nope")
+        self.assertEqual(ctx.exception.instance, "/api/review-cases/conv-nope")
 
     def test_golden_order_case_through_sdk(self) -> None:
         """The no-record-number golden scenario clarifies via the SDK (H03).

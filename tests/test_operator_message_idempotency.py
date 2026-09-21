@@ -75,9 +75,9 @@ class OperatorMessageIdempotencyTests(unittest.TestCase):
 
     def _open_conversation(self) -> str:
         conv = self.client.post(
-            "/api/conversations", json={"customer_name": "S"}, headers=self.admin
+            "/api/review-cases", json={"customer_name": "S"}, headers=self.admin
         ).json()
-        self.client.post(f"/api/conversations/{conv['id']}/accept", headers=self.admin)
+        self.client.post(f"/api/review-cases/{conv['id']}/accept", headers=self.admin)
         return conv["id"]
 
     def _reply(
@@ -96,7 +96,7 @@ class OperatorMessageIdempotencyTests(unittest.TestCase):
         if attachment_ids:
             body["attachment_ids"] = attachment_ids
         return self.client.post(
-            f"/api/conversations/{conversation_id}/operator-messages",
+            f"/api/review-cases/{conversation_id}/operator-messages",
             json=body,
             headers=merged,
         )
@@ -230,7 +230,7 @@ class OperatorMessageIdempotencyTests(unittest.TestCase):
                 ("2026-01-01T00:00:00+00:00", "2026-01-01T00:00:00+00:00"),
             )
         foreign = self.client.post(
-            "/api/conversations/conv_other/operator-messages",
+            "/api/review-cases/conv_other/operator-messages",
             json={"content": first.json()["content"]},
             headers={
                 "X-API-Key": ADMIN_KEY,
@@ -252,7 +252,7 @@ class OperatorMessageIdempotencyTests(unittest.TestCase):
     def test_blank_content_is_still_rejected(self) -> None:
         conversation_id = self._open_conversation()
         response = self.client.post(
-            f"/api/conversations/{conversation_id}/operator-messages",
+            f"/api/review-cases/{conversation_id}/operator-messages",
             json={"content": "   "},
             headers={**self.admin, "Idempotency-Key": KEY},
         )

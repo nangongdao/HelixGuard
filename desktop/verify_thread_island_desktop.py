@@ -96,24 +96,24 @@ def main() -> int:
                         });
                         return { ok: res.ok, status: res.status, data: res.ok ? await res.json() : null };
                     };
-                    const conv = await post('/api/conversations', {
+                    const conv = await post('/api/review-cases', {
                         customer_name: '线程岛验证 ' + Math.random().toString(36).slice(2, 8),
                     });
                     if (!conv.ok) return { error: 'conversation ' + conv.status };
-                    const turn = await post('/api/conversations/' + conv.data.id + '/messages', {
+                    const turn = await post('/api/review-cases/' + conv.data.id + '/messages', {
                         content: '配送一般多久能到？',
                     });
                     if (!turn.ok) return { error: 'turn ' + turn.status };
-                    const empty = await post('/api/conversations', {
+                    const empty = await post('/api/review-cases', {
                         customer_name: '线程岛空线 ' + Math.random().toString(36).slice(2, 8),
                     });
                     if (!empty.ok) return { error: 'empty conversation ' + empty.status };
-                    const long = await post('/api/conversations', {
+                    const long = await post('/api/review-cases', {
                         customer_name: '线程岛长线 ' + Math.random().toString(36).slice(2, 8),
                     });
                     if (!long.ok) return { error: 'long conversation ' + long.status };
                     for (let i = 0; i < messageCount; i += 1) {
-                        const sent = await post('/api/conversations/' + long.data.id + '/messages', {
+                        const sent = await post('/api/review-cases/' + long.data.id + '/messages', {
                             content: 'lazy-message-' + String(i).padStart(4, '0'),
                         });
                         if (!sent.ok) return { error: 'seed ' + i + ': ' + sent.status };

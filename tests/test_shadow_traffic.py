@@ -218,7 +218,7 @@ class ShadowTrafficTests(unittest.TestCase):
             id="shadow-req-001",
             tenant_id="tenant-test",
             request_id="req-001",
-            route="/api/conversations",
+            route="/api/review-cases",
             v1_status_code=200,
             v2_status_code=200,
             fields_matched=["id", "status"],
@@ -238,7 +238,7 @@ class ShadowTrafficTests(unittest.TestCase):
         self.assertIsNotNone(row)
         self.assertEqual(row["tenant_id"], "tenant-test")
         self.assertEqual(row["request_id"], "req-001")
-        self.assertEqual(row["route"], "/api/conversations")
+        self.assertEqual(row["route"], "/api/review-cases")
         self.assertEqual(row["v1_status_code"], 200)
         self.assertEqual(row["v2_status_code"], 200)
         self.assertEqual(json.loads(row["fields_matched"]), ["id", "status"])
@@ -330,7 +330,7 @@ class ShadowTrafficTests(unittest.TestCase):
                 id=f"shadow-{i}",
                 tenant_id="tenant-test",
                 request_id=f"req-{i}",
-                route="/api/conversations",
+                route="/api/review-cases",
                 v1_status_code=200,
                 v2_status_code=200,
                 fields_matched=["id"],
@@ -450,8 +450,8 @@ class ShadowEligibilityTests(unittest.TestCase):
     """Only v1 GETs with a proven-comparable v2 counterpart are shadowed."""
 
     def test_conversation_list_and_messages_are_eligible(self) -> None:
-        self.assertTrue(is_v2_shadow_eligible("/api/conversations"))
-        self.assertTrue(is_v2_shadow_eligible("/api/conversations/conv_1/messages"))
+        self.assertTrue(is_v2_shadow_eligible("/api/review-cases"))
+        self.assertTrue(is_v2_shadow_eligible("/api/review-cases/conv_1/messages"))
 
     def test_surfaces_without_v2_counterparts_are_not_eligible(self) -> None:
         self.assertFalse(is_v2_shadow_eligible("/api/turn-jobs"))
@@ -459,7 +459,7 @@ class ShadowEligibilityTests(unittest.TestCase):
         self.assertFalse(is_v2_shadow_eligible("/health/ready"))
         # The detail endpoint nests what v2 returns flat — zero shared
         # top-level keys (measured live), so a field comparison is noise.
-        self.assertFalse(is_v2_shadow_eligible("/api/conversations/conv_1"))
+        self.assertFalse(is_v2_shadow_eligible("/api/review-cases/conv_1"))
 
 
 class FullChainComparisonTests(unittest.TestCase):
@@ -539,7 +539,7 @@ class FullChainComparisonTests(unittest.TestCase):
         }
         snapshot = ShadowRequest(
             method="GET",
-            path="/api/conversations",
+            path="/api/review-cases",
             headers={},
             body=None,
             tenant_id="demo",
@@ -547,7 +547,7 @@ class FullChainComparisonTests(unittest.TestCase):
         )
 
         def v2_handler(request: httpx.Request) -> httpx.Response:
-            assert request.url.path == "/api/v2/conversations"
+            assert request.url.path == "/api/v2/review-cases"
             return httpx.Response(200, json=v2_envelope)
 
         real_client = httpx.AsyncClient(transport=httpx.MockTransport(v2_handler))

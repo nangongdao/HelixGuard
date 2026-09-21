@@ -81,9 +81,9 @@ class AttachmentIdempotencyTests(unittest.TestCase):
 
     def _open_conversation(self) -> str:
         conv = self.client.post(
-            "/api/conversations", json={"customer_name": "S"}, headers=self.admin
+            "/api/review-cases", json={"customer_name": "S"}, headers=self.admin
         ).json()
-        self.client.post(f"/api/conversations/{conv['id']}/accept", headers=self.admin)
+        self.client.post(f"/api/review-cases/{conv['id']}/accept", headers=self.admin)
         return conv["id"]
 
     def _upload(

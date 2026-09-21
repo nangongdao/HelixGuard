@@ -43,7 +43,7 @@ def open_new_conversation(page: Page, name: str) -> None:
     page.get_by_label("提交方名称").fill(name)
     with page.expect_response(
         lambda response: (
-            response.url.endswith("/api/conversations") and response.request.method == "POST"
+            response.url.endswith("/api/review-cases") and response.request.method == "POST"
         )
     ) as response_info:
         page.get_by_role("button", name="创建审核单").click()
@@ -58,7 +58,7 @@ def request_human_handoff(page: Page, message: str) -> None:
     page.get_by_label("待审内容", exact=True).fill(message)
     with page.expect_response(
         lambda response: (
-            "/api/conversations/" in response.url
+            "/api/review-cases/" in response.url
             and response.url.endswith("/messages")
             and response.request.method == "POST"
         )

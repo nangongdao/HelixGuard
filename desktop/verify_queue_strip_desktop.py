@@ -89,7 +89,7 @@ def main() -> int:
                 """async (count) => {
                     let ok = 0;
                     for (let i = 0; i < count; i += 1) {
-                        const res = await fetch('/api/conversations', {
+                        const res = await fetch('/api/review-cases', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json', 'X-Tenant-Id': 'demo' },
                             body: JSON.stringify({
@@ -128,7 +128,7 @@ def main() -> int:
             # The island's 加载更多 bridges to legacy loadMoreConversations —
             # a real cursor request for the second page.
             with page.expect_response(
-                lambda r: "/api/conversations" in r.url and "cursor=" in r.url
+                lambda r: "/api/review-cases" in r.url and "cursor=" in r.url
             ):
                 page.locator("#queueReactIsland .queue-more").click()
             page.wait_for_function(
