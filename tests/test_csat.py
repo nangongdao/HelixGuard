@@ -57,7 +57,7 @@ class CsatSurveyTests(unittest.TestCase):
         ).json()
         self.client.post(
             f"/api/conversations/{conv['id']}/messages",
-            json={"content": "ORD-10482 到哪了"},
+            json={"content": "ORD-10482 的来源"},
             headers={**self.admin, "Idempotency-Key": f"csat-t-{name}"},
         )
         response = self.client.post(f"/api/conversations/{conv['id']}/resolve", headers=self.admin)
@@ -183,7 +183,7 @@ class CsatSurveyTests(unittest.TestCase):
             ).json()
             client.post(
                 f"/api/conversations/{conv['id']}/messages",
-                json={"content": "ORD-10482 到哪了"},
+                json={"content": "ORD-10482 的来源"},
                 headers={**admin, "Idempotency-Key": "csat-t-abs"},
             )
             response = client.post(f"/api/conversations/{conv['id']}/resolve", headers=admin)

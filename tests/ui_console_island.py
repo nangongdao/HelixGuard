@@ -155,12 +155,12 @@ def main() -> None:
         # (legacy #messages is yielded/hidden), the inspector tabs and the
         # note composer render inside #inspectorReactIsland.
         thread = page.locator("#threadReactIsland")
-        send_customer_message(page, "配送一般多久能到？")
-        expect(thread).to_contain_text("根据当前服务政策")
+        send_customer_message(page, "违规内容怎么分级？")
+        expect(thread).to_contain_text("根据当前策略条款")
         expect(page.locator("#composerFormReact")).to_have_attribute("aria-busy", "false")
         expect(inspector).to_contain_text("knowledge")
         inspector.get_by_role("tab", name="证据").click()
-        expect(inspector.get_by_role("tabpanel")).to_contain_text("配送时效")
+        expect(inspector.get_by_role("tabpanel")).to_contain_text("违规内容分级标准")
         expect(inspector.locator(".citation-item")).to_have_count(1)
         feedback_button = thread.locator(".feedback-button[data-feedback='1']").last
         feedback_button.click(position={"x": 2, "y": 2})
@@ -205,7 +205,7 @@ def main() -> None:
         page.screenshot(path=ARTIFACTS / "ui-console-island.png", full_page=True)
 
         open_new_conversation(page, f"人工接管-{run_id}")
-        send_customer_message(page, "我要退款并投诉，请转人工复核")
+        send_customer_message(page, "我要投诉并升级复审，请转人工复核")
         expect(page.locator("#conversationStatus")).to_have_text("等待人工")
         with page.expect_response(
             lambda response: response.url.endswith("/accept") and response.request.method == "POST"

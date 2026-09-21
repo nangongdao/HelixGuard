@@ -130,7 +130,7 @@ class GracefulShutdownTests(unittest.TestCase):
         # Trigger at least one queue revision so a snapshot is emitted.
         self.client.post(
             f"/api/conversations/{conv['id']}/messages",
-            json={"content": "ORD-10482 到哪了"},
+            json={"content": "ORD-10482 的来源"},
             headers={**self.headers, "Idempotency-Key": "rel-sse-1"},
         )
         with self.client.stream("GET", "/api/events/queue", headers=self.headers) as stream:

@@ -148,7 +148,7 @@ class _FakeOrderConnector:
             return OrderLookup(
                 ok=True,
                 code="ok",
-                order=OrderDetails(id=order_id, status="shipped", eta=None, tracking_code=None),
+                order=OrderDetails(id=order_id, status="verified", eta=None, tracking_code=None),
             )
         raise TransientConnectorError("boom")
 
@@ -224,13 +224,13 @@ class HttpConnectorPayloadTests(unittest.TestCase):
             config,
             transport=lambda *a, **k: (
                 200,
-                {"order": {"id": "ORD-1", "status": "shipped", "eta": "2026-01-02"}},
+                {"order": {"id": "ORD-1", "status": "verified", "eta": "2026-01-02"}},
             ),
         )
         result = connector.lookup_order("t", "CUST-1", "ORD-1")
         self.assertTrue(result.ok)
         assert result.order is not None
-        self.assertEqual(result.order.status, "shipped")
+        self.assertEqual(result.order.status, "verified")
 
 
 # ---------------------------------------------------------------------------
@@ -500,7 +500,7 @@ class AllowedModelsEnforcementTests(unittest.TestCase):
         # but the model-denied audit must still be emitted when a prompt with
         # a disallowed model_ref is resolved.
         orchestrator.handle_customer_message(
-            "demo", conv["id"], "配送一般多久能到？", "admin", "idem-policy-1"
+            "demo", conv["id"], "违规内容怎么分级？", "admin", "idem-policy-1"
         )
         with self.database.connect() as conn:
             rows = conn.execute(
@@ -524,7 +524,7 @@ class AllowedModelsEnforcementTests(unittest.TestCase):
         )
         conv = self.database.create_conversation("demo", "C", None, "web", "admin", 120)
         orchestrator.handle_customer_message(
-            "demo", conv["id"], "配送一般多久能到？", "admin", "idem-policy-2"
+            "demo", conv["id"], "违规内容怎么分级？", "admin", "idem-policy-2"
         )
         with self.database.connect() as conn:
             rows = conn.execute(

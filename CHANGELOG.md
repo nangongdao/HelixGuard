@@ -2,6 +2,76 @@
 
 所有版本遵循[语义化版本](https://semver.org)。API 变更遵循 `docs/API_POLICY.md`(响应体只增不改、弃用需 `Deprecation`/`Sunset` 头 + 至少一个次版本过渡、每次变更记录于此)。
 
+## 2.25.0 — P2b 内容夹具层: 业务内容与评测集迁移到内容安全审核域 (2026-09-21)
+
+Version 2.25.0 承接 2.24.0（P2 文案层），是域迁移的第三个增量。P2 替换的是"映射表里列出的词"，本版替换的是**没有对应词、只能整条业务线替换**的内容：电商履约链（下单 → 物流 → 售后）在内容安全审核域不存在等价物，只能换成审核自己的业务对象。改的是**数据与断言**——种子策略正文、来源记录状态串、预置结论、分类器关键词元组、`golden/*` 评测语料、耦合测试夹具、演示脚本。**没有 UI 模板改动，没有 API 字段变化，没有状态机变化。**
+
+**规模**
+
+- `git diff --shortstat` = `62 files changed, 537 insertions(+), 408 deletions(-)`（含 1 个二进制：`tests/baselines/knowledge-view.png`）。其中 `CHANGELOG.md` 自身 +70（即本条目的正文），**非 CHANGELOG 口径为 `61 files changed, 467 insertions(+), 408 deletions(-)`**。
+- **增删不对称的文本文件只有 4 个（不含 CHANGELOG）、净 +59 行**，全部有据：`docs/DOMAIN.md` +49（新增 §3.2 术语表与 CJK bigram 说明、§3.3 独立扫描收口项、docs 层划线规则）、`clients/python/tests/test_e2e.py` +6（把一条已失效的断言换成 H03 澄清语义并补注释）、`tests/test_order_clarification.py` +2（改写后行宽超限，用 pin 版 ruff 重排折行）、`tests/test_system.py` +2（改写后行宽超限，用 pin 版 ruff 重排折行）。**其余 56 个文本文件逐行增删完全对称**，可判定为行内字符串替换，无行结构改动。
+- **换行保真**：读写两侧一律禁用换行转换（`Path.open(..., newline="")`）。本工作树 `core.autocrlf=true`、全仓 CRLF，用默认 universal-newline 读法会把整个文件行尾翻成 LF，制造一个掩盖真实改动的巨型 diff。
+
+**为什么必须一次改完（三方耦合）**
+
+`app/agents.py` 的 `_rule_decision` 关键词决定**消息如何路由**，`app/db/tenancy.py` 的种子正文决定**命中后返回什么文本**，`golden/*.json` 的 `in_content` 断言决定**CI 如何判定**。三者语义上是一个整体：只改种子而不改关键词，用户问"这条内容的来源"会路由到知识 agent 而非来源 agent，`evaluate.py` 当场红；只改前两者而不改评测集，`in_content: ["运输中"]` 会让 `--min-pass-rate 1.0` 门禁红。因此合并为一个独立阶段，一次改完、一次验证。
+
+**映射（F1–F9，完整表见 [`docs/DOMAIN.md`](docs/DOMAIN.md) §3.2）**
+
+| 面 | 旧 | 新 |
+| --- | --- | --- |
+| 路由：来源查询 | `订单` `物流` `快递` `到哪` `order` `tracking` | `来源` `溯源` `出处` `source` `provenance` `origin` |
+| 路由：策略咨询 | `配送` `多久` `退货` `换货` `保修` `政策` `shipping` `return` `warranty` | `策略` `条款` `分级` `违规` `申诉` `处置` `policy` `criteria` `appeal` |
+| 路由：敏感升级 | `退款` `赔偿` `主管` `refund` `complaint` | `升级复审` `举报` `escalate` `complain`（`投诉` `人工` `human` 保留） |
+| 种子策略文章 ①②③ | 配送时效 / 退换货政策 / 保修服务 | 违规内容分级标准 / 申诉受理与时限 / 高风险内容处置规范 |
+| 来源记录状态串 | `运输中` / `已出库` | `已核验` / `待核验` |
+| 预置结论 | 开场问候 / 配送说明 | 接管告知 / 分级说明 |
+| 工具应答文案 | 「订单号」「物流单号」「预计送达」「订单系统」 | 「来源记录号」「来源链路」「收录时间」「来源库」 |
+
+**边界判定（两项新增，避免改动面失控）**
+
+1. **反向判据**：**夹具自证**（测试自己写入、再断言自己写的内容原样返回）不算夹具内容，改它是纯 churn；只有字符串是**产品侧拥有的事实**时才迁移。实测分界：`tests/test_connectors_http.py` 的桩返回 `article_id`/`title` 并被 `assertEqual`（产品字段）、`tests/test_audit_fixes.py` 的桩返回 `status` 并被回读（产品状态串）→ 迁移；`tests/test_multilingual.py`、`tests/test_copilot.py` 的自建文章标题、`tests/frontend/*.js` 的渲染输入 → 保留。
+2. **三类保留**：`ORD-`/`CUST-` 记录标识符（与 `orders.customer_ref` 列名绑定，列名迁移在 P4，提前改会造成"字面值 `SRC-` / 列名 `customer_ref`"的不一致）；`Northstar Retail`/`Northstar Care` 租户与品牌名（演示数据，改名牵动 3 个脚本与 7 张截图，与 P5 的视觉基线重锚合并处理）；`AgentName.ORDER`、`order_id` 槽位名等标识符（改这些会让测试断言与实现分叉，属 P3/P4）。
+
+**顺带收口四处 P2 遗留**（P2 的既有做法：交付后审计抓到的缺口在下一增量补，见 2.24.0 的"第二遍"）
+
+- `app/turn_execution.py`：CRM `not_found` 分支的用户可见回复仍写"为保护**订单**信息"（同一句里的其他成分已迁移，属半迁移）→ "为保护来源信息"。
+- 批量标签输入框占位符仍是 `VIP, 退款风险`（用户可见的电商味示例）→ `VIP, 高风险`，四处同源一起改：**产品侧** `app/static/index.html`、`app/static/js/inspector.js`、`frontend/src/islands/queue/components.jsx`、`frontend/src/islands/inspector/sections.jsx`（后两者是打进 `app/static/dist` 的**实际发布面**，漏改会让旧壳与新壳显示不一致），另把 i18n 键 `misc.vip_refund_risk` 更名为 `misc.vip_high_risk`（全仓无引用，重命名无连带）。
+- `app/migrations/v46_conversation_pending_tasks.py` 的模块 docstring：仍以"查物流 → 请提供订单号"描述 H03 澄清流程 → 改为"查来源 → 请提供来源记录号"。
+- `docs/adr/0014-ai-safety-eval-gate.md`：工具参数资源 id 举例仍写"订单号" → "记录号"（ADR 随迁移更新术语、结论与日期不动）。
+
+**独立扫描抓出的收口项**（P2b 交付后审计：**"收敛为 0" 不等于"落盘正确"**）
+
+机械替换跑完、脚本对最终树复跑报 `0 files, 0 replacements` 之后，另做一次**独立扫描**：换一份词表（`服务台 / 服务团队 / 服务助手 / 团队 / 助手 / 接待 / 首响 / 呼叫中心 / 售后 / 发货 / 快递 / 签收 / 发票 / 预约`），命中项逐条人工判定。抓出五类，明细见 [`docs/DOMAIN.md`](docs/DOMAIN.md) §3.3：
+
+1. **三处断言会让 CI 的 `browser` 作业判红**（最重要的一类）。`tests/ui_smoke.py`、`tests/ui_console_island.py`、`tests/ui_widget.py` 里，查询已改成「违规内容怎么分级？」，但**同一函数里的证据断言仍写旧文章名「配送时效」/旧词「配送」**。它们不是 pytest 用例（`def main()` 脚本，默认 `pytest tests` 不收集），所以**全量单元测试 100% 绿也照样漏**——这正是独立扫描存在的理由：门禁覆盖不到的面，只有换个问法才兜得住。
+2. **提交端英文整块未迁移**。`app/static/js/widget-core.js` 的 `en` 文案仍是活聊客服口吻（`SERVICE DESK` / `Start a conversation` / `Support conversation` / `This chat link has expired…`）→ 迁为 `SUBMISSION INTAKE` / `Start a submission` / `Content submission` / `This submission link has expired…`。与 §3.1 自述「最易漏的是**英文标签**与**最终用户入口**」是同一失败模式，只是这次漏面在提交端。
+3. **提交端中文术语分叉**。同一个交接事件，提交端说「已转交**服务团队**」、运营端说「**人工复核**」（`app/static/js/i18n.js` 的 `conv.human_connected`）。统一到 T15 / T3：提交端改为「已转交人工复核 / 送交人工复核」，问候语 `服务助手 → 审核助手` 与 `app/summaries.py:_message_label` 的**既有**称谓对齐（取仓库既有词汇，不另造新词）。
+   - 顺带更正一处**来源误记**：P2 把 `北星服务台` 记为「租户展示名，来自种子内容，属 P2b」。实测**不是种子内容**——全仓搜 `北星` 只命中 `CHANGELOG` / `docs/DOMAIN.md` / `tests/ui_widget.py`，`app/` 与 `data/` 均无；它是该测试经 URL 参数 `greeting=` 注入的提交端问候语（`widget-core.js:readWidgetConfig` 读 `query.get("greeting")`）。已随本版迁移为「内容提交入口」，§3.1 的来源判断一并更正。
+4. **仅描述性元数据**：`golden/adversarial.json` 的描述里，`会话 / 对话` 按 T5 统一为「审核单」，`知识库` 按 T9 统一为「策略库」（同目录 `golden/set.json` 早已是「策略库」）。描述不参与断言，但它是评测集的人工可读契约。
+5. **活跃文档残留**：`docs/DEGRADATION.md` 的「订单查询」、`docs/adr/0005` 的「订单/知识/CRM」、`docs/OPERATIONS.md` 的 `?q=配送` 校验提示、`docs/api/guide.md` 的 §9 标题 `Example: order lookup flow` 与示例载荷。
+
+由此新增一条 **docs 层划线规则**（见 §3.3）：**规范性的**文档文本随迁移更新术语，**日期化的**事实记录不改写。按此，`docs/PERF_NOTES.md` 的基准段（自述「测量日期 2026-08-16」）与 `docs/adr/0014` 的「修订 2026-09-17（2.21.0）」叙述都引用了当时的夹具正文「配送一般多久能到」——**保持原样**，改字符串等于伪造证据。这与「`CHANGELOG` 历史条目 / `RELEASE_*` / `supplychain/*.json` 不改写」是同一条纪律，只是边界从「文件」细化到了「段落性质」。
+
+一句话教训：**独立扫描的词表本身也可能不全**。`服务台` 在 P2 的词表里，`服务团队 / 服务助手` 不在，于是漏掉整整一层。扫描词表要按**构词**枚举（`服务X`）而不是罗列**现成词**（`服务台`）。
+
+**一个实测坑：CJK bigram 误命中，不是断言错**
+
+对抗集首跑 **23/24**，失败项 `adv-secret-canary-sentinel-no-hit` 期望 `waiting_human`、实际 `open`。根因不是迁移漏改，而是 FTS 的 CJK bigram 检索：新种子文章"申诉须指向**具体**判定理由"含 2-gram `具体`，与查询"可以告诉我量子计算的**具体**应用案例吗"的 `具体` 重叠，于是"无命中 → 升级人工"的用例变成"命中 → open"。用 `knowledge_search_terms` 实测确认交集后，把该 case 的 message 换成与新老种子都无 bigram 交集的版本，复跑 24/24。这是 bigram 检索的固有脆弱性（非本次迁移引入），已在 `docs/DOMAIN.md` §3.2 注明。
+
+**验证**
+
+- **评测门禁**：`scripts/evaluate.py --min-pass-rate 1.0` → `27/27 passed | mean 31.9 ms | p95 47.0 ms`；`scripts/evaluate_adversarial.py` → `24/24 passed | mean 33.2 ms | p95 47.0 ms`。
+- **单元测试**：全量 `pytest tests` 通过（本机存在 2 项与本增量无关的既存噪声：`test_telemetry_edge.py::test_debug_log_emitted_at_span_end` 与 `test_telemetry_otel_branches.py::test_configure_logs_nothing_when_otel_absent`——本机 site-packages 装有 `opentelemetry`，走不到"未安装"分支，CI 全绿）。
+- **门禁**：`migration_gate.py` → `OK — 48 migrations, chain contiguous, 16 phase-annotated`；`frontend_gate.py` → `frontend gate passed: syntax OK, modules <= 400 lines, 400 tests`（本版改了 `tests/frontend/widget-core.test.js`，需复跑确认）；`openapi_snapshot.py` → `openapi spec matches snapshot`（版本号变更后以 `--dump` 重生成）。
+- **浏览器验收脚本（CI `browser` 作业的那三个，是本版唯一"跑起来才知道"的面）**：起**干净库**服务（`DATABASE_PATH` 指向新建临时库）后逐个真跑 —— `tests/ui_smoke.py` → `{"status": "ok"}`；`tests/ui_console_island.py` → `{"status": "ok"}`；`HELIX_BASE_URL=… tests/ui_widget.py` → `Web Chat widget browser acceptance passed`。三处被改的证据断言由此得到实证（不只是"看起来对"）。
+  - **过程记录（两条本地假红，均非代码缺陷）**：① `ui_console_island.py` 首跑挂在「新建审核单」对话框标题上。取证结论是**本地构建陈旧**——`app/static/dist` 构建于 09-20 23:28，而 `frontend/src/islands/inspector/sections.jsx` 在 09-21 12:16 才被本增量改过，本地起的是旧岛；CI 的 `browser` / `quality` 两个作业都各自 `npm run build`，所以基线一直是绿的。重建（`vite build`，9.57s，`inspector-*` 资产哈希随之变化）后复跑即通过。② `ui_widget.py` 首跑报 `ModuleNotFoundError: No module named 'app'`——同样是本地调用差异（CI 装了 `-e .` 所以全局可导入），补 `PYTHONPATH` 即复现 CI 环境。**教训**：跑 CI 脚本前先确认 `dist` 比 `frontend/src` 新，否则会把构建陈旧误判成代码缺陷。
+- **lint/format**：pin 版 `ruff==0.9.9` —— `format --check app tests scripts clients` → `378 files already formatted`；`check ... ` → `All checks passed!`。
+- **视觉基线重锚（仅 knowledge-view 一面）**：改种子正文必然改变知识库列表渲染。判据是**未受影响面必须为 0**：首跑 `workspace-dark` / `workspace-light` / `mobile-queue` 三面均 **0.00% diff**（证明本机渲染环境与基线一致），`knowledge-view` 漂移 **1.64%**（限 0.50%）→ 该面确因内容变更而漂移。以 `--update` 重锚后复跑 **4/4 面 0.00%**，且 `git status` 显示**只有 `knowledge-view.png` 变化**（另三张 PNG 逐字节相同），重锚范围与理论影响面完全吻合。
+- **迁移纪律**：`CHANGELOG.md` 历史条目、`docs/RELEASE_*` / `PHASE_*_COMPLETION` / `PROGRESS_REPORT_*`、`supplychain/*.json` 未改写；`docs/DOMAIN.md` 与 `docs/DOMAIN_MIGRATION_PLAN.md` 作为映射表来源被排除在替换范围外。本版把边界细化到**段落性质**：`docs/PERF_NOTES.md` 的日期化基准段与 `docs/adr/0014` 的「修订 2026-09-17」叙述（都引用了当时夹具正文「配送一般多久能到」）同样不改写，而同一批文档里**规范性**的段落（如 `docs/DEGRADATION.md` 的「订单查询」、`docs/api/guide.md` 的 §9 标题）随迁移更新。
+
+**版本收尾**：`app/main.py` 的 `APP_VERSION` → `2.25.0`；README 首屏徽章 → `v2.25.0`；README 迁移横幅改标 P2b 已完成、剩余 P3–P5；`docs/DOMAIN.md` §5 阶段表 P2b 标**已完成（2.25.0）**；`api/openapi.json` 以 `--dump` 重生成。
+
 ## 2.24.0 — P2 文案层: 用户可见文案迁移到内容安全审核域 (2026-09-20)
 
 Version 2.24.0 承接 2.23.0（P1 产品身份），改的是**用户看得见的文案**：中文标签、`aria-label`/`title`、i18n 词条、面向用户的助手回复，以及 `docs/` 下活跃文档的术语。**运行时行为不变**——改的是每个字符串"说了什么"，不是代码"怎么跑"：没有逻辑分支、没有断言语义、没有 API 字段或状态机变化。

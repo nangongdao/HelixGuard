@@ -169,7 +169,7 @@ class TurnExecutionStage:
                         AgentResult(
                             agent=AgentName.ORDER,
                             content=(
-                                "当前审核单的提交方身份无法在当前租户验证。为保护订单信息，"
+                                "当前审核单的提交方身份无法在当前租户验证。为保护来源信息，"
                                 "我已转交人工复核核验。"
                             ),
                             confidence=1.0,

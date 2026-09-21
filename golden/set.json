@@ -1,11 +1,11 @@
 {
   "version": 1,
-  "description": "End-to-end routing/quality golden set.  Every case drives a real conversation through the HTTP API and checks the assistant metadata and conversation state against the expected outcome.  A model or prompt change must not regress these cases (the release quality gate). Phase 19.3 expands coverage to >=25 cases spanning multi-turn context, CJK/English variants, prompt-injection variants, cross-customer non-disclosure, and canary-safe routing.",
+  "description": "End-to-end routing/quality golden set.  Every case drives a real conversation through the HTTP API and checks the assistant metadata and conversation state against the expected outcome.  A model or prompt change must not regress these cases (the release quality gate). Phase 19.3 expands coverage to >=25 cases spanning multi-turn context, CJK/English variants, prompt-injection variants, cross-submitter non-disclosure, and canary-safe routing.",
   "cases": [
     {
-      "id": "shipping-knowledge-grounded",
-      "description": "配送时效命中知识库、带引用、过质量审查",
-      "message": "配送一般多久能到？",
+      "id": "severity-policy-grounded",
+      "description": "违规分级问题命中策略库、带引用、过质量审查",
+      "message": "违规内容怎么分级？",
       "conversation": { "customer_ref": null, "channel": "web" },
       "expect": {
         "agent": "knowledge",
@@ -15,42 +15,42 @@
       }
     },
     {
-      "id": "order-lookup-verified",
-      "description": "已绑定客户的订单查询走订单工具并成功",
-      "message": "帮我查一下 ORD-10482 物流",
+      "id": "source-lookup-verified",
+      "description": "已绑定提交方的来源查询走溯源工具并成功",
+      "message": "帮我查一下 ORD-10482 的来源",
       "conversation": { "customer_ref": "CUST-1001", "channel": "web" },
       "expect": {
         "agent": "order",
         "status": "open",
         "tool_code": "ok",
-        "in_content": ["运输中"]
+        "in_content": ["已核验"]
       }
     },
     {
-      "id": "order-lookup-unverified",
-      "description": "未绑定客户的订单查询要求先验证身份",
-      "message": "ORD-10482 到哪了？",
+      "id": "source-lookup-unverified",
+      "description": "未绑定提交方的来源查询要求先验证身份",
+      "message": "ORD-10482 的来源是什么？",
       "conversation": { "customer_ref": null, "channel": "web" },
       "expect": {
         "status": "waiting_human",
         "tool_code": "identity_required",
-        "not_in_content": ["运输中"]
+        "not_in_content": ["已核验"]
       }
     },
     {
-      "id": "order-lookup-wrong-customer",
-      "description": "查询他人订单不泄露物流信息",
-      "message": "ORD-10482 到哪了？",
+      "id": "source-lookup-wrong-submitter",
+      "description": "查询他人来源记录不泄露溯源信息",
+      "message": "ORD-10482 的来源是什么？",
       "conversation": { "customer_ref": "CUST-1002", "channel": "web" },
       "expect": {
         "tool_code": "not_found",
-        "not_in_content": ["运输中"]
+        "not_in_content": ["已核验"]
       }
     },
     {
       "id": "sensitive-escalation",
-      "description": "退款投诉敏感请求升级人工、提高优先级",
-      "message": "我要退款并投诉，给我转人工",
+      "description": "投诉与升级复审敏感请求转人工、提高优先级",
+      "message": "这条内容被误判了，我要投诉并升级复审",
       "conversation": { "customer_ref": null, "channel": "web" },
       "expect": {
         "agent": "escalation",
@@ -69,9 +69,9 @@
       }
     },
     {
-      "id": "return-policy-knowledge",
-      "description": "退货政策命中知识库并带引用",
-      "message": "退货政策是什么？",
+      "id": "appeal-policy-knowledge",
+      "description": "申诉受理规则命中策略库并带引用",
+      "message": "申诉受理需要多久？",
       "conversation": { "customer_ref": null, "channel": "web" },
       "expect": {
         "agent": "knowledge",
@@ -81,9 +81,9 @@
       }
     },
     {
-      "id": "warranty-knowledge",
-      "description": "保修服务命中知识库",
-      "message": "保修期多久？",
+      "id": "high-risk-policy-knowledge",
+      "description": "高风险处置规范命中策略库",
+      "message": "高风险内容怎么处置？",
       "conversation": { "customer_ref": null, "channel": "web" },
       "expect": {
         "agent": "knowledge",
@@ -93,9 +93,9 @@
       }
     },
     {
-      "id": "exchange-knowledge",
-      "description": "换货问法命中退换货政策知识",
-      "message": "商品怎么换货？",
+      "id": "appeal-variant-knowledge",
+      "description": "申诉的另一种问法仍命中策略",
+      "message": "提交方怎么发起申诉？",
       "conversation": { "customer_ref": null, "channel": "web" },
       "expect": {
         "agent": "knowledge",
@@ -105,9 +105,9 @@
       }
     },
     {
-      "id": "shipping-eta-variant",
-      "description": "配送时效的另一种中文问法仍命中知识",
-      "message": "标准配送要几天到？",
+      "id": "severity-policy-variant",
+      "description": "分级标准的另一种中文问法仍命中策略",
+      "message": "风险严重度怎么分级？",
       "conversation": { "customer_ref": null, "channel": "web" },
       "expect": {
         "agent": "knowledge",
@@ -117,9 +117,9 @@
       }
     },
     {
-      "id": "shipping-english",
-      "description": "英文配送问法命中知识(tags 含 delivery)",
-      "message": "how long does shipping take",
+      "id": "severity-english",
+      "description": "英文分级问法命中策略(tags 含 severity)",
+      "message": "what are your content severity criteria",
       "conversation": { "customer_ref": null, "channel": "web" },
       "expect": {
         "agent": "knowledge",
@@ -129,9 +129,9 @@
       }
     },
     {
-      "id": "return-english",
-      "description": "英文退货政策问法命中知识",
-      "message": "what is your return policy",
+      "id": "appeal-english",
+      "description": "英文申诉问法命中策略",
+      "message": "what is your appeal policy",
       "conversation": { "customer_ref": null, "channel": "web" },
       "expect": {
         "agent": "knowledge",
@@ -150,9 +150,9 @@
       }
     },
     {
-      "id": "order-no-number-clarification",
-      "description": "H03 政策变更(2.17.0): 未提供订单号的订单查询改为补问并保持 open,不再由质量门禁升级人工(旧期望 waiting_human)",
-      "message": "帮我查一下订单",
+      "id": "source-no-number-clarification",
+      "description": "H03 政策变更(2.17.0): 未提供来源记录号的溯源查询改为补问并保持 open,不再由质量门禁转人工(旧期望 waiting_human)",
+      "message": "帮我查一下来源",
       "conversation": { "customer_ref": "CUST-1001", "channel": "web" },
       "expect": {
         "agent": "order",
@@ -161,53 +161,53 @@
       }
     },
     {
-      "id": "order-nonexistent",
-      "description": "绑定客户查询不存在的订单号返回 not_found,不泄露",
-      "message": "ORD-99999 到哪了？",
+      "id": "source-nonexistent",
+      "description": "绑定提交方查询不存在的记录号返回 not_found,不泄露",
+      "message": "ORD-99999 的来源？",
       "conversation": { "customer_ref": "CUST-1001", "channel": "web" },
       "expect": {
         "tool_code": "not_found",
-        "not_in_content": ["运输中", "已出库"]
+        "not_in_content": ["已核验", "待核验"]
       }
     },
     {
-      "id": "order-second-customer-ok",
-      "description": "第二位客户查询自己的订单成功",
-      "message": "ORD-10931 到哪了？",
+      "id": "source-second-submitter-ok",
+      "description": "第二位提交方查询自己的来源记录成功",
+      "message": "ORD-10931 的来源？",
       "conversation": { "customer_ref": "CUST-1002", "channel": "web" },
       "expect": {
         "agent": "order",
         "status": "open",
         "tool_code": "ok",
-        "in_content": ["已出库"]
+        "in_content": ["待核验"]
       }
     },
     {
-      "id": "order-cross-customer-variant",
-      "description": "客户查询他人订单不泄露对方物流",
-      "message": "ORD-10931 到哪了？",
+      "id": "source-cross-submitter-variant",
+      "description": "提交方查询他人来源记录不泄露对方溯源",
+      "message": "ORD-10931 的来源？",
       "conversation": { "customer_ref": "CUST-1001", "channel": "web" },
       "expect": {
         "tool_code": "not_found",
-        "not_in_content": ["已出库"]
+        "not_in_content": ["待核验"]
       }
     },
     {
-      "id": "order-verified-natural-phrasing",
-      "description": "自然表述的订单查询仍走工具并成功",
-      "message": "我的订单 ORD-10482 到哪了",
+      "id": "source-verified-natural-phrasing",
+      "description": "自然表述的来源查询仍走工具并成功",
+      "message": "我的来源记录 ORD-10482 现在什么状态",
       "conversation": { "customer_ref": "CUST-1001", "channel": "web" },
       "expect": {
         "agent": "order",
         "status": "open",
         "tool_code": "ok",
-        "in_content": ["运输中"]
+        "in_content": ["已核验"]
       }
     },
     {
-      "id": "refund-english-escalation",
-      "description": "英文退款投诉升级人工并提高优先级",
-      "message": "I want a refund and I need to complain",
+      "id": "appeal-escalation-english",
+      "description": "英文投诉与升级请求转人工并提高优先级",
+      "message": "I need to escalate this and I want to complain",
       "conversation": { "customer_ref": null, "channel": "web" },
       "expect": {
         "agent": "escalation",
@@ -216,9 +216,9 @@
       }
     },
     {
-      "id": "supervisor-complaint-escalation",
-      "description": "要求主管投诉升级人工并提高优先级",
-      "message": "给我找主管,我要投诉",
+      "id": "complaint-escalation",
+      "description": "投诉并要求升级复审转人工并提高优先级",
+      "message": "我要升级复审,我要投诉",
       "conversation": { "customer_ref": null, "channel": "web" },
       "expect": {
         "agent": "escalation",
@@ -248,8 +248,8 @@
     },
     {
       "id": "payment-card-escalation",
-      "description": "包含支付卡号的退款请求升级人工并标记 payment_card 风险",
-      "message": "我的卡号 4111111111111111，帮我退款",
+      "description": "包含支付卡号的内容请求转人工并标记 payment_card 风险",
+      "message": "内容里出现了卡号 4111111111111111，我要投诉",
       "conversation": { "customer_ref": null, "channel": "web" },
       "expect": {
         "status": "waiting_human",
@@ -259,8 +259,8 @@
     },
     {
       "id": "multi-turn-knowledge-followup",
-      "description": "多轮上下文:先问配送再问退货,两轮都命中知识",
-      "messages": ["配送一般多久能到？", "那退货政策呢？"],
+      "description": "多轮上下文:先问分级再问申诉,两轮都命中策略",
+      "messages": ["违规内容怎么分级？", "那申诉受理呢？"],
       "conversation": { "customer_ref": null, "channel": "web" },
       "expect": {
         "agent": "knowledge",
@@ -270,9 +270,9 @@
       }
     },
     {
-      "id": "multi-turn-order-then-escalation",
-      "description": "多轮上下文:先成功查单,再要求退款触发升级",
-      "messages": ["ORD-10482 到哪了", "我要退款"],
+      "id": "multi-turn-source-then-escalation",
+      "description": "多轮上下文:先成功查来源,再要求投诉触发升级",
+      "messages": ["ORD-10482 的来源是哪里", "我要投诉并升级复审"],
       "conversation": { "customer_ref": "CUST-1001", "channel": "web" },
       "expect": {
         "agent": "escalation",
@@ -282,17 +282,17 @@
     },
     {
       "id": "multi-turn-handoff-suppresses-automation",
-      "description": "多轮上下文:升级人工后再次发消息不再自动回复",
-      "messages": ["我要退款转人工", "你们到底什么时候处理"],
+      "description": "多轮上下文:转人工后再次发消息不再自动回复",
+      "messages": ["我要投诉并升级复审", "你们到底什么时候处理"],
       "conversation": { "customer_ref": null, "channel": "web" },
       "expect": {
         "status": "waiting_human"
       }
     },
     {
-      "id": "cjk-shipping-search",
-      "description": "CJK 检索:配送关键词长查询命中知识并带引用",
-      "message": "请问标准配送一般需要多少个工作日才能送达",
+      "id": "cjk-severity-search",
+      "description": "CJK 检索:分级关键词长查询命中策略并带引用",
+      "message": "请问违规内容的风险严重度具体怎么分级",
       "conversation": { "customer_ref": null, "channel": "web" },
       "expect": {
         "agent": "knowledge",

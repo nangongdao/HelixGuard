@@ -119,24 +119,24 @@ def main() -> int:
         open_new_conversation(page, f"演示审核单-{run_id}", "CUST-1001")
         page.get_by_role("button", name="折叠检查器").click()
         page.get_by_role("button", name="展开检查器").click()
-        send_customer_message(page, "配送一般多久能到？")
-        expect(page.locator("#messages")).to_contain_text("根据当前服务政策")
+        send_customer_message(page, "违规内容怎么分级？")
+        expect(page.locator("#messages")).to_contain_text("根据当前策略条款")
         page.get_by_role("tab", name="证据").click()
-        expect(page.locator("#inspectorEvidence")).to_contain_text("配送时效")
+        expect(page.locator("#inspectorEvidence")).to_contain_text("违规内容分级标准")
         page.wait_for_timeout(400)
         page.screenshot(path=OUT / "operator-workspace.png", full_page=False)
         print("captured operator-workspace.png")
 
         # 2) operator-handoff — human takeover with summary banner + audit tab.
         open_new_conversation(page, f"人工接管-{run_id}")
-        send_customer_message(page, "我要退款并投诉，请转人工复核")
+        send_customer_message(page, "我要投诉并升级复审，请转人工复核")
         expect(page.locator("#conversationStatus")).to_have_text("等待人工")
         with page.expect_response(
             lambda r: r.url.endswith("/accept") and r.request.method == "POST"
         ):
             page.get_by_role("button", name="接入", exact=True).click()
         expect(page.locator("#conversationStatus")).to_have_text("人工处理中")
-        page.get_by_label("人工回复", exact=True).fill("已接入，正在核验退款条件。")
+        page.get_by_label("人工回复", exact=True).fill("已接入，正在核验判定理由。")
         page.get_by_role("button", name="发送人工回复", exact=True).click()
         page.get_by_role("button", name="判定", exact=True).click()
         expect(page.locator("#conversationStatus")).to_have_text("已判定")

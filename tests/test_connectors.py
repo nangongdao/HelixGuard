@@ -96,7 +96,7 @@ class SandboxOrderConformance(OrderConnectorConformanceMixin, unittest.TestCase)
         self._fixture.close()
 
     def make_order_connector(self) -> tuple[OrderConnector, str, str, str]:
-        return SandboxOrderConnector(self.db), "CUST-1001", "ORD-10482", "运输中"
+        return SandboxOrderConnector(self.db), "CUST-1001", "ORD-10482", "已核验"
 
 
 class _ConformanceTransport:
@@ -140,9 +140,9 @@ class HttpOrderConformance(OrderConnectorConformanceMixin, unittest.TestCase):
     """The Phase 20.3 HTTP reference connector passes the same conformance suite."""
 
     def make_order_connector(self) -> tuple[OrderConnector, str, str, str]:
-        transport = _ConformanceTransport("CUST-1001", "ORD-10482", "运输中")
+        transport = _ConformanceTransport("CUST-1001", "ORD-10482", "已核验")
         conn = HttpOrderConnector(_HTTP_CONFIG, transport=transport)
-        return conn, "CUST-1001", "ORD-10482", "运输中"
+        return conn, "CUST-1001", "ORD-10482", "已核验"
 
 
 class KnowledgeConnectorConformanceMixin(_Assertions):
@@ -204,7 +204,7 @@ class SandboxKnowledgeConformance(KnowledgeConnectorConformanceMixin, unittest.T
         self._fixture.close()
 
     def make_knowledge_connector(self) -> tuple[KnowledgeConnector, str, str]:
-        return SandboxKnowledgeConnector(self.db), "配送一般多久能到？", "kb-shipping"
+        return SandboxKnowledgeConnector(self.db), "违规内容怎么分级？", "kb-severity"
 
 
 class SandboxCRMConformance(CRMConnectorConformanceMixin, unittest.TestCase):
@@ -248,10 +248,10 @@ class _KnowledgeConformanceTransport:
 class HttpKnowledgeConformance(KnowledgeConnectorConformanceMixin, unittest.TestCase):
     def make_knowledge_connector(self) -> tuple[KnowledgeConnector, str, str]:
         transport = _KnowledgeConformanceTransport(
-            "kb-shipping", "配送时效", "现货订单付款后 24 小时内出库。"
+            "kb-severity", "违规内容分级标准", "内容按风险严重度分为三级。"
         )
         conn = HttpKnowledgeConnector(_HTTP_CONFIG, transport=transport)
-        return conn, "配送一般多久能到？", "kb-shipping"
+        return conn, "违规内容怎么分级？", "kb-severity"
 
 
 class _CRMConformanceTransport:
@@ -292,7 +292,7 @@ class SandboxKnowledgeAndCRMTests(unittest.TestCase):
         self.assertIsInstance(self.crm_connector, CRMConnector)
 
     def test_knowledge_search_returns_grounded_hits(self) -> None:
-        hits = self.knowledge_connector.search("demo", "配送一般多久能到？")
+        hits = self.knowledge_connector.search("demo", "违规内容怎么分级？")
         self.assertGreater(len(hits), 0)
         self.assertTrue(all(hit.article_id and hit.title and hit.content for hit in hits))
 

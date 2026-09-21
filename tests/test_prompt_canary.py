@@ -177,7 +177,7 @@ class OrchestratorPromptVersionTests(unittest.TestCase):
         ]
 
     def test_default_channel_when_no_prompt_registered(self) -> None:
-        response = self._send("配送一般多久能到？", "idem-default")
+        response = self._send("违规内容怎么分级？", "idem-default")
         assistant = response["assistant_message"]
         assert assistant is not None
         metadata = assistant["metadata"]  # type: ignore[index]
@@ -192,7 +192,7 @@ class OrchestratorPromptVersionTests(unittest.TestCase):
             "tenant-1", "triage_prompt", "v1", "body-v1", "model-x", "admin"
         )
         self.registry.activate("tenant-1", v.id, "admin")
-        response = self._send("配送一般多久能到？", "idem-active")
+        response = self._send("违规内容怎么分级？", "idem-active")
         metadata = response["assistant_message"]["metadata"]  # type: ignore[index]
         self.assertEqual(metadata["prompt_channel"], "active")
         self.assertEqual(metadata["prompt_version_id"], v.id)
@@ -217,13 +217,13 @@ class OrchestratorPromptVersionTests(unittest.TestCase):
             "tenant-1", "triage_prompt", "v2", "body-v2", "model-y", "admin"
         )
         self.registry.set_canary("tenant-1", canary.id, "admin")
-        response = self._send("配送一般多久能到？", "idem-canary")
+        response = self._send("违规内容怎么分级？", "idem-canary")
         metadata = response["assistant_message"]["metadata"]  # type: ignore[index]
         self.assertEqual(metadata["prompt_channel"], "canary")
         self.assertEqual(metadata["prompt_version_id"], canary.id)
 
     def test_telemetry_counter_incremented_by_channel(self) -> None:
-        self._send("配送一般多久能到？", "idem-telemetry")
+        self._send("违规内容怎么分级？", "idem-telemetry")
         after = self._telemetry.snapshot().get("counters", {})
         prompt_keys = [k for k in after if k.startswith("turn.processed")]
         self.assertTrue(

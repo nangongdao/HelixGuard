@@ -155,7 +155,7 @@ class TurnGovernanceGateTests(unittest.TestCase):
         orchestrator.data_plane_config = self.dp
         conv = self.db.create_conversation("acme", "C", None, "web", "admin", 120)
         orchestrator.handle_customer_message(
-            "acme", conv["id"], "配送一般多久能到？", "admin", "idem-gov-1"
+            "acme", conv["id"], "违规内容怎么分级？", "admin", "idem-gov-1"
         )
         events = self._denied_events()
         self.assertEqual(len(events), 1)
@@ -170,7 +170,7 @@ class TurnGovernanceGateTests(unittest.TestCase):
         )
         conv = self.db.create_conversation("acme", "C2", None, "web", "admin", 120)
         orchestrator.handle_customer_message(
-            "acme", conv["id"], "配送一般多久能到？", "admin", "idem-gov-2"
+            "acme", conv["id"], "违规内容怎么分级？", "admin", "idem-gov-2"
         )
         self.assertEqual(self._denied_events(), [])
 
@@ -196,7 +196,7 @@ class TurnGovernanceGateTests(unittest.TestCase):
         orchestrator.data_plane_config = dp
         conv = self.db.create_conversation("acme", "C3", None, "web", "admin", 120)
         orchestrator.handle_customer_message(
-            "acme", conv["id"], "配送一般多久能到？", "admin", "idem-gov-3"
+            "acme", conv["id"], "违规内容怎么分级？", "admin", "idem-gov-3"
         )
         # No usable snapshot → gate skipped → only the allow-list applies.
         self.assertEqual(len(self._denied_events()), 0)
@@ -634,7 +634,7 @@ class DriftCostCitationSignalTests(unittest.TestCase):
                 conv["id"],
                 "assistant",
                 "assistant",
-                "根据当前服务政策：内容",
+                "根据当前策略条款：内容",
                 metadata={"agent": "knowledge", "citations": [{"id": article_id}]},
             )
 
@@ -772,7 +772,7 @@ class DriftCostCitationSignalTests(unittest.TestCase):
                 conv["id"],
                 "assistant",
                 "assistant",
-                "根据当前服务政策：内容",
+                "根据当前策略条款：内容",
                 metadata={"agent": "knowledge", "citations": [{"id": cited}]},
             )
         kwargs = {

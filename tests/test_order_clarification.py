@@ -3,7 +3,7 @@
 The old policy escalated every order query that arrived without an order
 number (``order_response_without_tool_record`` -> quality gate -> human). The
 roadmap keeps the conservative evidence rule for *final answers* but adds an
-explicit ``clarification`` result kind so "查物流 -> 请提供订单号 -> ORD-..."
+explicit ``clarification`` result kind so "查来源 -> 请提供来源记录号 -> ORD-..."
 can complete inside one conversation:
 
 - a clarification is a designed outcome, not a quality failure and not a
@@ -65,16 +65,16 @@ class OrderAgentOutcomeTests(unittest.TestCase):
     def test_no_order_number_is_a_clarification(self) -> None:
         from app.domain import TaskOutcome
 
-        result = self.agent.respond("demo", "CUST-1001", "帮我查一下订单")
+        result = self.agent.respond("demo", "CUST-1001", "帮我查一下来源")
         self.assertEqual(result.task_outcome, TaskOutcome.CLARIFICATION)
         self.assertEqual(result.clarify_slot, "order_id")
         self.assertFalse(result.requires_human)
-        self.assertIn("订单号", result.content)
+        self.assertIn("来源记录号", result.content)
 
     def test_successful_lookup_is_an_answer(self) -> None:
         from app.domain import TaskOutcome
 
-        result = self.agent.respond("demo", "CUST-1001", "ORD-10482 到哪了")
+        result = self.agent.respond("demo", "CUST-1001", "ORD-10482 的来源")
         self.assertEqual(result.task_outcome, TaskOutcome.ANSWER)
         self.assertTrue(any(call.get("tool") == "orders.lookup" for call in result.tool_calls))
 
@@ -82,13 +82,13 @@ class OrderAgentOutcomeTests(unittest.TestCase):
         """A definitive not-found with tool evidence answers the question."""
         from app.domain import TaskOutcome
 
-        result = self.agent.respond("demo", "CUST-1001", "ORD-99999 到哪了")
+        result = self.agent.respond("demo", "CUST-1001", "ORD-99999 的来源")
         self.assertEqual(result.task_outcome, TaskOutcome.ANSWER)
 
     def test_identity_required_is_a_handoff(self) -> None:
         from app.domain import TaskOutcome
 
-        result = self.agent.respond("demo", None, "ORD-10482 到哪了")
+        result = self.agent.respond("demo", None, "ORD-10482 的来源")
         self.assertEqual(result.task_outcome, TaskOutcome.HANDOFF)
         self.assertTrue(result.requires_human)
 
@@ -99,7 +99,9 @@ class QualityGateClarificationTests(unittest.TestCase):
     def _result(self, **kwargs: object) -> object:
         from app.agents import AgentName, AgentResult
 
-        return AgentResult(agent=AgentName.ORDER, content="请提供订单号", confidence=0.9, **kwargs)
+        return AgentResult(
+            agent=AgentName.ORDER, content="请提供来源记录号", confidence=0.9, **kwargs
+        )
 
     def test_clarification_without_tool_record_is_approved(self) -> None:
         from app.agents import QualityAgent
@@ -239,7 +241,7 @@ class ClarificationTurnTests(unittest.TestCase):
         from app.domain import TaskOutcome
 
         conversation_id = self._create_conversation()
-        turn = self._send(conversation_id, "帮我查一下订单")
+        turn = self._send(conversation_id, "帮我查一下来源")
         assistant = turn["assistant_message"]
         self.assertIsNotNone(assistant)
         self.assertEqual(turn["conversation"]["status"], "open")
@@ -266,11 +268,11 @@ class ClarificationTurnTests(unittest.TestCase):
         from app.domain import TaskOutcome
 
         conversation_id = self._create_conversation()
-        self._send(conversation_id, "帮我查一下订单")
-        turn = self._send(conversation_id, "订单号是 ORD-10482")
+        self._send(conversation_id, "帮我查一下来源")
+        turn = self._send(conversation_id, "记录号是 ORD-10482")
         assistant = turn["assistant_message"]
         self.assertEqual(assistant["metadata"]["task_outcome"], TaskOutcome.ANSWER)
-        self.assertIn("运输中", assistant["content"])
+        self.assertIn("已核验", assistant["content"])
         lookup = next(
             call
             for call in assistant["metadata"]["tool_calls"]
@@ -287,12 +289,12 @@ class ClarificationTurnTests(unittest.TestCase):
 
     def test_unverified_customer_supplying_number_still_hits_identity_gate(self) -> None:
         conversation_id = self._create_conversation(customer_ref=None)
-        clarify = self._send(conversation_id, "帮我查一下订单")
+        clarify = self._send(conversation_id, "帮我查一下来源")
         self.assertEqual(clarify["conversation"]["status"], "open")
-        turn = self._send(conversation_id, "ORD-10482 到哪了")
+        turn = self._send(conversation_id, "ORD-10482 的来源")
         self.assertEqual(turn["conversation"]["status"], "waiting_human")
         assistant = turn["assistant_message"]
-        self.assertNotIn("运输中", assistant["content"])
+        self.assertNotIn("已核验", assistant["content"])
         lookup = next(
             call
             for call in assistant["metadata"]["tool_calls"]
@@ -303,11 +305,11 @@ class ClarificationTurnTests(unittest.TestCase):
 
     def test_round_limit_escalates_clearly_and_cancels_task(self) -> None:
         conversation_id = self._create_conversation()
-        first = self._send(conversation_id, "帮我查一下订单")
+        first = self._send(conversation_id, "帮我查一下来源")
         self.assertEqual(first["conversation"]["status"], "open")
-        second = self._send(conversation_id, "帮我查一下订单")
+        second = self._send(conversation_id, "帮我查一下来源")
         self.assertEqual(second["conversation"]["status"], "open")
-        third = self._send(conversation_id, "帮我查一下订单")
+        third = self._send(conversation_id, "帮我查一下来源")
         self.assertEqual(third["conversation"]["status"], "waiting_human")
         assistant = third["assistant_message"]
         self.assertEqual(assistant["metadata"]["agent"], "escalation")
@@ -316,8 +318,8 @@ class ClarificationTurnTests(unittest.TestCase):
 
     def test_topic_switch_cancels_pending_task(self) -> None:
         conversation_id = self._create_conversation()
-        self._send(conversation_id, "帮我查一下订单")
-        turn = self._send(conversation_id, "退货政策是什么")
+        self._send(conversation_id, "帮我查一下来源")
+        turn = self._send(conversation_id, "申诉时限是多久")
         self.assertEqual(turn["conversation"]["status"], "open")
         self.assertEqual(turn["assistant_message"]["metadata"]["agent"], "knowledge")
         self.assertIsNone(self._database().get_pending_task("demo", conversation_id))
@@ -327,8 +329,8 @@ class ClarificationTurnTests(unittest.TestCase):
 
     def test_sensitive_request_cancels_pending_task(self) -> None:
         conversation_id = self._create_conversation()
-        self._send(conversation_id, "帮我查一下订单")
-        turn = self._send(conversation_id, "我要退款")
+        self._send(conversation_id, "帮我查一下来源")
+        turn = self._send(conversation_id, "我要投诉")
         self.assertEqual(turn["conversation"]["status"], "waiting_human")
         self.assertIsNone(self._database().get_pending_task("demo", conversation_id))
         events = self._database().list_audit("demo", conversation_id)
@@ -343,23 +345,23 @@ class ClarificationTurnTests(unittest.TestCase):
         before H03 -- instead of opening a clarification (and a pending task).
         """
         conversation_id = self._create_conversation()
-        turn = self._send(conversation_id, "我收到的验证码是 873296，帮我处理订单")
+        turn = self._send(conversation_id, "我收到的验证码是 873296，帮我处理来源记录")
         self.assertEqual(turn["conversation"]["status"], "waiting_human")
         assistant = turn["assistant_message"]
         self.assertEqual(assistant["metadata"]["agent"], "escalation")
         self.assertNotIn("873296", assistant["content"])
-        self.assertNotIn("请提供订单号", assistant["content"])
+        self.assertNotIn("请提供来源记录号", assistant["content"])
         self.assertIsNone(self._database().get_pending_task("demo", conversation_id))
 
     def test_expired_pending_starts_a_fresh_task(self) -> None:
         conversation_id = self._create_conversation()
-        self._send(conversation_id, "帮我查一下订单")
+        self._send(conversation_id, "帮我查一下来源")
         with self._database().connect() as connection:
             connection.execute(
                 "UPDATE conversation_pending_tasks SET expires_at = ?",
                 ("2000-01-01T00:00:00+00:00",),
             )
-        turn = self._send(conversation_id, "帮我查一下订单")
+        turn = self._send(conversation_id, "帮我查一下来源")
         self.assertEqual(turn["conversation"]["status"], "open")
         self.assertEqual(turn["assistant_message"]["metadata"]["pending_rounds"], 1)
 
@@ -369,13 +371,13 @@ class ClarificationTurnTests(unittest.TestCase):
         first = self.client.post(
             f"/api/conversations/{conversation_id}/messages",
             headers=dict(self.headers, **{"Idempotency-Key": key}),
-            json={"content": "帮我查一下订单"},
+            json={"content": "帮我查一下来源"},
         )
         self.assertEqual(first.status_code, 200)
         replay = self.client.post(
             f"/api/conversations/{conversation_id}/messages",
             headers=dict(self.headers, **{"Idempotency-Key": key}),
-            json={"content": "帮我查一下订单"},
+            json={"content": "帮我查一下来源"},
         )
         self.assertEqual(replay.status_code, 200)
         self.assertTrue(replay.json()["idempotent_replay"])
@@ -384,7 +386,7 @@ class ClarificationTurnTests(unittest.TestCase):
 
     def test_pending_task_survives_process_restart(self) -> None:
         conversation_id = self._create_conversation()
-        self._send(conversation_id, "帮我查一下订单")
+        self._send(conversation_id, "帮我查一下来源")
         # A fresh Database instance over the same file (the restart shape).
         from app.database import Database
 
@@ -400,7 +402,7 @@ class ClarificationTurnTests(unittest.TestCase):
 
     def test_human_takeover_cancels_pending_task(self) -> None:
         conversation_id = self._create_conversation()
-        self._send(conversation_id, "帮我查一下订单")
+        self._send(conversation_id, "帮我查一下来源")
         accepted = self.client.post(
             f"/api/conversations/{conversation_id}/accept", headers=self.headers
         )
@@ -409,7 +411,7 @@ class ClarificationTurnTests(unittest.TestCase):
 
     def test_resolve_cancels_pending_task(self) -> None:
         conversation_id = self._create_conversation()
-        self._send(conversation_id, "帮我查一下订单")
+        self._send(conversation_id, "帮我查一下来源")
         resolved = self.client.post(
             f"/api/conversations/{conversation_id}/resolve", headers=self.headers
         )

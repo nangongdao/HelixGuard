@@ -181,7 +181,7 @@ export function renderOverview(detail) {
         <label class="label-editor-field">
           <svg class="icon"><use href="/static/icons.svg?v=1.4.0#tag" /></svg>
           <span class="sr-only">审核单标签</span>
-          <input name="labels" type="text" maxlength="240" value="${ctx.escapeHtml(labels.join(", "))}" placeholder="VIP, 退款风险" />
+          <input name="labels" type="text" maxlength="240" value="${ctx.escapeHtml(labels.join(", "))}" placeholder="VIP, 高风险" />
         </label>
         <button type="submit" title="保存标签" aria-label="保存标签">
           <svg class="icon"><use href="/static/icons.svg?v=1.4.0#check" /></svg>

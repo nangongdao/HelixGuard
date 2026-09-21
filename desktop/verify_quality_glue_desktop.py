@@ -60,7 +60,7 @@ SEED_JS = """async () => {
     const conv = await convRes.json();
     const turnRes = await fetch('/api/conversations/' + conv.id + '/messages', {
         method: 'POST', headers: tenant,
-        body: JSON.stringify({ content: '配送一般多久能到？' }),
+        body: JSON.stringify({ content: '违规内容怎么分级？' }),
     });
     if (!turnRes.ok) return { error: 'turn ' + turnRes.status };
     const turn = await turnRes.json();

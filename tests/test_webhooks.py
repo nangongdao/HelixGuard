@@ -416,7 +416,7 @@ class WebhookOrchestratorTests(unittest.TestCase):
         )
         conv_id = self._create_conversation()
         self.orchestrator.handle_customer_message(
-            "demo", conv_id, "我要退款并投诉，给我转人工复核", "admin", "idem-webhook-esc"
+            "demo", conv_id, "我要投诉并升级复审，请转人工复核", "admin", "idem-webhook-esc"
         )
         deliveries = self.webhooks.list_deliveries("demo")
         self.assertEqual(len(deliveries), 1)

@@ -313,7 +313,7 @@ class TurnIntakeGovernanceTests(GateFixture):
         orchestrator = self._orchestrator(provider)
         conv = self.db.create_conversation(TENANT, "Intake Denied", None, "web", "admin", 120)
         orchestrator.handle_customer_message(
-            TENANT, conv["id"], "配送一般多久能到？", "admin", "idem-intake-1"
+            TENANT, conv["id"], "违规内容怎么分级？", "admin", "idem-intake-1"
         )
         self.assertEqual(provider.calls, [])
         self.assertEqual(self._customer_metadata(conv["id"])["language_source"], "denied")
@@ -323,7 +323,7 @@ class TurnIntakeGovernanceTests(GateFixture):
         orchestrator = self._orchestrator(provider)
         conv = self.db.create_conversation(TENANT, "Intake Allowed", None, "web", "admin", 120)
         orchestrator.handle_customer_message(
-            TENANT, conv["id"], "配送一般多久能到？", "admin", "idem-intake-2"
+            TENANT, conv["id"], "违规内容怎么分级？", "admin", "idem-intake-2"
         )
         self.assertTrue(provider.calls)
         self.assertEqual(self._customer_metadata(conv["id"])["language_source"], "model")

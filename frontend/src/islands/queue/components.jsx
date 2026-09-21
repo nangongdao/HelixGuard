@@ -249,7 +249,7 @@ export const BulkToolbar = memo(function BulkToolbar({ count, busy, onApply, onC
           <input
             type="text"
             maxLength={120}
-            placeholder="VIP, 退款风险"
+            placeholder="VIP, 高风险"
             aria-label="批量标签"
             value={labelsText}
             onChange={(e) => {

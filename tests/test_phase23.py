@@ -161,10 +161,10 @@ class WidgetChannelIdempotencyTests(unittest.TestCase):
         ).json()
 
     def test_replay_returns_original_turn_no_duplicate(self) -> None:
-        first = self._send("ORD-10482 到哪了", "ch-msg-1")
+        first = self._send("ORD-10482 的来源", "ch-msg-1")
         self.assertFalse(first["idempotent_replay"])
         self.assertEqual(first["conversation"]["status"], "open")
-        replay = self._send("ORD-10482 到哪了", "ch-msg-1")
+        replay = self._send("ORD-10482 的来源", "ch-msg-1")
         self.assertTrue(replay["idempotent_replay"])
         # Only one customer message persisted for that channel id.
         messages = self.client.get(
@@ -174,8 +174,8 @@ class WidgetChannelIdempotencyTests(unittest.TestCase):
         self.assertEqual(len(customer_messages), 1)
 
     def test_different_channel_ids_create_separate_turns(self) -> None:
-        self._send("ORD-10482 到哪了", "ch-a")
-        self._send("退货政策是什么", "ch-b")
+        self._send("ORD-10482 的来源", "ch-a")
+        self._send("申诉时限是多久", "ch-b")
         messages = self.client.get(
             f"/api/widget/sessions/{self.conversation_id}/messages", headers=self.headers
         ).json()
@@ -185,14 +185,14 @@ class WidgetChannelIdempotencyTests(unittest.TestCase):
     def test_async_mode_enqueues_job_and_is_replay_safe(self) -> None:
         first = self.client.post(
             f"/api/widget/sessions/{self.conversation_id}/messages?async_mode=true",
-            json={"content": "保修多久", "channel_message_id": "ch-async-1"},
+            json={"content": "高风险内容怎么处置", "channel_message_id": "ch-async-1"},
             headers=self.headers,
         )
         self.assertEqual(first.status_code, 200)
         self.assertEqual(first.json()["status"], "queued")
         replay = self.client.post(
             f"/api/widget/sessions/{self.conversation_id}/messages?async_mode=true",
-            json={"content": "保修多久", "channel_message_id": "ch-async-1"},
+            json={"content": "高风险内容怎么处置", "channel_message_id": "ch-async-1"},
             headers=self.headers,
         )
         self.assertEqual(replay.status_code, 200)
@@ -214,7 +214,7 @@ class WidgetChannelIdempotencyTests(unittest.TestCase):
     def test_stream_endpoint_serves_after_async_turn(self) -> None:
         job = self.client.post(
             f"/api/widget/sessions/{self.conversation_id}/messages?async_mode=true",
-            json={"content": "配送一般多久能到", "channel_message_id": "ch-stream-1"},
+            json={"content": "违规内容怎么分级", "channel_message_id": "ch-stream-1"},
             headers=self.headers,
         ).json()
         self.assertEqual(job["status"], "queued")

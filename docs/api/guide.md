@@ -129,7 +129,7 @@ The reference event shape is:
   "thread_id": "provider-thread-1",
   "customer_id": "CUST-1001",
   "customer_name": "Channel Customer",
-  "content": "配送一般多久能到"
+  "content": "违规内容怎么分级"
 }
 ```
 
@@ -148,7 +148,7 @@ All errors are [RFC 9457 Problem Details](../ERRORS.md): a JSON body with
 on `code` (stable) or `status`, never on `detail` wording. 429 responses
 carry `Retry-After`.
 
-## 9. Example: order lookup flow
+## 9. Example: source lookup flow
 
 1. `POST /api/conversations` with `customer_ref` → conversation id.
 2. `POST /api/conversations/{id}/messages` with the question and an

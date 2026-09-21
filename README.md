@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <code>v2.24.0</code>&nbsp;
+  <code>v2.25.0</code>&nbsp;
   <code>Python 3.11+</code>&nbsp;
   <code>FastAPI</code>&nbsp;
   <code>SQLite / PostgreSQL</code>&nbsp;
@@ -366,7 +366,7 @@ tests/                后端、前端、PG/Redis 和 Playwright 验收
 | README 截图重捕获 | `HELIX_BASE_URL=http://127.0.0.1:8766 python scripts/readme_screenshots.py`（对 clean-DB 服务，覆盖 `docs/assets/screenshots/`，七张含桌面壳） |
 
 > [!NOTE]
-> **域迁移进行中**：本产品原定位为多 Agent 智能客服平台，正在迁移到内容安全审核领域。产品名、README 叙事、术语契约（[`docs/DOMAIN.md`](docs/DOMAIN.md)）与**用户可见文案**（P1–P2，2.23.0/2.24.0）已更新；内容夹具与代码标识符、API 路径、数据库对象仍按 [`docs/DOMAIN_MIGRATION_PLAN.md`](docs/DOMAIN_MIGRATION_PLAN.md) 的阶段 P2b–P5 推进。当前 URL 路径、模块名与表名仍是旧域命名（如 `app/` 下的 `conversation` / `ticket`），属预期中间态。
+> **域迁移进行中**：本产品原定位为多 Agent 智能客服平台，正在迁移到内容安全审核领域。产品名、README 叙事、术语契约（[`docs/DOMAIN.md`](docs/DOMAIN.md)）、**用户可见文案**（P1–P2，2.23.0/2.24.0）与**内容夹具**（P2b，2.25.0：种子策略正文、来源记录状态串、`golden/*` 评测集）已更新；代码标识符、API 路径、数据库对象仍按 [`docs/DOMAIN_MIGRATION_PLAN.md`](docs/DOMAIN_MIGRATION_PLAN.md) 的阶段 P3–P5 推进。当前 URL 路径、模块名与表名仍是旧域命名（如 `app/` 下的 `conversation` / `ticket`），属预期中间态。
 
 ## 安全与生产边界
 

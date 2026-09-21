@@ -48,7 +48,7 @@ def main() -> None:
     )
     query = (
         "brand=Northstar+Care&accent=amber&locale=zh&"
-        "greeting=%E4%BD%A0%E5%A5%BD%EF%BC%8C%E8%BF%99%E9%87%8C%E6%98%AF%E5%8C%97%E6%98%9F%E6%9C%8D%E5%8A%A1%E5%8F%B0%E3%80%82"
+        "greeting=%E4%BD%A0%E5%A5%BD%EF%BC%8C%E8%BF%99%E9%87%8C%E6%98%AF%E5%86%85%E5%AE%B9%E6%8F%90%E4%BA%A4%E5%85%A5%E5%8F%A3%E3%80%82"
     )
     url = f"{BASE_URL}/widget?{query}#token={token}"
     console_errors: list[str] = []
@@ -90,7 +90,7 @@ def main() -> None:
         assert "x-frame-options" not in document_response.headers
         assert "frame-ancestors 'self'" in document_response.headers["content-security-policy"]
         expect(page.locator("#widgetBrand")).to_have_text("Northstar Care")
-        expect(page.locator("#welcomeCopy")).to_contain_text("北星服务台")
+        expect(page.locator("#welcomeCopy")).to_contain_text("内容提交入口")
         assert page.locator("body").get_attribute("data-accent") == "amber"
         assert_no_overflow(page)
 
@@ -112,7 +112,7 @@ def main() -> None:
         assert stored["conversationId"]
         assert stored["token"] != token
 
-        page.get_by_label("发送消息").fill("配送一般多久能到？")
+        page.get_by_label("发送消息").fill("违规内容怎么分级？")
         with page.expect_response(
             lambda response: (
                 "/api/widget/sessions/" in response.url
@@ -124,7 +124,7 @@ def main() -> None:
         assert message_info.value.ok, message_info.value.text()
         expect(page.locator(".message-row.customer")).to_have_count(1)
         expect(page.locator(".message-row.assistant .message-bubble")).to_contain_text(
-            "配送", timeout=20_000
+            "分级", timeout=20_000
         )
         expect(page.locator("#messageForm")).to_have_attribute("aria-busy", "false")
         expect(page.locator("#connectionBanner")).to_be_hidden()
@@ -152,7 +152,7 @@ def main() -> None:
 
         stream_pattern = "**/api/widget/sessions/*/stream?timeout=20"
         page.route(stream_pattern, recover_stream)
-        page.get_by_label("发送消息").fill("退货政策是什么？")
+        page.get_by_label("发送消息").fill("申诉时限是多久？")
         page.get_by_label("发送消息").press("Enter")
         expect(page.locator("#messageForm")).to_have_attribute("aria-busy", "false", timeout=20_000)
         expect(page.locator(".message-row.customer")).to_have_count(2)
@@ -187,7 +187,7 @@ def main() -> None:
         expect(page.locator("#fatalState")).to_be_hidden()
         expect(page.locator(".message-row.customer")).to_have_count(2)
         expect(page.locator(".message-row.assistant")).to_have_count(2)
-        expect(page.locator(".message-row.assistant .message-bubble").first).to_contain_text("配送")
+        expect(page.locator(".message-row.assistant .message-bubble").first).to_contain_text("分级")
         expect(page.locator("#messageForm")).to_have_attribute("aria-busy", "false")
         expect(page.locator("#connectionBanner")).to_be_hidden()
         assert "token=" not in page.url
@@ -202,7 +202,7 @@ def main() -> None:
         history_pattern = "**/api/widget/sessions/*/messages?limit=200"
         page.route(history_pattern, handoff_history)
         page.reload(wait_until="domcontentloaded")
-        expect(page.locator(".system-note")).to_contain_text("已转交服务团队")
+        expect(page.locator(".system-note")).to_contain_text("已转交人工复核")
         page.unroute(history_pattern, handoff_history)
 
         page.set_viewport_size({"width": 900, "height": 900})

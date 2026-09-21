@@ -42,7 +42,7 @@ export function OverviewSection({ conversation, assistant, canOperate, onPriorit
             <label className="label-editor-field">
               <svg className="icon"><use href="/static/icons.svg?v=1.4.0#tag" /></svg>
               <span className="sr-only">审核单标签</span>
-              <input name="labels" type="text" maxLength={240} defaultValue={labels.join(", ")} placeholder="VIP, 退款风险" />
+              <input name="labels" type="text" maxLength={240} defaultValue={labels.join(", ")} placeholder="VIP, 高风险" />
             </label>
             <button type="submit" title="保存标签" aria-label="保存标签">
               <svg className="icon"><use href="/static/icons.svg?v=1.4.0#check" /></svg>

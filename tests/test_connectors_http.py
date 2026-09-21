@@ -43,7 +43,7 @@ class HttpOrderConnectorTests(unittest.TestCase):
             {
                 "order": {
                     "id": "ORD-1",
-                    "status": "运输中",
+                    "status": "已核验",
                     "eta": "2026-07-20",
                     "tracking_code": "SF1",
                 }
@@ -55,7 +55,7 @@ class HttpOrderConnectorTests(unittest.TestCase):
         self.assertEqual(result.code, "ok")
         assert result.order is not None
         self.assertEqual(result.order.id, "ORD-1")
-        self.assertEqual(result.order.status, "运输中")
+        self.assertEqual(result.order.status, "已核验")
 
     def test_lookup_not_found(self) -> None:
         conn = HttpOrderConnector(_CONFIG, transport=_FakeTransport(404))
@@ -146,28 +146,28 @@ class HttpKnowledgeConnectorTests(unittest.TestCase):
             {
                 "hits": [
                     {
-                        "article_id": "kb-shipping",
-                        "title": "配送时效",
-                        "content": "2-4 个工作日",
+                        "article_id": "kb-severity",
+                        "title": "违规内容分级标准",
+                        "content": "内容按风险严重度分为三级。",
                         "score": 8,
                     }
                 ]
             },
         )
-        hits = HttpKnowledgeConnector(_CONFIG, transport=transport).search("t1", "配送")
+        hits = HttpKnowledgeConnector(_CONFIG, transport=transport).search("t1", "违规内容怎么分级")
         self.assertEqual(len(hits), 1)
-        self.assertEqual(hits[0].article_id, "kb-shipping")
-        self.assertEqual(hits[0].title, "配送时效")
+        self.assertEqual(hits[0].article_id, "kb-severity")
+        self.assertEqual(hits[0].title, "违规内容分级标准")
 
     def test_search_transient(self) -> None:
         conn = HttpKnowledgeConnector(_CONFIG, transport=_FakeTransport(503))
         with self.assertRaises(TransientConnectorError):
-            conn.search("t1", "配送")
+            conn.search("t1", "违规内容怎么分级")
 
     def test_search_non_transient(self) -> None:
         conn = HttpKnowledgeConnector(_CONFIG, transport=_FakeTransport(400))
         with self.assertRaises(HttpConnectorError):
-            conn.search("t1", "配送")
+            conn.search("t1", "违规内容怎么分级")
 
 
 class HttpConnectorConfigTests(unittest.TestCase):

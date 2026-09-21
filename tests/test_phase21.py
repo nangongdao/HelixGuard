@@ -325,8 +325,8 @@ class QualityApiTests(unittest.TestCase):
 
     def test_quality_buckets_after_turns_and_pagination(self) -> None:
         # Generate two turns (same bucket) for one published bucket row.
-        _send_message(self.client, self.admin, "帮我查一下订单", idx=0)
-        _send_message(self.client, self.admin, "帮我查一下订单", idx=1)
+        _send_message(self.client, self.admin, "帮我查一下来源", idx=0)
+        _send_message(self.client, self.admin, "帮我查一下来源", idx=1)
         r = self.client.get("/api/supervisor/quality", headers=self.viewer)
         self.assertEqual(r.status_code, 200)
         body = r.json()
@@ -359,7 +359,7 @@ class QualityApiTests(unittest.TestCase):
         self.assertEqual(r.status_code, 400)
 
     def test_negative_feedback_updates_aggregate_via_api(self) -> None:
-        turn = _send_message(self.client, self.admin, "帮我查一下订单", idx=0)
+        turn = _send_message(self.client, self.admin, "帮我查一下来源", idx=0)
         aid = turn["assistant_message"]["id"]
         cid = turn["conversation"]["id"]
         # Rate negative -> negative_feedback_count becomes 1.
@@ -381,7 +381,7 @@ class QualityApiTests(unittest.TestCase):
         self.assertEqual(bucket["negative_feedback_count"], 0)
 
     def test_knowledge_gaps_viewer_ok_operator_forbidden(self) -> None:
-        turn = _send_message(self.client, self.admin, "帮我查一下订单", idx=0)
+        turn = _send_message(self.client, self.admin, "帮我查一下来源", idx=0)
         aid = turn["assistant_message"]["id"]
         cid = turn["conversation"]["id"]
         self.client.post(
@@ -398,7 +398,7 @@ class QualityApiTests(unittest.TestCase):
 
     def test_tenant_isolation(self) -> None:
         other = {"X-API-Key": OTHER_ADMIN_KEY, "X-Tenant-Id": "other-tenant"}
-        _send_message(self.client, self.admin, "帮我查一下订单", idx=0)
+        _send_message(self.client, self.admin, "帮我查一下来源", idx=0)
         # demo tenant has data; other tenant does not.
         own = self.client.get("/api/supervisor/quality", headers=self.admin).json()
         cross = self.client.get("/api/supervisor/quality", headers=other).json()
@@ -532,7 +532,7 @@ class KnowledgeLifecycleApiTests(unittest.TestCase):
         self.assertEqual(r.status_code, 404)
 
     def test_draft_from_negative_feedback(self) -> None:
-        turn = _send_message(self.client, self.admin, "帮我查一下订单", idx=0)
+        turn = _send_message(self.client, self.admin, "帮我查一下来源", idx=0)
         aid = turn["assistant_message"]["id"]
         cid = turn["conversation"]["id"]
         self.client.post(
@@ -553,7 +553,7 @@ class KnowledgeLifecycleApiTests(unittest.TestCase):
         self.assertIn("order_status", body["title"])
 
     def test_draft_from_feedback_unknown_message_404(self) -> None:
-        turn = _send_message(self.client, self.admin, "帮我查一下订单", idx=0)
+        turn = _send_message(self.client, self.admin, "帮我查一下来源", idx=0)
         cid = turn["conversation"]["id"]
         r = self.client.post(
             f"/api/conversations/{cid}/messages/no-such-msg/knowledge-draft",
@@ -597,17 +597,17 @@ class KnowledgeLifecycleDbTests(unittest.TestCase):
             "demo",
             "Title",
             "Body content",
-            ["shipping"],
+            ["severity"],
             "general",
             "https://e.com",
             "admin",
         )
         self.assertEqual(article["status"], "draft")
         # The draft must not appear in retrieval or listing. (The sandbox
-        # seeds a ``kb-shipping`` article on initialize, so we assert the
+        # seeds a ``kb-severity`` article on initialize, so we assert the
         # draft is absent rather than that the result set is empty.)
         self.assertFalse(
-            any(r["id"] == article["id"] for r in self.db.search_knowledge("demo", "shipping"))
+            any(r["id"] == article["id"] for r in self.db.search_knowledge("demo", "severity"))
         )
         self.assertFalse(any(r["id"] == article["id"] for r in self.db.list_knowledge("demo")))
         published = self.db.review_knowledge("demo", article["id"], "publish", "admin")
@@ -642,7 +642,7 @@ class QualityGateOrderNoNumberTests(unittest.TestCase):
     """An unmarked order result with no order number stays a quality failure.
 
     Policy change (H03 / 2.17.0): the live path no longer escalates here -- the
-    OrderAgent marks the "please provide an order number" reply with the
+    OrderAgent marks the "please provide a source record number" reply with the
     ``clarification`` outcome, which the gate approves so the conversation
     stays open (golden case ``order-no-number-clarification``). The strict
     evidence rule below is *not* relaxed for results that do not speak the
@@ -655,7 +655,7 @@ class QualityGateOrderNoNumberTests(unittest.TestCase):
 
         result = AgentResult(
             agent=AgentName.ORDER,
-            content="请提供订单号",
+            content="请提供来源记录号",
             confidence=0.9,
             tool_calls=[
                 {

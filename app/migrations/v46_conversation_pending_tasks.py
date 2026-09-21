@@ -1,7 +1,7 @@
 """ROADMAP H03 (2.17.0): pending clarification tasks (expand phase).
 
 One durable row per conversation for the task automation is waiting to
-continue -- the order-query clarify flow ("查物流 → 请提供订单号 → ORD-…"):
+continue -- the source-lookup clarify flow ("查来源 → 请提供来源记录号 → ORD-…"):
 
 - ``kind``       -- the task vocabulary (today: ``order_clarification``);
 - ``slot``       -- the missing piece the customer was asked for (``order_id``);

@@ -20,7 +20,7 @@
 seeds baseline knowledge articles so it is immediately serviceable, and sets
 quota/policy columns. Re-posting the same `tenant_id` is a no-op for the row
 and re-applies quota fields. Verify with `GET /api/admin/tenants/{id}/quota`
-and a knowledge search (`/api/knowledge?q=配送` under that tenant).
+and a knowledge search (`/api/knowledge?q=分级` under that tenant).
 
 ### Member Lifecycle
 

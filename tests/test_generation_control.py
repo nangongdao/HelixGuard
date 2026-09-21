@@ -103,7 +103,7 @@ class StreamCancellationTests(unittest.TestCase):
             self.conv_id,
             f"idem-stream-{uuid4().hex[:6]}",
             "admin",
-            "配送一般多久能到？",
+            "违规内容怎么分级？",
             3,
         )
         return job

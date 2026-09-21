@@ -110,7 +110,7 @@ class AutoRoutingTests(unittest.TestCase):
     def test_intent_rule_assigns_group_agent(self) -> None:
         group_id = self._group()
         self._rule(group_id, intent="order_status")
-        turn = self._turn("ORD-10482 到哪了", "route-a-1")
+        turn = self._turn("ORD-10482 的来源", "route-a-1")
         self.assertEqual(turn["conversation"]["status"], "open")
         assigned = turn["conversation"].get("assigned_agent")
         self.assertIn(assigned, ("agent.a", "agent.b"))
@@ -121,15 +121,15 @@ class AutoRoutingTests(unittest.TestCase):
         self._rule(group_id, intent="order_status")
         # Two agents each at capacity 1 -> two assignments, third stays pooled.
         for index in range(2):
-            turn = self._turn("ORD-10482 到哪了", f"route-cap-{index}")
+            turn = self._turn("ORD-10482 的来源", f"route-cap-{index}")
             self.assertIn(turn["conversation"].get("assigned_agent"), ("agent.a", "agent.b"))
-        third = self._turn("ORD-10482 到哪了", "route-cap-2")
+        third = self._turn("ORD-10482 的来源", "route-cap-2")
         self.assertEqual(third["conversation"].get("assigned_agent"), "order")
         self.assertIn("routing.group_full", self._routing_audits())
 
     def test_no_rule_leaves_pooled(self) -> None:
         self._group()
-        turn = self._turn("ORD-10482 到哪了", "route-norule-1")
+        turn = self._turn("ORD-10482 的来源", "route-norule-1")
         self.assertEqual(turn["conversation"].get("assigned_agent"), "order")
         self.assertEqual(self._routing_audits(), [])
 
@@ -147,7 +147,7 @@ class AutoRoutingTests(unittest.TestCase):
             json={"group_id": group_b, "channel": "web", "priority": 20},
             headers=self.admin,
         )
-        turn = self._turn("ORD-10482 到哪了", "route-prio-1")
+        turn = self._turn("ORD-10482 的来源", "route-prio-1")
         # The channel=web rule (priority 20) matches first (priority DESC), so
         # the turn routes to group_b — which has no agents, hence unassigned
         # (pooled) with a group_full audit.
