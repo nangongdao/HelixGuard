@@ -222,7 +222,7 @@ class FailClosedApiTests(unittest.TestCase):
             "demo", "Fail Closed", "CUST-FC-1", "web", "admin", 120
         )
         response = self.client.post(
-            f"/api/conversations/{conv['id']}/messages",
+            f"/api/review-cases/{conv['id']}/messages",
             headers=headers,
             json={"content": "hello"},
         )

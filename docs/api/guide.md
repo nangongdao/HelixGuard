@@ -21,8 +21,8 @@ in the [API reference](reference.md) description.
 
 ## 2. Idempotency
 
-State-changing writes (`POST /api/conversations/{id}/messages`,
-`POST /api/conversations/{id}/turn-jobs`) accept an `Idempotency-Key`
+State-changing writes (`POST /api/review-cases/{id}/messages`,
+`POST /api/review-cases/{id}/turn-jobs`) accept an `Idempotency-Key`
 header (8–128 chars of `[A-Za-z0-9._:-]`). Replaying the same key returns
 the original result without side effects. Using the same key with a
 different payload returns `409 idempotency_conflict`.
@@ -36,12 +36,12 @@ List endpoints (conversations, messages, audit events, quality buckets,
 webhook deliveries) use opaque keyset cursors:
 
 ```
-GET /api/conversations?limit=50
+GET /api/review-cases?limit=50
 > X-Next-Cursor: eyJ2IjoxLC...
 > X-Has-More: true
 ```
 
-Follow with `GET /api/conversations?limit=50&cursor=<X-Next-Cursor>`.
+Follow with `GET /api/review-cases?limit=50&cursor=<X-Next-Cursor>`.
 Cursors are valid only for the same filter set — change filters, drop the
 cursor. Do not parse cursor contents; they are opaque. `offset` remains for
 compatibility but is not recommended for deep pages.
@@ -150,13 +150,13 @@ carry `Retry-After`.
 
 ## 9. Example: source lookup flow
 
-1. `POST /api/conversations` with `customer_ref` → conversation id.
-2. `POST /api/conversations/{id}/messages` with the question and an
+1. `POST /api/review-cases` with `customer_ref` → conversation id.
+2. `POST /api/review-cases/{id}/messages` with the question and an
    `Idempotency-Key`.
 3. Read `conversation.status`:
    - `open` — automated answer (check `assistant_message.metadata.agent`).
    - `waiting_human` — escalated; `metadata.handoff_reason` explains why.
-4. Rate the answer with `POST /api/conversations/{id}/feedback`.
+4. Rate the answer with `POST /api/review-cases/{id}/feedback`.
 
 ## 10. Python SDK
 

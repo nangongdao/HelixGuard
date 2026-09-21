@@ -623,7 +623,7 @@ class WebhookApiTests(unittest.TestCase):
             headers=self.headers,
         ).json()
         response = self.client.post(
-            "/api/conversations",
+            "/api/review-cases",
             json={"customer_name": "Hook Customer", "channel": "web"},
             headers=self.headers,
         )

@@ -84,23 +84,23 @@ def main() -> None:
     customer = f"lang-{run_id}"
 
     # 1) 预建审核单 + 两条待审内容 + 探针翻译降级语义。
-    conv = api_post("/api/conversations", {"customer_name": customer, "channel": "web"})
+    conv = api_post("/api/review-cases", {"customer_name": customer, "channel": "web"})
     conv_id = conv["id"]
     for index in range(2):
         # Pure CJK (+ digits, which carry no script) so detection is
         # deterministically zh — a latin "message-N" prefix plus ASCII hex in
         # run_id can tip the script count to en and flake the assertion.
         api_post(
-            f"/api/conversations/{conv_id}/messages",
+            f"/api/review-cases/{conv_id}/messages",
             {"content": f"{index}号 你好，请帮我查询订单号"},
             headers={"Idempotency-Key": f"lang-{index}-{run_id}-{conv_id[-8:]}"},
         )
-    detail = api_get(f"/api/conversations/{conv_id}")
+    detail = api_get(f"/api/review-cases/{conv_id}")
     customer_messages = [m for m in detail.get("messages", []) if m.get("role") == "customer"]
     assert customer_messages, "预置待审内容未出现在审核单详情"
     msg_id = customer_messages[0]["id"]
     probe = api_post(
-        f"/api/conversations/{conv_id}/messages/{msg_id}/translate",
+        f"/api/review-cases/{conv_id}/messages/{msg_id}/translate",
         {"target_language": "en"},
     )
     assert "was_translated" in probe and probe.get("source") in {
@@ -158,7 +158,7 @@ def main() -> None:
 
         with page.expect_response(
             lambda response: (
-                response.url.endswith(f"/api/conversations/{conv_id}/language")
+                response.url.endswith(f"/api/review-cases/{conv_id}/language")
                 and response.request.method == "PATCH"
                 and response.ok
             )
@@ -170,7 +170,7 @@ def main() -> None:
 
         with page.expect_response(
             lambda response: (
-                response.url.endswith(f"/api/conversations/{conv_id}/language")
+                response.url.endswith(f"/api/review-cases/{conv_id}/language")
                 and response.request.method == "PATCH"
                 and response.ok
             )
@@ -201,7 +201,7 @@ def main() -> None:
 
     # 测试卫生:resolve 审核单出队列,避免 open 审核单在共享 DB 累积。
     try:
-        api_post(f"/api/conversations/{conv_id}/resolve", {})
+        api_post(f"/api/review-cases/{conv_id}/resolve", {})
     except Exception:
         pass
 

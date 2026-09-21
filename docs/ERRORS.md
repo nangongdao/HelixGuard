@@ -13,7 +13,7 @@ clients keep working; new integrations should read `title`/`status`/
   "title": "Not Found",
   "status": 404,
   "detail": "Conversation not found",
-  "instance": "/api/conversations/conv-123",
+  "instance": "/api/review-cases/conv-123",
   "request_id": "req_9f3c...",
   "code": "not_found"
 }

@@ -60,7 +60,7 @@ class ConversationCreateAndUpdateTests(unittest.TestCase):
     def test_create_conversation(self) -> None:
         # line 309-340
         response = self.client.post(
-            "/api/conversations",
+            "/api/review-cases",
             json={"customer_name": "Alice", "customer_ref": "CUST-A-1", "channel": "web"},
             headers=self.operator,
         )
@@ -74,7 +74,7 @@ class ConversationCreateAndUpdateTests(unittest.TestCase):
             "demo", "Bob", "CUST-B-1", "web", "operator", 120
         )
         response = self.client.patch(
-            f"/api/conversations/{conv['id']}",
+            f"/api/review-cases/{conv['id']}",
             json={"priority": "high"},
             headers=self.operator,
         )
@@ -88,7 +88,7 @@ class ConversationCreateAndUpdateTests(unittest.TestCase):
             "demo", "Charlie", "CUST-C-1", "web", "operator", 120
         )
         response = self.client.put(
-            f"/api/conversations/{conv['id']}/labels",
+            f"/api/review-cases/{conv['id']}/labels",
             json={"labels": ["urgent", "billing"]},
             headers=self.operator,
         )
@@ -117,7 +117,7 @@ class ConversationDetailTests(unittest.TestCase):
         conv = self.services.database.create_conversation(
             "demo", "David", "CUST-D-1", "web", "operator", 120
         )
-        response = self.client.get(f"/api/conversations/{conv['id']}", headers=self.operator)
+        response = self.client.get(f"/api/review-cases/{conv['id']}", headers=self.operator)
         self.assertEqual(response.status_code, 200)
         body = response.json()
         self.assertEqual(body["conversation"]["id"], conv["id"])
@@ -129,12 +129,12 @@ class ConversationDetailTests(unittest.TestCase):
         )
         # 通过 API 添加消息
         self.client.post(
-            f"/api/conversations/{conv['id']}/messages",
+            f"/api/review-cases/{conv['id']}/messages",
             json={"content": "Hello"},
             headers=self.operator,
         )
         response = self.client.get(
-            f"/api/conversations/{conv['id']}?message_limit=10", headers=self.operator
+            f"/api/review-cases/{conv['id']}?message_limit=10", headers=self.operator
         )
         self.assertEqual(response.status_code, 200)
         body = response.json()
@@ -162,7 +162,7 @@ class InternalNoteAndFeedbackTests(unittest.TestCase):
             "demo", "Frank", "CUST-F-1", "web", "operator", 120
         )
         response = self.client.post(
-            f"/api/conversations/{conv['id']}/notes",
+            f"/api/review-cases/{conv['id']}/notes",
             json={"content": "This is an internal note"},
             headers=self.operator,
         )

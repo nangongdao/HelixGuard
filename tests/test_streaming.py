@@ -231,7 +231,7 @@ class StreamWorkerTests(unittest.TestCase):
 
     def create_conversation(self, name: str = "Stream Customer") -> dict:
         response = self.client.post(
-            "/api/conversations",
+            "/api/review-cases",
             json={"customer_name": name, "channel": "web"},
             headers=self.headers,
         )
@@ -258,7 +258,7 @@ class StreamWorkerTests(unittest.TestCase):
     def test_sse_stream_emits_tokens_then_completed_job(self) -> None:
         conversation = self.create_conversation()
         job = self.client.post(
-            f"/api/conversations/{conversation['id']}/turn-jobs",
+            f"/api/review-cases/{conversation['id']}/turn-jobs",
             json={"content": "帮我查一下我的订单"},
             headers={**self.headers, "Idempotency-Key": "sse-token-0001"},
         )
@@ -299,7 +299,7 @@ class StreamWorkerTests(unittest.TestCase):
         conversation = self.create_conversation()
         key = "sse-replay-0001"
         first = self.client.post(
-            f"/api/conversations/{conversation['id']}/turn-jobs",
+            f"/api/review-cases/{conversation['id']}/turn-jobs",
             json={"content": "订单丢了"},
             headers={**self.headers, "Idempotency-Key": key},
         )
@@ -313,7 +313,7 @@ class StreamWorkerTests(unittest.TestCase):
 
         # Re-submitting the same idempotency key returns the same job as a replay.
         replay = self.client.post(
-            f"/api/conversations/{conversation['id']}/turn-jobs",
+            f"/api/review-cases/{conversation['id']}/turn-jobs",
             json={"content": "订单丢了"},
             headers={**self.headers, "Idempotency-Key": key},
         )

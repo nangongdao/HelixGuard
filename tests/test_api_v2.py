@@ -56,7 +56,7 @@ class ApiV2ContractTests(unittest.TestCase):
         if idempotency_key:
             headers["Idempotency-Key"] = idempotency_key
         return self.client.post(
-            "/api/v2/conversations",
+            "/api/v2/review-cases",
             json={"customer_name": name, "channel": "web"},
             headers=headers,
         )
@@ -64,15 +64,15 @@ class ApiV2ContractTests(unittest.TestCase):
     # ------------------------------------------------------- version header
 
     def test_every_v2_response_carries_version_header(self) -> None:
-        listed = self.client.get("/api/v2/conversations", headers=self.headers)
+        listed = self.client.get("/api/v2/review-cases", headers=self.headers)
         self.assertEqual(listed.status_code, 200)
         self.assertEqual(listed.headers["X-API-Version"], "2.0")
-        missing = self.client.get("/api/v2/conversations/conv_missing", headers=self.headers)
+        missing = self.client.get("/api/v2/review-cases/conv_missing", headers=self.headers)
         self.assertEqual(missing.status_code, 404)
         self.assertEqual(missing.headers["X-API-Version"], "2.0")
 
     def test_errors_stay_problem_details(self) -> None:
-        missing = self.client.get("/api/v2/conversations/conv_x", headers=self.headers)
+        missing = self.client.get("/api/v2/review-cases/conv_x", headers=self.headers)
         body = missing.json()
         self.assertEqual(body["type"], "urn:helix:error:not_found")
         self.assertIn("status", body)
@@ -92,7 +92,7 @@ class ApiV2ContractTests(unittest.TestCase):
             params = {"limit": "3"}
             if cursor:
                 params["cursor"] = cursor
-            page = self.client.get("/api/v2/conversations", params=params, headers=self.headers)
+            page = self.client.get("/api/v2/review-cases", params=params, headers=self.headers)
             self.assertEqual(page.status_code, 200)
             body = page.json()
             seen.extend(item["customer_name"] for item in body["data"])
@@ -105,7 +105,7 @@ class ApiV2ContractTests(unittest.TestCase):
 
     def test_invalid_cursor_is_a_clean_400(self) -> None:
         response = self.client.get(
-            "/api/v2/conversations",
+            "/api/v2/review-cases",
             params={"cursor": "!!!not-a-cursor!!!"},
             headers=self.headers,
         )
@@ -133,7 +133,7 @@ class ApiV2ContractTests(unittest.TestCase):
         conversation_id = created.json()["id"]
         v2_row = created.json()
         v1_row = self.client.get(
-            f"/api/conversations/{conversation_id}", headers=self.headers
+            f"/api/review-cases/{conversation_id}", headers=self.headers
         ).json()
         if isinstance(v1_row, dict) and "conversation" in v1_row:
             v1_row = v1_row["conversation"]

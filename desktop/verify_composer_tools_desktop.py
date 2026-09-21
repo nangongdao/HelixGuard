@@ -108,15 +108,15 @@ def main() -> int:
                         title: '退款指引 ' + suffix, shortcut: 'tuik' + suffix, body: '退款将在 3 个工作日内到账。',
                     });
                     if (!macro2.ok) return { error: 'macro2 ' + macro2.status };
-                    const conv = await post('/api/conversations', {
+                    const conv = await post('/api/review-cases', {
                         customer_name: '工具面验证 ' + suffix,
                     });
                     if (!conv.ok) return { error: 'conversation ' + conv.status };
-                    const turn = await post('/api/conversations/' + conv.data.id + '/messages', {
+                    const turn = await post('/api/review-cases/' + conv.data.id + '/messages', {
                         content: '违规内容怎么分级？',
                     });
                     if (!turn.ok) return { error: 'turn ' + turn.status };
-                    const accept = await post('/api/conversations/' + conv.data.id + '/accept');
+                    const accept = await post('/api/review-cases/' + conv.data.id + '/accept');
                     if (!accept.ok) return { error: 'accept ' + accept.status };
                     // Refresh canned cache in legacy state for the island snapshot.
                     return { conversationId: conv.data.id, shortcuts: ['cudan' + suffix, 'tuik' + suffix] };

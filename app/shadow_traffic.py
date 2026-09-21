@@ -284,7 +284,7 @@ def create_shadow_task(
 
 
 _V2_ELIGIBLE_PATHS = (
-    "/api/conversations",  # list (cursor-paginated, enveloped in v2)
+    "/api/review-cases",  # list (cursor-paginated, enveloped in v2)
 )
 
 
@@ -299,7 +299,7 @@ def is_v2_shadow_eligible(path: str) -> bool:
     """
     if path in _V2_ELIGIBLE_PATHS:
         return True
-    if path.startswith("/api/conversations/") and path.endswith("/messages"):
+    if path.startswith("/api/review-cases/") and path.endswith("/messages"):
         return True
     return False
 

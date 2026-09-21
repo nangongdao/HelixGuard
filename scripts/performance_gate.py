@@ -185,7 +185,7 @@ _INP_PROBE_SCRIPT = """
 _SEED_SCRIPT = """
 async (customerName) => {
   try {
-    const response = await fetch('/api/conversations', {
+    const response = await fetch('/api/review-cases', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -231,7 +231,7 @@ def _measure_interaction_inp(page: Any) -> float:
     try:
         page.evaluate(_INP_PROBE_SCRIPT)
         with page.expect_response(
-            lambda response: "/api/conversations/" in response.url,
+            lambda response: "/api/review-cases/" in response.url,
             timeout=10000,
         ):
             row = page.locator(".conversation-row button.conversation-item").first

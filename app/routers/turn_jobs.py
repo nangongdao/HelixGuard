@@ -26,7 +26,7 @@ from app.main import (
     require_permission,
     turn_job_out,
 )
-from app.routers.common import RouteDeps
+from app.routers.common import RouteDeps, legacy_route
 from app.schemas import MessageRequest, TurnJobOut, TurnResponse
 from app.security import Principal
 from uuid import uuid4
@@ -39,11 +39,17 @@ def build_turn_jobs_router(deps: RouteDeps, router: APIRouter) -> None:
     settings = deps.settings
 
     @router.post(
-        "/api/conversations/{conversation_id}/messages",
+        "/api/review-cases/{review_case_id}/messages",
+        response_model=TurnResponse,
+    )
+    @legacy_route(
+        router,
+        "/api/conversations/{review_case_id}/messages",
+        methods=["POST"],
         response_model=TurnResponse,
     )
     def post_customer_message(
-        conversation_id: str,
+        review_case_id: str,
         payload: MessageRequest,
         principal: Annotated[Principal, Depends(require_permission("conversation:write"))],
         idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
@@ -53,7 +59,7 @@ def build_turn_jobs_router(deps: RouteDeps, router: APIRouter) -> None:
         key = idempotency_key or f"turn_{uuid4().hex}"
         result = orchestrator.handle_customer_message(
             principal.tenant_id,
-            conversation_id,
+            review_case_id,
             payload.content,
             principal.actor_id,
             key,
@@ -61,12 +67,19 @@ def build_turn_jobs_router(deps: RouteDeps, router: APIRouter) -> None:
         return TurnResponse(**result)
 
     @router.post(
-        "/api/conversations/{conversation_id}/turn-jobs",
+        "/api/review-cases/{review_case_id}/turn-jobs",
+        response_model=TurnJobOut,
+        status_code=202,
+    )
+    @legacy_route(
+        router,
+        "/api/conversations/{review_case_id}/turn-jobs",
+        methods=["POST"],
         response_model=TurnJobOut,
         status_code=202,
     )
     def enqueue_turn_job(
-        conversation_id: str,
+        review_case_id: str,
         payload: MessageRequest,
         response: Response,
         principal: Annotated[Principal, Depends(require_permission("conversation:write"))],
@@ -85,7 +98,7 @@ def build_turn_jobs_router(deps: RouteDeps, router: APIRouter) -> None:
         key = idempotency_key or f"turn_{uuid4().hex}"
         job, replayed = orchestrator.queue_customer_message(
             principal.tenant_id,
-            conversation_id,
+            review_case_id,
             payload.content,
             principal.actor_id,
             key,

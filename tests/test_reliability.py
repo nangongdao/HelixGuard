@@ -70,7 +70,7 @@ class BackpressureTests(unittest.TestCase):
         db.enqueue_turn_job("demo", conv["id"], "k-1", "admin", "hello", 3)
         db.enqueue_turn_job("demo", conv["id"], "k-2", "admin", "hello2", 3)
         response = self.client.post(
-            f"/api/conversations/{conv['id']}/turn-jobs",
+            f"/api/review-cases/{conv['id']}/turn-jobs",
             json={"content": "third"},
             headers=self.headers,
         )
@@ -79,10 +79,10 @@ class BackpressureTests(unittest.TestCase):
 
     def test_within_cap_is_accepted(self) -> None:
         conv = self.client.post(
-            "/api/conversations", json={"customer_name": "C"}, headers=self.headers
+            "/api/review-cases", json={"customer_name": "C"}, headers=self.headers
         ).json()
         response = self.client.post(
-            f"/api/conversations/{conv['id']}/turn-jobs",
+            f"/api/review-cases/{conv['id']}/turn-jobs",
             json={"content": "hello"},
             headers=self.headers,
         )
@@ -125,11 +125,11 @@ class GracefulShutdownTests(unittest.TestCase):
     def test_sse_queue_stream_emits_reconnect_hint(self) -> None:
         # The queue SSE stream starts with a retry: hint line.
         conv = self.client.post(
-            "/api/conversations", json={"customer_name": "C"}, headers=self.headers
+            "/api/review-cases", json={"customer_name": "C"}, headers=self.headers
         ).json()
         # Trigger at least one queue revision so a snapshot is emitted.
         self.client.post(
-            f"/api/conversations/{conv['id']}/messages",
+            f"/api/review-cases/{conv['id']}/messages",
             json={"content": "ORD-10482 的来源"},
             headers={**self.headers, "Idempotency-Key": "rel-sse-1"},
         )

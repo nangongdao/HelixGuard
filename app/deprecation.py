@@ -71,14 +71,14 @@ _DOMAIN_RENAMES: tuple[tuple[str, tuple[str, ...], str], ...] = (
     # T8 提交端
     ("/api/widget/sessions", ("POST",), "/api/submission-portal/sessions"),
     (
-        "/api/widget/sessions/{conversation_id}/messages",
+        "/api/widget/sessions/{review_case_id}/messages",
         ("POST", "GET"),
-        "/api/submission-portal/sessions/{conversation_id}/messages",
+        "/api/submission-portal/sessions/{review_case_id}/messages",
     ),
     (
-        "/api/widget/sessions/{conversation_id}/stream",
+        "/api/widget/sessions/{review_case_id}/stream",
         ("GET",),
-        "/api/submission-portal/sessions/{conversation_id}/stream",
+        "/api/submission-portal/sessions/{review_case_id}/stream",
     ),
     # T9 策略库
     ("/api/knowledge", ("GET", "POST"), "/api/policy"),
@@ -119,6 +119,117 @@ _DOMAIN_RENAMES: tuple[tuple[str, tuple[str, ...], str], ...] = (
     ),
     # T4 指派审核员
     ("/api/analytics/costs/by_agent", ("GET",), "/api/analytics/costs/by_reviewer"),
+    # T5 审核单（占位符与 successor 同步到 review_case_id；T8 的两条
+    # submission-portal successor 也随之更新，见上方 -- 占位符名是 URL
+    # 模板记号，客户端只填值，URL 形状不变）
+    ("/api/conversations", ("POST", "GET"), "/api/review-cases"),
+    (
+        "/api/conversations/bulk-actions",
+        ("POST",),
+        "/api/review-cases/bulk-actions",
+    ),
+    (
+        "/api/conversations/{review_case_id}",
+        ("PATCH", "GET"),
+        "/api/review-cases/{review_case_id}",
+    ),
+    (
+        "/api/conversations/{review_case_id}/accept",
+        ("POST",),
+        "/api/review-cases/{review_case_id}/accept",
+    ),
+    (
+        "/api/conversations/{review_case_id}/assign",
+        ("POST",),
+        "/api/review-cases/{review_case_id}/assign",
+    ),
+    (
+        "/api/conversations/{review_case_id}/claim",
+        ("POST",),
+        "/api/review-cases/{review_case_id}/claim",
+    ),
+    (
+        "/api/conversations/{review_case_id}/events",
+        ("GET",),
+        "/api/review-cases/{review_case_id}/events",
+    ),
+    (
+        "/api/conversations/{review_case_id}/feedback",
+        ("POST",),
+        "/api/review-cases/{review_case_id}/feedback",
+    ),
+    (
+        "/api/conversations/{review_case_id}/labels",
+        ("PUT",),
+        "/api/review-cases/{review_case_id}/labels",
+    ),
+    (
+        "/api/conversations/{review_case_id}/language",
+        ("PATCH",),
+        "/api/review-cases/{review_case_id}/language",
+    ),
+    (
+        "/api/conversations/{review_case_id}/messages",
+        ("POST", "GET"),
+        "/api/review-cases/{review_case_id}/messages",
+    ),
+    (
+        "/api/conversations/{review_case_id}/messages/{message_id}/knowledge-draft",
+        ("POST",),
+        "/api/review-cases/{review_case_id}/messages/{message_id}/policy-draft",
+    ),
+    (
+        "/api/conversations/{review_case_id}/messages/{message_id}/translate",
+        ("POST",),
+        "/api/review-cases/{review_case_id}/messages/{message_id}/translate",
+    ),
+    (
+        "/api/conversations/{review_case_id}/notes",
+        ("POST",),
+        "/api/review-cases/{review_case_id}/notes",
+    ),
+    (
+        "/api/conversations/{review_case_id}/operator-messages",
+        ("POST",),
+        "/api/review-cases/{review_case_id}/operator-messages",
+    ),
+    (
+        "/api/conversations/{review_case_id}/release",
+        ("POST",),
+        "/api/review-cases/{review_case_id}/release",
+    ),
+    (
+        "/api/conversations/{review_case_id}/reopen",
+        ("POST",),
+        "/api/review-cases/{review_case_id}/reopen",
+    ),
+    (
+        "/api/conversations/{review_case_id}/resolve",
+        ("POST",),
+        "/api/review-cases/{review_case_id}/resolve",
+    ),
+    (
+        "/api/conversations/{review_case_id}/threads",
+        ("GET",),
+        "/api/review-cases/{review_case_id}/threads",
+    ),
+    (
+        "/api/conversations/{review_case_id}/turn-jobs",
+        ("POST",),
+        "/api/review-cases/{review_case_id}/turn-jobs",
+    ),
+    ("/api/conversation-labels", ("GET",), "/api/review-case-labels"),
+    ("/api/v2/conversations", ("GET", "POST"), "/api/v2/review-cases"),
+    (
+        "/api/v2/conversations/{review_case_id}",
+        ("GET",),
+        "/api/v2/review-cases/{review_case_id}",
+    ),
+    (
+        "/api/v2/conversations/{review_case_id}/messages",
+        ("GET",),
+        "/api/v2/review-cases/{review_case_id}/messages",
+    ),
 )
 
 _DEPRECATED_ON = "2026-09-21"

@@ -395,10 +395,10 @@ class UsageMeteringTests(unittest.TestCase):
     def test_usage_tracks_conversations_turns_and_messages(self) -> None:
         for index in range(2):
             conv = self.client.post(
-                "/api/conversations", json={"customer_name": f"C{index}"}, headers=self.admin
+                "/api/review-cases", json={"customer_name": f"C{index}"}, headers=self.admin
             ).json()
             self.client.post(
-                f"/api/conversations/{conv['id']}/messages",
+                f"/api/review-cases/{conv['id']}/messages",
                 json={"content": "ORD-10482 的来源"},
                 headers={**self.admin, "Idempotency-Key": f"p22u-{index}-abcdefg"},
             )
@@ -422,20 +422,20 @@ class UsageMeteringTests(unittest.TestCase):
             headers=self.admin,
         )
         first = self.client.post(
-            "/api/conversations", json={"customer_name": "C1"}, headers=self.admin
+            "/api/review-cases", json={"customer_name": "C1"}, headers=self.admin
         )
         self.assertEqual(first.status_code, 201)
         blocked = self.client.post(
-            "/api/conversations", json={"customer_name": "C2"}, headers=self.admin
+            "/api/review-cases", json={"customer_name": "C2"}, headers=self.admin
         )
         self.assertEqual(blocked.status_code, 429)
         body = blocked.json()
         self.assertEqual(body["code"], "rate_limited")
         # Resolving frees a slot.
         conversation_id = first.json()["id"]
-        self.client.post(f"/api/conversations/{conversation_id}/resolve", headers=self.admin)
+        self.client.post(f"/api/review-cases/{conversation_id}/resolve", headers=self.admin)
         allowed = self.client.post(
-            "/api/conversations", json={"customer_name": "C3"}, headers=self.admin
+            "/api/review-cases", json={"customer_name": "C3"}, headers=self.admin
         )
         self.assertEqual(allowed.status_code, 201)
 
@@ -523,7 +523,7 @@ class PermissionMatrixTests(unittest.TestCase):
         # Cannot write a conversation or call admin management.
         self.assertEqual(
             self.client.post(
-                "/api/conversations",
+                "/api/review-cases",
                 json={"customer_name": "X"},
                 headers=auditor,
             ).status_code,

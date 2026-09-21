@@ -219,13 +219,13 @@ class ClarificationTurnTests(unittest.TestCase):
         payload: dict[str, str] = {"customer_name": "clarify-customer", "channel": "web"}
         if customer_ref:
             payload["customer_ref"] = customer_ref
-        created = self.client.post("/api/conversations", json=payload, headers=self.headers)
+        created = self.client.post("/api/review-cases", json=payload, headers=self.headers)
         self.assertEqual(created.status_code, 201, created.text)
         return str(created.json()["id"])
 
     def _send(self, conversation_id: str, content: str) -> dict:
         response = self.client.post(
-            f"/api/conversations/{conversation_id}/messages",
+            f"/api/review-cases/{conversation_id}/messages",
             headers=dict(self.headers, **{"Idempotency-Key": uuid4().hex}),
             json={"content": content},
         )
@@ -233,7 +233,7 @@ class ClarificationTurnTests(unittest.TestCase):
         return dict(response.json())
 
     def _detail(self, conversation_id: str) -> dict:
-        response = self.client.get(f"/api/conversations/{conversation_id}", headers=self.headers)
+        response = self.client.get(f"/api/review-cases/{conversation_id}", headers=self.headers)
         self.assertEqual(response.status_code, 200, response.text)
         return dict(response.json())
 
@@ -369,13 +369,13 @@ class ClarificationTurnTests(unittest.TestCase):
         conversation_id = self._create_conversation()
         key = uuid4().hex
         first = self.client.post(
-            f"/api/conversations/{conversation_id}/messages",
+            f"/api/review-cases/{conversation_id}/messages",
             headers=dict(self.headers, **{"Idempotency-Key": key}),
             json={"content": "帮我查一下来源"},
         )
         self.assertEqual(first.status_code, 200)
         replay = self.client.post(
-            f"/api/conversations/{conversation_id}/messages",
+            f"/api/review-cases/{conversation_id}/messages",
             headers=dict(self.headers, **{"Idempotency-Key": key}),
             json={"content": "帮我查一下来源"},
         )
@@ -404,7 +404,7 @@ class ClarificationTurnTests(unittest.TestCase):
         conversation_id = self._create_conversation()
         self._send(conversation_id, "帮我查一下来源")
         accepted = self.client.post(
-            f"/api/conversations/{conversation_id}/accept", headers=self.headers
+            f"/api/review-cases/{conversation_id}/accept", headers=self.headers
         )
         self.assertEqual(accepted.status_code, 200, accepted.text)
         self.assertIsNone(self._database().get_pending_task("demo", conversation_id))
@@ -413,7 +413,7 @@ class ClarificationTurnTests(unittest.TestCase):
         conversation_id = self._create_conversation()
         self._send(conversation_id, "帮我查一下来源")
         resolved = self.client.post(
-            f"/api/conversations/{conversation_id}/resolve", headers=self.headers
+            f"/api/review-cases/{conversation_id}/resolve", headers=self.headers
         )
         self.assertEqual(resolved.status_code, 200, resolved.text)
         self.assertIsNone(self._database().get_pending_task("demo", conversation_id))

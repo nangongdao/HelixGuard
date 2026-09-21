@@ -17,7 +17,7 @@
 ## 策略库(Phase 21.3)
 
 - 创建条目进 `draft` 状态(检索不可见);审批 `POST /api/policy/{id}/review` 发布/退休。
-- 负反馈消息可一键生成 draft(`knowledge-draft` 端点),供编辑后发布。
+- 负反馈消息可一键生成 draft(`policy-draft` 端点),供编辑后发布。
 - 检索只命中 `published`;草稿需审批后上线。
 
 ## Webhook(Phase 20.5)

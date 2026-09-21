@@ -113,7 +113,7 @@ class SlaPolicyEngineTests(unittest.TestCase):
             resolve_minutes=3,
         )
         conv = self.client.post(
-            "/api/conversations",
+            "/api/review-cases",
             json={"customer_name": "C", "channel": "web"},
             headers=self.admin,
         ).json()
@@ -233,12 +233,12 @@ class SlaPolicyEngineTests(unittest.TestCase):
             resolve_minutes=5,
         )
         settled = self.client.post(
-            "/api/conversations",
+            "/api/review-cases",
             json={"customer_name": "C", "channel": "web"},
             headers=self.admin,
         ).json()
         escalated = self.client.patch(
-            f"/api/conversations/{settled['id']}",
+            f"/api/review-cases/{settled['id']}",
             json={"priority": "high"},
             headers=self.admin,
         ).json()
@@ -262,13 +262,13 @@ class SlaPolicyEngineTests(unittest.TestCase):
             resolve_minutes=3,
         )
         conv = self.client.post(
-            "/api/conversations",
+            "/api/review-cases",
             json={"customer_name": "C", "channel": "web"},
             headers=self.admin,
         ).json()
-        self.client.post(f"/api/conversations/{conv['id']}/resolve", headers=self.admin)
+        self.client.post(f"/api/review-cases/{conv['id']}/resolve", headers=self.admin)
         reopened = self.client.post(
-            f"/api/conversations/{conv['id']}/reopen", headers=self.admin
+            f"/api/review-cases/{conv['id']}/reopen", headers=self.admin
         ).json()
         from datetime import datetime
 

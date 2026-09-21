@@ -73,7 +73,7 @@ class HelixGuardTests(unittest.TestCase):
         if customer_ref is not None:
             payload["customer_ref"] = customer_ref
         response = self.client.post(
-            "/api/conversations", json=payload, headers=headers or self.headers
+            "/api/review-cases", json=payload, headers=headers or self.headers
         )
         self.assertEqual(response.status_code, 201, response.text)
         return response.json()
@@ -88,15 +88,15 @@ class HelixGuardTests(unittest.TestCase):
         request_headers = dict(headers or self.headers)
         request_headers["Idempotency-Key"] = key
         return self.client.post(
-            f"/api/conversations/{conversation_id}/messages",
+            f"/api/review-cases/{conversation_id}/messages",
             json={"content": content},
             headers=request_headers,
         )
 
     def test_authentication_tenant_binding_and_rbac(self) -> None:
-        self.assertEqual(self.client.get("/api/conversations").status_code, 401)
+        self.assertEqual(self.client.get("/api/review-cases").status_code, 401)
         mismatch = self.client.get(
-            "/api/conversations",
+            "/api/review-cases",
             headers={"X-API-Key": ADMIN_KEY, "X-Tenant-Id": "other-tenant"},
         )
         self.assertEqual(mismatch.status_code, 403)
@@ -104,18 +104,18 @@ class HelixGuardTests(unittest.TestCase):
         created = self.create_conversation(headers=self.channel_headers)
         self.assertEqual(created["tenant_id"], "demo")
         self.assertEqual(
-            self.client.get("/api/conversations", headers=self.channel_headers).status_code,
+            self.client.get("/api/review-cases", headers=self.channel_headers).status_code,
             403,
         )
         self.assertEqual(
             self.client.post(
-                f"/api/conversations/{created['id']}/accept",
+                f"/api/review-cases/{created['id']}/accept",
                 headers=self.channel_headers,
             ).status_code,
             403,
         )
         self.assertEqual(
-            self.client.get("/api/conversations", headers=self.other_headers).json(), []
+            self.client.get("/api/review-cases", headers=self.other_headers).json(), []
         )
 
     def test_knowledge_route_is_grounded_and_quality_reviewed(self) -> None:
@@ -129,7 +129,7 @@ class HelixGuardTests(unittest.TestCase):
         self.assertTrue(assistant["metadata"]["quality_approved"])
         self.assertEqual(result["conversation"]["status"], "open")
 
-        detail = self.client.get(f"/api/conversations/{created['id']}", headers=self.headers).json()
+        detail = self.client.get(f"/api/review-cases/{created['id']}", headers=self.headers).json()
         event_types = [event["event_type"] for event in detail["audit_events"]]
         self.assertIn("policy.assessed", event_types)
         self.assertIn("quality.reviewed", event_types)
@@ -193,9 +193,7 @@ class HelixGuardTests(unittest.TestCase):
         self.assertIn(
             "prompt_injection", result["assistant_message"]["metadata"]["risk_categories"]
         )
-        detail = self.client.get(
-            f"/api/conversations/{injected['id']}", headers=self.headers
-        ).json()
+        detail = self.client.get(f"/api/review-cases/{injected['id']}", headers=self.headers).json()
         policy_event = next(
             event for event in detail["audit_events"] if event["event_type"] == "policy.assessed"
         )
@@ -214,14 +212,14 @@ class HelixGuardTests(unittest.TestCase):
             first.json()["assistant_message"]["id"],
             second.json()["assistant_message"]["id"],
         )
-        detail = self.client.get(f"/api/conversations/{created['id']}", headers=self.headers).json()
+        detail = self.client.get(f"/api/review-cases/{created['id']}", headers=self.headers).json()
         self.assertEqual(len(detail["messages"]), 2)
 
     def test_human_handoff_suppresses_bot_and_lifecycle_is_enforced(self) -> None:
         created = self.create_conversation()
         self.send_message(created["id"], "我要投诉，转人工复核", "idem-handoff-0001")
         accepted = self.client.post(
-            f"/api/conversations/{created['id']}/accept", headers=self.headers
+            f"/api/review-cases/{created['id']}/accept", headers=self.headers
         )
         self.assertEqual(accepted.status_code, 200, accepted.text)
         self.assertEqual(accepted.json()["status"], "human_active")
@@ -231,20 +229,20 @@ class HelixGuardTests(unittest.TestCase):
         self.assertIsNone(queued.json()["assistant_message"])
 
         reply = self.client.post(
-            f"/api/conversations/{created['id']}/operator-messages",
+            f"/api/review-cases/{created['id']}/operator-messages",
             json={"content": "已收到，我来核验。"},
             headers=self.headers,
         )
         self.assertEqual(reply.status_code, 200, reply.text)
         resolved = self.client.post(
-            f"/api/conversations/{created['id']}/resolve", headers=self.headers
+            f"/api/review-cases/{created['id']}/resolve", headers=self.headers
         )
         self.assertEqual(resolved.json()["status"], "resolved")
 
         rejected = self.send_message(created["id"], "还有问题", "idem-after-resolve")
         self.assertEqual(rejected.status_code, 409)
         reopened = self.client.post(
-            f"/api/conversations/{created['id']}/reopen", headers=self.headers
+            f"/api/review-cases/{created['id']}/reopen", headers=self.headers
         )
         self.assertEqual(reopened.status_code, 200, reopened.text)
         self.assertEqual(reopened.json()["status"], "open")
@@ -257,7 +255,7 @@ class HelixGuardTests(unittest.TestCase):
         ).json()
         message_id = result["assistant_message"]["id"]
         feedback = self.client.post(
-            f"/api/conversations/{created['id']}/feedback",
+            f"/api/review-cases/{created['id']}/feedback",
             json={"message_id": message_id, "rating": 1, "reason": "回答清楚"},
             headers=self.headers,
         )
@@ -298,8 +296,8 @@ class HelixGuardTests(unittest.TestCase):
             self.create_conversation(customer_name=f"Page Customer {index}")["id"]
             for index in range(5)
         }
-        first = self.client.get("/api/conversations?limit=2&offset=0", headers=self.headers)
-        second = self.client.get("/api/conversations?limit=2&offset=2", headers=self.headers)
+        first = self.client.get("/api/review-cases?limit=2&offset=0", headers=self.headers)
+        second = self.client.get("/api/review-cases?limit=2&offset=2", headers=self.headers)
         self.assertEqual(first.status_code, 200, first.text)
         self.assertEqual(first.headers["X-Has-More"], "true")
         self.assertEqual(first.headers["X-Page-Limit"], "2")
@@ -314,7 +312,7 @@ class HelixGuardTests(unittest.TestCase):
         cursor = first.headers.get("X-Next-Cursor")
         self.assertIsNotNone(cursor)
         cursor_page = self.client.get(
-            f"/api/conversations?limit=2&cursor={cursor}", headers=self.headers
+            f"/api/review-cases?limit=2&cursor={cursor}", headers=self.headers
         )
         self.assertEqual(cursor_page.status_code, 200, cursor_page.text)
         cursor_ids = {item["id"] for item in cursor_page.json()}
@@ -322,13 +320,13 @@ class HelixGuardTests(unittest.TestCase):
         self.assertFalse(first_ids & cursor_ids)
         self.assertEqual(
             self.client.get(
-                f"/api/conversations?limit=2&offset=1&cursor={cursor}", headers=self.headers
+                f"/api/review-cases?limit=2&offset=1&cursor={cursor}", headers=self.headers
             ).status_code,
             400,
         )
         self.assertEqual(
             self.client.get(
-                "/api/conversations?cursor=not-a-valid-cursor", headers=self.headers
+                "/api/review-cases?cursor=not-a-valid-cursor", headers=self.headers
             ).status_code,
             400,
         )
@@ -341,7 +339,7 @@ class HelixGuardTests(unittest.TestCase):
             "message-search-summary-01",
         )
         self.assertEqual(response.status_code, 200, response.text)
-        found = self.client.get("/api/conversations?search=ultravioletneedle", headers=self.headers)
+        found = self.client.get("/api/review-cases?search=ultravioletneedle", headers=self.headers)
         self.assertEqual(found.status_code, 200, found.text)
         self.assertEqual([item["id"] for item in found.json()], [created["id"]])
         summary = found.json()[0]
@@ -350,12 +348,12 @@ class HelixGuardTests(unittest.TestCase):
         self.assertTrue(summary["last_message_at"])
         self.assertEqual(
             self.client.get(
-                "/api/conversations?search=ultravioletneedle", headers=self.other_headers
+                "/api/review-cases?search=ultravioletneedle", headers=self.other_headers
             ).json(),
             [],
         )
 
-        detail = self.client.get(f"/api/conversations/{created['id']}", headers=self.headers).json()
+        detail = self.client.get(f"/api/review-cases/{created['id']}", headers=self.headers).json()
         customer_message = next(
             message for message in detail["messages"] if message["role"] == "customer"
         )
@@ -367,12 +365,12 @@ class HelixGuardTests(unittest.TestCase):
             )
         self.assertEqual(
             self.client.get(
-                "/api/conversations?search=ultravioletneedle", headers=self.headers
+                "/api/review-cases?search=ultravioletneedle", headers=self.headers
             ).json(),
             [],
         )
         after_delete = self.client.get(
-            f"/api/conversations/{created['id']}", headers=self.headers
+            f"/api/review-cases/{created['id']}", headers=self.headers
         ).json()["conversation"]
         self.assertEqual(after_delete["message_count"], 1)
         metrics = self.client.get("/api/system/metrics", headers=self.headers).json()
@@ -382,7 +380,7 @@ class HelixGuardTests(unittest.TestCase):
     def test_internal_notes_and_priority_are_operator_scoped_and_audited(self) -> None:
         created = self.create_conversation()
         channel_note = self.client.post(
-            f"/api/conversations/{created['id']}/notes",
+            f"/api/review-cases/{created['id']}/notes",
             json={"content": "Private note"},
             headers=self.channel_headers,
         )
@@ -390,7 +388,7 @@ class HelixGuardTests(unittest.TestCase):
 
         note_text = "Customer supplied verification documents"
         note = self.client.post(
-            f"/api/conversations/{created['id']}/notes",
+            f"/api/review-cases/{created['id']}/notes",
             json={"content": note_text},
             headers=self.headers,
         )
@@ -399,7 +397,7 @@ class HelixGuardTests(unittest.TestCase):
         self.assertEqual(note.json()["metadata"]["visibility"], "internal")
 
         prioritized = self.client.patch(
-            f"/api/conversations/{created['id']}",
+            f"/api/review-cases/{created['id']}",
             json={"priority": "high"},
             headers=self.headers,
         )
@@ -408,7 +406,7 @@ class HelixGuardTests(unittest.TestCase):
         self.assertLessEqual(prioritized.json()["sla_due_at"], created["sla_due_at"])
         self.assertEqual(
             self.client.patch(
-                f"/api/conversations/{created['id']}",
+                f"/api/review-cases/{created['id']}",
                 json={"priority": "normal"},
                 headers=self.channel_headers,
             ).status_code,
@@ -416,14 +414,14 @@ class HelixGuardTests(unittest.TestCase):
         )
         self.assertEqual(
             self.client.patch(
-                f"/api/conversations/{created['id']}",
+                f"/api/review-cases/{created['id']}",
                 json={"priority": "high"},
                 headers=self.other_headers,
             ).status_code,
             404,
         )
 
-        detail = self.client.get(f"/api/conversations/{created['id']}", headers=self.headers).json()
+        detail = self.client.get(f"/api/review-cases/{created['id']}", headers=self.headers).json()
         note_message = next(item for item in detail["messages"] if item["id"] == note.json()["id"])
         self.assertEqual(note_message["content"], note_text)
         note_event = next(
@@ -443,7 +441,7 @@ class HelixGuardTests(unittest.TestCase):
         other = self.create_conversation(customer_name="Other Label", headers=self.other_headers)
 
         labeled = self.client.put(
-            f"/api/conversations/{first['id']}/labels",
+            f"/api/review-cases/{first['id']}/labels",
             json={"labels": ["VIP", "refund-risk", "vip"]},
             headers=self.headers,
         )
@@ -451,7 +449,7 @@ class HelixGuardTests(unittest.TestCase):
         self.assertEqual(labeled.json()["labels"], ["vip", "refund-risk"])
         self.assertEqual(
             self.client.put(
-                f"/api/conversations/{first['id']}/labels",
+                f"/api/review-cases/{first['id']}/labels",
                 json={"labels": ["blocked"]},
                 headers=self.channel_headers,
             ).status_code,
@@ -459,26 +457,26 @@ class HelixGuardTests(unittest.TestCase):
         )
         self.assertEqual(
             self.client.put(
-                f"/api/conversations/{first['id']}/labels",
+                f"/api/review-cases/{first['id']}/labels",
                 json={"labels": ["other"]},
                 headers=self.other_headers,
             ).status_code,
             404,
         )
 
-        catalog = self.client.get("/api/conversation-labels", headers=self.headers)
+        catalog = self.client.get("/api/review-case-labels", headers=self.headers)
         self.assertEqual(catalog.status_code, 200, catalog.text)
         self.assertEqual(
             {item["label"]: item["conversation_count"] for item in catalog.json()},
             {"refund-risk": 1, "vip": 1},
         )
-        filtered = self.client.get("/api/conversations?label=VIP", headers=self.headers)
+        filtered = self.client.get("/api/review-cases?label=VIP", headers=self.headers)
         self.assertEqual([item["id"] for item in filtered.json()], [first["id"]])
 
         ids = [first["id"], second["id"], other["id"], "conv_missing_bulk"]
         self.assertEqual(
             self.client.post(
-                "/api/conversations/bulk-actions",
+                "/api/review-cases/bulk-actions",
                 json={
                     "conversation_ids": [first["id"]],
                     "action": "set_priority",
@@ -489,7 +487,7 @@ class HelixGuardTests(unittest.TestCase):
             403,
         )
         added = self.client.post(
-            "/api/conversations/bulk-actions",
+            "/api/review-cases/bulk-actions",
             json={
                 "conversation_ids": ids,
                 "action": "add_labels",
@@ -503,7 +501,7 @@ class HelixGuardTests(unittest.TestCase):
             {"requested": 4, "matched": 2, "updated": 2, "unchanged": 0},
         )
         prioritized = self.client.post(
-            "/api/conversations/bulk-actions",
+            "/api/review-cases/bulk-actions",
             json={
                 "conversation_ids": ids,
                 "action": "set_priority",
@@ -515,7 +513,7 @@ class HelixGuardTests(unittest.TestCase):
         self.assertEqual(prioritized.json()["matched"], 2)
         self.assertEqual(prioritized.json()["updated"], 2)
         repeated = self.client.post(
-            "/api/conversations/bulk-actions",
+            "/api/review-cases/bulk-actions",
             json={
                 "conversation_ids": [first["id"], second["id"]],
                 "action": "set_priority",
@@ -526,7 +524,7 @@ class HelixGuardTests(unittest.TestCase):
         self.assertEqual(repeated.json()["updated"], 0)
         self.assertEqual(repeated.json()["unchanged"], 2)
 
-        campaign = self.client.get("/api/conversations?label=campaign", headers=self.headers).json()
+        campaign = self.client.get("/api/review-cases?label=campaign", headers=self.headers).json()
         self.assertEqual({item["id"] for item in campaign}, {first["id"], second["id"]})
         self.assertTrue(all(item["priority"] == "high" for item in campaign))
         self.assertNotIn(
@@ -534,12 +532,12 @@ class HelixGuardTests(unittest.TestCase):
             {
                 item["label"]
                 for item in self.client.get(
-                    "/api/conversation-labels", headers=self.other_headers
+                    "/api/review-case-labels", headers=self.other_headers
                 ).json()
             },
         )
 
-        detail = self.client.get(f"/api/conversations/{first['id']}", headers=self.headers).json()
+        detail = self.client.get(f"/api/review-cases/{first['id']}", headers=self.headers).json()
         label_events = [
             event
             for event in detail["audit_events"]
@@ -553,7 +551,7 @@ class HelixGuardTests(unittest.TestCase):
         )
         self.assertEqual(
             self.client.post(
-                "/api/conversations/bulk-actions",
+                "/api/review-cases/bulk-actions",
                 json={"conversation_ids": [first["id"]], "action": "set_priority"},
                 headers=self.headers,
             ).status_code,
@@ -562,14 +560,14 @@ class HelixGuardTests(unittest.TestCase):
         twenty_labels = [f"label-{index}" for index in range(20)]
         self.assertEqual(
             self.client.put(
-                f"/api/conversations/{first['id']}/labels",
+                f"/api/review-cases/{first['id']}/labels",
                 json={"labels": twenty_labels},
                 headers=self.headers,
             ).status_code,
             200,
         )
         overflow = self.client.post(
-            "/api/conversations/bulk-actions",
+            "/api/review-cases/bulk-actions",
             json={
                 "conversation_ids": [first["id"]],
                 "action": "add_labels",
@@ -613,7 +611,7 @@ class HelixGuardTests(unittest.TestCase):
         created = self.create_conversation()
         headers = {**self.headers, "Idempotency-Key": "async-job-contract-01"}
         queued = self.client.post(
-            f"/api/conversations/{created['id']}/turn-jobs",
+            f"/api/review-cases/{created['id']}/turn-jobs",
             json={"content": "违规内容怎么分级？"},
             headers=headers,
         )
@@ -625,7 +623,7 @@ class HelixGuardTests(unittest.TestCase):
         self.assertTrue(queued.headers["Location"].endswith(job["id"]))
 
         replay = self.client.post(
-            f"/api/conversations/{created['id']}/turn-jobs",
+            f"/api/review-cases/{created['id']}/turn-jobs",
             json={"content": "违规内容怎么分级？"},
             headers=headers,
         )
@@ -635,7 +633,7 @@ class HelixGuardTests(unittest.TestCase):
         self.assertEqual(replay.headers["X-Idempotent-Replay"], "true")
 
         conflict = self.client.post(
-            f"/api/conversations/{created['id']}/turn-jobs",
+            f"/api/review-cases/{created['id']}/turn-jobs",
             json={"content": "另一个请求"},
             headers=headers,
         )
@@ -664,7 +662,7 @@ class HelixGuardTests(unittest.TestCase):
     def test_async_turn_jobs_retry_transient_failures_and_recover(self) -> None:
         created = self.create_conversation()
         response = self.client.post(
-            f"/api/conversations/{created['id']}/turn-jobs",
+            f"/api/review-cases/{created['id']}/turn-jobs",
             json={"content": "违规内容怎么分级？"},
             headers={**self.headers, "Idempotency-Key": "async-retry-contract-01"},
         )
@@ -697,7 +695,7 @@ class HelixGuardTests(unittest.TestCase):
 
         crash_conversation = self.create_conversation(customer_name="Crash Recovery")
         crash_job = self.client.post(
-            f"/api/conversations/{crash_conversation['id']}/turn-jobs",
+            f"/api/review-cases/{crash_conversation['id']}/turn-jobs",
             json={"content": "shipping delivery"},
             headers={**self.headers, "Idempotency-Key": "async-crash-recovery-01"},
         )
@@ -716,7 +714,7 @@ class HelixGuardTests(unittest.TestCase):
     def test_failed_turn_job_can_be_retried_through_api(self) -> None:
         created = self.create_conversation()
         queued = self.client.post(
-            f"/api/conversations/{created['id']}/turn-jobs",
+            f"/api/review-cases/{created['id']}/turn-jobs",
             json={"content": "违规内容怎么分级？"},
             headers={**self.headers, "Idempotency-Key": "async-manual-retry-01"},
         )
@@ -768,12 +766,12 @@ class HelixGuardTests(unittest.TestCase):
         headers = {"X-API-Key": worker_key, "X-Tenant-Id": "demo"}
         with TestClient(worker_app) as client:
             created = client.post(
-                "/api/conversations",
+                "/api/review-cases",
                 json={"customer_name": "Worker Test", "channel": "web"},
                 headers=headers,
             ).json()
             queued = client.post(
-                f"/api/conversations/{created['id']}/turn-jobs",
+                f"/api/review-cases/{created['id']}/turn-jobs",
                 json={"content": "shipping delivery"},
                 headers={**headers, "Idempotency-Key": "worker-lifecycle-job-01"},
             )
@@ -882,7 +880,7 @@ class HelixGuardTests(unittest.TestCase):
         )
         with TestClient(create_app(cors_settings)) as cors_client:
             preflight = cors_client.options(
-                "/api/conversations",
+                "/api/review-cases",
                 headers={
                     "Origin": "https://console.example",
                     "Access-Control-Request-Method": "GET",
@@ -890,7 +888,7 @@ class HelixGuardTests(unittest.TestCase):
                 },
             )
             listed = cors_client.get(
-                "/api/conversations?limit=1",
+                "/api/review-cases?limit=1",
                 headers={"Origin": "https://console.example"},
             )
         self.assertEqual(preflight.status_code, 200, preflight.text)
@@ -918,37 +916,37 @@ class HelixGuardTests(unittest.TestCase):
     def test_soft_claims_filters_canned_responses_and_audit_export(self) -> None:
         first = self.create_conversation(customer_name="Claim One")
         second = self.create_conversation(customer_name="Claim Two")
-        claimed = self.client.post(f"/api/conversations/{first['id']}/claim", headers=self.headers)
+        claimed = self.client.post(f"/api/review-cases/{first['id']}/claim", headers=self.headers)
         self.assertEqual(claimed.status_code, 200, claimed.text)
         self.assertTrue(claimed.json()["claim_active"])
         self.assertEqual(claimed.json()["claimed_by"], "agent.admin")
 
         conflict = self.client.post(
-            f"/api/conversations/{first['id']}/claim",
+            f"/api/review-cases/{first['id']}/claim",
             headers=self.operator_headers,
         )
         self.assertEqual(conflict.status_code, 409, conflict.text)
 
-        mine = self.client.get("/api/conversations?claimed_by=agent.admin", headers=self.headers)
+        mine = self.client.get("/api/review-cases?claimed_by=agent.admin", headers=self.headers)
         self.assertEqual(mine.status_code, 200, mine.text)
         self.assertEqual([row["id"] for row in mine.json()], [first["id"]])
 
-        unclaimed = self.client.get("/api/conversations?unclaimed=true", headers=self.headers)
+        unclaimed = self.client.get("/api/review-cases?unclaimed=true", headers=self.headers)
         self.assertEqual(unclaimed.status_code, 200, unclaimed.text)
         self.assertIn(second["id"], [row["id"] for row in unclaimed.json()])
         self.assertNotIn(first["id"], [row["id"] for row in unclaimed.json()])
 
         high = self.client.patch(
-            f"/api/conversations/{second['id']}",
+            f"/api/review-cases/{second['id']}",
             json={"priority": "high"},
             headers=self.headers,
         )
         self.assertEqual(high.status_code, 200, high.text)
-        filtered = self.client.get("/api/conversations?priority=high", headers=self.headers)
+        filtered = self.client.get("/api/review-cases?priority=high", headers=self.headers)
         self.assertEqual([row["id"] for row in filtered.json()], [second["id"]])
 
         released = self.client.post(
-            f"/api/conversations/{first['id']}/release", headers=self.headers
+            f"/api/review-cases/{first['id']}/release", headers=self.headers
         )
         self.assertEqual(released.status_code, 200, released.text)
         self.assertFalse(released.json()["claim_active"])
@@ -992,7 +990,7 @@ class HelixGuardTests(unittest.TestCase):
         self.send_message(second["id"], "page-two", "msg-page-002")
         self.send_message(second["id"], "page-three", "msg-page-003")
         page = self.client.get(
-            f"/api/conversations/{second['id']}/messages?limit=2",
+            f"/api/review-cases/{second['id']}/messages?limit=2",
             headers=self.headers,
         )
         self.assertEqual(page.status_code, 200, page.text)
@@ -1001,7 +999,7 @@ class HelixGuardTests(unittest.TestCase):
         self.assertIn("X-Next-Cursor", page.headers)
 
         job = self.client.post(
-            f"/api/conversations/{second['id']}/turn-jobs",
+            f"/api/review-cases/{second['id']}/turn-jobs",
             json={"content": "shipping delivery"},
             headers={**self.headers, "Idempotency-Key": "sse-job-0001"},
         )
@@ -1056,7 +1054,7 @@ class HelixGuardTests(unittest.TestCase):
         )
 
         response_queue = self.client.get(
-            "/api/conversations?needs_response=true", headers=self.headers
+            "/api/review-cases?needs_response=true", headers=self.headers
         )
         self.assertEqual(response_queue.status_code, 200, response_queue.text)
         selected = next(item for item in response_queue.json() if item["id"] == waiting["id"])
@@ -1105,7 +1103,7 @@ class HelixGuardTests(unittest.TestCase):
             customer_ref="CUST-SORT-B",
         )
         create_messaging = self.client.post(
-            "/api/conversations",
+            "/api/review-cases",
             json={"customer_name": "Sort C", "customer_ref": "CUST-SORT-C", "channel": "messaging"},
             headers=self.headers,
         )
@@ -1126,19 +1124,19 @@ class HelixGuardTests(unittest.TestCase):
             )
 
         waiting = self.client.get(
-            "/api/conversations?sort=waiting&needs_response=true",
+            "/api/review-cases?sort=waiting&needs_response=true",
             headers=self.headers,
         )
         self.assertEqual(waiting.status_code, 200, waiting.text)
         waiting_ids = [row["id"] for row in waiting.json()]
         self.assertLess(waiting_ids.index(first["id"]), waiting_ids.index(second["id"]))
 
-        channel = self.client.get("/api/conversations?channel=messaging", headers=self.headers)
+        channel = self.client.get("/api/review-cases?channel=messaging", headers=self.headers)
         self.assertEqual(channel.status_code, 200, channel.text)
         self.assertEqual([row["id"] for row in channel.json()], [third["id"]])
 
         assigned = self.client.post(
-            f"/api/conversations/{third['id']}/assign",
+            f"/api/review-cases/{third['id']}/assign",
             json={"assignee_id": "agent.operator"},
             headers=self.headers,
         )
@@ -1148,7 +1146,7 @@ class HelixGuardTests(unittest.TestCase):
         self.assertEqual(assigned.json()["claimed_by"], "agent.operator")
 
         bulk = self.client.post(
-            "/api/conversations/bulk-actions",
+            "/api/review-cases/bulk-actions",
             json={"conversation_ids": [first["id"], second["id"]], "action": "claim"},
             headers=self.headers,
         )
@@ -1156,7 +1154,7 @@ class HelixGuardTests(unittest.TestCase):
         self.assertEqual(bulk.json()["updated"], 2)
 
         released = self.client.post(
-            "/api/conversations/bulk-actions",
+            "/api/review-cases/bulk-actions",
             json={"conversation_ids": [first["id"]], "action": "release"},
             headers=self.headers,
         )
@@ -1192,7 +1190,7 @@ class HelixGuardTests(unittest.TestCase):
             self.send_message(conversation["id"], "我的订单还没到", f"order-key-{index}")
 
             detail = self.client.get(
-                f"/api/conversations/{conversation['id']}", headers=self.headers
+                f"/api/review-cases/{conversation['id']}", headers=self.headers
             )
             messages = detail.json()["messages"]
             self.assertEqual(messages[0]["role"], "customer")

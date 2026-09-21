@@ -56,7 +56,7 @@ def count_conversations() -> int:
     while True:
         query = "limit=50" + (f"&cursor={urllib.parse.quote(cursor)}" if cursor else "")
         request = urllib.request.Request(
-            f"{BASE_URL}/api/conversations?{query}",
+            f"{BASE_URL}/api/review-cases?{query}",
             headers={"X-API-Key": API_KEY},
         )
         with urllib.request.urlopen(request, timeout=15) as response:
@@ -81,7 +81,7 @@ def queue_last_conversation_id() -> str:
     while True:
         query = "limit=50" + (f"&cursor={urllib.parse.quote(cursor)}" if cursor else "")
         request = urllib.request.Request(
-            f"{BASE_URL}/api/conversations?{query}",
+            f"{BASE_URL}/api/review-cases?{query}",
             headers={"X-API-Key": API_KEY},
         )
         with urllib.request.urlopen(request, timeout=15) as response:
@@ -106,7 +106,7 @@ def seed_conversations() -> int:
     needed = SEED_COUNT - existing
     for index in range(1, needed + 1):
         status = api_post(
-            "/api/conversations",
+            "/api/review-cases",
             {"customer_name": f"vq-slot-{index:04d}", "channel": "web"},
         )
         if status != 201:

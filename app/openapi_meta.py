@@ -19,87 +19,87 @@ from typing import Any
 # route key -> (summary, tags, permission note)
 _ENDPOINT_META: dict[str, tuple[str, list[str], str]] = {
     "GET /api/me": ("Current user profile", ["auth"], "any authenticated key"),
-    "GET /api/conversations": (
+    "GET /api/review-cases": (
         "List conversations",
         ["conversations"],
         "conversation:read",
     ),
-    "POST /api/conversations": (
+    "POST /api/review-cases": (
         "Create a conversation",
         ["conversations"],
         "conversation:write",
     ),
-    "GET /api/conversations/{conversation_id}": (
+    "GET /api/review-cases/{review_case_id}": (
         "Conversation detail with messages, audit events, and summaries",
         ["conversations"],
         "conversation:read",
     ),
-    "PATCH /api/conversations/{conversation_id}": (
+    "PATCH /api/review-cases/{review_case_id}": (
         "Update conversation priority",
         ["conversations"],
         "operator:act",
     ),
-    "PUT /api/conversations/{conversation_id}/labels": (
+    "PUT /api/review-cases/{review_case_id}/labels": (
         "Replace conversation labels",
         ["conversations"],
         "operator:act",
     ),
-    "POST /api/conversations/bulk-actions": (
+    "POST /api/review-cases/bulk-actions": (
         "Bulk priority/label/claim actions",
         ["conversations"],
         "operator:act",
     ),
-    "GET /api/conversation-labels": (
+    "GET /api/review-case-labels": (
         "Label catalog with counts",
         ["conversations"],
         "conversation:read",
     ),
-    "GET /api/conversations/{conversation_id}/messages": (
+    "GET /api/review-cases/{review_case_id}/messages": (
         "List conversation messages",
         ["conversations"],
         "conversation:read",
     ),
-    "POST /api/conversations/{conversation_id}/messages": (
+    "POST /api/review-cases/{review_case_id}/messages": (
         "Send a customer turn (idempotent)",
         ["conversations"],
         "conversation:write",
     ),
-    "POST /api/conversations/{conversation_id}/claim": (
+    "POST /api/review-cases/{review_case_id}/claim": (
         "Claim a conversation",
         ["conversations"],
         "operator:act",
     ),
-    "POST /api/conversations/{conversation_id}/release": (
+    "POST /api/review-cases/{review_case_id}/release": (
         "Release a claim",
         ["conversations"],
         "operator:act",
     ),
-    "POST /api/conversations/{conversation_id}/assign": (
+    "POST /api/review-cases/{review_case_id}/assign": (
         "Assign to an operator",
         ["conversations"],
         "operator:act",
     ),
-    "POST /api/conversations/{conversation_id}/accept": (
+    "POST /api/review-cases/{review_case_id}/accept": (
         "Accept a conversation into human_active",
         ["conversations"],
         "operator:act",
     ),
-    "POST /api/conversations/{conversation_id}/resolve": (
+    "POST /api/review-cases/{review_case_id}/resolve": (
         "Resolve a conversation",
         ["conversations"],
         "operator:act",
     ),
-    "POST /api/conversations/{conversation_id}/reopen": (
+    "POST /api/review-cases/{review_case_id}/reopen": (
         "Reopen a resolved conversation",
         ["conversations"],
         "operator:act",
     ),
-    "POST /api/conversations/{conversation_id}/operator-messages": (
+    "POST /api/review-cases/{review_case_id}/operator-messages": (
         "Send an operator reply",
         ["conversations"],
         "operator:act",
     ),
-    "POST /api/conversations/{conversation_id}/notes": (
+    "POST /api/review-cases/{review_case_id}/notes": (
         "Add an internal note (supports @mention colleagues and reply threads)",
         ["conversations"],
         "operator:act",
@@ -114,12 +114,12 @@ _ENDPOINT_META: dict[str, tuple[str, list[str], str]] = {
         ["collaboration"],
         "operator:act",
     ),
-    "PATCH /api/conversations/{conversation_id}/language": (
+    "PATCH /api/review-cases/{review_case_id}/language": (
         "Set (or clear, with null) the manual language override for a conversation",
         ["conversations"],
         "conversation:write",
     ),
-    "POST /api/conversations/{conversation_id}/messages/{message_id}/translate": (
+    "POST /api/review-cases/{review_case_id}/messages/{message_id}/translate": (
         "Translate one customer message; without a provider the original text is echoed",
         ["conversations"],
         "conversation:write",
@@ -134,22 +134,22 @@ _ENDPOINT_META: dict[str, tuple[str, list[str], str]] = {
         ["collaboration"],
         "conversation:read",
     ),
-    "GET /api/conversations/{conversation_id}/threads": (
+    "GET /api/review-cases/{review_case_id}/threads": (
         "List internal discussion threads for a conversation",
         ["collaboration"],
         "conversation:read",
     ),
-    "GET /api/conversations/{conversation_id}/events": (
+    "GET /api/review-cases/{review_case_id}/events": (
         "Supervisor live view: SSE revision stream for a conversation",
         ["collaboration"],
         "conversation:read",
     ),
-    "POST /api/conversations/{conversation_id}/feedback": (
+    "POST /api/review-cases/{review_case_id}/feedback": (
         "Rate an assistant message",
         ["conversations"],
         "conversation:read",
     ),
-    "POST /api/conversations/{conversation_id}/turn-jobs": (
+    "POST /api/review-cases/{review_case_id}/turn-jobs": (
         "Enqueue an async turn",
         ["turn-jobs"],
         "conversation:write",
@@ -239,7 +239,7 @@ _ENDPOINT_META: dict[str, tuple[str, list[str], str]] = {
         ["policy"],
         "knowledge:write",
     ),
-    "POST /api/conversations/{conversation_id}/messages/{message_id}/knowledge-draft": (
+    "POST /api/review-cases/{review_case_id}/messages/{message_id}/policy-draft": (
         "Create a draft from a negatively-rated message",
         ["policy"],
         "knowledge:write",
@@ -534,17 +534,17 @@ _ENDPOINT_META: dict[str, tuple[str, list[str], str]] = {
         ["channels"],
         "X-Helix-Timestamp + raw-body HMAC signature (no API key)",
     ),
-    "POST /api/submission-portal/sessions/{conversation_id}/messages": (
+    "POST /api/submission-portal/sessions/{review_case_id}/messages": (
         "Send a widget message (channel-id idempotent)",
         ["submission_portal"],
         "X-Widget-Token (signed, no API key)",
     ),
-    "GET /api/submission-portal/sessions/{conversation_id}/messages": (
+    "GET /api/submission-portal/sessions/{review_case_id}/messages": (
         "List widget conversation messages",
         ["submission_portal"],
         "X-Widget-Token (signed, no API key)",
     ),
-    "GET /api/submission-portal/sessions/{conversation_id}/stream": (
+    "GET /api/submission-portal/sessions/{review_case_id}/stream": (
         "SSE stream for the widget conversation's latest turn",
         ["submission_portal"],
         "X-Widget-Token (signed, no API key)",

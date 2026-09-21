@@ -112,7 +112,7 @@ export function startWatching(conversationId) {
   void (async () => {
     try {
       const response = await fetch(
-        `/api/conversations/${encodeURIComponent(conversationId)}/events?timeout=45`,
+        `/api/review-cases/${encodeURIComponent(conversationId)}/events?timeout=45`,
         { headers: ctx.baseHeaders, signal: controller.signal },
       );
       if (!response.ok || !response.body) throw new Error(`watch stream failed (${response.status})`);

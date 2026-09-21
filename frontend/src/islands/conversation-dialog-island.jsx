@@ -2,7 +2,7 @@
  * Helix Guard — conversation dialog island (D3 long tail).
  *
  * Owns the new-conversation dialog in the desktop shell. Legacy app.js
- * keeps the whole create lifecycle (POST /api/conversations, selection,
+ * keeps the whole create lifecycle (POST /api/review-cases, selection,
  * detail load, queue refresh); the island renders the <dialog> form and
  * bridges:
  *   helix-conversation-new     {}              ← legacy 新建 button opens it

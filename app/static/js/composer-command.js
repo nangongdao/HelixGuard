@@ -24,7 +24,7 @@
  * It also owns the client half of the **send receipt**: a stable idempotency
  * key per send attempt. Reusing the key for the same text is what makes a
  * retry after a lost response safe — the server resolves it to the message it
- * already stored (see `app/routers/conversations.py`). The key is dropped on a
+ * already stored (see `app/routers/review_cases.py`). The key is dropped on a
  * confirmed success, so sending the same text again later is a genuinely new
  * attempt rather than a silent replay.
  *

@@ -132,7 +132,7 @@ test("applyBulkAction builds a priority payload and refreshes silently", async (
   globalThis.window = new (class extends EventTarget {})();
   const { calls } = configureDeps();
   await applyBulkAction({ action: "priority-high" });
-  const post = calls.find((call) => call.url === "/api/conversations/bulk-actions");
+  const post = calls.find((call) => call.url === "/api/review-cases/bulk-actions");
   assert.deepEqual(JSON.parse(post.options.body), {
     conversation_ids: ["conv-1", "conv-2"],
     action: "set_priority",
@@ -158,7 +158,7 @@ test("applyBulkAction reads the legacy toolbar inputs without a source", async (
   els.bulkAction.value = "add-label";
   els.bulkLabelInput.value = "VIP, 退款";
   await applyBulkAction();
-  const post = calls.find((call) => call.url === "/api/conversations/bulk-actions");
+  const post = calls.find((call) => call.url === "/api/review-cases/bulk-actions");
   assert.deepEqual(JSON.parse(post.options.body), {
     conversation_ids: ["conv-1", "conv-2"],
     action: "add_labels",

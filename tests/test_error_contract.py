@@ -78,9 +78,9 @@ class ProblemDetailsContractTests(unittest.TestCase):
         return body
 
     def test_not_found_lookup(self) -> None:
-        response = self.client.get("/api/conversations/conv-nope", headers=self.admin)
+        response = self.client.get("/api/review-cases/conv-nope", headers=self.admin)
         self._assert_problem(response, status=404, code="not_found")
-        self.assertEqual(response.json()["instance"], "/api/conversations/conv-nope")
+        self.assertEqual(response.json()["instance"], "/api/review-cases/conv-nope")
 
     def test_forbidden_rbac(self) -> None:
         # Operator lacks metrics:read.
@@ -89,14 +89,14 @@ class ProblemDetailsContractTests(unittest.TestCase):
 
     def test_unauthorized_bad_key(self) -> None:
         response = self.client.get(
-            "/api/conversations",
+            "/api/review-cases",
             headers={"X-API-Key": "wrong-key-12345678", "X-Tenant-Id": "demo"},
         )
         self._assert_problem(response, status=401, code="unauthorized")
 
     def test_validation_422_has_errors_list(self) -> None:
         response = self.client.post(
-            "/api/conversations", json={"customer_name": ""}, headers=self.admin
+            "/api/review-cases", json={"customer_name": ""}, headers=self.admin
         )
         body = self._assert_problem(response, status=422, code="validation_error")
         self.assertIn("errors", body)
@@ -144,8 +144,8 @@ class ProblemDetailsContractTests(unittest.TestCase):
         try:
             headers = {"X-API-Key": "rl-admin-key-00001", "X-Tenant-Id": "demo"}
             for _ in range(2):
-                client.get("/api/conversations", headers=headers)
-            limited = client.get("/api/conversations", headers=headers)
+                client.get("/api/review-cases", headers=headers)
+            limited = client.get("/api/review-cases", headers=headers)
             self._assert_problem(limited, status=429, code="rate_limited")
             self.assertIn("Retry-After", limited.headers)
         finally:

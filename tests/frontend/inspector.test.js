@@ -105,7 +105,7 @@ test("submitNote posts the trimmed note, toasts and refreshes the detail", async
   const ok = await submitNote({ content: "  核对完毕  " });
   assert.equal(ok, true);
   const post = calls.find((call) => call.url);
-  assert.match(post.url, /\/api\/conversations\/conv-1\/notes$/);
+  assert.match(post.url, /\/api\/review-cases\/conv-1\/notes$/);
   assert.deepEqual(JSON.parse(post.options.body), { content: "核对完毕" });
   assert.ok(calls.some((call) => call.toast === "内部备注已添加"));
   assert.ok(calls.some((call) => call.loadDetail === "conv-1"));

@@ -153,13 +153,13 @@ class TranslationReviewAppTests(unittest.TestCase):
 
     def _open_conversation(self, name: str = "S") -> str:
         conv = self.client.post(
-            "/api/conversations", json={"customer_name": name}, headers=self.admin
+            "/api/review-cases", json={"customer_name": name}, headers=self.admin
         ).json()
         return conv["id"]
 
     def _send(self, conversation_id: str, content: str, key: str) -> dict[str, Any]:
         response = self.client.post(
-            f"/api/conversations/{conversation_id}/messages",
+            f"/api/review-cases/{conversation_id}/messages",
             json={"content": content},
             headers={**self.admin, "Idempotency-Key": key},
         )

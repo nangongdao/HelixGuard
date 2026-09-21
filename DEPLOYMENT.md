@@ -112,7 +112,7 @@ Spans are exported to `{OTEL_EXPORTER_OTLP_ENDPOINT}/v1/traces`; without the end
 Long-running customer turns can be submitted without holding an HTTP request open:
 
 ```http
-POST /api/conversations/{conversation_id}/turn-jobs
+POST /api/review-cases/{conversation_id}/turn-jobs
 Idempotency-Key: a-client-generated-key
 ```
 
@@ -220,11 +220,11 @@ DATABASE_BACKEND=postgresql DATABASE_URL="..." python scripts/pagination_load_te
 
 ## High-Volume Queue Reads
 
-`GET /api/conversations` keeps the original `offset` contract and adds an opaque `cursor` continuation. A page that has more rows exposes `X-Next-Cursor`; do not send `cursor` and a non-zero `offset` together. Cursors are tied to the current sort position, not a snapshot, so restart from the first page after changing any filter. Supported indexed filters include status, priority, channel, operator assignment, active claim, unassigned/unclaimed state, SLA breach, label, and FTS search.
+`GET /api/review-cases` keeps the original `offset` contract and adds an opaque `cursor` continuation. A page that has more rows exposes `X-Next-Cursor`; do not send `cursor` and a non-zero `offset` together. Cursors are tied to the current sort position, not a snapshot, so restart from the first page after changing any filter. Supported indexed filters include status, priority, channel, operator assignment, active claim, unassigned/unclaimed state, SLA breach, label, and FTS search.
 
 Message search uses the synchronized `message_fts` table when FTS5 is available. Queue rows read `preview`, `message_count`, and `last_message_at` from incrementally maintained conversation projections, so large queues no longer run a preview/count subquery per row.
 
-Long threads can use `GET /api/conversations/{conversation_id}/messages` with opaque `cursor`, `before`, and `X-Prev-Cursor` / `X-Next-Cursor` headers instead of loading the full history.
+Long threads can use `GET /api/review-cases/{conversation_id}/messages` with opaque `cursor`, `before`, and `X-Prev-Cursor` / `X-Next-Cursor` headers instead of loading the full history.
 
 ## Conversation Archiving
 
@@ -239,11 +239,11 @@ CONVERSATION_ARCHIVE_CADENCE_HOURS=6
 
 The turn worker runs an archive pass on the fixed cadence and moves up to `CONVERSATION_ARCHIVE_BATCH` conversations per pass: resolved conversations whose `resolved_at` is older than `CONVERSATION_ARCHIVE_AFTER_DAYS` (and with no `queued`/`processing` turn jobs) are copied transactionally — conversation row, messages, labels, and feedback — into the `*_archive` tables and then physically deleted from the hot tables. The message deletes cascade into `message_fts` via the existing triggers, which is how the tier bounds index and FTS volume. The move is all-or-nothing per batch and idempotent across replays; `GET /api/system/metrics` reports `archived_total`.
 
-The read path stays transparent (`GET /api/conversations/{id}`, `GET .../messages`, and `GET /api/conversations?archived=true` for retrospection) serve archived conversations; `archived=true` searches fall back to LIKE because archived messages were evicted from the FTS mirror by design. The write path is hot-only: inserting a message into, claiming, or resolving an archived conversation fails with 404. Set `CONVERSATION_ARCHIVE_ENABLED=false` to disable the tier entirely.
+The read path stays transparent (`GET /api/review-cases/{id}`, `GET .../messages`, and `GET /api/review-cases?archived=true` for retrospection) serve archived conversations; `archived=true` searches fall back to LIKE because archived messages were evicted from the FTS mirror by design. The write path is hot-only: inserting a message into, claiming, or resolving an archived conversation fails with 404. Set `CONVERSATION_ARCHIVE_ENABLED=false` to disable the tier entirely.
 
 ## Claims And Canned Responses
 
-`POST /api/conversations/{id}/claim` reserves an unresolved conversation for `CLAIM_TTL_SECONDS`; repeating by the same operator renews the claim. Another operator receives `409`, while supervisors/admins can override. `POST /api/conversations/{id}/release` returns it to the queue. Accepting or resolving clears the claim atomically.
+`POST /api/review-cases/{id}/claim` reserves an unresolved conversation for `CLAIM_TTL_SECONDS`; repeating by the same operator renews the claim. Another operator receives `409`, while supervisors/admins can override. `POST /api/review-cases/{id}/release` returns it to the queue. Accepting or resolving clears the claim atomically.
 
 Tenant canned responses are listed at `GET /api/canned-verdicts`. Supervisors/admins manage them with `POST` and `PATCH`; operators record an insertion with `POST /api/canned-verdicts/{id}/use`. Shortcut uniqueness is enforced per tenant for active entries.
 
@@ -264,7 +264,7 @@ tenant's `audit_events` retention policy.
 
 ## Labels And Bulk Actions
 
-Operators can replace labels with `PUT /api/conversations/{conversation_id}/labels`, inspect counts with `GET /api/conversation-labels`, filter with `label=`, and apply up to 100 IDs through `POST /api/conversations/bulk-actions`. Bulk actions are `set_priority`, `add_labels`, and `remove_labels`; cross-tenant or unknown IDs are counted as unmatched and never disclosed individually. Every actual change produces an audit event.
+Operators can replace labels with `PUT /api/review-cases/{conversation_id}/labels`, inspect counts with `GET /api/review-case-labels`, filter with `label=`, and apply up to 100 IDs through `POST /api/review-cases/bulk-actions`. Bulk actions are `set_priority`, `add_labels`, and `remove_labels`; cross-tenant or unknown IDs are counted as unmatched and never disclosed individually. Every actual change produces an audit event.
 
 ## Production Configuration
 

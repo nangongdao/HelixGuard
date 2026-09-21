@@ -270,7 +270,7 @@ class RedisBackendAppEndToEndTests(unittest.TestCase):
 
     def test_http_turn_job_flows_through_redis_backend(self) -> None:
         created = self.client.post(
-            "/api/conversations",
+            "/api/review-cases",
             json={"customer_name": "Redis E2E", "channel": "web"},
             headers=self.headers,
         )
@@ -278,7 +278,7 @@ class RedisBackendAppEndToEndTests(unittest.TestCase):
         conversation_id = created.json()["id"]
 
         job = self.client.post(
-            f"/api/conversations/{conversation_id}/turn-jobs",
+            f"/api/review-cases/{conversation_id}/turn-jobs",
             json={"content": "帮我查一下订单"},
             headers={**self.headers, "Idempotency-Key": "redis-e2e-key"},
         )
@@ -300,7 +300,7 @@ class RedisBackendAppEndToEndTests(unittest.TestCase):
 
     def test_concurrent_workers_dispatch_exactly_once(self) -> None:
         created = self.client.post(
-            "/api/conversations",
+            "/api/review-cases",
             json={"customer_name": "Redis Race", "channel": "web"},
             headers=self.headers,
         )
@@ -308,7 +308,7 @@ class RedisBackendAppEndToEndTests(unittest.TestCase):
         job_ids: list[str] = []
         for index in range(6):
             response = self.client.post(
-                f"/api/conversations/{conversation_id}/turn-jobs",
+                f"/api/review-cases/{conversation_id}/turn-jobs",
                 json={"content": f"并发任务 {index}"},
                 headers={**self.headers, "Idempotency-Key": f"redis-race-{index}"},
             )

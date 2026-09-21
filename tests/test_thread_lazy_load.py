@@ -59,7 +59,7 @@ class ThreadLazyLoadApiTests(unittest.TestCase):
         self.services = cast(Any, self.client.app).state.services
         self.headers = {"X-API-Key": ADMIN_KEY, "X-Tenant-Id": "demo"}
         conv = self.client.post(
-            "/api/conversations",
+            "/api/review-cases",
             json={"customer_name": "thread-lazy", "channel": "web"},
             headers=self.headers,
         ).json()
@@ -70,7 +70,7 @@ class ThreadLazyLoadApiTests(unittest.TestCase):
         # contributes.
         for index in range(TOTAL_SENDS):
             self.client.post(
-                f"/api/conversations/{self.conversation_id}/messages",
+                f"/api/review-cases/{self.conversation_id}/messages",
                 json={"content": f"lazy-message-{index:04d}"},
                 headers={
                     **self.headers,
@@ -84,7 +84,7 @@ class ThreadLazyLoadApiTests(unittest.TestCase):
         self._tmp.cleanup()
 
     def test_full_transcript_without_limit_is_unchanged(self) -> None:
-        r = self.client.get(f"/api/conversations/{self.conversation_id}", headers=self.headers)
+        r = self.client.get(f"/api/review-cases/{self.conversation_id}", headers=self.headers)
         self.assertEqual(r.status_code, 200)
         self.assertNotIn("X-Prev-Cursor", r.headers)
         self.assertNotIn("X-Has-More", r.headers)
@@ -92,7 +92,7 @@ class ThreadLazyLoadApiTests(unittest.TestCase):
 
     def test_limited_detail_returns_tail_and_cursor_headers(self) -> None:
         r = self.client.get(
-            f"/api/conversations/{self.conversation_id}?message_limit={TAIL_LIMIT}"
+            f"/api/review-cases/{self.conversation_id}?message_limit={TAIL_LIMIT}"
             "&messages_before=true",
             headers=self.headers,
         )
@@ -110,12 +110,12 @@ class ThreadLazyLoadApiTests(unittest.TestCase):
 
     def test_echo_loop_reconstitutes_full_transcript(self) -> None:
         full = self.client.get(
-            f"/api/conversations/{self.conversation_id}", headers=self.headers
+            f"/api/review-cases/{self.conversation_id}", headers=self.headers
         ).json()["messages"]
         expected_ids = [m["id"] for m in full]
 
         r = self.client.get(
-            f"/api/conversations/{self.conversation_id}?message_limit={TAIL_LIMIT}"
+            f"/api/review-cases/{self.conversation_id}?message_limit={TAIL_LIMIT}"
             "&messages_before=true",
             headers=self.headers,
         )
@@ -124,7 +124,7 @@ class ThreadLazyLoadApiTests(unittest.TestCase):
         visited = list(tail)
         while prev:
             page = self.client.get(
-                f"/api/conversations/{self.conversation_id}/messages?limit={OLDER_PAGE}"
+                f"/api/review-cases/{self.conversation_id}/messages?limit={OLDER_PAGE}"
                 f"&before=true&cursor={prev}",
                 headers=self.headers,
             )
@@ -140,14 +140,14 @@ class ThreadLazyLoadApiTests(unittest.TestCase):
 
     def test_following_prev_cursor_past_the_oldest_stops(self) -> None:
         r = self.client.get(
-            f"/api/conversations/{self.conversation_id}?message_limit={TAIL_LIMIT}"
+            f"/api/review-cases/{self.conversation_id}?message_limit={TAIL_LIMIT}"
             "&messages_before=true",
             headers=self.headers,
         )
         prev = r.headers["X-Prev-Cursor"]
         while prev:
             page = self.client.get(
-                f"/api/conversations/{self.conversation_id}/messages?limit={OLDER_PAGE}"
+                f"/api/review-cases/{self.conversation_id}/messages?limit={OLDER_PAGE}"
                 f"&before=true&cursor={prev}",
                 headers=self.headers,
             )

@@ -33,7 +33,7 @@ from app.pagination import (
     encode_conversation_cursor,
     encode_message_cursor,
 )
-from app.routers.common import RouteDeps
+from app.routers.common import RouteDeps, legacy_route
 from app.security import Principal
 
 API_VERSION = "2.0"
@@ -63,14 +63,21 @@ def build_router(deps: RouteDeps) -> APIRouter:
         }
 
     @router.get(
-        "/conversations",
+        "/review-cases",
         summary="List conversations (cursor-paginated)",
         description=(
             "Keyset-paginated queue listing. Cursors are opaque and live in "
             "the response body next_cursor field; core fields match v1 "
             "exactly (shadow-read contract)."
         ),
-        tags=["v2:conversations"],
+        tags=["v2:review-cases"],
+    )
+    @legacy_route(
+        router,
+        "/conversations",
+        methods=["GET"],
+        summary="List conversations (cursor-paginated)",
+        tags=["v2:review-cases"],
     )
     def list_conversations_v2(
         response: Response,
@@ -124,37 +131,51 @@ def build_router(deps: RouteDeps) -> APIRouter:
         return {"data": [_conversation_out(row) for row in visible], "next_cursor": next_cursor}
 
     @router.get(
-        "/conversations/{conversation_id}",
+        "/review-cases/{review_case_id}",
         summary="Fetch one conversation",
         description=(
             "Single conversation by id; archived conversations resolve "
             "transparently, mirroring v1 semantics."
         ),
-        tags=["v2:conversations"],
+        tags=["v2:review-cases"],
+    )
+    @legacy_route(
+        router,
+        "/conversations/{review_case_id}",
+        methods=["GET"],
+        summary="Fetch one conversation",
+        tags=["v2:review-cases"],
     )
     def get_conversation_v2(
         response: Response,
-        conversation_id: str,
+        review_case_id: str,
         principal: Annotated[Principal, Depends(require_permission("conversation:read"))],
     ) -> dict[str, Any]:
         _v2_response(response)
-        conversation = database.get_conversation(principal.tenant_id, conversation_id)
+        conversation = database.get_conversation(principal.tenant_id, review_case_id)
         if conversation is None:
             raise HTTPException(status_code=404, detail="Conversation not found")
         return _conversation_out(conversation)
 
     @router.get(
-        "/conversations/{conversation_id}/messages",
+        "/review-cases/{review_case_id}/messages",
         summary="List messages (keyset-paginated)",
         description=(
             "Stable keyset pagination over (created_at, seq) so equal-"
             "timestamp messages never skip or repeat."
         ),
-        tags=["v2:conversations"],
+        tags=["v2:review-cases"],
+    )
+    @legacy_route(
+        router,
+        "/conversations/{review_case_id}/messages",
+        methods=["GET"],
+        summary="List messages (keyset-paginated)",
+        tags=["v2:review-cases"],
     )
     def list_messages_v2(
         response: Response,
-        conversation_id: str,
+        review_case_id: str,
         principal: Annotated[Principal, Depends(require_permission("conversation:read"))],
         cursor: Annotated[str | None, Query(max_length=512)] = None,
         limit: Annotated[int, Query(ge=1, le=500)] = 100,
@@ -167,7 +188,7 @@ def build_router(deps: RouteDeps) -> APIRouter:
             except InvalidCursorError as exc:
                 raise HTTPException(status_code=400, detail=str(exc)) from exc
         rows = database.list_messages(
-            principal.tenant_id, conversation_id, limit=limit + 1, cursor=decoded
+            principal.tenant_id, review_case_id, limit=limit + 1, cursor=decoded
         )
         has_more = len(rows) > limit
         visible = rows[:limit]
@@ -189,7 +210,7 @@ def build_router(deps: RouteDeps) -> APIRouter:
         return {"data": data, "next_cursor": next_cursor}
 
     @router.post(
-        "/conversations",
+        "/review-cases",
         status_code=201,
         summary="Create a conversation (Idempotency-Key honoured)",
         description=(
@@ -198,7 +219,15 @@ def build_router(deps: RouteDeps) -> APIRouter:
             "Idempotency-Key returns the original resource with "
             "X-Idempotent-Replay: true."
         ),
-        tags=["v2:conversations"],
+        tags=["v2:review-cases"],
+    )
+    @legacy_route(
+        router,
+        "/conversations",
+        methods=["POST"],
+        status_code=201,
+        summary="Create a conversation (Idempotency-Key honoured)",
+        tags=["v2:review-cases"],
     )
     def create_conversation_v2(
         response: Response,
@@ -248,19 +277,19 @@ def build_router(deps: RouteDeps) -> APIRouter:
                 deps.settings.normal_sla_minutes,
                 connection=connection,
             )
-            conversation_id = str(conversation["id"])
+            review_case_id = str(conversation["id"])
             if idempotency_key:
                 connection.execute(
                     """INSERT INTO api_idempotency
                     (scope, tenant_id, idempotency_key, resource_id, status_code, created_at)
                     VALUES (?, ?, ?, ?, 201, ?)""",
-                    (scope, principal.tenant_id, idempotency_key, conversation_id, utc_now()),
+                    (scope, principal.tenant_id, idempotency_key, review_case_id, utc_now()),
                 )
             outbox.record(
                 principal.tenant_id,
                 "helix.conversation.created",
                 {
-                    "conversation_id": conversation_id,
+                    "conversation_id": review_case_id,
                     "channel": channel,
                     "customer_name": customer_name,
                     "customer_verified": bool(customer_ref),
@@ -274,13 +303,13 @@ def build_router(deps: RouteDeps) -> APIRouter:
         database.increment_tenant_usage_conversations(principal.tenant_id, utc_now()[:10])
         database.audit(
             principal.tenant_id,
-            conversation_id,
+            review_case_id,
             principal.actor_id,
             "conversation.created",
             {"channel": channel, "customer_verified": bool(customer_ref), "source_api": "v2"},
         )
         return _conversation_out(
-            database.get_conversation(principal.tenant_id, conversation_id) or {}
+            database.get_conversation(principal.tenant_id, review_case_id) or {}
         )
 
     return router

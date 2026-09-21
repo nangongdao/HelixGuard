@@ -172,7 +172,7 @@ def create_conversation(
     start = time.monotonic()
     try:
         response = client.post(
-            f"{config.base_url}/api/conversations",
+            f"{config.base_url}/api/review-cases",
             headers=_headers(config, tenant_id),
             json={
                 "customer_name": f"loadtest-{run_id}-{index}",
@@ -199,7 +199,7 @@ def send_message(
     start = time.monotonic()
     try:
         response = client.post(
-            f"{config.base_url}/api/conversations/{conversation_id}/messages",
+            f"{config.base_url}/api/review-cases/{conversation_id}/messages",
             headers=_headers(config, tenant_id),
             json={"content": f"Load test message {uuid4().hex[:8]}"},
             timeout=30,
@@ -217,7 +217,7 @@ def enqueue_turn_job(
     start = time.monotonic()
     try:
         response = client.post(
-            f"{config.base_url}/api/conversations/{conversation_id}/turn-jobs",
+            f"{config.base_url}/api/review-cases/{conversation_id}/turn-jobs",
             headers=_headers(config, tenant_id),
             json={"content": f"Load test job {uuid4().hex[:8]}"},
             timeout=30,

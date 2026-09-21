@@ -75,7 +75,7 @@ def _enqueue_loop(
     while not state.stop.is_set() and time.monotonic() < deadline:
         try:
             r = client.post(
-                f"{current}/api/conversations",
+                f"{current}/api/review-cases",
                 json={"customer_name": f"rst-{issue}"},
                 timeout=15,
             )
@@ -84,7 +84,7 @@ def _enqueue_loop(
             else:
                 raise httpx.TransportError(f"create {r.status_code}")
             r = client.post(
-                f"{current}/api/conversations/{cid}/turn-jobs",
+                f"{current}/api/review-cases/{cid}/turn-jobs",
                 json={"content": "rolling restart probe turn"},
                 headers={"Idempotency-Key": f"{state.run_prefix}-{uuid4().hex[:12]}"},
                 timeout=15,

@@ -45,7 +45,7 @@ export async function loadLabelCatalog({ force = false } = {}) {
   if (!force && ctx.state.labelsLoadedAt && Date.now() - ctx.state.labelsLoadedAt < 60000 && ctx.state.labelCatalog.length) {
     return ctx.state.labelCatalog;
   }
-  ctx.state.labelCatalog = await ctx.api("/api/conversation-labels");
+  ctx.state.labelCatalog = await ctx.api("/api/review-case-labels");
   ctx.state.labelsLoadedAt = Date.now();
   return ctx.state.labelCatalog;
 }

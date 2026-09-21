@@ -637,7 +637,7 @@ ENABLE_LLM=false
 systemctl restart helix-guard
 
 # 3. 确认确定性路径可用
-curl -X POST https://support.example.com/api/conversations \
+curl -X POST https://support.example.com/api/review-cases \
   -H "X-API-Key: <key>" \
   -H "Content-Type: application/json" \
   -d '{"customer_name":"测试","query":"配送时间"}'

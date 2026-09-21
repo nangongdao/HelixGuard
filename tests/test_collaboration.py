@@ -64,14 +64,14 @@ class CollaborationTests(unittest.TestCase):
 
     def _open(self, name: str = "C") -> str:
         conv = self.client.post(
-            "/api/conversations", json={"customer_name": name}, headers=self.admin
+            "/api/review-cases", json={"customer_name": name}, headers=self.admin
         )
         self.assertEqual(conv.status_code, 201, conv.text)
         return conv.json()["id"]
 
     def _accept(self, conversation_id: str) -> None:
         response = self.client.post(
-            f"/api/conversations/{conversation_id}/accept", headers=self.admin
+            f"/api/review-cases/{conversation_id}/accept", headers=self.admin
         )
         self.assertEqual(response.status_code, 200, response.text)
 
@@ -82,7 +82,7 @@ class CollaborationTests(unittest.TestCase):
         if reply_to:
             payload["reply_to"] = reply_to
         response = self.client.post(
-            f"/api/conversations/{conversation_id}/notes",
+            f"/api/review-cases/{conversation_id}/notes",
             json=payload,
             headers=headers,
         )
@@ -195,7 +195,7 @@ class CollaborationTests(unittest.TestCase):
         )
         self.assertEqual(reply["reply_to"], root["id"])
         threads = self.client.get(
-            f"/api/conversations/{conversation_id}/threads", headers=self.admin
+            f"/api/review-cases/{conversation_id}/threads", headers=self.admin
         ).json()
         self.assertEqual(len(threads["threads"]), 1)
         thread = threads["threads"][0]
@@ -208,16 +208,14 @@ class CollaborationTests(unittest.TestCase):
         conversation_id = self._open("badtarget")
         self._accept(conversation_id)
         self.client.post(
-            f"/api/conversations/{conversation_id}/messages",
+            f"/api/review-cases/{conversation_id}/messages",
             json={"content": "待审内容"},
             headers={**self.admin, "Idempotency-Key": "collab-badtarget-msg"},
         )
-        details = self.client.get(
-            f"/api/conversations/{conversation_id}", headers=self.admin
-        ).json()
+        details = self.client.get(f"/api/review-cases/{conversation_id}", headers=self.admin).json()
         customer_msg = next(m for m in details["messages"] if m["role"] == "customer")
         response = self.client.post(
-            f"/api/conversations/{conversation_id}/notes",
+            f"/api/review-cases/{conversation_id}/notes",
             json={"content": "回复一条待审内容是不允许的", "reply_to": customer_msg["id"]},
             headers=self.op_a,
         )
@@ -227,14 +225,14 @@ class CollaborationTests(unittest.TestCase):
         conversation_id = self._open("unknown")
         self._accept(conversation_id)
         response = self.client.post(
-            f"/api/conversations/{conversation_id}/notes",
+            f"/api/review-cases/{conversation_id}/notes",
             json={"content": "回错了", "reply_to": "msg_doesnotexist0000"},
             headers=self.op_a,
         )
         self.assertIn(response.status_code, (404, 422), response.text)
 
     def test_threads_require_conversation_read(self) -> None:
-        response = self.client.get("/api/conversations/nope/threads", headers=self.channel)
+        response = self.client.get("/api/review-cases/nope/threads", headers=self.channel)
         self.assertEqual(response.status_code, 403)
 
     # ------------------------------------------------------------- 旁观模式
@@ -245,7 +243,7 @@ class CollaborationTests(unittest.TestCase):
         # A supervisor (admin) can open the read-only stream.
         with self.client.stream(
             "GET",
-            f"/api/conversations/{conversation_id}/events?timeout=6",
+            f"/api/review-cases/{conversation_id}/events?timeout=6",
             headers=self.admin,
         ) as response:
             self.assertEqual(response.status_code, 200)
@@ -263,7 +261,7 @@ class CollaborationTests(unittest.TestCase):
         collected: dict[str, str | None] = {"revision": None}
         with self.client.stream(
             "GET",
-            f"/api/conversations/{conversation_id}/events?timeout=7",
+            f"/api/review-cases/{conversation_id}/events?timeout=7",
             headers=self.admin,
         ) as response:
             events = self._drain_sse_until(response, "snapshot", collected)
@@ -283,7 +281,7 @@ class CollaborationTests(unittest.TestCase):
         before = database.conversation_revision(TENANT, conversation_id)
         with self.client.stream(
             "GET",
-            f"/api/conversations/{conversation_id}/events?timeout=6",
+            f"/api/review-cases/{conversation_id}/events?timeout=6",
             headers=self.admin,
         ) as response:
             self._drain_sse_until(response, "snapshot", {})
@@ -291,7 +289,7 @@ class CollaborationTests(unittest.TestCase):
         self.assertEqual(before, after)
 
     def test_channel_cannot_open_live_view(self) -> None:
-        response = self.client.get("/api/conversations/abc/events", headers=self.channel)
+        response = self.client.get("/api/review-cases/abc/events", headers=self.channel)
         self.assertEqual(response.status_code, 403)
 
     def test_mention_flags_and_audit_on_note(self) -> None:

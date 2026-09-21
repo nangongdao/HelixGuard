@@ -10,7 +10,8 @@ Pins the contract of ``app.deprecation``:
 * the OpenAPI document carries ``deprecated: true`` and a migration note;
 * the live middleware stamps headers via the route's templated path.
 
-The shipped registry is empty (nothing is deprecated today); tests drive
+The shipped registry names every path the domain migration renamed; tests
+additionally drive
 the machinery through the pure functions and by patching the registry —
 the mechanism must be proven now so marking any future endpoint is a
 one-line change.
@@ -71,8 +72,12 @@ class RegistryTests(unittest.TestCase):
         self.assertIn("/api/v2/conversations", headers["Link"])
 
     def test_unregistered_operation_gets_no_headers(self) -> None:
+        # The successor must never be stamped: the registry only ever names
+        # retired paths, so a 2.27-era client moving to the new name sees no
+        # deprecation machinery. (This used to sample POST /api/conversations,
+        # which P3b registered -- the sample aged out, the invariant did not.)
         headers: dict[str, str] = {}
-        self.assertFalse(apply_deprecation_headers("POST /api/conversations", headers))
+        self.assertFalse(apply_deprecation_headers("POST /api/review-cases", headers))
         self.assertEqual(headers, {})
 
     def test_expired_sunset_is_a_violation(self) -> None:
@@ -202,12 +207,18 @@ class MiddlewareHeaderTests(unittest.TestCase):
         app.state.services.database.close()
 
     def test_templated_path_resolves_to_operation_key(self) -> None:
-        """A path parameter request still matches 'GET /api/conversations/{id}' shape."""
+        """A path parameter request still matches 'GET /api/conversations/{id}' shape.
+
+        The template's placeholder is server-internal notation: since P3b the
+        retired template carries the handler's parameter name
+        (``{review_case_id}``), matching the P3a T8 entries -- the URL a
+        client calls is unchanged.
+        """
         entry = Deprecation(
-            operation="GET /api/conversations/{conversation_id}",
+            operation="GET /api/conversations/{review_case_id}",
             deprecated_on="2026-08-22",
             sunset_on="2027-09-01",
-            successor="/api/v2/conversations/{conversation_id}",
+            successor="/api/v2/review-cases/{review_case_id}",
         )
         with (
             patch("app.deprecation._DEPRECATIONS", (entry,)),

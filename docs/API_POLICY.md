@@ -33,7 +33,7 @@ Sunset: Thu, 14 Aug 2027 00:00:00 GMT
 
 ## 4. 幂等
 
-- 消息发送(`POST /api/conversations/{id}/messages`)支持 `Idempotency-Key` 请求头(8–128 位 `[A-Za-z0-9._:-]`)。
+- 消息发送(`POST /api/review-cases/{id}/messages`)支持 `Idempotency-Key` 请求头(8–128 位 `[A-Za-z0-9._:-]`)。
 - 同一 key 重放返回首次结果,不产生副作用;key 相同但载荷不同返回 409 `idempotency_conflict`。
 - 客户端应在重试时复用同一 key。
 

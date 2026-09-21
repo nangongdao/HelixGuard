@@ -80,7 +80,7 @@ function configureDeps({ me = null, conversations = [], apiImpl, overrides = {} 
       return { actor_id: "demo.admin", role: "admin", permissions: ["metrics:read"], tenant_id: "demo" };
     }
     if (url === "/api/dashboard") return { conversations: 1 };
-    if (url.startsWith("/api/conversations")) {
+    if (url.startsWith("/api/review-cases")) {
       return {
         data: conversations,
         response: { headers: { get: (name) => (name === "X-Has-More" ? "false" : null) } },

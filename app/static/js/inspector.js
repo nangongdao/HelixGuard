@@ -109,7 +109,7 @@ export async function saveLabels(rawValue) {
     .filter(Boolean);
   const conversationId = ctx.state.selectedId;
   try {
-    await ctx.api(`/api/conversations/${encodeURIComponent(conversationId)}/labels`, {
+    await ctx.api(`/api/review-cases/${encodeURIComponent(conversationId)}/labels`, {
       method: "PUT",
       body: JSON.stringify({ labels }),
     });
@@ -127,7 +127,7 @@ export async function saveLabels(rawValue) {
 export async function setConversationPriority(conversationId, priority) {
   if (!conversationId || !priority) return;
   try {
-    await ctx.api(`/api/conversations/${encodeURIComponent(conversationId)}`, {
+    await ctx.api(`/api/review-cases/${encodeURIComponent(conversationId)}`, {
       method: "PATCH",
       body: JSON.stringify({ priority }),
     });
@@ -316,7 +316,7 @@ export async function submitNote({ content } = {}) {
   const text = String(content || "").trim();
   if (!ctx.state.selectedId || !text) return false;
   try {
-    await ctx.api(`/api/conversations/${encodeURIComponent(ctx.state.selectedId)}/notes`, {
+    await ctx.api(`/api/review-cases/${encodeURIComponent(ctx.state.selectedId)}/notes`, {
       method: "POST",
       body: JSON.stringify({ content: text }),
     });

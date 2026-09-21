@@ -37,7 +37,7 @@ test("request merges base headers, sets JSON Content-Type for a string body", as
     calls.push({ path, init });
     return responseStub({ body: { id: "c1" } });
   });
-  const { response, data } = await request("/api/conversations", {
+  const { response, data } = await request("/api/review-cases", {
     method: "POST",
     body: JSON.stringify({ name: "x" }),
   });
@@ -66,7 +66,7 @@ test("api returns the parsed data while apiWithHeaders returns the envelope", as
   configureClient();
   stubFetch(async () => responseStub({ body: { ok: true } }));
   assert.deepEqual(await api("/api/me"), { ok: true });
-  const withHeaders = await apiWithHeaders("/api/conversations?limit=1");
+  const withHeaders = await apiWithHeaders("/api/review-cases?limit=1");
   assert.equal(withHeaders.response.headers.get("X-Prev-Cursor"), "next-cursor");
   assert.deepEqual(withHeaders.data, { ok: true });
 });
@@ -90,7 +90,7 @@ test("a non-ok response without detail falls back to the status text", async () 
   configureClient();
   stubFetch(async () => responseStub({ status: 500, body: {} }));
   await assert.rejects(
-    () => api("/api/conversations"),
+    () => api("/api/review-cases"),
     (error) => error.message === "请求失败（500）",
   );
 });
@@ -101,7 +101,7 @@ test("an abort is rethrown as the operator-facing timeout message", async () => 
     throw Object.assign(new Error("aborted"), { name: "AbortError" });
   });
   await assert.rejects(
-    () => api("/api/conversations"),
+    () => api("/api/review-cases"),
     (error) => error.message === "请求超时，请稍后重试",
   );
 });

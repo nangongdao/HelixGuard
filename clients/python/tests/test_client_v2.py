@@ -48,7 +48,7 @@ def test_list_conversations_v2_parses_envelope_and_version_header() -> None:
     assert page.next_cursor == "CUR-2"
     assert page.api_version == "2.0"
     request = call_log[0]
-    assert request.url.path == "/api/v2/conversations"
+    assert request.url.path == "/api/v2/review-cases"
     assert request.headers["X-API-Key"] == "test-key-12345678"
     assert request.headers["X-Tenant-Id"] == "demo"
     assert request.url.params["limit"] == "10"
@@ -129,7 +129,7 @@ def test_create_conversation_v2_sends_idempotency_key() -> None:
         result = client.create_conversation_v2("Ada", idempotency_key="idem-v2-1")
     assert result["_idempotent_replay"] is False
     request = call_log[0]
-    assert request.url.path == "/api/v2/conversations"
+    assert request.url.path == "/api/v2/review-cases"
     assert request.headers["Idempotency-Key"] == "idem-v2-1"
     assert json.loads(request.content)["customer_name"] == "Ada"
 
@@ -179,4 +179,4 @@ def test_list_messages_v2_returns_page() -> None:
         page = client.list_messages_v2("conv-1", limit=25)
     assert page.data[0]["id"] == "msg-1"
     assert page.next_cursor is None
-    assert call_log[0].url.path == "/api/v2/conversations/conv-1/messages"
+    assert call_log[0].url.path == "/api/v2/review-cases/conv-1/messages"

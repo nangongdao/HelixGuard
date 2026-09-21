@@ -65,7 +65,7 @@ class AttachmentAppTests(unittest.TestCase):
 
     def _open_conversation(self) -> str:
         conv = self.client.post(
-            "/api/conversations", json={"customer_name": "S"}, headers=self.admin
+            "/api/review-cases", json={"customer_name": "S"}, headers=self.admin
         ).json()
         return conv["id"]
 
@@ -267,10 +267,10 @@ class AttachmentAppTests(unittest.TestCase):
 
     def test_operator_message_with_attachments(self) -> None:
         conversation_id = self._open_conversation()
-        self.client.post(f"/api/conversations/{conversation_id}/accept", headers=self.admin)
+        self.client.post(f"/api/review-cases/{conversation_id}/accept", headers=self.admin)
         attachment = self._upload(conversation_id).json()
         response = self.client.post(
-            f"/api/conversations/{conversation_id}/operator-messages",
+            f"/api/review-cases/{conversation_id}/operator-messages",
             json={"content": "请看附件", "attachment_ids": [attachment["id"]]},
             headers=self.admin,
         )
@@ -287,9 +287,9 @@ class AttachmentAppTests(unittest.TestCase):
         conversation_id = self._open_conversation()
         other = self._open_conversation()
         attachment = self._upload(other).json()
-        self.client.post(f"/api/conversations/{conversation_id}/accept", headers=self.admin)
+        self.client.post(f"/api/review-cases/{conversation_id}/accept", headers=self.admin)
         response = self.client.post(
-            f"/api/conversations/{conversation_id}/operator-messages",
+            f"/api/review-cases/{conversation_id}/operator-messages",
             json={"content": "错附件", "attachment_ids": [attachment["id"]]},
             headers=self.admin,
         )

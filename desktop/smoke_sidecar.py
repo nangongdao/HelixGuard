@@ -76,7 +76,7 @@ def main() -> int:
             print(f"backend ready in {elapsed:.2f}s")
 
             sample = httpx.get(
-                "http://127.0.0.1:8899/api/conversations",
+                "http://127.0.0.1:8899/api/review-cases",
                 headers={"X-Tenant-Id": "demo"},
                 timeout=5.0,
             )

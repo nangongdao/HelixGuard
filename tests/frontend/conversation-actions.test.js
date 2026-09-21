@@ -92,7 +92,7 @@ test("sendCustomerMessage posts with an idempotency key and refreshes", async ()
   els.customerInput.value = "待清除";
   await sendCustomerMessage("  帮我查订单  ");
   const post = calls.find((call) => call.url);
-  assert.match(post.url, /\/api\/conversations\/conv-1\/messages$/);
+  assert.match(post.url, /\/api\/review-cases\/conv-1\/messages$/);
   assert.match(post.options.headers["Idempotency-Key"], /^ui-/);
   assert.deepEqual(JSON.parse(post.options.body), { content: "帮我查订单" });
   assert.ok(calls.some((call) => call.loadDetail === "conv-1"));
@@ -150,7 +150,7 @@ test("createConversation posts, prepends, selects and keeps the dialog open in i
   const { calls } = configureDeps();
   const ok = await createConversation({ customer_name: "新提交方", channel: "webchat" });
   assert.equal(ok, true);
-  const post = calls.find((call) => call.url === "/api/conversations");
+  const post = calls.find((call) => call.url === "/api/review-cases");
   assert.equal(post.options.method, "POST");
   assert.deepEqual(JSON.parse(post.options.body), { customer_name: "新提交方", channel: "webchat" });
   assert.ok(calls.includes("renderQueue"));

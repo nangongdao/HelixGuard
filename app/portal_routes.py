@@ -7,11 +7,11 @@ without credentials:
 - ``POST /api/submission-portal/sessions`` — create a review case bound to the
   token's tenant (anonymous or named submitter), return the review case plus a
   fresh per-session token.
-- ``POST /api/submission-portal/sessions/{conversation_id}/messages`` — send a
+- ``POST /api/submission-portal/sessions/{review_case_id}/messages`` — send a
   submitter message; ``channel_message_id`` dedup means replaying the same
   channel message never creates a second turn (Phase 23.2).
-- ``GET /api/submission-portal/sessions/{conversation_id}/messages`` — list messages.
-- ``GET /api/submission-portal/sessions/{conversation_id}/stream`` — SSE event stream of
+- ``GET /api/submission-portal/sessions/{review_case_id}/messages`` — list messages.
+- ``GET /api/submission-portal/sessions/{review_case_id}/stream`` — SSE event stream of
   the latest turn job for the review case.
 
 The router is mounted on the app so it inherits the request-controls
@@ -93,21 +93,21 @@ def _ensure_tenant(token: WidgetToken, database: Database) -> None:
 def _fresh_token(
     settings: Settings,
     tenant_id: str,
-    conversation_id: str,
+    review_case_id: str,
     customer_ref: str | None = None,
 ) -> str:
     return sign_token(
         secret=settings.widget_secret,
         tenant_id=tenant_id,
         customer_ref=customer_ref,
-        conversation_id=conversation_id,
+        conversation_id=review_case_id,
         ttl_seconds=3600,
     )
 
 
-def _ensure_session_token(token: WidgetToken, conversation_id: str) -> None:
+def _ensure_session_token(token: WidgetToken, review_case_id: str) -> None:
     """Require the fresh token issued for this exact widget session."""
-    if token.conversation_id != conversation_id:
+    if token.conversation_id != review_case_id:
         # Keep the response indistinguishable from an unknown conversation.
         raise HTTPException(status_code=404, detail="Conversation not found")
 
@@ -151,16 +151,16 @@ def create_widget_session(
 
 
 @router.post(
-    "/api/submission-portal/sessions/{conversation_id}/messages",
+    "/api/submission-portal/sessions/{review_case_id}/messages",
 )
 @legacy_route(
     router,
-    "/api/widget/sessions/{conversation_id}/messages",
+    "/api/widget/sessions/{review_case_id}/messages",
     methods=["POST"],
 )
 def send_widget_message(
     request: Request,
-    conversation_id: str,
+    review_case_id: str,
     payload: WidgetMessageSendRequest,
     token: Annotated[WidgetToken, Depends(_verify_widget_token)],
     async_mode: Annotated[bool, Query()] = False,
@@ -177,25 +177,25 @@ def send_widget_message(
     database: Database = services.database
     orchestrator: ConversationOrchestrator = services.orchestrator
     _ensure_tenant(token, database)
-    _ensure_session_token(token, conversation_id)
-    conversation = database.get_conversation(token.tenant_id, conversation_id)
+    _ensure_session_token(token, review_case_id)
+    conversation = database.get_conversation(token.tenant_id, review_case_id)
     if not conversation:
         raise HTTPException(status_code=404, detail="Conversation not found")
     # Channel-level idempotency: a channel_message_id already recorded for
     # this conversation is a replay; return the original turn.
     if payload.channel_message_id:
         existing = database.get_message_by_channel_id(
-            token.tenant_id, conversation_id, payload.channel_message_id
+            token.tenant_id, review_case_id, payload.channel_message_id
         )
         if existing is not None:
             cached = database.get_turn_by_message_id(
-                token.tenant_id, conversation_id, existing["id"]
+                token.tenant_id, review_case_id, existing["id"]
             )
             if cached is not None:
                 cached["idempotent_replay"] = True
                 return TurnResponse(**cached).model_dump(mode="json")
     actor = token.customer_ref or "widget"
-    key = f"widget-{conversation_id}-{actor}-{payload.channel_message_id or ''}"
+    key = f"widget-{review_case_id}-{actor}-{payload.channel_message_id or ''}"
     if async_mode:
         overload = backpressure_reason(database, services.settings, token.tenant_id)
         if overload:
@@ -206,7 +206,7 @@ def send_widget_message(
             )
         job, replayed = orchestrator.queue_customer_message(
             token.tenant_id,
-            conversation_id,
+            review_case_id,
             payload.content,
             actor_id=actor,
             idempotency_key=key,
@@ -222,7 +222,7 @@ def send_widget_message(
     try:
         result = orchestrator.handle_customer_message(
             token.tenant_id,
-            conversation_id,
+            review_case_id,
             payload.content,
             actor_id=actor,
             idempotency_key=key,
@@ -251,19 +251,19 @@ def send_widget_message(
 
 
 @router.get(
-    "/api/submission-portal/sessions/{conversation_id}/messages",
+    "/api/submission-portal/sessions/{review_case_id}/messages",
     response_model=list[MessageOut],
 )
 @legacy_route(
     router,
-    "/api/widget/sessions/{conversation_id}/messages",
+    "/api/widget/sessions/{review_case_id}/messages",
     methods=["GET"],
     response_model=list[MessageOut],
 )
 def list_widget_messages(
     request: Request,
     response: Response,
-    conversation_id: str,
+    review_case_id: str,
     token: Annotated[WidgetToken, Depends(_verify_widget_token)],
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     cursor: Annotated[str | None, Query(max_length=512)] = None,
@@ -282,8 +282,8 @@ def list_widget_messages(
     services = _services(request)
     database: Database = services.database
     _ensure_tenant(token, database)
-    _ensure_session_token(token, conversation_id)
-    conversation = database.get_conversation(token.tenant_id, conversation_id)
+    _ensure_session_token(token, review_case_id)
+    conversation = database.get_conversation(token.tenant_id, review_case_id)
     if not conversation:
         raise HTTPException(status_code=404, detail="Conversation not found")
     conversation_status = str(conversation["status"])
@@ -293,7 +293,7 @@ def list_widget_messages(
     # customer side of the CSAT loop was previously unreachable in the
     # widget channel (the survey URL only reached the operator console).
     if conversation_status == "resolved":
-        survey = database.get_pending_csat_survey(token.tenant_id, conversation_id)
+        survey = database.get_pending_csat_survey(token.tenant_id, review_case_id)
         if survey:
             base = services.settings.csat_base_url or ""
             response.headers["X-CSAT-Survey-URL"] = f"{base}/api/qa-spot-check/{survey['token']}"
@@ -303,7 +303,7 @@ def list_widget_messages(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     scanned = database.list_messages(
         token.tenant_id,
-        conversation_id,
+        review_case_id,
         limit=limit + 1,
         cursor=decoded_cursor,
     )
@@ -317,11 +317,11 @@ def list_widget_messages(
     return [message_out(row) for row in page if not is_internal_message_role(row.get("role"))]
 
 
-@router.get("/api/submission-portal/sessions/{conversation_id}/stream")
-@legacy_route(router, "/api/widget/sessions/{conversation_id}/stream", methods=["GET"])
+@router.get("/api/submission-portal/sessions/{review_case_id}/stream")
+@legacy_route(router, "/api/widget/sessions/{review_case_id}/stream", methods=["GET"])
 async def stream_widget_turn(
     request: Request,
-    conversation_id: str,
+    review_case_id: str,
     token: Annotated[WidgetToken, Depends(_verify_widget_token)],
     timeout: Annotated[int, Query(ge=1, le=120)] = 30,
 ) -> StreamingResponse:
@@ -334,8 +334,8 @@ async def stream_widget_turn(
     database: Database = services.database
     turn_worker = services.turn_worker
     _ensure_tenant(token, database)
-    _ensure_session_token(token, conversation_id)
-    job = database.get_latest_turn_job(token.tenant_id, conversation_id)
+    _ensure_session_token(token, review_case_id)
+    job = database.get_latest_turn_job(token.tenant_id, review_case_id)
     if not job:
         raise HTTPException(status_code=404, detail="No turn job for conversation")
     job_id = job["id"]

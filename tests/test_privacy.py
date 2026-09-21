@@ -90,14 +90,14 @@ class PrivacyAppCase(unittest.TestCase):
 
     def _seed_conversation(self, customer_ref: str) -> str:
         response = self.client.post(
-            "/api/conversations",
+            "/api/review-cases",
             json={"customer_name": "Customer", "customer_ref": customer_ref},
             headers=_headers(ADMIN_A_KEY),
         )
         self.assertEqual(response.status_code, 201, response.text)
         conversation_id = response.json()["id"]
         sent = self.client.post(
-            f"/api/conversations/{conversation_id}/messages",
+            f"/api/review-cases/{conversation_id}/messages",
             json={"content": "Hello from the customer"},
             headers=_headers(ADMIN_A_KEY),
         )

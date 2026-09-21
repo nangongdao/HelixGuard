@@ -88,19 +88,19 @@ def main() -> int:
                         return { ok: res.ok, status: res.status, data: res.ok ? await res.json() : null };
                     };
                     const suffix = Math.random().toString(36).slice(2, 6);
-                    const conv = await post('/api/conversations', {
+                    const conv = await post('/api/review-cases', {
                         customer_name: '摘要岛验证 ' + suffix,
                     });
                     if (!conv.ok) return { error: 'conversation ' + conv.status };
-                    const turn = await post('/api/conversations/' + conv.data.id + '/messages', {
+                    const turn = await post('/api/review-cases/' + conv.data.id + '/messages', {
                         content: '配送一般多久能到？',
                     });
                     if (!turn.ok) return { error: 'turn ' + turn.status };
                     // Context summaries generate at handoff/claim — accept so
                     // the deterministic summary exists for the banner.
-                    const accept = await post('/api/conversations/' + conv.data.id + '/accept');
+                    const accept = await post('/api/review-cases/' + conv.data.id + '/accept');
                     if (!accept.ok) return { error: 'accept ' + accept.status };
-                    const empty = await post('/api/conversations', {
+                    const empty = await post('/api/review-cases', {
                         customer_name: '摘要岛空线 ' + suffix,
                     });
                     if (!empty.ok) return { error: 'empty conversation ' + empty.status };

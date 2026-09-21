@@ -1,6 +1,6 @@
 """Conversation router endpoint coverage.
 
-补充 app/routers/conversations.py 的测试覆盖，聚焦于：
+补充 app/routers/review_cases.py 的测试覆盖，聚焦于：
 - 查询参数验证（cursor/offset 冲突、mine/assigned_to 冲突等）
 - 保存的队列视图 CRUD
 - 审核单标签 API
@@ -60,14 +60,14 @@ class ConversationListValidationTests(unittest.TestCase):
 
     def test_cursor_and_offset_cannot_be_combined(self) -> None:
         # line 112-113
-        response = self.client.get("/api/conversations?cursor=fake&offset=10", headers=self.headers)
+        response = self.client.get("/api/review-cases?cursor=fake&offset=10", headers=self.headers)
         self.assertEqual(response.status_code, 400)
         self.assertIn("cursor and offset cannot be combined", response.text)
 
     def test_mine_and_assigned_to_cannot_be_combined(self) -> None:
         # line 114-115
         response = self.client.get(
-            "/api/conversations?mine=true&assigned_to=other", headers=self.headers
+            "/api/review-cases?mine=true&assigned_to=other", headers=self.headers
         )
         self.assertEqual(response.status_code, 400)
         self.assertIn("mine and assigned_to cannot be combined", response.text)
@@ -75,7 +75,7 @@ class ConversationListValidationTests(unittest.TestCase):
     def test_unassigned_and_assigned_to_cannot_be_combined(self) -> None:
         # line 116-119
         response = self.client.get(
-            "/api/conversations?unassigned=true&assigned_to=other", headers=self.headers
+            "/api/review-cases?unassigned=true&assigned_to=other", headers=self.headers
         )
         self.assertEqual(response.status_code, 400)
         self.assertIn("unassigned and assigned_to cannot be combined", response.text)
@@ -83,14 +83,14 @@ class ConversationListValidationTests(unittest.TestCase):
     def test_unclaimed_and_claimed_by_cannot_be_combined(self) -> None:
         # line 120-123
         response = self.client.get(
-            "/api/conversations?unclaimed=true&claimed_by=other", headers=self.headers
+            "/api/review-cases?unclaimed=true&claimed_by=other", headers=self.headers
         )
         self.assertEqual(response.status_code, 400)
         self.assertIn("unclaimed and claimed_by cannot be combined", response.text)
 
     def test_invalid_cursor_returns_400(self) -> None:
         # line 124-127
-        response = self.client.get("/api/conversations?cursor=invalid", headers=self.headers)
+        response = self.client.get("/api/review-cases?cursor=invalid", headers=self.headers)
         self.assertEqual(response.status_code, 400)
         self.assertIn("cursor", response.text.lower())
 
@@ -101,7 +101,7 @@ class ConversationListValidationTests(unittest.TestCase):
 
         cursor = encode_conversation_cursor(1, "2024-01-01T00:00:00Z", "conv-1", sort="priority")
         response = self.client.get(
-            f"/api/conversations?cursor={cursor}&sort=waiting", headers=self.headers
+            f"/api/review-cases?cursor={cursor}&sort=waiting", headers=self.headers
         )
         self.assertEqual(response.status_code, 400)
         self.assertIn("cursor sort does not match", response.text)
@@ -109,7 +109,7 @@ class ConversationListValidationTests(unittest.TestCase):
     def test_invalid_label_returns_400(self) -> None:
         # line 131-133: normalize_conversation_labels 可能抛出 ValueError
         # 使用超长标签（>32字符）触发验证错误
-        response = self.client.get("/api/conversations?label=" + "x" * 33, headers=self.headers)
+        response = self.client.get("/api/review-cases?label=" + "x" * 33, headers=self.headers)
         # Pydantic 验证失败返回 422，业务逻辑 ValueError 返回 400
         self.assertIn(response.status_code, [400, 422])
 
@@ -214,12 +214,12 @@ class ConversationLabelsTests(unittest.TestCase):
         )
         # 通过 API 设置标签
         self.client.put(
-            f"/api/conversations/{conv['id']}/labels",
+            f"/api/review-cases/{conv['id']}/labels",
             json={"labels": ["urgent", "vip"]},
             headers=self.headers,
         )
 
-        response = self.client.get("/api/conversation-labels", headers=self.headers)
+        response = self.client.get("/api/review-case-labels", headers=self.headers)
         self.assertEqual(response.status_code, 200)
         labels = response.json()
         # 至少应该有 urgent 和 vip
@@ -254,7 +254,7 @@ class BulkActionsTests(unittest.TestCase):
         )
 
         response = self.client.post(
-            "/api/conversations/bulk-actions",
+            "/api/review-cases/bulk-actions",
             json={
                 "conversation_ids": [conv1["id"], conv2["id"]],
                 "action": "set_priority",
@@ -271,7 +271,7 @@ class BulkActionsTests(unittest.TestCase):
     def test_bulk_action_invalid_input_returns_422(self) -> None:
         # line 299-300: ValueError → 422
         response = self.client.post(
-            "/api/conversations/bulk-actions",
+            "/api/review-cases/bulk-actions",
             json={"conversation_ids": [], "action": "invalid_action"},
             headers=self.operator,
         )
@@ -298,7 +298,7 @@ class ConversationLifecycleTests(unittest.TestCase):
         conv = self.services.database.create_conversation(
             "demo", "Customer", "CUST-1", "web", "admin", 120
         )
-        response = self.client.post(f"/api/conversations/{conv['id']}/claim", headers=self.headers)
+        response = self.client.post(f"/api/review-cases/{conv['id']}/claim", headers=self.headers)
         self.assertEqual(response.status_code, 200)
         body = response.json()
         self.assertEqual(body["claimed_by"], "operator")
@@ -309,11 +309,9 @@ class ConversationLifecycleTests(unittest.TestCase):
             "demo", "Customer", "CUST-1", "web", "operator", 120
         )
         # 先 claim 审核单
-        self.client.post(f"/api/conversations/{conv['id']}/claim", headers=self.headers)
+        self.client.post(f"/api/review-cases/{conv['id']}/claim", headers=self.headers)
 
-        response = self.client.post(
-            f"/api/conversations/{conv['id']}/release", headers=self.headers
-        )
+        response = self.client.post(f"/api/review-cases/{conv['id']}/release", headers=self.headers)
         self.assertEqual(response.status_code, 200)
         body = response.json()
         self.assertIsNone(body["claimed_by"])
@@ -325,7 +323,7 @@ class ConversationLifecycleTests(unittest.TestCase):
         )
         # 确保 assigned_to 不为空字符串
         response = self.client.post(
-            f"/api/conversations/{conv['id']}/assign",
+            f"/api/review-cases/{conv['id']}/assign",
             json={"assigned_to": "supervisor", "note": None},
             headers=self.headers,
         )
@@ -345,12 +343,12 @@ class ConversationLifecycleTests(unittest.TestCase):
         # 通过 orchestrator 设置状态为 waiting_human
         # 先发送一条消息触发 turn，然后让它进入 waiting_human
         self.client.post(
-            f"/api/conversations/{conv['id']}/messages",
+            f"/api/review-cases/{conv['id']}/messages",
             json={"role": "customer", "content": "Help me"},
             headers=self.headers,
         )
 
-        response = self.client.post(f"/api/conversations/{conv['id']}/accept", headers=self.headers)
+        response = self.client.post(f"/api/review-cases/{conv['id']}/accept", headers=self.headers)
         # accept 可能需要特定的前置状态
         if response.status_code == 200:
             body = response.json()
@@ -364,9 +362,7 @@ class ConversationLifecycleTests(unittest.TestCase):
         conv = self.services.database.create_conversation(
             "demo", "Customer", "CUST-1", "web", "operator", 120
         )
-        response = self.client.post(
-            f"/api/conversations/{conv['id']}/resolve", headers=self.headers
-        )
+        response = self.client.post(f"/api/review-cases/{conv['id']}/resolve", headers=self.headers)
         self.assertEqual(response.status_code, 200)
         body = response.json()
         self.assertEqual(body["status"], "resolved")
@@ -377,9 +373,9 @@ class ConversationLifecycleTests(unittest.TestCase):
             "demo", "Customer", "CUST-1", "web", "operator", 120
         )
         # 先 resolve 审核单
-        self.client.post(f"/api/conversations/{conv['id']}/resolve", headers=self.headers)
+        self.client.post(f"/api/review-cases/{conv['id']}/resolve", headers=self.headers)
 
-        response = self.client.post(f"/api/conversations/{conv['id']}/reopen", headers=self.headers)
+        response = self.client.post(f"/api/review-cases/{conv['id']}/reopen", headers=self.headers)
         self.assertEqual(response.status_code, 200)
         body = response.json()
         self.assertEqual(body["status"], "open")
@@ -407,14 +403,12 @@ class MessagePaginationTests(unittest.TestCase):
         )
         # 通过 API 添加消息
         self.client.post(
-            f"/api/conversations/{conv['id']}/messages",
+            f"/api/review-cases/{conv['id']}/messages",
             json={"content": "Message 1"},
             headers=self.headers,
         )
 
-        response = self.client.get(
-            f"/api/conversations/{conv['id']}/messages", headers=self.headers
-        )
+        response = self.client.get(f"/api/review-cases/{conv['id']}/messages", headers=self.headers)
         self.assertEqual(response.status_code, 200)
         messages = response.json()
         self.assertIsInstance(messages, list)
@@ -425,13 +419,13 @@ class MessagePaginationTests(unittest.TestCase):
             "demo", "Customer", "CUST-M-2", "web", "operator", 120
         )
         self.client.post(
-            f"/api/conversations/{conv['id']}/messages",
+            f"/api/review-cases/{conv['id']}/messages",
             json={"content": "Message 1"},
             headers=self.headers,
         )
 
         response = self.client.get(
-            f"/api/conversations/{conv['id']}/messages?limit=10", headers=self.headers
+            f"/api/review-cases/{conv['id']}/messages?limit=10", headers=self.headers
         )
         self.assertEqual(response.status_code, 200)
         self.assertIn("X-Has-More", response.headers)

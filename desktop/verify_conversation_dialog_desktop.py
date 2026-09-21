@@ -98,7 +98,7 @@ def main() -> int:
             page.fill("#newCustomerNameReact", customer)
             page.select_option("#newChannelReact", "messaging")
             with page.expect_response(
-                lambda r: r.url.endswith("/api/conversations") and r.request.method == "POST"
+                lambda r: r.url.endswith("/api/review-cases") and r.request.method == "POST"
             ) as created_info:
                 page.locator("#newConversationFormReact button[type='submit']").click()
             checks["post_status"] = created_info.value.status

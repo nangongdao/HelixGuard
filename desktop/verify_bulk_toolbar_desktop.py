@@ -86,7 +86,7 @@ def main() -> int:
                 """async (count) => {
                     let ok = 0;
                     for (let i = 0; i < count; i += 1) {
-                        const res = await fetch('/api/conversations', {
+                        const res = await fetch('/api/review-cases', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json', 'X-Tenant-Id': 'demo' },
                             body: JSON.stringify({ customer_name: `批量验证 ${i} (${Math.random().toString(36).slice(2, 8)})` }),
@@ -116,7 +116,7 @@ def main() -> int:
             # Apply a priority action through the bridge — a real POST.
             page.locator("#queueReactIsland .bulk-action-field select").select_option("priority-high")
             with page.expect_response(
-                lambda r: r.url.endswith("/api/conversations/bulk-actions")
+                lambda r: r.url.endswith("/api/review-cases/bulk-actions")
                 and r.request.method == "POST"
             ) as bulk_info:
                 page.locator("#queueReactIsland .bulk-icon-button.is-primary").click()

@@ -151,7 +151,7 @@ class RotationApiIntegrationTests(unittest.TestCase):
         # The live instance does not yet know the key, so it refuses it.
         self.assertEqual(
             self.client.get(
-                "/api/conversations", headers={"X-API-Key": secret, "X-Tenant-Id": "demo"}
+                "/api/review-cases", headers={"X-API-Key": secret, "X-Tenant-Id": "demo"}
             ).status_code,
             401,
         )
@@ -160,7 +160,7 @@ class RotationApiIntegrationTests(unittest.TestCase):
         promoted = {secret: {"tenant_id": "demo", "actor_id": "op.user", "role": "operator"}}
         headers = self._fresh_instance_headers(extra_principals=promoted)
         headers["X-API-Key"] = secret
-        self.assertEqual(self.client.get("/api/conversations", headers=headers).status_code, 200)
+        self.assertEqual(self.client.get("/api/review-cases", headers=headers).status_code, 200)
         # Step 3: revoke the old key; the fresh peer refuses it immediately
         # (cross-instance, no restart).
         revoke = self.client.post(
@@ -168,7 +168,7 @@ class RotationApiIntegrationTests(unittest.TestCase):
             headers={"X-API-Key": ADMIN_KEY, "X-Tenant-Id": "demo"},
         )
         self.assertEqual(revoke.status_code, 200, revoke.text)
-        self.assertEqual(self.client.get("/api/conversations", headers=headers).status_code, 401)
+        self.assertEqual(self.client.get("/api/review-cases", headers=headers).status_code, 401)
 
     def test_issue_audit_event_never_contains_secret(self) -> None:
         issued = self.client.post("/api/admin/keys", headers=self.admin).json()
@@ -210,7 +210,7 @@ class RotationApiIntegrationTests(unittest.TestCase):
         )
         self.assertEqual(
             self.client.get(
-                "/api/conversations", headers={"X-API-Key": secret, "X-Tenant-Id": "demo"}
+                "/api/review-cases", headers={"X-API-Key": secret, "X-Tenant-Id": "demo"}
             ).status_code,
             200,
         )
@@ -259,7 +259,7 @@ class RotationApiIntegrationTests(unittest.TestCase):
         )
         fresh_headers["X-API-Key"] = secret
         self.assertEqual(
-            self.client.get("/api/conversations", headers=fresh_headers).status_code,
+            self.client.get("/api/review-cases", headers=fresh_headers).status_code,
             401,
         )
 

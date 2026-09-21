@@ -75,12 +75,12 @@ class AutoRoutingTests(unittest.TestCase):
 
     def _turn(self, content: str, key: str, customer_ref: str | None = "CUST-1001") -> dict:
         conv = self.client.post(
-            "/api/conversations",
+            "/api/review-cases",
             json={"customer_name": "C", "customer_ref": customer_ref},
             headers=self.admin,
         ).json()
         return self.client.post(
-            f"/api/conversations/{conv['id']}/messages",
+            f"/api/review-cases/{conv['id']}/messages",
             json={"content": content},
             headers={**self.admin, "Idempotency-Key": key},
         ).json()

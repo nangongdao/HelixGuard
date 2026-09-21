@@ -34,7 +34,7 @@ from app.pagination import (
     encode_conversation_cursor,
     encode_message_cursor,
 )
-from app.routers.common import RouteDeps
+from app.routers.common import RouteDeps, legacy_route
 from app.schemas import (
     AssignConversationRequest,
     AuditEventOut,
@@ -75,7 +75,7 @@ _SEND_RECEIPT_MISMATCH = (
 def _operator_send_receipt(
     database: Any,
     principal: Principal,
-    conversation_id: str,
+    review_case_id: str,
     payload: OperatorMessageRequest,
     attachment_ids: list[str],
     idempotency_key: str | None,
@@ -89,7 +89,7 @@ def _operator_send_receipt(
     if not idempotency_key:
         return None
     stored = database.get_message_by_operator_key(
-        principal.tenant_id, conversation_id, idempotency_key
+        principal.tenant_id, review_case_id, idempotency_key
     )
     if stored is None:
         return None
@@ -111,7 +111,10 @@ def build_router(deps: RouteDeps) -> APIRouter:
     turn_worker = deps.turn_worker
     settings = deps.settings
 
-    @router.get("/api/conversations", response_model=list[ConversationOut])
+    @router.get("/api/review-cases", response_model=list[ConversationOut])
+    @legacy_route(
+        router, "/api/conversations", methods=["GET"], response_model=list[ConversationOut]
+    )
     def list_conversations(
         principal: Annotated[Principal, Depends(require_permission("conversation:read"))],
         response: Response,
@@ -298,7 +301,13 @@ def build_router(deps: RouteDeps) -> APIRouter:
         )
         return Response(status_code=204)
 
-    @router.get("/api/conversation-labels", response_model=list[ConversationLabelOut])
+    @router.get("/api/review-case-labels", response_model=list[ConversationLabelOut])
+    @legacy_route(
+        router,
+        "/api/conversation-labels",
+        methods=["GET"],
+        response_model=list[ConversationLabelOut],
+    )
     def list_conversation_labels(
         principal: Annotated[Principal, Depends(require_permission("conversation:read"))],
     ) -> list[ConversationLabelOut]:
@@ -308,7 +317,13 @@ def build_router(deps: RouteDeps) -> APIRouter:
         ]
 
     @router.post(
+        "/api/review-cases/bulk-actions",
+        response_model=BulkConversationActionOut,
+    )
+    @legacy_route(
+        router,
         "/api/conversations/bulk-actions",
+        methods=["POST"],
         response_model=BulkConversationActionOut,
     )
     def bulk_conversation_action(
@@ -330,7 +345,14 @@ def build_router(deps: RouteDeps) -> APIRouter:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         return BulkConversationActionOut(**result)
 
-    @router.post("/api/conversations", response_model=ConversationOut, status_code=201)
+    @router.post("/api/review-cases", response_model=ConversationOut, status_code=201)
+    @legacy_route(
+        router,
+        "/api/conversations",
+        methods=["POST"],
+        response_model=ConversationOut,
+        status_code=201,
+    )
     def create_conversation(
         payload: CreateConversationRequest,
         principal: Annotated[Principal, Depends(require_permission("conversation:write"))],
@@ -369,46 +391,64 @@ def build_router(deps: RouteDeps) -> APIRouter:
             logger.exception("webhook.emit_failed", extra={"event_type": "conversation.created"})
         return conversation_out(row)
 
-    @router.patch("/api/conversations/{conversation_id}", response_model=ConversationOut)
+    @router.patch("/api/review-cases/{review_case_id}", response_model=ConversationOut)
+    @legacy_route(
+        router,
+        "/api/conversations/{review_case_id}",
+        methods=["PATCH"],
+        response_model=ConversationOut,
+    )
     def update_conversation(
-        conversation_id: str,
+        review_case_id: str,
         payload: ConversationPriorityRequest,
         principal: Annotated[Principal, Depends(require_permission("operator:act"))],
     ) -> ConversationOut:
         return conversation_out(
             orchestrator.update_priority(
                 principal.tenant_id,
-                conversation_id,
+                review_case_id,
                 principal.actor_id,
                 payload.priority,
             )
         )
 
-    @router.put("/api/conversations/{conversation_id}/labels", response_model=ConversationOut)
+    @router.put("/api/review-cases/{review_case_id}/labels", response_model=ConversationOut)
+    @legacy_route(
+        router,
+        "/api/conversations/{review_case_id}/labels",
+        methods=["PUT"],
+        response_model=ConversationOut,
+    )
     def replace_conversation_labels(
-        conversation_id: str,
+        review_case_id: str,
         payload: ConversationLabelsRequest,
         principal: Annotated[Principal, Depends(require_permission("operator:act"))],
     ) -> ConversationOut:
         return conversation_out(
             orchestrator.replace_labels(
                 principal.tenant_id,
-                conversation_id,
+                review_case_id,
                 principal.actor_id,
                 payload.labels,
             )
         )
 
-    @router.get("/api/conversations/{conversation_id}", response_model=ConversationDetail)
+    @router.get("/api/review-cases/{review_case_id}", response_model=ConversationDetail)
+    @legacy_route(
+        router,
+        "/api/conversations/{review_case_id}",
+        methods=["GET"],
+        response_model=ConversationDetail,
+    )
     def get_conversation(
-        conversation_id: str,
+        review_case_id: str,
         principal: Annotated[Principal, Depends(require_permission("conversation:read"))],
         response: Response,
         message_limit: Annotated[int | None, Query(ge=1, le=500)] = None,
         message_cursor: Annotated[str | None, Query(max_length=512)] = None,
         messages_before: Annotated[bool, Query()] = False,
     ) -> ConversationDetail:
-        conversation = database.get_conversation(principal.tenant_id, conversation_id)
+        conversation = database.get_conversation(principal.tenant_id, review_case_id)
         if not conversation:
             raise LookupError("Conversation not found")
         try:
@@ -419,7 +459,7 @@ def build_router(deps: RouteDeps) -> APIRouter:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         messages = database.list_messages(
             principal.tenant_id,
-            conversation_id,
+            review_case_id,
             limit=message_limit,
             cursor=decoded_message_cursor,
             before=messages_before,
@@ -441,13 +481,13 @@ def build_router(deps: RouteDeps) -> APIRouter:
                 response.headers["X-Next-Cursor"] = encode_message_cursor(
                     str(last["created_at"]), int(last["seq"])
                 )
-        pending = database.get_pending_task(principal.tenant_id, conversation_id)
+        pending = database.get_pending_task(principal.tenant_id, review_case_id)
         return ConversationDetail(
             conversation=conversation_out(conversation),
             messages=[message_out(item) for item in messages],
             audit_events=[
                 AuditEventOut(**item)
-                for item in database.list_audit(principal.tenant_id, conversation_id)
+                for item in database.list_audit(principal.tenant_id, review_case_id)
             ],
             summaries=[
                 ConversationSummaryOut(
@@ -457,7 +497,7 @@ def build_router(deps: RouteDeps) -> APIRouter:
                     updated_at=item["updated_at"],
                 )
                 for item in database.list_conversation_summaries(
-                    principal.tenant_id, conversation_id
+                    principal.tenant_id, review_case_id
                 )
             ],
             # ROADMAP H03: the active pending clarification task, if any. The
@@ -479,18 +519,24 @@ def build_router(deps: RouteDeps) -> APIRouter:
         )
 
     @router.get(
-        "/api/conversations/{conversation_id}/messages",
+        "/api/review-cases/{review_case_id}/messages",
         response_model=list[MessageOut],
     )
+    @legacy_route(
+        router,
+        "/api/conversations/{review_case_id}/messages",
+        methods=["GET"],
+        response_model=list,
+    )
     def list_conversation_messages(
-        conversation_id: str,
+        review_case_id: str,
         principal: Annotated[Principal, Depends(require_permission("conversation:read"))],
         response: Response,
         limit: Annotated[int, Query(ge=1, le=200)] = 50,
         cursor: Annotated[str | None, Query(max_length=512)] = None,
         before: Annotated[bool, Query()] = False,
     ) -> list[MessageOut]:
-        if not database.get_conversation(principal.tenant_id, conversation_id):
+        if not database.get_conversation(principal.tenant_id, review_case_id):
             raise LookupError("Conversation not found")
         try:
             decoded_cursor = decode_message_cursor(cursor) if cursor else None
@@ -498,7 +544,7 @@ def build_router(deps: RouteDeps) -> APIRouter:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         rows = database.list_messages(
             principal.tenant_id,
-            conversation_id,
+            review_case_id,
             limit=limit + 1,
             cursor=decoded_cursor,
             before=before,
@@ -521,44 +567,62 @@ def build_router(deps: RouteDeps) -> APIRouter:
             )
         return [message_out(item) for item in visible_rows]
 
-    @router.post("/api/conversations/{conversation_id}/claim", response_model=ConversationOut)
+    @router.post("/api/review-cases/{review_case_id}/claim", response_model=ConversationOut)
+    @legacy_route(
+        router,
+        "/api/conversations/{review_case_id}/claim",
+        methods=["POST"],
+        response_model=ConversationOut,
+    )
     def claim_conversation(
-        conversation_id: str,
+        review_case_id: str,
         principal: Annotated[Principal, Depends(require_permission("operator:act"))],
     ) -> ConversationOut:
         return conversation_out(
             orchestrator.claim(
                 principal.tenant_id,
-                conversation_id,
+                review_case_id,
                 principal.actor_id,
                 force=principal.role in {Role.ADMIN, Role.SUPERVISOR},
             )
         )
 
-    @router.post("/api/conversations/{conversation_id}/release", response_model=ConversationOut)
+    @router.post("/api/review-cases/{review_case_id}/release", response_model=ConversationOut)
+    @legacy_route(
+        router,
+        "/api/conversations/{review_case_id}/release",
+        methods=["POST"],
+        response_model=ConversationOut,
+    )
     def release_conversation(
-        conversation_id: str,
+        review_case_id: str,
         principal: Annotated[Principal, Depends(require_permission("operator:act"))],
     ) -> ConversationOut:
         return conversation_out(
             orchestrator.release_claim(
                 principal.tenant_id,
-                conversation_id,
+                review_case_id,
                 principal.actor_id,
                 force=principal.role in {Role.ADMIN, Role.SUPERVISOR},
             )
         )
 
-    @router.post("/api/conversations/{conversation_id}/assign", response_model=ConversationOut)
+    @router.post("/api/review-cases/{review_case_id}/assign", response_model=ConversationOut)
+    @legacy_route(
+        router,
+        "/api/conversations/{review_case_id}/assign",
+        methods=["POST"],
+        response_model=ConversationOut,
+    )
     def assign_conversation(
-        conversation_id: str,
+        review_case_id: str,
         payload: AssignConversationRequest,
         principal: Annotated[Principal, Depends(require_permission("operator:act"))],
     ) -> ConversationOut:
         return conversation_out(
             orchestrator.assign(
                 principal.tenant_id,
-                conversation_id,
+                review_case_id,
                 principal.actor_id,
                 payload.assignee_id,
                 force=principal.role in {Role.ADMIN, Role.SUPERVISOR},
@@ -574,21 +638,27 @@ def build_router(deps: RouteDeps) -> APIRouter:
     build_turn_jobs_router(deps, router)
     build_collaboration_router(deps, router)
 
-    @router.post("/api/conversations/{conversation_id}/accept", response_model=ConversationOut)
+    @router.post("/api/review-cases/{review_case_id}/accept", response_model=ConversationOut)
+    @legacy_route(
+        router,
+        "/api/conversations/{review_case_id}/accept",
+        methods=["POST"],
+        response_model=ConversationOut,
+    )
     def accept_conversation(
-        conversation_id: str,
+        review_case_id: str,
         principal: Annotated[Principal, Depends(require_permission("operator:act"))],
     ) -> ConversationOut:
         row = orchestrator.handoff(
             principal.tenant_id,
-            conversation_id,
+            review_case_id,
             principal.actor_id,
             can_override=principal.role in {Role.ADMIN, Role.SUPERVISOR},
         )
         return conversation_out(row)
 
     @router.post(
-        "/api/conversations/{conversation_id}/operator-messages",
+        "/api/review-cases/{review_case_id}/operator-messages",
         response_model=MessageOut,
         summary="Send an operator reply (Idempotency-Key honoured)",
         description=(
@@ -598,9 +668,16 @@ def build_router(deps: RouteDeps) -> APIRouter:
             "X-Idempotent-Replay: true instead of creating a second reply."
         ),
     )
+    @legacy_route(
+        router,
+        "/api/conversations/{review_case_id}/operator-messages",
+        methods=["POST"],
+        response_model=MessageOut,
+        summary="Send an operator reply (Idempotency-Key honoured)",
+    )
     def operator_message(
         response: Response,
-        conversation_id: str,
+        review_case_id: str,
         payload: OperatorMessageRequest,
         principal: Annotated[Principal, Depends(require_permission("operator:act"))],
         idempotency_key: Annotated[
@@ -615,7 +692,7 @@ def build_router(deps: RouteDeps) -> APIRouter:
             # reply is stored.
             try:
                 attachment_ids = services.attachments.validate_for_message(
-                    principal.tenant_id, conversation_id, payload.attachment_ids
+                    principal.tenant_id, review_case_id, payload.attachment_ids
                 )
             except LookupError as exc:
                 raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -625,7 +702,7 @@ def build_router(deps: RouteDeps) -> APIRouter:
         # session, bounced process) must resolve to the message it already
         # produced rather than send the customer a second copy.
         replay = _operator_send_receipt(
-            database, principal, conversation_id, payload, attachment_ids, idempotency_key
+            database, principal, review_case_id, payload, attachment_ids, idempotency_key
         )
         if replay is not None:
             response.headers["X-Idempotent-Replay"] = "true"
@@ -634,7 +711,7 @@ def build_router(deps: RouteDeps) -> APIRouter:
         try:
             message = orchestrator.operator_reply(
                 principal.tenant_id,
-                conversation_id,
+                review_case_id,
                 principal.actor_id,
                 payload.content,
                 can_override=principal.role in {Role.ADMIN, Role.SUPERVISOR},
@@ -648,7 +725,7 @@ def build_router(deps: RouteDeps) -> APIRouter:
             if not idempotency_key:
                 raise
             winner = _operator_send_receipt(
-                database, principal, conversation_id, payload, attachment_ids, idempotency_key
+                database, principal, review_case_id, payload, attachment_ids, idempotency_key
             )
             if winner is None:
                 raise
@@ -659,56 +736,80 @@ def build_router(deps: RouteDeps) -> APIRouter:
         return MessageOut(**message)
 
     @router.post(
-        "/api/conversations/{conversation_id}/notes",
+        "/api/review-cases/{review_case_id}/notes",
+        response_model=MessageOut,
+    )
+    @legacy_route(
+        router,
+        "/api/conversations/{review_case_id}/notes",
+        methods=["POST"],
         response_model=MessageOut,
     )
     def internal_note(
-        conversation_id: str,
+        review_case_id: str,
         payload: InternalNoteRequest,
         principal: Annotated[Principal, Depends(require_permission("operator:act"))],
     ) -> MessageOut:
         return MessageOut(
             **orchestrator.add_internal_note(
                 principal.tenant_id,
-                conversation_id,
+                review_case_id,
                 principal.actor_id,
                 payload.content,
                 reply_to=payload.reply_to,
             )
         )
 
-    @router.post("/api/conversations/{conversation_id}/resolve", response_model=ConversationOut)
+    @router.post("/api/review-cases/{review_case_id}/resolve", response_model=ConversationOut)
+    @legacy_route(
+        router,
+        "/api/conversations/{review_case_id}/resolve",
+        methods=["POST"],
+        response_model=ConversationOut,
+    )
     def resolve_conversation(
-        conversation_id: str,
+        review_case_id: str,
         principal: Annotated[Principal, Depends(require_permission("operator:act"))],
     ) -> ConversationOut:
         row = orchestrator.resolve(
             principal.tenant_id,
-            conversation_id,
+            review_case_id,
             principal.actor_id,
             can_override=principal.role in {Role.ADMIN, Role.SUPERVISOR},
         )
         return conversation_out(row)
 
-    @router.post("/api/conversations/{conversation_id}/reopen", response_model=ConversationOut)
+    @router.post("/api/review-cases/{review_case_id}/reopen", response_model=ConversationOut)
+    @legacy_route(
+        router,
+        "/api/conversations/{review_case_id}/reopen",
+        methods=["POST"],
+        response_model=ConversationOut,
+    )
     def reopen_conversation(
-        conversation_id: str,
+        review_case_id: str,
         principal: Annotated[Principal, Depends(require_permission("operator:act"))],
     ) -> ConversationOut:
         return conversation_out(
-            orchestrator.reopen(principal.tenant_id, conversation_id, principal.actor_id)
+            orchestrator.reopen(principal.tenant_id, review_case_id, principal.actor_id)
         )
 
-    @router.post("/api/conversations/{conversation_id}/feedback", response_model=FeedbackOut)
+    @router.post("/api/review-cases/{review_case_id}/feedback", response_model=FeedbackOut)
+    @legacy_route(
+        router,
+        "/api/conversations/{review_case_id}/feedback",
+        methods=["POST"],
+        response_model=FeedbackOut,
+    )
     def submit_feedback(
-        conversation_id: str,
+        review_case_id: str,
         payload: FeedbackRequest,
         principal: Annotated[
             Principal,
             Depends(require_any_permission("conversation:read", "conversation:write")),
         ],
     ) -> FeedbackOut:
-        if not database.get_message(principal.tenant_id, conversation_id, payload.message_id):
+        if not database.get_message(principal.tenant_id, review_case_id, payload.message_id):
             raise LookupError("Message not found")
         # Read the previous rating *before* persisting so the quality
         # aggregate can compute the correct delta (Phase 21.1).
@@ -721,7 +822,7 @@ def build_router(deps: RouteDeps) -> APIRouter:
         )
         feedback = database.record_feedback(
             principal.tenant_id,
-            conversation_id,
+            review_case_id,
             payload.message_id,
             principal.actor_id,
             payload.rating,
@@ -729,7 +830,7 @@ def build_router(deps: RouteDeps) -> APIRouter:
         )
         database.audit(
             principal.tenant_id,
-            conversation_id,
+            review_case_id,
             principal.actor_id,
             "message.feedback_recorded",
             {"message_id": payload.message_id, "rating": payload.rating},
@@ -749,7 +850,7 @@ def build_router(deps: RouteDeps) -> APIRouter:
                     new_rating=payload.rating,
                     previous_rating=previous_rating,
                     intent=_message_intent_for_quality(
-                        database, principal.tenant_id, conversation_id, payload.message_id
+                        database, principal.tenant_id, review_case_id, payload.message_id
                     ),
                     prompt_version=_message_prompt_version_for_quality(
                         database, principal.tenant_id, payload.message_id
@@ -769,11 +870,11 @@ def build_router(deps: RouteDeps) -> APIRouter:
         if services.ai_governance is not None and payload.rating == -1 and previous_rating != -1:
             try:
                 rated_message = database.get_message(
-                    principal.tenant_id, conversation_id, payload.message_id
+                    principal.tenant_id, review_case_id, payload.message_id
                 )
                 services.ai_governance.ingest_online_feedback(
                     tenant_id=principal.tenant_id,
-                    conversation_id=conversation_id,
+                    conversation_id=review_case_id,
                     source="negative_rating",
                     payload={
                         "message_id": payload.message_id,
@@ -787,16 +888,22 @@ def build_router(deps: RouteDeps) -> APIRouter:
         return FeedbackOut(**feedback)
 
     @router.get(
-        "/api/conversations/{conversation_id}/threads",
+        "/api/review-cases/{review_case_id}/threads",
+        response_model=ConversationThreadsOut,
+    )
+    @legacy_route(
+        router,
+        "/api/conversations/{review_case_id}/threads",
+        methods=["GET"],
         response_model=ConversationThreadsOut,
     )
     def list_conversation_threads(
-        conversation_id: str,
+        review_case_id: str,
         principal: Annotated[Principal, Depends(require_permission("conversation:read"))],
     ) -> ConversationThreadsOut:
-        if not database.get_conversation(principal.tenant_id, conversation_id):
+        if not database.get_conversation(principal.tenant_id, review_case_id):
             raise LookupError("Conversation not found")
-        notes = database.list_notes(principal.tenant_id, conversation_id)
+        notes = database.list_notes(principal.tenant_id, review_case_id)
         by_id = {note["id"]: note for note in notes}
         roots: list[dict] = []
         replies_by_root: dict[str, list[dict]] = {}
@@ -820,9 +927,10 @@ def build_router(deps: RouteDeps) -> APIRouter:
         ]
         return ConversationThreadsOut(threads=threads)
 
-    @router.get("/api/conversations/{conversation_id}/events")
+    @router.get("/api/review-cases/{review_case_id}/events")
+    @legacy_route(router, "/api/conversations/{review_case_id}/events", methods=["GET"])
     async def stream_conversation_events(
-        conversation_id: str,
+        review_case_id: str,
         request: Request,
         principal: Annotated[Principal, Depends(require_permission("conversation:read"))],
         timeout: Annotated[int, Query(ge=5, le=120)] = 45,
@@ -838,11 +946,11 @@ def build_router(deps: RouteDeps) -> APIRouter:
 
         async def event_stream() -> AsyncIterator[str]:
             yield "retry: 2000\n\n"
-            last = database.conversation_revision(principal.tenant_id, conversation_id)
+            last = database.conversation_revision(principal.tenant_id, review_case_id)
             deadline = perf_counter() + timeout
             yield (
                 "event: snapshot\ndata: "
-                f"{json.dumps({'conversation_id': conversation_id, 'revision': last}, ensure_ascii=False)}\n\n"
+                f"{json.dumps({'conversation_id': review_case_id, 'revision': last}, ensure_ascii=False)}\n\n"
             )
             while True:
                 if turn_worker.is_stopping:
@@ -850,10 +958,10 @@ def build_router(deps: RouteDeps) -> APIRouter:
                     break
                 if await request.is_disconnected():
                     break
-                current = database.conversation_revision(principal.tenant_id, conversation_id)
+                current = database.conversation_revision(principal.tenant_id, review_case_id)
                 if current != last:
                     payload = {
-                        "conversation_id": conversation_id,
+                        "conversation_id": review_case_id,
                         "revision": current,
                         "changed": current != "missing",
                     }

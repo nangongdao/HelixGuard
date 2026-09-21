@@ -128,16 +128,16 @@ def main() -> None:
     seed_tag = f"thread-{int(time.time())}"
 
     # Seed a conversation whose transcript outgrows the tail page.
-    conversation = api_post("/api/conversations", {"customer_name": seed_tag, "channel": "web"})
+    conversation = api_post("/api/review-cases", {"customer_name": seed_tag, "channel": "web"})
     conv_id = conversation["id"]
     for index in range(SEED_TURNS):
         api_post(
-            f"/api/conversations/{conv_id}/messages",
+            f"/api/review-cases/{conv_id}/messages",
             {"content": f"lazy-message-{index:04d}"},
             headers={"Idempotency-Key": f"lazy-{index:04d}-{conv_id[-8:]}"},
         )
     # Expected transcript straight from the API (unlimited detail).
-    expected = api_get_detail(f"/api/conversations/{conv_id}")
+    expected = api_get_detail(f"/api/review-cases/{conv_id}")
     expected_total = len(expected)
     expected_first = expected[0]["content"]
     expected_last = expected[-1]["content"]
