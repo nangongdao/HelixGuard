@@ -104,7 +104,7 @@ export function KnowledgeArticle({ article, canWrite, onAction }) {
  */
 export function KnowledgeEditor({ editor, dispatch, onSubmit }) {
   return (
-    <aside className="knowledge-editor" hidden={!editor} aria-label="知识草稿编辑器">
+    <aside className="knowledge-editor" hidden={!editor} aria-label="策略草稿编辑器">
       {editor && <KnowledgeEditorForm editor={editor} dispatch={dispatch} onSubmit={onSubmit} />}
     </aside>
   );
@@ -133,7 +133,7 @@ function KnowledgeEditorForm({ editor, dispatch, onSubmit }) {
       <header className="knowledge-editor-heading">
         <div>
           <span className="section-kicker">EDITOR</span>
-          <h3 id={EDITOR_IDS.heading}>{editing ? "编辑知识文章" : "新建知识草稿"}</h3>
+          <h3 id={EDITOR_IDS.heading}>{editing ? "编辑策略文章" : "新建策略草稿"}</h3>
         </div>
         <button
           className="icon-button"

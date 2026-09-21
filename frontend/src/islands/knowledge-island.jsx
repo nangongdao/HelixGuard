@@ -169,9 +169,9 @@ export function KnowledgeIsland() {
   return (
     <div className="knowledge-island">
       <KnowledgeSummary summary={summary} canWrite={canWrite} />
-      <div className="knowledge-toolbar" aria-label="知识文章筛选">
+      <div className="knowledge-toolbar" aria-label="策略文章筛选">
         <label className="knowledge-search">
-          <span className="sr-only">搜索知识文章</span>
+          <span className="sr-only">搜索策略文章</span>
           <input
             type="search"
             maxLength={160}
@@ -217,16 +217,16 @@ export function KnowledgeIsland() {
       </div>
       {!canWrite && (
         <p className="knowledge-read-only">
-          当前角色可检索已发布文章；草稿和审核操作仅对知识管理员开放。
+          当前角色可检索已发布文章；草稿和审核操作仅对策略管理员开放。
         </p>
       )}
       <div className="knowledge-layout">
-        <section className="knowledge-list-panel" aria-label="知识文章">
+        <section className="knowledge-list-panel" aria-label="策略文章">
           <div className="knowledge-list-status" role="status">
             {!filtered.length
               ? articles.length
                 ? "没有符合当前筛选条件的文章。"
-                : "当前租户还没有知识文章。"
+                : "当前租户还没有策略文章。"
               : ""}
           </div>
           <div className="knowledge-list" role="list">

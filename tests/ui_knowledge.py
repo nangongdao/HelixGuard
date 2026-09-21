@@ -71,8 +71,8 @@ def main() -> None:
     http_errors: list[str] = []
     failed_requests: list[str] = []
     run_id = uuid4().hex[:8]
-    title = f"浏览器知识草稿 {run_id}"
-    revised_content = f"这是通过真实浏览器更新的知识正文，运行标识 {run_id}。"
+    title = f"浏览器策略草稿 {run_id}"
+    revised_content = f"这是通过真实浏览器更新的策略正文，运行标识 {run_id}。"
 
     with sync_playwright() as playwright:
         try:
@@ -95,7 +95,7 @@ def main() -> None:
         expect(page.locator("#knowledgeEditor")).to_be_visible()
         page.locator("#knowledgeTitle").fill(title)
         page.locator("#knowledgeContent").fill(
-            "这是一条等待审核的知识正文，长度满足服务端验证要求。"
+            "这是一条等待审核的策略正文，长度满足服务端验证要求。"
         )
         page.locator("#knowledgeTags").fill(f"browser, {run_id}, 配送")
         page.locator("#knowledgeCategory").fill("browser-acceptance")
@@ -123,7 +123,7 @@ def main() -> None:
         expect(row).to_be_visible()
 
         row.get_by_role("button", name="编辑").click()
-        expect(page.locator("#knowledgeEditorTitle")).to_have_text("编辑知识文章")
+        expect(page.locator("#knowledgeEditorTitle")).to_have_text("编辑策略文章")
         page.locator("#knowledgeContent").fill(revised_content)
         with page.expect_response(
             lambda response: (

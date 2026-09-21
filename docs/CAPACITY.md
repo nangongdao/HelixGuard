@@ -32,7 +32,7 @@
   (§18.5 gate)。用例:队列 offset 首屏/深页、队列 keyset 续页、消息 keyset
   前向/后向、消息 FTS 搜索(全匹配最坏情形 + 唯一索引词选择性检索两档)。
 - turn 分段与 TTFT:见 `docs/PERF_NOTES.md`(18.2a/18.2c),本地开发机
-  Windows 11 单机 SQLite,20 个确定性知识 turn。
+  Windows 11 单机 SQLite,20 个确定性策略 turn。
 - 生产验收环境(1.3):4C8G 单实例 + PostgreSQL + Redis,`DATABASE_BACKEND=
   postgresql`;热表 fillfactor/autovacuum 参数按 DEPLOYMENT.md §PostgreSQL
   Tuning 落位。
@@ -282,7 +282,7 @@ claim 不再被 peer 翻回 queued)、Redis 队列孤儿补偿(`reconciled`)、c
 
 1. **队列积压**:`QUEUE_DEPTH_THRESHOLD`/`TENANT_CONCURRENT_TURN_CAP` 背压 → 429;增加 `TURN_WORKER_CONCURRENCY`(单实例多 worker,SQLite 内)。
 2. **横向扩展**:SQLite 限单实例;切 `DATABASE_BACKEND=postgresql` + Redis 队列(`QUEUE_BACKEND=redis`)后多实例。
-3. **读放大**:知识/消息 FTS + 租户缓存(`CACHE_MAX_ENTRIES`)缓解。
+3. **读放大**:策略/消息 FTS + 租户缓存(`CACHE_MAX_ENTRIES`)缓解。
 
 ## 7. 容量测试
 

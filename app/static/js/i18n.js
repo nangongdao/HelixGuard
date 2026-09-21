@@ -86,7 +86,7 @@ const ZH_CN = {
   // misc
   "misc.vip_high_risk": "VIP, 高风险",
   "misc.supervisor": "主管",
-  "misc.internal_knowledge": "内部知识",
+  "misc.internal_knowledge": "内部策略",
   "misc.tool_execution": "工具执行",
   "misc.risk_labels": "风险标签",
   "misc.quality_gate": "质量门",

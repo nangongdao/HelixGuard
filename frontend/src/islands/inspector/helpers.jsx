@@ -16,7 +16,7 @@ export const INSPECTOR_EVENTS = Object.freeze({
   // The quality panel is island-rendered but legacy-fed: quality-panel.js
   // publishes the built panel HTML on every loadQualityPanel (island branch).
   QUALITY: "helix-inspector-quality",
-  // 生成知识草稿 buttons inside the published HTML delegate the write back
+  // 生成策略草稿 buttons inside the published HTML delegate the write back
   // to legacy (createKnowledgeDraftFromFeedback) so api()/toast stay there.
   QUALITY_DRAFT: "helix-quality-draft",
   // The note composer is island-owned; the write + completion feedback stay

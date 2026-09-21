@@ -10,7 +10,7 @@ drives the quality surface end-to-end in island mode:
   refetches again once staleTime expires (legacy cadence preserved);
 - the inspector 质量 tab — island-rendered, legacy-fed — shows the aggregates
   published via helix-inspector-quality (it used to be an empty div), the hidden
-  legacy inspector containers stay untouched, and a 生成知识草稿 click travels
+  legacy inspector containers stay untouched, and a 生成策略草稿 click travels
   the helix-quality-draft bridge to a real knowledge-draft POST.
 
 Seed data: one conversation, one customer turn (deterministic fallback agent) and
@@ -209,7 +209,7 @@ def main() -> int:
                 "() => document.getElementById('qualityBuckets').innerHTML === ''"
             )
 
-            # ── 生成知识草稿 bridges to the real legacy write ──
+            # ── 生成策略草稿 bridges to the real legacy write ──
             with page.expect_response(
                 lambda r: "/knowledge-draft" in r.url and r.request.method == "POST"
             ) as draft_info:

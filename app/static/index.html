@@ -491,7 +491,7 @@
                   </header>
                   <div id="qualityBuckets" class="quality-buckets" aria-live="polite"></div>
                   <div class="quality-gaps-block">
-                    <h4>知识缺口</h4>
+                    <h4>策略缺口</h4>
                     <div id="qualityGaps" class="quality-gaps" aria-live="polite"></div>
                   </div>
                 </section>
@@ -551,7 +551,7 @@
              the React island renders into this separate container. -->
         <div id="qualityReactIsland" class="quality-react-island"></div>
         <div class="quality-gaps-block">
-          <h4>知识缺口</h4>
+          <h4>策略缺口</h4>
           <div id="qualityViewGaps" class="quality-gaps" aria-live="polite"></div>
         </div>
       </section>
@@ -577,10 +577,10 @@
              dual-track period; the React island renders into this
              separate container and takes over article list rendering. -->
         <div id="knowledgeReactIsland" class="knowledge-react-island"></div>
-        <div class="knowledge-toolbar" aria-label="知识文章筛选">
+        <div class="knowledge-toolbar" aria-label="策略文章筛选">
           <label class="knowledge-search">
             <svg class="icon" aria-hidden="true"><use href="/static/icons.svg?v=1.4.0#search" /></svg>
-            <span class="sr-only">搜索知识文章</span>
+            <span class="sr-only">搜索策略文章</span>
             <input id="knowledgeSearch" type="search" maxlength="160" autocomplete="off" placeholder="搜索标题、正文、标签或来源" />
           </label>
           <label class="knowledge-filter">
@@ -609,18 +609,18 @@
           </label>
           <span id="knowledgeResultCount" class="knowledge-result-count"></span>
         </div>
-        <p id="knowledgeReadOnly" class="knowledge-read-only" hidden>当前角色可检索已发布文章；草稿和审核操作仅对知识管理员开放。</p>
+        <p id="knowledgeReadOnly" class="knowledge-read-only" hidden>当前角色可检索已发布文章；草稿和审核操作仅对策略管理员开放。</p>
         <div class="knowledge-layout">
-          <section class="knowledge-list-panel" aria-label="知识文章">
+          <section class="knowledge-list-panel" aria-label="策略文章">
             <div id="knowledgeListStatus" class="knowledge-list-status" role="status">正在加载文章…</div>
             <div id="knowledgeList" class="knowledge-list" role="list"></div>
           </section>
-          <aside id="knowledgeEditor" class="knowledge-editor" hidden aria-label="知识草稿编辑器">
+          <aside id="knowledgeEditor" class="knowledge-editor" hidden aria-label="策略草稿编辑器">
             <form id="knowledgeForm">
               <header class="knowledge-editor-heading">
                 <div>
                   <span class="section-kicker">EDITOR</span>
-                  <h3 id="knowledgeEditorTitle">新建知识草稿</h3>
+                  <h3 id="knowledgeEditorTitle">新建策略草稿</h3>
                 </div>
                 <button id="cancelKnowledgeEdit" class="icon-button" type="button" title="关闭编辑器" aria-label="关闭编辑器">
                   <svg class="icon"><use href="/static/icons.svg?v=1.4.0#x" /></svg>

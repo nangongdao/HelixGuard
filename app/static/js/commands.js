@@ -18,7 +18,7 @@
 export const VIEW_COMMANDS = [
   { id: "view.workspace", group: "视图", label: "工作台", keywords: ["workspace", "队列", "审核单"], run: "view:workspace" },
   { id: "view.quality", group: "视图", label: "质量看板", keywords: ["quality", "质量"], run: "view:quality" },
-  { id: "view.knowledge", group: "视图", label: "策略库", keywords: ["knowledge", "知识"], run: "view:knowledge" },
+  { id: "view.knowledge", group: "视图", label: "策略库", keywords: ["knowledge", "策略"], run: "view:knowledge" },
   { id: "view.admin", group: "视图", label: "管理", keywords: ["admin", "管理"], run: "view:admin" },
   { id: "view.settings", group: "视图", label: "设置", keywords: ["settings", "设置"], run: "view:settings" },
 ];

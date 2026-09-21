@@ -126,7 +126,7 @@ describe("validateKnowledgeDraft parity with legacy", () => {
   });
 
   it("keeps the legacy copy", () => {
-    expect(validateKnowledgeDraft({ ...base, tags: [] }).message).toBe("请至少填写一个知识标签");
+    expect(validateKnowledgeDraft({ ...base, tags: [] }).message).toBe("请至少填写一个策略标签");
     expect(validateKnowledgeDraft({ ...base, title: "短" }).message).toBe("标题至少需要 2 个字符");
     expect(validateKnowledgeDraft({ ...base, content: "太短" }).message).toBe("正文至少需要 10 个字符");
   });
@@ -154,7 +154,7 @@ describe("KnowledgeIsland editor surface", () => {
     expect(document.getElementById(EDITOR_IDS.tags).value).toBe("refund, policy");
     expect(document.getElementById(EDITOR_IDS.category).value).toBe("billing");
     expect(document.getElementById(EDITOR_IDS.language).value).toBe("zh");
-    expect(screen.getByRole("heading", { name: "编辑知识文章" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "编辑策略文章" })).toBeTruthy();
     expect(document.activeElement.id).toBe(EDITOR_IDS.title);
   });
 
@@ -163,7 +163,7 @@ describe("KnowledgeIsland editor surface", () => {
     act(() => {
       window.dispatchEvent(new CustomEvent(KNOWLEDGE_EVENTS.NEW));
     });
-    expect(screen.getByRole("heading", { name: "新建知识草稿" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "新建策略草稿" })).toBeTruthy();
     expect(document.getElementById(EDITOR_IDS.title).value).toBe("");
     expect(document.getElementById(EDITOR_IDS.category).value).toBe("general");
   });
@@ -183,7 +183,7 @@ describe("KnowledgeIsland editor surface", () => {
     await renderIsland([makeArticle({ status: "published" })], "viewer");
     expect(screen.queryByRole("button", { name: "编辑" })).toBeNull();
     expect(document.querySelector(".knowledge-editor").hidden).toBe(true);
-    expect(screen.getByText(/仅对知识管理员开放/)).toBeTruthy();
+    expect(screen.getByText(/仅对策略管理员开放/)).toBeTruthy();
   });
 
   it("requests inactive articles for a writer", async () => {
@@ -231,7 +231,7 @@ describe("KnowledgeIsland bridge contract", () => {
     expect(
       dispatchSpy.mock.calls.map(([ev]) => ev).some((ev) => ev.type === KNOWLEDGE_EVENTS.SAVE),
     ).toBe(false);
-    expect(screen.getByRole("alert").textContent).toBe("请至少填写一个知识标签");
+    expect(screen.getByRole("alert").textContent).toBe("请至少填写一个策略标签");
     expect(document.activeElement.id).toBe(EDITOR_IDS.tags);
   });
 

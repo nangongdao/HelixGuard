@@ -89,7 +89,7 @@ export function renderKnowledgeArticles() {
     if (ctx.els.knowledgeListStatus) {
       ctx.els.knowledgeListStatus.textContent = ctx.state.knowledgeArticles.length
         ? "没有符合当前筛选条件的文章。"
-        : "当前租户还没有知识文章。";
+        : "当前租户还没有策略文章。";
     }
     return;
   }
@@ -197,7 +197,7 @@ export async function loadKnowledgeView({ force = false } = {}) {
     ctx.state.knowledgeLoadedAt = 0;
     if (ctx.els.knowledgeList) ctx.els.knowledgeList.innerHTML = "";
     if (ctx.els.knowledgeListStatus) {
-      ctx.els.knowledgeListStatus.textContent = `知识文章加载失败：${error.message || error}`;
+      ctx.els.knowledgeListStatus.textContent = `策略文章加载失败：${error.message || error}`;
     }
   } finally {
     if (ctx.els.knowledgeList) ctx.els.knowledgeList.setAttribute("aria-busy", "false");
@@ -209,7 +209,7 @@ export function resetKnowledgeEditor({ close = false } = {}) {
   // eslint-disable-next-line no-multi-assign
   ctx.els.knowledgeForm?.reset();
   if (ctx.els.knowledgeCategory) ctx.els.knowledgeCategory.value = "general";
-  if (ctx.els.knowledgeEditorTitle) ctx.els.knowledgeEditorTitle.textContent = "新建知识草稿";
+  if (ctx.els.knowledgeEditorTitle) ctx.els.knowledgeEditorTitle.textContent = "新建策略草稿";
   if (ctx.els.knowledgeSaveLabel) ctx.els.knowledgeSaveLabel.textContent = "保存草稿";
   if (ctx.els.knowledgeEditor) ctx.els.knowledgeEditor.hidden = close;
 }
@@ -226,7 +226,7 @@ export function editKnowledgeArticle(articleId) {
   if (ctx.els.knowledgeCategory) ctx.els.knowledgeCategory.value = article.category;
   if (ctx.els.knowledgeLanguage) ctx.els.knowledgeLanguage.value = article.language || "";
   if (ctx.els.knowledgeSource) ctx.els.knowledgeSource.value = article.source_url;
-  if (ctx.els.knowledgeEditorTitle) ctx.els.knowledgeEditorTitle.textContent = "编辑知识文章";
+  if (ctx.els.knowledgeEditorTitle) ctx.els.knowledgeEditorTitle.textContent = "编辑策略文章";
   if (ctx.els.knowledgeSaveLabel) ctx.els.knowledgeSaveLabel.textContent = "保存修改";
   if (ctx.els.knowledgeEditor) ctx.els.knowledgeEditor.hidden = false;
   ctx.els.knowledgeTitle?.focus({ preventScroll: true });
@@ -244,7 +244,7 @@ export async function saveKnowledgeArticle(event) {
     language: ctx.els.knowledgeLanguage?.value,
   });
   if (!payload.tags.length) {
-    ctx.showToast("请至少填写一个知识标签", true);
+    ctx.showToast("请至少填写一个策略标签", true);
     ctx.els.knowledgeTags?.focus();
     return;
   }
@@ -273,9 +273,9 @@ export async function saveKnowledgeArticle(event) {
     resetKnowledgeEditor({ close: true });
     ctx.state.knowledgeLoadedAt = 0;
     await loadKnowledgeView({ force: true });
-    ctx.showToast(editingId ? "知识文章已更新" : "知识草稿已创建");
+    ctx.showToast(editingId ? "策略文章已更新" : "策略草稿已创建");
   } catch (error) {
-    ctx.showToast(`知识文章保存失败：${error.message || error}`, true);
+    ctx.showToast(`策略文章保存失败：${error.message || error}`, true);
   } finally {
     ctx.setFormBusy(ctx.els.knowledgeForm, false);
   }
@@ -292,9 +292,9 @@ export async function saveKnowledgeFromIsland({ payload, editingId } = {}) {
     await ctx.api(path, { method: editingId ? "PATCH" : "POST", body: JSON.stringify(payload) });
     ok = true;
     ctx.state.knowledgeLoadedAt = 0;
-    ctx.showToast(editingId ? "知识文章已更新" : "知识草稿已创建");
+    ctx.showToast(editingId ? "策略文章已更新" : "策略草稿已创建");
   } catch (error) {
-    ctx.showToast(`知识文章保存失败：${error.message || error}`, true);
+    ctx.showToast(`策略文章保存失败：${error.message || error}`, true);
   } finally {
     window.dispatchEvent(new CustomEvent(KNOWLEDGE_EVENTS.SAVED, { detail: { ok } }));
   }
@@ -302,7 +302,7 @@ export async function saveKnowledgeFromIsland({ payload, editingId } = {}) {
 
 export async function reviewKnowledgeArticle(articleId, action) {
   if (!canWriteKnowledge() || !["publish", "retire"].includes(action)) return;
-  if (action === "retire" && !window.confirm("确认停用该知识文章？停用后将不再参与检索。")) {
+  if (action === "retire" && !window.confirm("确认停用该策略文章？停用后将不再参与检索。")) {
     return;
   }
   if (ctx.els.knowledgeList) ctx.els.knowledgeList.setAttribute("aria-busy", "true");
@@ -313,7 +313,7 @@ export async function reviewKnowledgeArticle(articleId, action) {
     });
     ctx.state.knowledgeLoadedAt = 0;
     await loadKnowledgeView({ force: true });
-    ctx.showToast(action === "publish" ? "知识文章已发布" : "知识文章已停用");
+    ctx.showToast(action === "publish" ? "策略文章已发布" : "策略文章已停用");
   } catch (error) {
     ctx.showToast(`审核操作失败：${error.message || error}`, true);
   } finally {

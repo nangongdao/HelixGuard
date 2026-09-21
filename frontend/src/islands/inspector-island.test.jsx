@@ -5,7 +5,7 @@
  * this slice closed the quality-tab gap: the island's quality panel was an
  * empty div while legacy loadQualityPanel filled the hidden legacy
  * containers. The panel is now island-rendered but legacy-fed via
- * helix-inspector-quality, with 生成知识草稿 clicks delegated back to
+ * helix-inspector-quality, with 生成策略草稿 clicks delegated back to
  * legacy via helix-quality-draft. These tests lock that contract.
  */
 
@@ -18,7 +18,7 @@ import { InspectorIsland, INSPECTOR_EVENTS } from "./inspector-island.jsx";
 const QUALITY_HTML = {
   bucketsHtml: '<section class="quality-charts"></section><article class="quality-card"><h4>退款</h4></article>',
   gapsHtml:
-    '<article class="quality-gap"><button class="quality-gap-draft" data-conversation-id="conv-1" data-message-id="msg-1" type="button">生成知识草稿</button></article>',
+    '<article class="quality-gap"><button class="quality-gap-draft" data-conversation-id="conv-1" data-message-id="msg-1" type="button">生成策略草稿</button></article>',
 };
 
 const COLLABORATORS = [
@@ -110,7 +110,7 @@ describe("InspectorIsland quality bridges", () => {
     window.removeEventListener(INSPECTOR_EVENTS.TAB, onTab);
   });
 
-  it("delegates 生成知识草稿 clicks to helix-quality-draft with the row's ids", async () => {
+  it("delegates 生成策略草稿 clicks to helix-quality-draft with the row's ids", async () => {
     renderIsland();
     showConversation();
     const panel = await openQualityTab();

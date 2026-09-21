@@ -14,7 +14,7 @@
  *   helix-inspector-submit  {kind, content}        → (customer/operator send)
  * The quality tab panel is island-rendered but legacy-fed: quality-panel.js
  * publishes the built panel HTML via helix-inspector-quality, and the
- * 生成知识草稿 buttons inside it delegate back via helix-quality-draft.
+ * 生成策略草稿 buttons inside it delegate back via helix-quality-draft.
  * Mounts into #inspectorReactIsland; the mount stays hidden in a plain
  * browser tab (legacy renders there).
  *
@@ -93,7 +93,7 @@ export function InspectorIsland() {
     window.dispatchEvent(new CustomEvent(INSPECTOR_EVENTS.LABELS, { detail: { labels } }));
   }, []);
 
-  // Delegate 生成知识草稿 clicks inside the published quality HTML back to
+  // Delegate 生成策略草稿 clicks inside the published quality HTML back to
   // legacy (the island never issues the write itself).
   const handleQualityClick = useCallback((event) => {
     const button = event.target.closest?.(".quality-gap-draft");

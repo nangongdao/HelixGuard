@@ -89,7 +89,7 @@ def main() -> None:
     http_errors: list[str] = []
     failed_requests: list[str] = []
     run_id = uuid4().hex[:6]
-    title = f"桌面壳知识验收 {run_id}"
+    title = f"桌面壳策略验收 {run_id}"
     revised_content = (
         f"桌面壳验收修订后的正文 {run_id}：首单配送时效承诺为 48 小时，偏远地区顺延两个工作日。"
     )
@@ -116,7 +116,7 @@ def main() -> None:
         # helix-knowledge-new and the island opens its editor.
         page.locator("#newKnowledgeDraft").click()
         editor_title = island.locator("#knowledgeEditorTitleReact")
-        expect(editor_title).to_have_text("新建知识草稿")
+        expect(editor_title).to_have_text("新建策略草稿")
         island.locator("#knowledgeTitleReact").fill(title)
         island.locator("#knowledgeContentReact").fill(
             f"桌面壳验收正文 {run_id}：首单配送时效承诺为 72 小时。"
@@ -149,7 +149,7 @@ def main() -> None:
 
         # Edit and save the revision.
         row.get_by_role("button", name="编辑").click()
-        expect(island.locator("#knowledgeEditorTitleReact")).to_have_text("编辑知识文章")
+        expect(island.locator("#knowledgeEditorTitleReact")).to_have_text("编辑策略文章")
         island.locator("#knowledgeContentReact").fill(revised_content)
         with page.expect_response(
             lambda response: (

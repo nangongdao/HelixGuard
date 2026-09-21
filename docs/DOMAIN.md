@@ -124,6 +124,37 @@ P2b 的机械替换收敛为 0 之后，按 §5 的纪律另做**独立扫描**�
 
 反向判据：**夹具自证**（测试自己写入、再断言自己写的内容原样返回）不算夹具内容——改它是纯 churn；只有字符串是**产品侧拥有的事实**时才随 P2b 迁移。本轮的实测边界：`tests/test_connectors_http.py` 的桩返回 `article_id` / `title` 并被 `assertEqual`（产品字段）、`tests/test_audit_fixes.py` 的桩返回 `status` 并被回读（产品状态串）→ 迁移；`tests/test_multilingual.py` / `tests/test_copilot.py` 自建文章标题、`tests/frontend/*.js` 的渲染输入 → 保留。另有三类**用户可见但不写进断言**的英文遗留（`turn_execution.py` 的 `CRM connector unavailable` / `Customer reference not resolvable in this tenant`、`AgentName.ORDER`、`order_id` 槽位名）刻意不改——它们是 P3/P4 的标识符面，提前改成中文/新词会让测试断言与实现分叉。
 
+### 3.4 P2c 文案层补漏：`知识` 族的构词式漏网
+
+T9 在映射表里写作「`知识库` → `策略库`」—— **一个现成词**。但 `知识` 在本域是**构词语素**：`知识文章 / 知识草稿 / 知识缺口 / 知识标签 / 知识管理员 / 知识引用 / 知识来源` 全是它的复合词。只迁 `知识库` 等于只迁了一个词形，于是策略库页面自己写着「新建**知识**草稿」，同屏两套术语。
+
+§3.3 已经总结出这条教训（「扫描词表必须按**构词**而非**现成词**枚举」），但当时只用于扫描，没有回头补 P2 自己的词表。P2c 补上：
+
+| 旧 | 新 | 说明 |
+| --- | --- | --- |
+| 知识文章 | 策略文章 | T9 的对象本身（`knowledge_articles → policy_articles`） |
+| 知识草稿 | 策略草稿 | 同上（`draft` 状态的策略文章） |
+| 知识缺口 | 策略缺口 | P3a 已把路径改为 `/api/supervisor/policy-gaps` |
+| 知识标签 | 策略标签 | 策略文章的 `tags` 字段 |
+| 知识管理员 | 策略管理员 | 持写权限的策略维护角色 |
+| 知识引用 / 知识来源 | 策略引用 / 策略来源 | inspector 的 citation 面板 |
+| 内部知识 | 内部策略 | `i18n.js` 的 `misc.internal_knowledge`（**值**迁移，**键**属 P5） |
+| 知识检索 / 知识回流 / 知识匹配 / 知识命中 / 知识种子 / 知识运营 | 策略检索 / 策略回流 / 策略匹配 / 策略命中 / 策略种子 / 策略运营 | 文档与评测集描述里的零散复合词 |
+
+**命中面：27 文件 / 79 处** —— 产品面 16 文件 49 处（原生 `index.html` 8、`knowledge-view.js` 14、`quality-panel.js` 4、`inspector.js` 3、`app.js` 2、`i18n.js` 1、`commands.js` 1；React 岛 `knowledge-island.jsx` 5、`knowledge/components.jsx` 3、`knowledge/domain.js` 1、`inspector/sections.jsx` 3、`inspector-island.jsx` 2、`inspector/helpers.jsx` 1、`command-palette-island.jsx` 1）；断言产品文案的测试 4 文件 15 处；评测集描述 2 文件 4 处；活跃文档 6 文件 9 处；`desktop/` 注释 1 文件 2 处。
+
+**判定后刻意保留（不改）**：
+
+| 残留 | 位置 | 理由 |
+| --- | --- | --- |
+| `知识条目` | `tests/test_multilingual.py` | 自证夹具载荷：POST `/api/policy` 的 `content`，断言只到 422，该字符串不出现在任何断言里（§3.2「只作为不透明载荷穿过被测代码」） |
+| `催单回复` / `退款指引` / `您的订单正在加急处理。` / `退款将在 3 个工作日内到账。` | `desktop/verify_composer_tools_desktop.py`、`frontend/src/islands/composer-island.test.jsx` | 同上：**自建 canned 载荷**。desktop 脚本经 `page.evaluate` 直接 POST，断言的是 `shortcut`（`cudan<random>`）而非 `title`/`body`，两个字段从不被回读 |
+| `#knowledgeSearch` / `.knowledge-article` / `knowledgeReactIsland` 等 | 全仓 | DOM id / class / 模块名，属 P5 的标识符面 |
+
+**`commands.js` 的检索别名（单独判定，结论是改）**：`{ id: "view.knowledge", label: "策略库", keywords: ["knowledge", "知识"] }` —— `label` 在 P2 已迁为「策略库」，`keywords` 却留着旧词，**同一行内 label 已迁、keywords 未迁**，正是本节的漏网模式。另有一处**真实可用性缺陷**：`keywords` 里没有「策略」，于是用户按新术语搜不到该入口、按已废弃的旧术语反而能搜到。改为 `["knowledge", "策略"]`（英文段与 `id` 一致，保留）。
+
+**P2c 与 §3.3 的关系**：§3.3 是「机械替换收敛后另做独立扫描」发现的缺口，P2c 是「把那条教训反向应用到**已发布**的词表上」的结果。两次都指向同一件事 —— **词表的完备性不能靠「脚本收敛为 0」证明，只能靠按语素枚举 + 全仓范围。**
+
 ## 4. 明确不动的标识符
 
 这些名称不含业务域信号，或改动会引入不成比例的连带风险，**保持原样**：
@@ -143,7 +174,8 @@ P2b 的机械替换收敛为 0 之后，按 §5 的纪律另做**独立扫描**�
 | P1 叙事层 | 产品名、`pyproject.toml`、`package.json`、`README.md`、本契约 | **已完成**（2.23.0） |
 | P2 文案层 | 前端与后端用户可见文案、`i18n.js`、耦合测试断言、活跃文档、README 截图重捕获；**含第二遍补漏**（提交端入口与审核员面残留客服词，见 §3.1） | **已完成**（2.24.0） |
 | P2b 内容夹具层 | 种子知识库正文、预置结论正文、提交端演示对话、来源查询工具状态串（`运输中`/`已出库`）、`golden/set.json` + `golden/adversarial.json`、耦合测试夹具与演示脚本（见 §3.2 边界判定） | **已完成**（2.25.0） |
-| P3 模块与路由 | 领域模块改名、API 路径改名、openapi 快照、SDK 同步 | 待办 |
+| P2c 文案层补漏 | `知识` 族的**构词**残留（P2 只迁了映射表列出的 `知识库`）：产品面 16 文件、断言、评测集描述、活跃文档、`commands.js` 检索别名、`desktop/` 注释；见 §3.4 | **已完成**（2.27.0） |
+| P3 模块与路由 | 领域模块改名、API 路径改名、openapi 快照、SDK 同步 | **P3a 已完成**（2.26.0，T4 / T6–T9 / T12 / T13 共 24 路径）；**P3b 待办**（T5 `conversation` → `review_case`，26 路径） |
 | P4 数据层 | `core_schema.py` + v01–v48 一致改写、`_detect_legacy_version` | 待办 |
 | P5 收口 | 测试函数/文件名、视觉基线重锚、遗留 `.bak` 清理、README 迁移横幅移除 | 待办 |
 
