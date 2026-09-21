@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import re
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -102,9 +103,9 @@ P3A_SWEEP_EXEMPT_PREFIX: tuple[str, ...] = (
     "supplychain/",
 )
 
-# Untracked / generated / build output: absent in CI, so skipping keeps the
-# local run in agreement with the CI run.  Matched on the path *component* so
-# nested forms (``frontend/node_modules``, ``app/__pycache__``) are covered.
+# Generated / local-only trees.  These are only consulted by the ``rglob``
+# fallback in ``_swept_files``: the primary path reads ``git ls-files`` and
+# therefore never sees them at all.
 P3A_SWEEP_SKIP_NAMES: tuple[str, ...] = (
     ".git",
     "node_modules",
@@ -113,9 +114,14 @@ P3A_SWEEP_SKIP_NAMES: tuple[str, ...] = (
     ".pytest_cache",
     ".workbuddy",
     "artifacts",
+    "build",
+    "dist",
+    "htmlcov",
+    ".tox",
+    ".mypy_cache",
 )
 
-P3A_SWEEP_SKIP_PATHS: tuple[str, ...] = ("app/static/dist/",)
+P3A_SWEEP_SKIP_SUFFIXES: tuple[str, ...] = (".egg-info", ".dist-info")
 
 
 class RegistryCoverageTests(unittest.TestCase):
@@ -302,10 +308,12 @@ class RetiredIdentifierSweepTests(unittest.TestCase):
 
     def test_retired_identifiers_stay_inside_the_files_that_declare_them(self) -> None:
         root = Path(__file__).resolve().parents[1]
+        universe = _swept_files(root)
+        # A sweep over an empty universe passes vacuously -- which is exactly the
+        # "scanned a subset, reported the whole" failure this test exists for.
+        self.assertGreater(len(universe), 200, f"only {len(universe)} files to sweep")
         offenders: list[str] = []
-        for path in sorted(root.rglob("*")):
-            if not path.is_file():
-                continue
+        for path in universe:
             relative = path.relative_to(root).as_posix()
             if _sweep_exempt(relative):
                 continue
@@ -319,12 +327,49 @@ class RetiredIdentifierSweepTests(unittest.TestCase):
         self.assertEqual(offenders, [], offenders)
 
 
+def _swept_files(root: Path) -> list[Path]:
+    """The universe for the sweep: what ships, not whatever happens to exist.
+
+    ``git ls-files`` is authoritative, and the difference is not academic: the
+    first CI run of this guard failed on ``helix_guard.egg-info/SOURCES.txt`` --
+    a file ``pip install -e .`` generates in CI (from a warm pip cache) that
+    never exists in a local checkout. A guard that disagrees with itself between
+    local and CI is one nobody will trust, and a filesystem walk invites exactly
+    that class of surprise. The fallback keeps the guard usable without git.
+    """
+    tracked = _git_tracked(root)
+    if tracked is not None:
+        return tracked
+    return [
+        path
+        for path in sorted(root.rglob("*"))
+        if path.is_file() and not _generated(path.relative_to(root).as_posix())
+    ]
+
+
+def _git_tracked(root: Path) -> list[Path] | None:
+    try:
+        completed = subprocess.run(
+            ["git", "ls-files", "-z"],
+            cwd=root,
+            capture_output=True,
+            check=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    names = completed.stdout.decode("utf-8", errors="replace").split("\0")
+    return [root / name for name in names if name]
+
+
+def _generated(relative: str) -> bool:
+    parts = relative.split("/")
+    if any(part in P3A_SWEEP_SKIP_NAMES for part in parts):
+        return True
+    return any(part.endswith(P3A_SWEEP_SKIP_SUFFIXES) for part in parts)
+
+
 def _sweep_exempt(relative: str) -> bool:
     if relative in P3A_SWEEP_EXEMPT:
-        return True
-    if any(name in relative.split("/") for name in P3A_SWEEP_SKIP_NAMES):
-        return True
-    if any(relative.startswith(path) for path in P3A_SWEEP_SKIP_PATHS):
         return True
     return any(
         relative == prefix.rstrip("/") or relative.startswith(prefix)
