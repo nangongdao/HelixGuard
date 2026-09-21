@@ -1,10 +1,10 @@
 # 租户管理员手册
 
-面向租户管理员(admin 角色):配置、成员、配额、知识、webhook 与监控。
+面向租户管理员(admin 角色):配置、成员、配额、策略、webhook 与监控。
 
 ## 成员管理(Phase 22)
 
-- `POST /api/admin/tenants` 开通租户(幂等,自动种子默认知识 + 配额)。
+- `POST /api/admin/tenants` 开通租户(幂等,自动种子默认策略 + 配额)。
 - 成员:邀请(`POST .../members`)、角色变更(`PATCH .../members/{actor}`)、停用(`POST .../members/{actor}/deactivate`)。
 - 角色:admin(全权)、supervisor(主管)、operator(审核员)、viewer(只读)、auditor(只读审计)、channel(渠道)。
 
@@ -35,7 +35,7 @@
 
 - `GET /api/system/metrics`(`metrics:read`):队列/worker/数据库池/延迟。
 - `GET /api/supervisor/quality`:质量桶(升级率/负反馈率/首次响应)。
-- `GET /api/supervisor/policy-gaps`:负反馈无引用审核单,知识回流起点。
+- `GET /api/supervisor/policy-gaps`:负反馈无引用审核单,策略回流起点。
 
 ## 发布与升级
 

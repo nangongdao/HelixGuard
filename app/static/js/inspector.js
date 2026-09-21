@@ -215,19 +215,19 @@ export function renderEvidence(detail) {
   const assistant = ctx.latestAssistant(detail.messages);
   const citations = assistant?.metadata?.citations || [];
   if (!citations.length) {
-    ctx.els.inspectorEvidence.innerHTML = '<div class="inspector-empty">本次回答没有知识引用</div>';
+    ctx.els.inspectorEvidence.innerHTML = '<div class="inspector-empty">本次回答没有策略引用</div>';
     return;
   }
   ctx.els.inspectorEvidence.innerHTML = `
     <section class="inspector-section">
-      <h3>已批准知识来源</h3>
+      <h3>已批准策略来源</h3>
       ${citations
         .map((citation) => {
           const href = safeCitationUrl(citation.url);
           const external = href.startsWith("https://") ? ' target="_blank" rel="noreferrer"' : "";
           return `<a class="citation-item" href="${ctx.escapeHtml(href)}"${external}>
             <span class="citation-title">${ctx.escapeHtml(citation.title || citation.id)}</span>
-            <span class="citation-meta">${ctx.escapeHtml(citation.url || "内部知识")} · v${ctx.escapeHtml(citation.version || "-")}</span>
+            <span class="citation-meta">${ctx.escapeHtml(citation.url || "内部策略")} · v${ctx.escapeHtml(citation.version || "-")}</span>
           </a>`;
         })
         .join("")}

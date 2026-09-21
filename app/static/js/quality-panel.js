@@ -199,7 +199,7 @@ export function buildQualityBucketsHtml(buckets) {
  * the caller binds their click handlers). */
 export function buildQualityGapsHtml(gaps) {
   if (!gaps.length) {
-    return '<p class="quality-empty">暂无知识缺口。负反馈且无引用的回答会在此列出。</p>';
+    return '<p class="quality-empty">暂无策略缺口。负反馈且无引用的回答会在此列出。</p>';
   }
   return gaps
     .map(
@@ -211,7 +211,7 @@ export function buildQualityGapsHtml(gaps) {
         </div>
         <p class="quality-gap-preview">${ctx.escapeHtml((gap.assistant_content || "").slice(0, 120))}</p>
         <button class="button button-secondary quality-gap-draft" data-conversation-id="${ctx.escapeHtml(gap.conversation_id)}" data-message-id="${ctx.escapeHtml(gap.message_id)}" type="button">
-          生成知识草稿
+          生成策略草稿
         </button>
       </article>
     `,
@@ -241,7 +241,7 @@ export async function createKnowledgeDraftFromFeedback(conversationId, messageId
       `/api/conversations/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}/knowledge-draft`,
       { method: "POST" },
     );
-    ctx.showToast(`已生成知识草稿:${draft.title}`);
+    ctx.showToast(`已生成策略草稿:${draft.title}`);
   } catch (error) {
     ctx.showToast(error.message || "生成草稿失败");
   }
@@ -314,7 +314,7 @@ export function bindQuality() {
     });
   }
   // Island mode: the inspector island renders the quality gaps (fed via
-  // helix-inspector-quality); its 生成知识草稿 buttons delegate the write
+  // helix-inspector-quality); its 生成策略草稿 buttons delegate the write
   // back here so api()/toast stay in one place.
   if (typeof window !== "undefined") {
     window.addEventListener("helix-quality-draft", (event) => {

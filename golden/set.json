@@ -142,7 +142,7 @@
     },
     {
       "id": "vague-no-knowledge-escalation",
-      "description": "无知识匹配的模糊问题升级人工,不臆造回答",
+      "description": "无策略匹配的模糊问题升级人工,不臆造回答",
       "message": "今天天气怎么样",
       "conversation": { "customer_ref": null, "channel": "web" },
       "expect": {

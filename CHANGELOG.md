@@ -2,6 +2,61 @@
 
 所有版本遵循[语义化版本](https://semver.org)。API 变更遵循 `docs/API_POLICY.md`(响应体只增不改、弃用需 `Deprecation`/`Sunset` 头 + 至少一个次版本过渡、每次变更记录于此)。
 
+## 2.27.0 — 域迁移 P2c：`知识` 族的构词式漏网补漏 (2026-09-21)
+
+本版把**文案层**残留的 `知识` 族构词统一到术语契约 T9「策略」：**27 文件 / 79 处**。产品行为、API 路径、数据库对象均不变；**用户可见文案变化**，故 `visual_gate` 基线重锚一次。
+
+### 为什么 P2 会漏，而 P2b 的教训没有回头救 P2
+
+P2 的映射表把 T9 写成「`知识库` → `策略库`」—— **一个现成词**。而 `知识` 在本域是**构词语素**：`知识文章 / 知识草稿 / 知识缺口 / 知识标签 / 知识管理员 / 知识引用 / 知识来源` 全是它的复合词。只迁 `知识库` 等于只迁了一个词形；于是策略库页面自己写着「新建**知识**草稿」，同屏两套术语。
+
+P2b 的 §3.3 已经总结出这条教训（「扫描词表必须按**构词**而非**现成词**枚举」），但那次只用它做**扫描**，没有回头补 P2 自己的词表。本版就是把这条例教训**反向应用到已发布的词表上** —— 词表的完备性不能靠「脚本收敛为 0」证明，只能靠按语素枚举 + 全仓范围。
+
+### 改名映射（术语表见 `docs/DOMAIN.md` §3.4）
+
+| 旧 | 新 |
+| --- | --- |
+| 知识文章 | 策略文章 |
+| 知识草稿 | 策略草稿 |
+| 知识缺口 | 策略缺口 |
+| 知识标签 | 策略标签 |
+| 知识管理员 | 策略管理员 |
+| 知识引用 / 知识来源 | 策略引用 / 策略来源 |
+| 内部知识 | 内部策略 |
+| 知识检索 / 知识回流 / 知识匹配 / 知识命中 / 知识种子 / 知识运营 | 策略检索 / 策略回流 / 策略匹配 / 策略命中 / 策略种子 / 策略运营 |
+
+替换按**最长优先**先落四字复合词、裸 `知识` 兜底。工具 `artifacts/p2c_apply.py` 对 27 个文件逐一断言替换次数（抓「静默空跑」），收尾断言全仓残留 `知识` 为 0；幂等复跑报 `27/27 already applied`。
+
+### 命中面
+
+- **产品面 16 文件 49 处**：原生 `app/static/index.html` 8、`js/knowledge-view.js` 14、`js/quality-panel.js` 4、`js/inspector.js` 3、`app.js` 2、`js/i18n.js` 1、`js/commands.js` 1；React 岛 `frontend/src/islands/knowledge-island.jsx` 5、`knowledge/components.jsx` 3、`knowledge/domain.js` 1、`inspector/sections.jsx` 3、`inspector-island.jsx` 2、`inspector/helpers.jsx` 1、`command-palette-island.jsx` 1。
+- **断言产品文案的测试 4 文件 15 处**（产品改则必改，否则 CI 红）：`knowledge-island.test.jsx` 5、`inspector-island.test.jsx` 3、`tests/ui_knowledge.py` 4、`tests/ui_knowledge_island.py` 3。
+- **评测集描述 2 文件 4 处**：`golden/set.json`、`golden/adversarial.json`（不参与断言，但是评测集的人工可读契约）。
+- **活跃文档 6 文件 9 处**：`docs/CAPACITY.md`、`DEGRADATION.md`、`TROUBLESHOOTING.md`、`adr/0014`、`guides/operator-manual.md`、`guides/tenant-admin-manual.md`。
+- **`desktop/` 注释 1 文件 2 处**：`verify_quality_glue_desktop.py`（其选择器断言的对象是产品面）。
+
+### 判定后刻意保留（不改）
+
+- `tests/test_multilingual.py` 的 `知识条目` —— 自证夹具载荷（POST `/api/policy` 的 `content`，断言只到 422，该串不出现在任何断言里）。
+- `desktop/verify_composer_tools_desktop.py` 与 `frontend/src/islands/composer-island.test.jsx` 的 `催单回复` / `退款指引` / `您的订单正在加急处理。` / `退款将在 3 个工作日内到账。` —— **自建 canned 载荷**：desktop 脚本经 `page.evaluate` 直接 POST，断言的是 `shortcut`（`cudan<random>`）而非 `title`/`body`，那两个字段从不被回读，属 `docs/DOMAIN.md` §3.2 的「不透明载荷」。**这一条推翻了迁移方案 R7 的原判**（R7 曾把 `desktop/` 的这两行列为「另一族待处理」），处置已回写 `docs/DOMAIN_MIGRATION_PLAN.md` R7。
+- `#knowledgeSearch` / `.knowledge-article` / `knowledgeReactIsland` 等 DOM id / class / 模块名 —— 属 P5 的标识符面。
+
+### `commands.js` 的检索别名：判定为**改**
+
+`{ id: "view.knowledge", label: "策略库", keywords: ["knowledge", "知识"] }` —— `label` 在 P2 已迁为「策略库」，`keywords` 却留着旧词，**同一行内 label 已迁、keywords 未迁**，正是本版的漏网模式。另有一处**真实可用性缺陷**：`keywords` 里没有「策略」，于是用户按新术语搜不到该入口、按已废弃的旧术语反而能搜到。改为 `["knowledge", "策略"]`。
+
+### 验证
+
+- `ruff 0.9.9` format(375)/check 干净；`py_compile` 无新增 Python 文件（替换均为文本替换）。
+- 全量 `pytest tests`（带覆盖率）：**1953 passed / 44 skipped / 2 failed** —— 与 2.26.0 完全同规模（本版不加测试、不改行为），两例失败为本机既知 `opentelemetry` 环境噪声，CI 全绿；`coverage report --fail-under=85` 实测 **TOTAL 89%**。
+- `scripts/frontend_gate.py` **400/400**（含 8 个改动的 React 岛测试文件）；`node --check` 随门禁覆盖。
+- 评测集（`golden/*` 描述已迁移）：`scripts/evaluate.py` **27/27**、`scripts/evaluate_adversarial.py` **24/24**。
+- **CI 红过一次（自伤，首推 84e69ff 的 quality 作业），根因是流程违规**：升 `APP_VERSION` 后**忘了 `--dump` 重生成 `api/openapi.json`**，`tests/test_openapi_gate.py` 的全等断言（含 `info.version`）在 CI 报红。本地没抓到的原因值得记：`openapi_snapshot.py` 的**比较模式有意忽略 `info.version`**，于是它对本版报了「通过」——这个信号只证明「HTTP 契约零变化」，**对版本位核对是无效信号**；2.26.0 已在记忆里写过「版本号先行、快照后生成」，本版仍漏，说明这条纪律不能只靠记忆，要把「直接跑 `tests/test_openapi_gate.py`」作为版本增量的固定验证步骤。修复：`--dump` 重生成，`git diff` 仅 1 行（`"version": "2.26.0" → "2.27.0"`），`tests/test_openapi_gate.py` 15 例全绿。
+- **视觉门禁无需重锚（实证，非默认放行）**：`visual_gate.py` 4/4 面 **0.00%（逐像素 0 差异）**。用探针验证了这不是假绿：① 抓 4 面可见 DOM，`workspace` 不含任何被改词、`knowledge-view` 只含「策略库」（P2 已迁）；② 唯一命中的「搜索策略文章」是 **1×1 像素的 sr-only 元素**（`rect w:1 h:1`），截图中不可见；③ 基线最后重锚于 2.25.0（`32312a0`）。结论：4 面截图不覆盖本版改动的任何**可见**文案。
+- **README 七张截图重捕获**（`scripts/readme_screenshots.py`，对 8765 干净库服务）：7 张 PNG 全部二进制变更 —— README 截图的页面状态比 visual_gate 丰富，含可见旧词，按 P2（2.24.0）先例随文案增量交付。
+- `scripts/performance_gate.py` 通过（`operator_js_bytes` 415796，等长替换不破预算）。
+- 换行保真：`git diff --numstat` 全部文件增删对称（`Path.open(..., newline="")` 读写两侧）。
+
 ## 2.26.0 — 域迁移 P3a：模块名与 API 路径改到内容审核域 (2026-09-21)
 
 本版把**模块名与 API 路径**（术语契约 T4、T6–T9、T12、T13；**不含 T5 审核单**）迁到内容审核域：5 个模块改名、24 条路径改名（展开为 31 个 operation）、5 组 OpenAPI tag 收敛。旧路径**不删除** —— 按 `docs/API_POLICY.md` §2 经弃用窗口继续服务（响应带 `Deprecation`/`Sunset` 头，spec 标 `deprecated:true`）。产品行为、数据库对象、用户可见文案不变。

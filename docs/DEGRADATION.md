@@ -12,7 +12,7 @@
 | **模型供应商** | `ChainedModelProvider` 按序 failover;全失败 → 确定性路由(`rules_fallback`) | 语义路由降级为规则路由;回答质量可能下降但不中断 | 修复供应商、恢复 provider | `ChainedModelProviderTests`;`StreamCancellationTests` |
 | **Order 连接器** | 熔断打开 → `unavailable` → 升级人工,不泄露状态 | 来源查询转人工复核 | 熔断冷却后半开探针自动恢复 | `OrderUnavailableTests`;`OrchestratorFaultInjectionTests` |
 | **CRM 连接器** | `unavailable` → 升级人工,不查来源,留 `customers.resolve` 审计 | 未绑定提交方的来源查询转人工复核 | 同上 | `test_crm_unavailable_escalates_without_order_lookup` |
-| **Knowledge 连接器** | 空结果/熔断 → 回退内置 FTS 检索 | 知识回答仍可(基于本地库),不误判为无资料升级 | 同上 | `KnowledgeFallbackTests` |
+| **Knowledge 连接器** | 空结果/熔断 → 回退内置 FTS 检索 | 策略回答仍可(基于本地库),不误判为无资料升级 | 同上 | `KnowledgeFallbackTests` |
 | **SSE 流** | 断线重连(`retry: 2000`);客户端断开 → `cancel_stream` 停止分块(回复已持久化) | 流式中断但回答完整;重连续传不重不漏 | 客户端重连 | `StreamWorkerTests`;`StreamCancellationTests` |
 | **turn 队列背压** | 队列深度/租户并发超限 → 新 turn 返回 429 + Retry-After | 过载时新异步 turn 被拒,已入队排空 | 排空后自动接受 | `test_queue_depth_threshold_returns_429` |
 | **审计链** | 写入失败仅影响该事件(哈希链其余完好) | 审计缺口(罕见) | 修复 DB;校验 `verify_audit_chain.py` | `AuditChainTests` |

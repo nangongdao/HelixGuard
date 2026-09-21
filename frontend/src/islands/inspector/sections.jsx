@@ -77,11 +77,11 @@ export function OverviewSection({ conversation, assistant, canOperate, onPriorit
 
 export function EvidenceSection({ citations }) {
   if (!citations.length) {
-    return <div className="inspector-empty">本次回答没有知识引用</div>;
+    return <div className="inspector-empty">本次回答没有策略引用</div>;
   }
   return (
     <section className="inspector-section">
-      <h3>已批准知识来源</h3>
+      <h3>已批准策略来源</h3>
       {citations.map((citation) => {
         const href = safeCitationUrl(citation.url);
         const external = href.startsWith("https://") ? ' target="_blank" rel="noreferrer"' : "";
@@ -96,7 +96,7 @@ export function EvidenceSection({ citations }) {
             }}
           >
             <span className="citation-title">{escapeHtml(citation.title || citation.id)}</span>
-            <span className="citation-meta">{escapeHtml(citation.url || "内部知识")} · v{escapeHtml(citation.version || "-")}</span>
+            <span className="citation-meta">{escapeHtml(citation.url || "内部策略")} · v{escapeHtml(citation.version || "-")}</span>
           </a>
         );
       })}

@@ -377,10 +377,10 @@ async function loadAttachmentNames(...args) { return window.HelixModules?.['atta
 
 function renderAttachmentBar(...args) { return window.HelixModules?.['attachments']?.['renderAttachmentBar'](...args); }
 
-// ---- ROADMAP §17: 知识运营页 ---------------------------------------------
+// ---- ROADMAP §17: 策略运营页 ---------------------------------------------
 // bridges); the pure helpers stay in js/knowledge.js.
 
-// D1 桌面设置页 + D3 知识/管理岛事件桥：委托给 js/desktop-info.js 模块。
+// D1 桌面设置页 + D3 策略/管理岛事件桥：委托给 js/desktop-info.js 模块。
 function loadDesktopInfo() {
   window.HelixModules?.desktopInfo?.loadDesktopInfo(els);
 }

@@ -102,7 +102,7 @@ export function draftFromArticle(article) {
  * @returns {{field: string, message: string}|null}
  */
 export function validateKnowledgeDraft(payload) {
-  if (!payload.tags.length) return { field: "tags", message: "请至少填写一个知识标签" };
+  if (!payload.tags.length) return { field: "tags", message: "请至少填写一个策略标签" };
   if (payload.title.length < 2) return { field: "title", message: "标题至少需要 2 个字符" };
   if (payload.content.length < 10) return { field: "content", message: "正文至少需要 10 个字符" };
   return null;
