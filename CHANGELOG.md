@@ -51,7 +51,7 @@ P2b 的 §3.3 已经总结出这条教训（「扫描词表必须按**构词**�
 - 全量 `pytest tests`（带覆盖率）：**1953 passed / 44 skipped / 2 failed** —— 与 2.26.0 完全同规模（本版不加测试、不改行为），两例失败为本机既知 `opentelemetry` 环境噪声，CI 全绿；`coverage report --fail-under=85` 实测 **TOTAL 89%**。
 - `scripts/frontend_gate.py` **400/400**（含 8 个改动的 React 岛测试文件）；`node --check` 随门禁覆盖。
 - 评测集（`golden/*` 描述已迁移）：`scripts/evaluate.py` **27/27**、`scripts/evaluate_adversarial.py` **24/24**。
-- `scripts/openapi_snapshot.py` 比较通过（无路由变动，本版不碰 API 面）。
+- **CI 红过一次（自伤，首推 84e69ff 的 quality 作业），根因是流程违规**：升 `APP_VERSION` 后**忘了 `--dump` 重生成 `api/openapi.json`**，`tests/test_openapi_gate.py` 的全等断言（含 `info.version`）在 CI 报红。本地没抓到的原因值得记：`openapi_snapshot.py` 的**比较模式有意忽略 `info.version`**，于是它对本版报了「通过」——这个信号只证明「HTTP 契约零变化」，**对版本位核对是无效信号**；2.26.0 已在记忆里写过「版本号先行、快照后生成」，本版仍漏，说明这条纪律不能只靠记忆，要把「直接跑 `tests/test_openapi_gate.py`」作为版本增量的固定验证步骤。修复：`--dump` 重生成，`git diff` 仅 1 行（`"version": "2.26.0" → "2.27.0"`），`tests/test_openapi_gate.py` 15 例全绿。
 - **视觉门禁无需重锚（实证，非默认放行）**：`visual_gate.py` 4/4 面 **0.00%（逐像素 0 差异）**。用探针验证了这不是假绿：① 抓 4 面可见 DOM，`workspace` 不含任何被改词、`knowledge-view` 只含「策略库」（P2 已迁）；② 唯一命中的「搜索策略文章」是 **1×1 像素的 sr-only 元素**（`rect w:1 h:1`），截图中不可见；③ 基线最后重锚于 2.25.0（`32312a0`）。结论：4 面截图不覆盖本版改动的任何**可见**文案。
 - **README 七张截图重捕获**（`scripts/readme_screenshots.py`，对 8765 干净库服务）：7 张 PNG 全部二进制变更 —— README 截图的页面状态比 visual_gate 丰富，含可见旧词，按 P2（2.24.0）先例随文案增量交付。
 - `scripts/performance_gate.py` 通过（`operator_js_bytes` 415796，等长替换不破预算）。
