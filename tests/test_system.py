@@ -120,7 +120,7 @@ class HelixGuardTests(unittest.TestCase):
 
     def test_knowledge_route_is_grounded_and_quality_reviewed(self) -> None:
         created = self.create_conversation()
-        response = self.send_message(created["id"], "配送一般多久能到？", "idem-knowledge-001")
+        response = self.send_message(created["id"], "违规内容怎么分级？", "idem-knowledge-001")
         self.assertEqual(response.status_code, 200, response.text)
         result = response.json()
         assistant = result["assistant_message"]
@@ -137,7 +137,7 @@ class HelixGuardTests(unittest.TestCase):
     def test_order_lookup_requires_customer_binding_and_audits_tool(self) -> None:
         verified = self.create_conversation()
         response = self.send_message(
-            verified["id"], "帮我查一下 ORD-10482 物流", "idem-order-ok-001"
+            verified["id"], "帮我查一下 ORD-10482 来源", "idem-order-ok-001"
         )
         self.assertEqual(response.status_code, 200, response.text)
         assistant = response.json()["assistant_message"]
@@ -149,34 +149,34 @@ class HelixGuardTests(unittest.TestCase):
             if call.get("tool") == "customers.resolve"
         )
         self.assertEqual(crm_call["code"], "ok")
-        self.assertIn("运输中", assistant["content"])
+        self.assertIn("已核验", assistant["content"])
 
         unverified = self.create_conversation(customer_ref=None)
         blocked = self.send_message(
-            unverified["id"], "ORD-10482 到哪了？", "idem-order-block-01"
+            unverified["id"], "ORD-10482 的来源？", "idem-order-block-01"
         ).json()
         self.assertEqual(blocked["conversation"]["status"], "waiting_human")
         self.assertEqual(
             _order_tool_code(blocked["assistant_message"]["metadata"]["tool_calls"]),
             "identity_required",
         )
-        self.assertNotIn("运输中", blocked["assistant_message"]["content"])
+        self.assertNotIn("已核验", blocked["assistant_message"]["content"])
 
         wrong_customer = self.create_conversation(customer_ref="CUST-1002")
         hidden = self.send_message(
-            wrong_customer["id"], "ORD-10482 到哪了？", "idem-order-hidden-1"
+            wrong_customer["id"], "ORD-10482 的来源？", "idem-order-hidden-1"
         ).json()
         self.assertEqual(
             _order_tool_code(hidden["assistant_message"]["metadata"]["tool_calls"]),
             "not_found",
         )
-        self.assertNotIn("运输中", hidden["assistant_message"]["content"])
+        self.assertNotIn("已核验", hidden["assistant_message"]["content"])
 
     def test_sensitive_and_prompt_injection_requests_escalate(self) -> None:
         sensitive = self.create_conversation()
         result = self.send_message(
             sensitive["id"],
-            "我要退款并投诉，给我转人工复核",
+            "我要投诉并升级复审，请转人工复核",
             "idem-sensitive-001",
         ).json()
         self.assertEqual(result["assistant_message"]["metadata"]["agent"], "escalation")
@@ -219,7 +219,7 @@ class HelixGuardTests(unittest.TestCase):
 
     def test_human_handoff_suppresses_bot_and_lifecycle_is_enforced(self) -> None:
         created = self.create_conversation()
-        self.send_message(created["id"], "我要退款，转人工复核", "idem-handoff-0001")
+        self.send_message(created["id"], "我要投诉，转人工复核", "idem-handoff-0001")
         accepted = self.client.post(
             f"/api/conversations/{created['id']}/accept", headers=self.headers
         )
@@ -252,7 +252,9 @@ class HelixGuardTests(unittest.TestCase):
 
     def test_feedback_and_dashboard_quality_metrics(self) -> None:
         created = self.create_conversation()
-        result = self.send_message(created["id"], "保修期多久？", "idem-feedback-001").json()
+        result = self.send_message(
+            created["id"], "高风险内容怎么处置？", "idem-feedback-001"
+        ).json()
         message_id = result["assistant_message"]["id"]
         feedback = self.client.post(
             f"/api/conversations/{created['id']}/feedback",
@@ -612,7 +614,7 @@ class HelixGuardTests(unittest.TestCase):
         headers = {**self.headers, "Idempotency-Key": "async-job-contract-01"}
         queued = self.client.post(
             f"/api/conversations/{created['id']}/turn-jobs",
-            json={"content": "配送一般多久能到？"},
+            json={"content": "违规内容怎么分级？"},
             headers=headers,
         )
         self.assertEqual(queued.status_code, 202, queued.text)
@@ -624,7 +626,7 @@ class HelixGuardTests(unittest.TestCase):
 
         replay = self.client.post(
             f"/api/conversations/{created['id']}/turn-jobs",
-            json={"content": "配送一般多久能到？"},
+            json={"content": "违规内容怎么分级？"},
             headers=headers,
         )
         self.assertEqual(replay.status_code, 202, replay.text)
@@ -663,7 +665,7 @@ class HelixGuardTests(unittest.TestCase):
         created = self.create_conversation()
         response = self.client.post(
             f"/api/conversations/{created['id']}/turn-jobs",
-            json={"content": "配送一般多久能到？"},
+            json={"content": "违规内容怎么分级？"},
             headers={**self.headers, "Idempotency-Key": "async-retry-contract-01"},
         )
         self.assertEqual(response.status_code, 202, response.text)
@@ -715,7 +717,7 @@ class HelixGuardTests(unittest.TestCase):
         created = self.create_conversation()
         queued = self.client.post(
             f"/api/conversations/{created['id']}/turn-jobs",
-            json={"content": "配送一般多久能到？"},
+            json={"content": "违规内容怎么分级？"},
             headers={**self.headers, "Idempotency-Key": "async-manual-retry-01"},
         )
         self.assertEqual(queued.status_code, 202, queued.text)

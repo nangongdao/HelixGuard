@@ -71,11 +71,11 @@ class KnowledgeFallbackTests(unittest.TestCase):
 
     def test_empty_connector_falls_back_to_fts(self) -> None:
         agent = KnowledgeAgent(self.db, knowledge_connector=_EmptyKnowledgeConn())
-        result = agent.respond("demo", "配送一般多久能到？")
+        result = agent.respond("demo", "违规内容怎么分级？")
         self.assertEqual(result.agent, AgentName.KNOWLEDGE)
         self.assertFalse(result.requires_human)
         self.assertTrue(result.citations)
-        self.assertIn("24 小时", result.content)
+        self.assertIn("三级", result.content)
 
     def test_open_breaker_falls_back_to_fts(self) -> None:
         registry = CircuitBreakerRegistry(_CONFIG)
@@ -84,7 +84,7 @@ class KnowledgeFallbackTests(unittest.TestCase):
         breaker.record_failure()
         self.assertEqual(breaker.state.value, "open")
         agent = KnowledgeAgent(self.db, knowledge_connector=connector)
-        result = agent.respond("demo", "配送一般多久能到？")
+        result = agent.respond("demo", "违规内容怎么分级？")
         self.assertFalse(result.requires_human)
         self.assertTrue(result.citations)
 
@@ -97,10 +97,10 @@ class OrderUnavailableTests(unittest.TestCase):
             database=None,  # type: ignore[arg-type]
             order_connector=ResilientOrderConnector(inner, registry),
         )
-        result = OrderAgent(tools).respond("demo", "CUST-1001", "帮我查一下 ORD-10482 物流")
+        result = OrderAgent(tools).respond("demo", "CUST-1001", "帮我查一下 ORD-10482 来源")
         self.assertTrue(result.requires_human)
-        self.assertEqual(result.handoff_reason, "Order connector unavailable")
-        self.assertNotIn("运输中", result.content)
+        self.assertEqual(result.handoff_reason, "Source connector unavailable")
+        self.assertNotIn("已核验", result.content)
         self.assertEqual(result.tool_calls[0]["code"], "unavailable")
         self.assertEqual(inner.calls, 1)
 
@@ -132,7 +132,7 @@ class OrchestratorFaultInjectionTests(unittest.TestCase):
         breaker.record_failure()
         conv_id = self._conversation(None)
         response = self.orchestrator.handle_customer_message(
-            "demo", conv_id, "配送一般多久能到？", "admin", "idem-kb-fault"
+            "demo", conv_id, "违规内容怎么分级？", "admin", "idem-kb-fault"
         )
         assistant = response["assistant_message"]
         assert assistant is not None
@@ -152,7 +152,7 @@ class OrchestratorFaultInjectionTests(unittest.TestCase):
         self.orchestrator.order = OrderAgent(self.orchestrator.tools)
         conv_id = self._conversation("CUST-1001")
         response = self.orchestrator.handle_customer_message(
-            "demo", conv_id, "帮我查一下 ORD-10482 物流", "admin", "idem-ord-fault"
+            "demo", conv_id, "帮我查一下 ORD-10482 来源", "admin", "idem-ord-fault"
         )
         assistant = response["assistant_message"]
         assert assistant is not None
@@ -163,7 +163,7 @@ class OrchestratorFaultInjectionTests(unittest.TestCase):
             if call.get("tool") == "orders.lookup"
         )
         self.assertEqual(order_call["code"], "unavailable")
-        self.assertNotIn("运输中", assistant["content"])
+        self.assertNotIn("已核验", assistant["content"])
 
     def test_crm_unavailable_escalates_without_order_lookup(self) -> None:
         inner_order = SandboxOrderConnector(self.db)
@@ -177,7 +177,7 @@ class OrchestratorFaultInjectionTests(unittest.TestCase):
         self.orchestrator.order = OrderAgent(self.orchestrator.tools)
         conv_id = self._conversation("CUST-1001")
         response = self.orchestrator.handle_customer_message(
-            "demo", conv_id, "帮我查一下 ORD-10482 物流", "admin", "idem-crm-fault"
+            "demo", conv_id, "帮我查一下 ORD-10482 来源", "admin", "idem-crm-fault"
         )
         assistant = response["assistant_message"]
         assert assistant is not None
@@ -189,7 +189,7 @@ class OrchestratorFaultInjectionTests(unittest.TestCase):
             if call.get("tool") == "customers.resolve"
         )
         self.assertEqual(crm_call["code"], "unavailable")
-        self.assertNotIn("运输中", assistant["content"])
+        self.assertNotIn("已核验", assistant["content"])
 
     def test_order_unavailable_does_not_retry_business_call_after_open(self) -> None:
         inner = _AlwaysTransientOrderConn()

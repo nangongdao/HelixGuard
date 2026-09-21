@@ -74,7 +74,7 @@ class OnlineFeedbackPipelineTests(unittest.TestCase):
         send = self.client.post(
             f"/api/conversations/{conversation_id}/messages",
             headers=self.admin,
-            json={"content": "配送一般多久能到？"},
+            json={"content": "违规内容怎么分级？"},
         )
         assert send.status_code == 200, send.text
         messages = self.client.get(

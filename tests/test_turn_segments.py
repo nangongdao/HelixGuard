@@ -94,7 +94,7 @@ class TurnSegmentProfilingTests(unittest.TestCase):
     def test_knowledge_turn_records_all_segments(self) -> None:
         conv_id = self._make_conversation()
         baseline = self._baseline_histograms()
-        self.assert_segments_recorded(baseline, conv_id, "配送一般多久能到？", "idem-seg-1")
+        self.assert_segments_recorded(baseline, conv_id, "违规内容怎么分级？", "idem-seg-1")
 
     def test_policy_risk_turn_records_segments(self) -> None:
         conv_id = self._make_conversation()

@@ -48,7 +48,7 @@ class _StaticOrderConn:
         return OrderLookup(
             ok=True,
             code="ok",
-            order=OrderDetails(id=order_id, status="运输中", eta="2026-07-20", tracking_code="SF1"),
+            order=OrderDetails(id=order_id, status="已核验", eta="2026-07-20", tracking_code="SF1"),
         )
 
 
@@ -64,7 +64,7 @@ class _TransientOrderConn:
         return OrderLookup(
             ok=True,
             code="ok",
-            order=OrderDetails(id=order_id, status="运输中", eta="x", tracking_code="t"),
+            order=OrderDetails(id=order_id, status="已核验", eta="x", tracking_code="t"),
         )
 
 
@@ -283,7 +283,7 @@ class ResilientKnowledgeConnectorTests(unittest.TestCase):
         registry = CircuitBreakerRegistry(_CONFIG)
         conn = ResilientKnowledgeConnector(inner, registry)
         # First call: retries exhaust, records failures, returns [].
-        conn.search("t1", "配送")
+        conn.search("t1", "违规内容怎么分级")
         # Force the breaker open for a clean fast-fail assertion.
         breaker = registry.get("t1", "knowledge")
         breaker.record_failure()
@@ -291,7 +291,7 @@ class ResilientKnowledgeConnectorTests(unittest.TestCase):
         breaker.record_failure()
         self.assertEqual(breaker.state, CircuitState.OPEN)
         before = inner.calls
-        result = conn.search("t1", "配送")
+        result = conn.search("t1", "违规内容怎么分级")
         self.assertEqual(result, [])
         self.assertEqual(inner.calls, before)  # fast-failed, inner not called
 

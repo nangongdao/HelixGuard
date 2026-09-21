@@ -124,7 +124,7 @@ class OrchestratorBudgetTests(unittest.TestCase):
         ]
 
     def test_no_budget_means_no_exceeded_flag(self) -> None:
-        response = self._send("配送一般多久能到？", "idem-budget-1")
+        response = self._send("违规内容怎么分级？", "idem-budget-1")
         metadata = response["assistant_message"]["metadata"]  # type: ignore[index]
         self.assertFalse(metadata["budget_exceeded"])
         types = [e["event_type"] for e in self._audit_events()]
@@ -133,7 +133,7 @@ class OrchestratorBudgetTests(unittest.TestCase):
     def test_budget_exceeded_degrades_and_audits(self) -> None:
         # Cap at one turn; the second turn must flag the budget and audit.
         self.database.set_tenant_model_policy(self.tenant_id, None, 1)
-        self._send("配送一般多久能到？", "idem-budget-first")
+        self._send("违规内容怎么分级？", "idem-budget-first")
         second = self._send("退货政策是什么？", "idem-budget-second")
         metadata = second["assistant_message"]["metadata"]  # type: ignore[index]
         self.assertTrue(metadata["budget_exceeded"])
@@ -145,7 +145,7 @@ class OrchestratorBudgetTests(unittest.TestCase):
         from app.database import utc_now
 
         today = utc_now()[:10]
-        self._send("配送一般多久能到？", "idem-usage-1")
+        self._send("违规内容怎么分级？", "idem-usage-1")
         self._send("退货政策是什么？", "idem-usage-2")
         self.assertEqual(self.database.get_tenant_daily_usage(self.tenant_id, today), 2)
 
@@ -242,7 +242,7 @@ class TenantModelPolicyApiTests(unittest.TestCase):
         cid = created["id"]
         first = self.client.post(
             f"/api/conversations/{cid}/messages",
-            json={"content": "配送一般多久能到？"},
+            json={"content": "违规内容怎么分级？"},
             headers=dict(self.headers, **{"Idempotency-Key": "idem-api-1"}),
         )
         self.assertEqual(first.status_code, 200, first.text)

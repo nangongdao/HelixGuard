@@ -10,7 +10,7 @@ Usage::
 
     client = HelixClient(base_url="https://support.example.com", api_key="...")
     conv = client.create_conversation(customer_name="Ada")
-    turn = client.send_message(conv["id"], "我的订单到哪了？", idempotency_key="k-1")
+    turn = client.send_message(conv["id"], "帮我查一下来源记录", idempotency_key="k-1")
 
 API v2 (Phase 43.3): ``*_v2`` methods speak the cursor-envelope contract —
 pagination in the response body as ``{"data": [...], "next_cursor": ...}``,

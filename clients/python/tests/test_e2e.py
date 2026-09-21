@@ -103,12 +103,18 @@ class SdkEndToEndTests(unittest.TestCase):
         self.assertEqual(ctx.exception.instance, "/api/conversations/conv-nope")
 
     def test_golden_order_case_through_sdk(self) -> None:
-        """The order-no-number golden scenario escalates via the SDK."""
+        """The no-record-number golden scenario clarifies via the SDK (H03).
+
+        Policy change 2.17.0: an unfulfilled source lookup is a designed
+        clarification, so the conversation stays ``open`` instead of
+        escalating to a human (the pre-H03 expectation).
+        """
         conv = self.client.create_conversation("Golden", customer_ref="CUST-1001")
         turn = self.client.send_message(
-            conv["id"], "帮我查一下订单", idempotency_key="sdk-golden-1"
+            conv["id"], "帮我查一下来源", idempotency_key="sdk-golden-1"
         )
-        self.assertEqual(turn["conversation"]["status"], "waiting_human")
+        self.assertEqual(turn["conversation"]["status"], "open")
+        self.assertEqual(turn["assistant_message"]["metadata"]["agent"], "order")
 
     def test_tenant_provision_and_member_lifecycle_through_sdk(self) -> None:
         """Phase 22: provision, invite, role change via the SDK."""

@@ -6,7 +6,7 @@ later cases can retrieve, ``attachment_seed`` uploads a file.  The harness used
 to undo them on a best-effort basis -- the cleanup loop sat *after* the message
 loop, so an early return skipped it entirely, and the retire response was never
 inspected.  A seed that survives stays retrievable, and four cases in the set
-share the identical message (``配送一般多久能到``), so one leaked poisoned
+share the identical message (``违规内容怎么分级``), so one leaked poisoned
 article turned three *later* cases red while naming none of them.
 
 A safety gate is allowed to fail; it is not allowed to fail quietly, or to blame

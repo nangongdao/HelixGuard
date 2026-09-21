@@ -113,7 +113,7 @@ def main() -> int:
                     });
                     if (!conv.ok) return { error: 'conversation ' + conv.status };
                     const turn = await post('/api/conversations/' + conv.data.id + '/messages', {
-                        content: '配送一般多久能到？',
+                        content: '违规内容怎么分级？',
                     });
                     if (!turn.ok) return { error: 'turn ' + turn.status };
                     const accept = await post('/api/conversations/' + conv.data.id + '/accept');

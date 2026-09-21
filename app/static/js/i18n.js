@@ -84,7 +84,7 @@ const ZH_CN = {
   "dialog.customer_ref": "提交方标识 可选",
   "dialog.create": "创建审核单",
   // misc
-  "misc.vip_refund_risk": "VIP, 退款风险",
+  "misc.vip_high_risk": "VIP, 高风险",
   "misc.supervisor": "主管",
   "misc.internal_knowledge": "内部知识",
   "misc.tool_execution": "工具执行",

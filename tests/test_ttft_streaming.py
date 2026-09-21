@@ -70,7 +70,7 @@ class TtftStreamingTests(unittest.TestCase):
             self.conversation_id,
             f"idem-ttft-{self._testMethodName}",
             "admin",
-            "配送一般多久能到？",
+            "违规内容怎么分级？",
             3,
         )
         return job
@@ -148,7 +148,7 @@ class TtftStreamingTests(unittest.TestCase):
         response = self.orchestrator.handle_customer_message(
             "demo",
             self.conversation_id,
-            "配送一般多久能到？",
+            "违规内容怎么分级？",
             "admin",
             "idem-ttft-nosink",
         )

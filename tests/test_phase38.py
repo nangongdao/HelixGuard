@@ -67,7 +67,7 @@ def _payload(
     message_id: str = "provider-message-1",
     thread_id: str = "provider-thread-1",
     customer_id: str = "CUST-1001",
-    content: str = "配送一般多久能到",
+    content: str = "违规内容怎么分级",
 ) -> dict[str, str]:
     return {
         "event": "message.created",

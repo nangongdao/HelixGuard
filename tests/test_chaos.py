@@ -152,7 +152,7 @@ class ChaosInvariantTests(unittest.TestCase):
             def complete(self, system_prompt: str, user_prompt: str, model_ref=None) -> str:
                 raise ModelProviderError("provider timeout")
 
-        decision = TriageAgent(_FailingProvider()).decide("ORD-10482 到哪了")
+        decision = TriageAgent(_FailingProvider()).decide("ORD-10482 的来源")
         # Deterministic fallback routes to the order agent regardless of the
         # failing model provider (the rules path wins, or model failure
         # degrades to it).
@@ -166,7 +166,7 @@ class ChaosInvariantTests(unittest.TestCase):
         for index in range(5):
             conv = self._conv()
             self.orchestrator.handle_customer_message(
-                "demo", conv, "ORD-10482 到哪了", "admin", f"chaos-aud-{index}"
+                "demo", conv, "ORD-10482 的来源", "admin", f"chaos-aud-{index}"
             )
         with self.database.connect() as conn:
             rows = load_rows(conn)

@@ -54,7 +54,7 @@ HTTP API、`_check_expect` 断言、p95 统计、`compare` 基线对比）；`ap
 ### 3. 高风险工具再授权与写确认（`app/tools.py`）
 
 - `ToolGateway` 增加再授权校验：工具执行前校验调用方 tenant 与目标资源
-  tenant/customer 一致；工具参数中的资源 id（订单号、提交方引用）由网关按
+  tenant/customer 一致；工具参数中的资源 id（记录号、提交方引用）由网关按
   参数化契约重建，不信任模型生成的拼接 id（既有 `safe_arguments` 模式扩展）。
 - 写操作注册表 + 人工确认：新增写工具类别（当前系统无写工具，注册表为空）；
   启用 `require_write_confirmation`（默认 true）时，未经确认的写工具调用被网关

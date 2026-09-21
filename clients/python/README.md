@@ -26,7 +26,7 @@ with HelixClient(base_url="http://localhost:8000", api_key="sk-...", tenant_id="
 ## Async turn jobs + SSE streaming
 
 ```python
-job = client.create_turn_job(conv["id"], "退货政策是什么？", idempotency_key="idem-2")
+job = client.create_turn_job(conv["id"], "申诉时限是多久？", idempotency_key="idem-2")
 for event in client.stream_turn_job(job["id"]):
     if event["event"] == "snapshot" and event["data"].get("status") == "completed":
         print(event["data"]["result"]["assistant_message"]["content"])

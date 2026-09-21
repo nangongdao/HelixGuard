@@ -88,7 +88,7 @@ class TenantProvisioningTests(unittest.TestCase):
 
     def test_provision_seeds_knowledge_for_immediate_service(self) -> None:
         self._provision("newco")
-        knowledge = self.services.database.search_knowledge("newco", "配送")
+        knowledge = self.services.database.search_knowledge("newco", "分级")
         self.assertGreaterEqual(len(knowledge), 1)
         # Articles are keyed per tenant.
         ids = [article["id"] for article in knowledge]
@@ -399,7 +399,7 @@ class UsageMeteringTests(unittest.TestCase):
             ).json()
             self.client.post(
                 f"/api/conversations/{conv['id']}/messages",
-                json={"content": "ORD-10482 到哪了"},
+                json={"content": "ORD-10482 的来源"},
                 headers={**self.admin, "Idempotency-Key": f"p22u-{index}-abcdefg"},
             )
         usage = self.client.get("/api/admin/usage", headers=self.admin).json()

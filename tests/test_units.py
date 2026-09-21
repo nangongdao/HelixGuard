@@ -205,7 +205,7 @@ class TriageAgentModelPathTests(unittest.TestCase):
 
     def test_high_confidence_rule_skips_model(self) -> None:
         provider = _FailingProvider()
-        decision = TriageAgent(provider).decide("我要退款")
+        decision = TriageAgent(provider).decide("我要投诉")
         self.assertEqual(decision.mode, "rules")
         self.assertEqual(decision.route, AgentName.ESCALATION)
 

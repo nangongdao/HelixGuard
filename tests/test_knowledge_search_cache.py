@@ -65,9 +65,9 @@ class KnowledgeSearchCacheTests(unittest.TestCase):
             "general",
             "https://e.com",
         )
-        self.db.search_knowledge("demo", "shipping")
-        remains = self.db.search_knowledge("demo", "shipping")
-        self.assertTrue(any(r["id"] == "kb-shipping" or "shipping" in r["title"] for r in remains))
+        self.db.search_knowledge("demo", "severity")
+        remains = self.db.search_knowledge("demo", "severity")
+        self.assertTrue(any(r["id"] == "kb-severity" or "分级" in r["title"] for r in remains))
         before = self.db._knowledge_version("demo")
         # A knowledge write must bump the version so the cached hit is skipped.
         self.db.create_knowledge(
