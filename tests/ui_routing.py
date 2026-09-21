@@ -1,7 +1,7 @@
 """Backlog SLA 策略 / 自动路由规则 — admin 视图前端闭环(浏览器验收)。
 
 后端 `GET/PUT /api/admin/sla-policies`、`GET/POST /api/admin/routing-rules`、
-`DELETE /api/admin/routing-rules/{id}`、`GET/POST /api/admin/agent-groups`
+`DELETE /api/admin/routing-rules/{id}`、`GET/POST /api/admin/reviewer-groups`
 此前已就绪;本轮前端接线:管理视图「SLA 策略」卡(列表 + 表单 upsert +
 编辑回填)与「自动路由规则」卡(列表 + 创建 + 删除,分配组下拉来自
 agent-groups)。
@@ -71,7 +71,7 @@ def main() -> None:
     run_id = uuid4().hex[:6]
     group_name = f"tier-{run_id}"
     status, group = api_post(
-        "/api/admin/agent-groups",
+        "/api/admin/reviewer-groups",
         {"name": group_name, "skills": ["support"], "capacity": 5},
     )
     assert status == 201, f"预建审核组失败: {status} {group}"
@@ -102,7 +102,7 @@ def main() -> None:
         # 切到管理视图:SLA/路由卡可见,分配组下拉含预建组。
         with page.expect_response(
             lambda response: (
-                response.url.endswith("/api/admin/agent-groups")
+                response.url.endswith("/api/admin/reviewer-groups")
                 and response.request.method == "GET"
             )
         ):

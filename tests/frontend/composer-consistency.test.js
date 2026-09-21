@@ -235,7 +235,7 @@ test("a failed send keeps the pending attachments for the retry", async () => {
 test("a knowledge load discarded by a switch reloads when the operator returns", async () => {
   const gate = deferred();
   const { state, calls } = configureAll({
-    apiImpl: (url) => (url === "/api/copilot/knowledge" ? gate.promise : {}),
+    apiImpl: (url) => (url === "/api/copilot/policy" ? gate.promise : {}),
   });
   const inFlight = loadCopilotKnowledge();
   state.selectedId = "conv-b";
@@ -244,14 +244,14 @@ test("a knowledge load discarded by a switch reloads when the operator returns",
   assert.equal(state.lastCopilotConv, null, "the cache stays cold for a discarded load");
   state.selectedId = "conv-a";
   await loadCopilotKnowledge();
-  assert.equal(calls.filter((call) => call.url === "/api/copilot/knowledge").length, 2);
+  assert.equal(calls.filter((call) => call.url === "/api/copilot/policy").length, 2);
   assert.equal(state.lastCopilotConv, "conv-a");
 });
 
 test("a knowledge load paints and marks the conversation once applied", async () => {
   const { state, els } = configureAll({
     apiImpl: (url) =>
-      url === "/api/copilot/knowledge" ? { articles: [{ title: "配送时效", category: "物流" }] } : {},
+      url === "/api/copilot/policy" ? { articles: [{ title: "配送时效", category: "物流" }] } : {},
   });
   await loadCopilotKnowledge();
   assert.equal(state.lastCopilotConv, "conv-a");

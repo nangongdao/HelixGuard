@@ -50,10 +50,15 @@ _SAMPLE = Deprecation(
 
 
 class RegistryTests(unittest.TestCase):
-    def test_empty_registry_is_valid_and_active(self) -> None:
-        self.assertEqual(active_deprecations(), [])
+    def test_registry_is_valid_and_active(self) -> None:
+        """The shipped registry is coherent and inside its window.
+
+        It used to be empty (nothing was deprecated); the domain migration
+        filled it, so this pins the invariant instead of the emptiness.
+        """
         self.assertEqual(validate_registry(), [])
-        self.assertIsNone(deprecation_for("GET /api/conversations"))
+        self.assertTrue(active_deprecations())
+        self.assertIsNone(deprecation_for("GET /api/does-not-exist"))
 
     def test_headers_use_imf_fixdate_and_successor_link(self) -> None:
         with patch("app.deprecation._REGISTRY", {"GET /api/conversations": _SAMPLE}):

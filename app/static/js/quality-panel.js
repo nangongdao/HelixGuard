@@ -45,7 +45,7 @@ export async function loadQualityPanel() {
     // instead of the 50-row default the inspector panel used before.
     const [buckets, gaps] = await Promise.all([
       ctx.api("/api/supervisor/quality?limit=200"),
-      ctx.api("/api/supervisor/knowledge-gaps?limit=20"),
+      ctx.api("/api/supervisor/policy-gaps?limit=20"),
     ]);
     ctx.state.qualityBuckets = Array.isArray(buckets) ? buckets : [];
     ctx.state.qualityGaps = Array.isArray(gaps) ? gaps : [];
@@ -78,7 +78,7 @@ async function loadQualityPanelForIsland() {
   try {
     const [buckets, gaps] = await Promise.all([
       ctx.api("/api/supervisor/quality?limit=200"),
-      ctx.api("/api/supervisor/knowledge-gaps?limit=20"),
+      ctx.api("/api/supervisor/policy-gaps?limit=20"),
     ]);
     ctx.state.qualityBuckets = Array.isArray(buckets) ? buckets : [];
     ctx.state.qualityGaps = Array.isArray(gaps) ? gaps : [];
@@ -250,7 +250,7 @@ export async function createKnowledgeDraftFromFeedback(conversationId, messageId
 export async function loadCsatSummary() {
   if (!ctx.els.csatReadout) return;
   try {
-    const data = await ctx.api("/api/admin/csat-summary");
+    const data = await ctx.api("/api/admin/qa-spot-check-summary");
     renderCsatSummary(data);
   } catch (error) {
     // 失败不伪装成合法的 0 态——直接提示,避免掩盖权限/端点故障(W2)。

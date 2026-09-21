@@ -35,7 +35,7 @@ MOUNT = """    # Phase 27.2: domain routers (extracted from create_app).
     from app.routers.common import RouteDeps
     from app.routers.system import build_router as build_system_router
     from app.routers.conversations import build_router as build_conversations_router
-    from app.routers.knowledge import build_router as build_knowledge_router
+    from app.routers.policy import build_router as build_knowledge_router
     from app.routers.admin import build_router as build_admin_router
     from app.routers.auth import build_router as build_auth_router
 

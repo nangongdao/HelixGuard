@@ -19,9 +19,11 @@ Design:
 * headers follow the dates format from ``docs/API_POLICY.md``
   (IMF-fixdate, e.g. ``Tue, 14 Aug 2026 00:00:00 GMT``).
 
-The registry is empty today — v1 endpoints are all current. The mechanism,
-header injection, and gate tests land now so marking any future endpoint is
-a one-line registry change, not new infrastructure.
+The registry drives the domain migration (docs/DOMAIN.md): every renamed path
+is declared once in ``_DOMAIN_RENAMES`` and expanded into one entry per HTTP
+method, so the old paths keep serving while the new ones take over. The
+mechanism, header injection, and gate tests landed in 43.3 — marking any
+endpoint was already a data change, not new infrastructure.
 """
 
 from __future__ import annotations
@@ -50,11 +52,96 @@ class Deprecation:
     reason: str = ""
 
 
-# v1 → v2 migration window policy (43.3): once /api/v2 goes GA, a v1
-# operation marked here keeps serving for at least 12 months past its
-# deprecation notice and at least 6 months past admin notification — the
-# dates below are the contract; commercial commitments may extend them.
-_DEPRECATIONS: tuple[Deprecation, ...] = ()
+# Domain migration (docs/DOMAIN.md): the customer-support shell became a
+# content-review platform, renaming the API paths below. Each tuple is
+# (retired path, HTTP methods still served on it, successor path).
+_DOMAIN_RENAMES: tuple[tuple[str, tuple[str, ...], str], ...] = (
+    # T6 申诉单
+    ("/api/tickets", ("POST", "GET"), "/api/appeals"),
+    ("/api/tickets/{appeal_id}", ("GET", "PATCH"), "/api/appeals/{appeal_id}"),
+    (
+        "/api/tickets/{appeal_id}/transition",
+        ("POST",),
+        "/api/appeals/{appeal_id}/transition",
+    ),
+    ("/api/tickets/{appeal_id}/link", ("POST",), "/api/appeals/{appeal_id}/link"),
+    # T7 抽检评分
+    ("/api/csat/{token}", ("GET", "POST"), "/api/qa-spot-check/{token}"),
+    ("/api/admin/csat-summary", ("GET",), "/api/admin/qa-spot-check-summary"),
+    # T8 提交端
+    ("/api/widget/sessions", ("POST",), "/api/submission-portal/sessions"),
+    (
+        "/api/widget/sessions/{conversation_id}/messages",
+        ("POST", "GET"),
+        "/api/submission-portal/sessions/{conversation_id}/messages",
+    ),
+    (
+        "/api/widget/sessions/{conversation_id}/stream",
+        ("GET",),
+        "/api/submission-portal/sessions/{conversation_id}/stream",
+    ),
+    # T9 策略库
+    ("/api/knowledge", ("GET", "POST"), "/api/policy"),
+    ("/api/knowledge/{article_id}", ("PATCH",), "/api/policy/{article_id}"),
+    ("/api/knowledge/drafts", ("POST",), "/api/policy/drafts"),
+    ("/api/knowledge/{article_id}/review", ("POST",), "/api/policy/{article_id}/review"),
+    ("/api/copilot/knowledge", ("POST",), "/api/copilot/policy"),
+    ("/api/copilot/knowledge-draft", ("POST",), "/api/copilot/policy-draft"),
+    ("/api/supervisor/knowledge-gaps", ("GET",), "/api/supervisor/policy-gaps"),
+    # T12 预置结论
+    ("/api/canned-responses", ("GET", "POST"), "/api/canned-verdicts"),
+    (
+        "/api/canned-responses/{response_id}",
+        ("PATCH",),
+        "/api/canned-verdicts/{response_id}",
+    ),
+    (
+        "/api/canned-responses/{response_id}/use",
+        ("POST",),
+        "/api/canned-verdicts/{response_id}/use",
+    ),
+    # T13 审核组
+    ("/api/admin/agent-groups", ("GET", "POST"), "/api/admin/reviewer-groups"),
+    (
+        "/api/admin/agent-groups/{group_id}",
+        ("DELETE",),
+        "/api/admin/reviewer-groups/{group_id}",
+    ),
+    (
+        "/api/admin/agent-groups/{group_id}/agents",
+        ("POST",),
+        "/api/admin/reviewer-groups/{group_id}/reviewers",
+    ),
+    (
+        "/api/admin/agent-groups/{group_id}/agents/{actor_id}",
+        ("DELETE",),
+        "/api/admin/reviewer-groups/{group_id}/reviewers/{actor_id}",
+    ),
+    # T4 指派审核员
+    ("/api/analytics/costs/by_agent", ("GET",), "/api/analytics/costs/by_reviewer"),
+)
+
+_DEPRECATED_ON = "2026-09-21"
+# docs/API_POLICY.md §2.2 asks for at least one minor version between marking
+# and removal; the 12-month window matches this module's v1 -> v2 policy, and
+# ``validate_registry`` turns an overdue sunset into a startup failure so the
+# promise cannot quietly rot.
+_SUNSET_ON = "2027-09-21"
+_RENAME_REASON = (
+    "Domain migration: the customer-support shell became content review (docs/DOMAIN.md)."
+)
+
+_DEPRECATIONS: tuple[Deprecation, ...] = tuple(
+    Deprecation(
+        operation=f"{method} {path}",
+        deprecated_on=_DEPRECATED_ON,
+        sunset_on=_SUNSET_ON,
+        successor=successor,
+        reason=_RENAME_REASON,
+    )
+    for path, methods, successor in _DOMAIN_RENAMES
+    for method in methods
+)
 
 _REGISTRY: dict[str, Deprecation] = {entry.operation: entry for entry in _DEPRECATIONS}
 

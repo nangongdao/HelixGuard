@@ -120,9 +120,9 @@ const FULL_ROUTES = {
   "/api/webhooks": [makeWebhook()],
   "/api/admin/report-subscriptions": [makeSubscription()],
   "/api/admin/sla-policies": [makeSla()],
-  "/api/admin/agent-groups": [{ id: "group_1", name: "售后组" }],
+  "/api/admin/reviewer-groups": [{ id: "group_1", name: "售后组" }],
   "/api/admin/routing-rules": [makeRule()],
-  "/api/admin/csat-summary": { total: 4, avg_rating: 4.5, positive_rate: 0.75, per_day: [{ date: "2026-08-29", count: 4, avg_rating: 4.5 }] },
+  "/api/admin/qa-spot-check-summary": { total: 4, avg_rating: 4.5, positive_rate: 0.75, per_day: [{ date: "2026-08-29", count: 4, avg_rating: 4.5 }] },
   "/api/analytics/costs/daily": {
     tenant_id: "demo",
     turn_count: 1234,
@@ -130,7 +130,7 @@ const FULL_ROUTES = {
     completion_tokens: 125000,
     cost_usd: 4.321,
   },
-  "/api/analytics/costs/by_agent": [
+  "/api/analytics/costs/by_reviewer": [
     { agent: "triage", turn_count: 700, prompt_tokens: 300000, completion_tokens: 1000, cost_usd: 0.9 },
     { agent: "summary", turn_count: 60, prompt_tokens: 120000, completion_tokens: 40000, cost_usd: 0.00045 },
   ],

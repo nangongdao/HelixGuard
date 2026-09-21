@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Helix Guard",
-    "version": "2.25.1"
+    "version": "2.26.0"
   },
   "paths": {
     "/api/supervisor/knowledge-gaps": {
@@ -11,8 +11,9 @@
           "quality"
         ],
         "summary": "Negative-feedback turns without knowledge citations",
-        "description": "Surface negative-feedback turns with no knowledge citations.\n\nUsed by the supervisor quality panel (Phase 21.2) to locate where the\nknowledge base is failing customers and seed draft articles.",
+        "description": "Surface negative-feedback turns with no policy citations.\n\nUsed by the supervisor quality panel (Phase 21.2) to locate where the\npolicy library is failing submitters and seed draft articles.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/supervisor/policy-gaps. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
         "operationId": "list_knowledge_gaps_api_supervisor_knowledge_gaps_get",
+        "deprecated": true,
         "parameters": [
           {
             "name": "limit",
@@ -69,6 +70,87 @@
                     "additionalProperties": true
                   },
                   "title": "Response List Knowledge Gaps Api Supervisor Knowledge Gaps Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/supervisor/policy-gaps": {
+      "get": {
+        "tags": [
+          "quality"
+        ],
+        "summary": "Negative-feedback turns without knowledge citations",
+        "description": "Surface negative-feedback turns with no policy citations.\n\nUsed by the supervisor quality panel (Phase 21.2) to locate where the\npolicy library is failing submitters and seed draft articles.",
+        "operationId": "list_knowledge_gaps_api_supervisor_policy_gaps_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 20,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  "title": "Response List Knowledge Gaps Api Supervisor Policy Gaps Get"
                 }
               }
             }
@@ -3626,11 +3708,12 @@
     "/api/canned-responses": {
       "get": {
         "tags": [
-          "canned-responses"
+          "canned-verdicts"
         ],
         "summary": "List canned responses",
-        "description": "List canned responses. Requires: conversation:read.",
+        "description": "List canned responses. Requires: conversation:read.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/canned-verdicts. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
         "operationId": "list_canned_responses_api_canned_responses_get",
+        "deprecated": true,
         "parameters": [
           {
             "name": "search",
@@ -3721,11 +3804,183 @@
       },
       "post": {
         "tags": [
-          "canned-responses"
+          "canned-verdicts"
+        ],
+        "summary": "Create a canned response",
+        "description": "Create a canned response. Requires: knowledge:write.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/canned-verdicts. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
+        "operationId": "create_canned_response_api_canned_responses_post",
+        "deprecated": true,
+        "parameters": [
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CannedResponseCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CannedResponseOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/canned-verdicts": {
+      "get": {
+        "tags": [
+          "canned-verdicts"
+        ],
+        "summary": "List canned responses",
+        "description": "List canned responses. Requires: conversation:read.",
+        "operationId": "list_canned_responses_api_canned_verdicts_get",
+        "parameters": [
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 120
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            }
+          },
+          {
+            "name": "include_inactive",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Include Inactive"
+            }
+          },
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CannedResponseOut"
+                  },
+                  "title": "Response List Canned Responses Api Canned Verdicts Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "canned-verdicts"
         ],
         "summary": "Create a canned response",
         "description": "Create a canned response. Requires: knowledge:write.",
-        "operationId": "create_canned_response_api_canned_responses_post",
+        "operationId": "create_canned_response_api_canned_verdicts_post",
         "parameters": [
           {
             "name": "X-API-Key",
@@ -3797,11 +4052,97 @@
     "/api/canned-responses/{response_id}": {
       "patch": {
         "tags": [
-          "canned-responses"
+          "canned-verdicts"
+        ],
+        "summary": "Update a canned response",
+        "description": "Update a canned response. Requires: knowledge:write.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/canned-verdicts/{response_id}. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
+        "operationId": "update_canned_response_api_canned_responses__response_id__patch",
+        "deprecated": true,
+        "parameters": [
+          {
+            "name": "response_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Response Id"
+            }
+          },
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CannedResponseUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CannedResponseOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/canned-verdicts/{response_id}": {
+      "patch": {
+        "tags": [
+          "canned-verdicts"
         ],
         "summary": "Update a canned response",
         "description": "Update a canned response. Requires: knowledge:write.",
-        "operationId": "update_canned_response_api_canned_responses__response_id__patch",
+        "operationId": "update_canned_response_api_canned_verdicts__response_id__patch",
         "parameters": [
           {
             "name": "response_id",
@@ -3882,11 +4223,87 @@
     "/api/canned-responses/{response_id}/use": {
       "post": {
         "tags": [
-          "canned-responses"
+          "canned-verdicts"
+        ],
+        "summary": "Record canned-response usage",
+        "description": "Record canned-response usage. Requires: operator:act.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/canned-verdicts/{response_id}/use. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
+        "operationId": "use_canned_response_api_canned_responses__response_id__use_post",
+        "deprecated": true,
+        "parameters": [
+          {
+            "name": "response_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Response Id"
+            }
+          },
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CannedResponseOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/canned-verdicts/{response_id}/use": {
+      "post": {
+        "tags": [
+          "canned-verdicts"
         ],
         "summary": "Record canned-response usage",
         "description": "Record canned-response usage. Requires: operator:act.",
-        "operationId": "use_canned_response_api_canned_responses__response_id__use_post",
+        "operationId": "use_canned_response_api_canned_verdicts__response_id__use_post",
         "parameters": [
           {
             "name": "response_id",
@@ -4288,11 +4705,12 @@
     "/api/knowledge": {
       "get": {
         "tags": [
-          "knowledge"
+          "policy"
         ],
         "summary": "List published knowledge articles",
-        "description": "List published knowledge articles. Requires: conversation:read.",
+        "description": "List published knowledge articles. Requires: conversation:read.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/policy. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
         "operationId": "list_knowledge_api_knowledge_get",
+        "deprecated": true,
         "parameters": [
           {
             "name": "include_inactive",
@@ -4366,11 +4784,166 @@
       },
       "post": {
         "tags": [
-          "knowledge"
+          "policy"
+        ],
+        "summary": "Create a published knowledge article",
+        "description": "Create a published knowledge article. Requires: knowledge:write.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/policy. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
+        "operationId": "create_knowledge_api_knowledge_post",
+        "deprecated": true,
+        "parameters": [
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KnowledgeCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KnowledgeArticleOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/policy": {
+      "get": {
+        "tags": [
+          "policy"
+        ],
+        "summary": "List published knowledge articles",
+        "description": "List published knowledge articles. Requires: conversation:read.",
+        "operationId": "list_knowledge_api_policy_get",
+        "parameters": [
+          {
+            "name": "include_inactive",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Include Inactive"
+            }
+          },
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/KnowledgeArticleOut"
+                  },
+                  "title": "Response List Knowledge Api Policy Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "policy"
         ],
         "summary": "Create a published knowledge article",
         "description": "Create a published knowledge article. Requires: knowledge:write.",
-        "operationId": "create_knowledge_api_knowledge_post",
+        "operationId": "create_knowledge_api_policy_post",
         "parameters": [
           {
             "name": "X-API-Key",
@@ -4442,11 +5015,97 @@
     "/api/knowledge/{article_id}": {
       "patch": {
         "tags": [
-          "knowledge"
+          "policy"
+        ],
+        "summary": "Update a knowledge article",
+        "description": "Update a knowledge article. Requires: knowledge:write.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/policy/{article_id}. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
+        "operationId": "update_knowledge_api_knowledge__article_id__patch",
+        "deprecated": true,
+        "parameters": [
+          {
+            "name": "article_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Article Id"
+            }
+          },
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KnowledgeUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KnowledgeArticleOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/policy/{article_id}": {
+      "patch": {
+        "tags": [
+          "policy"
         ],
         "summary": "Update a knowledge article",
         "description": "Update a knowledge article. Requires: knowledge:write.",
-        "operationId": "update_knowledge_api_knowledge__article_id__patch",
+        "operationId": "update_knowledge_api_policy__article_id__patch",
         "parameters": [
           {
             "name": "article_id",
@@ -4527,11 +5186,88 @@
     "/api/knowledge/drafts": {
       "post": {
         "tags": [
-          "knowledge"
+          "policy"
+        ],
+        "summary": "Create a knowledge draft (invisible until approved)",
+        "description": "Create a knowledge article in ``draft`` status (Phase 21.3).\n\nDrafts are invisible to retrieval until explicitly published through\nthe review endpoint, so an approval step is mandatory.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/policy/drafts. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
+        "operationId": "create_knowledge_draft_api_knowledge_drafts_post",
+        "deprecated": true,
+        "parameters": [
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KnowledgeCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KnowledgeArticleOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/policy/drafts": {
+      "post": {
+        "tags": [
+          "policy"
         ],
         "summary": "Create a knowledge draft (invisible until approved)",
         "description": "Create a knowledge article in ``draft`` status (Phase 21.3).\n\nDrafts are invisible to retrieval until explicitly published through\nthe review endpoint, so an approval step is mandatory.",
-        "operationId": "create_knowledge_draft_api_knowledge_drafts_post",
+        "operationId": "create_knowledge_draft_api_policy_drafts_post",
         "parameters": [
           {
             "name": "X-API-Key",
@@ -4603,11 +5339,97 @@
     "/api/knowledge/{article_id}/review": {
       "post": {
         "tags": [
-          "knowledge"
+          "policy"
+        ],
+        "summary": "Publish or retire a pending knowledge article",
+        "description": "Approve (publish) or reject (retire) a pending knowledge article.\n\nThe approval cannot be bypassed: only ``draft`` or ``pending_review``\narticles can be published, so a reviewer must act before the article\nbecomes retrievable.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/policy/{article_id}/review. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
+        "operationId": "review_knowledge_article_api_knowledge__article_id__review_post",
+        "deprecated": true,
+        "parameters": [
+          {
+            "name": "article_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Article Id"
+            }
+          },
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KnowledgeReviewRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KnowledgeArticleOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/policy/{article_id}/review": {
+      "post": {
+        "tags": [
+          "policy"
         ],
         "summary": "Publish or retire a pending knowledge article",
         "description": "Approve (publish) or reject (retire) a pending knowledge article.\n\nThe approval cannot be bypassed: only ``draft`` or ``pending_review``\narticles can be published, so a reviewer must act before the article\nbecomes retrievable.",
-        "operationId": "review_knowledge_article_api_knowledge__article_id__review_post",
+        "operationId": "review_knowledge_article_api_policy__article_id__review_post",
         "parameters": [
           {
             "name": "article_id",
@@ -4688,7 +5510,7 @@
     "/api/conversations/{conversation_id}/messages/{message_id}/knowledge-draft": {
       "post": {
         "tags": [
-          "knowledge"
+          "policy"
         ],
         "summary": "Create a draft from a negatively-rated message",
         "description": "Generate a draft knowledge article from a negatively-rated message.\n\nReflows negative feedback into the knowledge base (Phase 21.3): the\nassistant message's content seeds a draft the reviewer can edit and\npublish.  Returns 404 if the message or conversation does not exist.",
@@ -7259,8 +8081,9 @@
           "admin"
         ],
         "summary": "List agent groups (skills + capacity)",
-        "description": "List agent groups (skills + capacity). Requires: admin:manage.",
+        "description": "List agent groups (skills + capacity). Requires: admin:manage.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/admin/reviewer-groups. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
         "operationId": "list_agent_groups_api_admin_agent_groups_get",
+        "deprecated": true,
         "parameters": [
           {
             "name": "X-API-Key",
@@ -7327,8 +8150,153 @@
           "admin"
         ],
         "summary": "Create an agent group",
-        "description": "Create an agent group. Requires: admin:manage.",
+        "description": "Create an agent group. Requires: admin:manage.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/admin/reviewer-groups. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
         "operationId": "create_agent_group_api_admin_agent_groups_post",
+        "deprecated": true,
+        "parameters": [
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentGroupCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentGroupOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/reviewer-groups": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "List agent groups (skills + capacity)",
+        "description": "List agent groups (skills + capacity). Requires: admin:manage.",
+        "operationId": "list_agent_groups_api_admin_reviewer_groups_get",
+        "parameters": [
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AgentGroupOut"
+                  },
+                  "title": "Response List Agent Groups Api Admin Reviewer Groups Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Create an agent group",
+        "description": "Create an agent group. Requires: admin:manage.",
+        "operationId": "create_agent_group_api_admin_reviewer_groups_post",
         "parameters": [
           {
             "name": "X-API-Key",
@@ -7403,8 +8371,77 @@
           "admin"
         ],
         "summary": "Delete an agent group",
-        "description": "Delete an agent group. Requires: admin:manage.",
+        "description": "Delete an agent group. Requires: admin:manage.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/admin/reviewer-groups/{group_id}. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
         "operationId": "delete_agent_group_api_admin_agent_groups__group_id__delete",
+        "deprecated": true,
+        "parameters": [
+          {
+            "name": "group_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Group Id"
+            }
+          },
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/reviewer-groups/{group_id}": {
+      "delete": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Delete an agent group",
+        "description": "Delete an agent group. Requires: admin:manage.",
+        "operationId": "delete_agent_group_api_admin_reviewer_groups__group_id__delete",
         "parameters": [
           {
             "name": "group_id",
@@ -7471,8 +8508,96 @@
           "admin"
         ],
         "summary": "Add an agent to a group",
-        "description": "Add an agent to a group. Requires: admin:manage.",
+        "description": "Add an agent to a group. Requires: admin:manage.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/admin/reviewer-groups/{group_id}/reviewers. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
         "operationId": "add_group_agent_api_admin_agent_groups__group_id__agents_post",
+        "deprecated": true,
+        "parameters": [
+          {
+            "name": "group_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Group Id"
+            }
+          },
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "title": "Payload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentGroupMemberOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/reviewer-groups/{group_id}/reviewers": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Add an agent to a group",
+        "description": "Add an agent to a group. Requires: admin:manage.",
+        "operationId": "add_group_agent_api_admin_reviewer_groups__group_id__reviewers_post",
         "parameters": [
           {
             "name": "group_id",
@@ -7558,8 +8683,86 @@
           "admin"
         ],
         "summary": "Remove an agent from a group",
-        "description": "Remove an agent from a group. Requires: admin:manage.",
+        "description": "Remove an agent from a group. Requires: admin:manage.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/admin/reviewer-groups/{group_id}/reviewers/{actor_id}. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
         "operationId": "remove_group_agent_api_admin_agent_groups__group_id__agents__actor_id__delete",
+        "deprecated": true,
+        "parameters": [
+          {
+            "name": "group_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Group Id"
+            }
+          },
+          {
+            "name": "actor_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Actor Id"
+            }
+          },
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/reviewer-groups/{group_id}/reviewers/{actor_id}": {
+      "delete": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Remove an agent from a group",
+        "description": "Remove an agent from a group. Requires: admin:manage.",
+        "operationId": "remove_group_agent_api_admin_reviewer_groups__group_id__reviewers__actor_id__delete",
         "parameters": [
           {
             "name": "group_id",
@@ -7847,8 +9050,87 @@
           "admin"
         ],
         "summary": "Aggregate answered CSAT surveys; days only bounds the per-day trend (readouts are all-history)",
-        "description": "Aggregate answered CSAT surveys for the admin「评分汇总」card.",
+        "description": "Aggregate answered CSAT surveys for the admin「评分汇总」card.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/admin/qa-spot-check-summary. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
         "operationId": "csat_summary_api_admin_csat_summary_get",
+        "deprecated": true,
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 90,
+              "minimum": 1,
+              "default": 14,
+              "title": "Days"
+            }
+          },
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CsatSummaryOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/qa-spot-check-summary": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Aggregate answered CSAT surveys; days only bounds the per-day trend (readouts are all-history)",
+        "description": "Aggregate answered CSAT surveys for the admin「评分汇总」card.",
+        "operationId": "csat_summary_api_admin_qa_spot_check_summary_get",
         "parameters": [
           {
             "name": "days",
@@ -8666,8 +9948,85 @@
           "copilot"
         ],
         "summary": "Recommend knowledge articles for the latest customer message",
-        "description": "Recommend knowledge articles for the latest customer message. Requires: operator:act.",
+        "description": "Recommend knowledge articles for the latest customer message. Requires: operator:act.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/copilot/policy. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
         "operationId": "copilot_knowledge_api_copilot_knowledge_post",
+        "deprecated": true,
+        "parameters": [
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CopilotKnowledgeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CopilotKnowledgeOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/copilot/policy": {
+      "post": {
+        "tags": [
+          "copilot"
+        ],
+        "summary": "Recommend knowledge articles for the latest customer message",
+        "description": "Recommend knowledge articles for the latest customer message. Requires: operator:act.",
+        "operationId": "copilot_knowledge_api_copilot_policy_post",
         "parameters": [
           {
             "name": "X-API-Key",
@@ -8742,8 +10101,9 @@
           "copilot"
         ],
         "summary": "Draft a pending-review knowledge article (governed tool)",
-        "description": "ROADMAP 2.5.0: the first mutating tool call. The payload runs through the orchestrator's ToolGateway — governance policy (mutating side effect), argument schema, and a short-lived capability token when CAPABILITY_SECRET is configured — and the draft lands in draft status for human review before it can ever be retrieved. Requires ``operator:act``.",
+        "description": "ROADMAP 2.5.0: the first mutating tool call. The payload runs through the orchestrator's ToolGateway — governance policy (mutating side effect), argument schema, and a short-lived capability token when CAPABILITY_SECRET is configured — and the draft lands in draft status for human review before it can ever be retrieved. Requires ``operator:act``.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/copilot/policy-draft. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
         "operationId": "copilot_knowledge_draft_api_copilot_knowledge_draft_post",
+        "deprecated": true,
         "parameters": [
           {
             "name": "X-API-Key",
@@ -8799,6 +10159,86 @@
                   "type": "object",
                   "additionalProperties": true,
                   "title": "Response Copilot Knowledge Draft Api Copilot Knowledge Draft Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/copilot/policy-draft": {
+      "post": {
+        "tags": [
+          "copilot"
+        ],
+        "summary": "Draft a pending-review knowledge article (governed tool)",
+        "description": "ROADMAP 2.5.0: the first mutating tool call. The payload runs through the orchestrator's ToolGateway — governance policy (mutating side effect), argument schema, and a short-lived capability token when CAPABILITY_SECRET is configured — and the draft lands in draft status for human review before it can ever be retrieved. Requires ``operator:act``.",
+        "operationId": "copilot_knowledge_draft_api_copilot_policy_draft_post",
+        "parameters": [
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Copilot Knowledge Draft Api Copilot Policy Draft Post"
                 }
               }
             }
@@ -8895,11 +10335,12 @@
     "/api/tickets": {
       "post": {
         "tags": [
-          "tickets"
+          "appeals"
         ],
         "summary": "Convert a conversation into a long-cycle ticket (idempotent)",
-        "description": "Convert a conversation into a long-cycle ticket (idempotent). Requires: operator:act.",
+        "description": "Convert a conversation into a long-cycle ticket (idempotent). Requires: operator:act.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/appeals. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
         "operationId": "create_ticket_api_tickets_post",
+        "deprecated": true,
         "parameters": [
           {
             "name": "X-API-Key",
@@ -8969,11 +10410,12 @@
       },
       "get": {
         "tags": [
-          "tickets"
+          "appeals"
         ],
         "summary": "List tickets (filter by status or customer reference)",
-        "description": "List tickets (filter by status or customer reference). Requires: conversation:read.",
+        "description": "List tickets (filter by status or customer reference). Requires: conversation:read.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/appeals. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
         "operationId": "list_tickets_api_tickets_get",
+        "deprecated": true,
         "parameters": [
           {
             "name": "status",
@@ -9082,22 +10524,213 @@
         }
       }
     },
-    "/api/tickets/{ticket_id}": {
-      "get": {
+    "/api/appeals": {
+      "post": {
         "tags": [
-          "tickets"
+          "appeals"
         ],
-        "summary": "Ticket detail with linked conversations",
-        "description": "Ticket detail with linked conversations. Requires: conversation:read.",
-        "operationId": "get_ticket_api_tickets__ticket_id__get",
+        "summary": "Convert a conversation into a long-cycle ticket (idempotent)",
+        "description": "Convert a conversation into a long-cycle ticket (idempotent). Requires: operator:act.",
+        "operationId": "create_ticket_api_appeals_post",
         "parameters": [
           {
-            "name": "ticket_id",
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TicketCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "appeals"
+        ],
+        "summary": "List tickets (filter by status or customer reference)",
+        "description": "List tickets (filter by status or customer reference). Requires: conversation:read.",
+        "operationId": "list_tickets_api_appeals_get",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 20
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "customer_ref",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 80
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Customer Ref"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TicketOut"
+                  },
+                  "title": "Response List Tickets Api Appeals Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tickets/{appeal_id}": {
+      "get": {
+        "tags": [
+          "appeals"
+        ],
+        "summary": "Ticket detail with linked conversations",
+        "description": "Ticket detail with linked conversations. Requires: conversation:read.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/appeals/{appeal_id}. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
+        "operationId": "get_ticket_api_tickets__appeal_id__get",
+        "deprecated": true,
+        "parameters": [
+          {
+            "name": "appeal_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Ticket Id"
+              "title": "Appeal Id"
             }
           },
           {
@@ -9158,19 +10791,20 @@
       },
       "patch": {
         "tags": [
-          "tickets"
+          "appeals"
         ],
         "summary": "Update ticket subject/description/priority/assignee",
-        "description": "Update ticket subject/description/priority/assignee. Requires: operator:act.",
-        "operationId": "update_ticket_api_tickets__ticket_id__patch",
+        "description": "Update ticket subject/description/priority/assignee. Requires: operator:act.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/appeals/{appeal_id}. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
+        "operationId": "update_ticket_api_tickets__appeal_id__patch",
+        "deprecated": true,
         "parameters": [
           {
-            "name": "ticket_id",
+            "name": "appeal_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Ticket Id"
+              "title": "Appeal Id"
             }
           },
           {
@@ -9240,22 +10874,181 @@
         }
       }
     },
-    "/api/tickets/{ticket_id}/transition": {
-      "post": {
+    "/api/appeals/{appeal_id}": {
+      "get": {
         "tags": [
-          "tickets"
+          "appeals"
         ],
-        "summary": "Move a ticket through its state machine (open/in_progress/closed)",
-        "description": "Move a ticket through its state machine (open/in_progress/closed). Requires: operator:act.",
-        "operationId": "transition_ticket_api_tickets__ticket_id__transition_post",
+        "summary": "Ticket detail with linked conversations",
+        "description": "Ticket detail with linked conversations. Requires: conversation:read.",
+        "operationId": "get_ticket_api_appeals__appeal_id__get",
         "parameters": [
           {
-            "name": "ticket_id",
+            "name": "appeal_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Ticket Id"
+              "title": "Appeal Id"
+            }
+          },
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "appeals"
+        ],
+        "summary": "Update ticket subject/description/priority/assignee",
+        "description": "Update ticket subject/description/priority/assignee. Requires: operator:act.",
+        "operationId": "update_ticket_api_appeals__appeal_id__patch",
+        "parameters": [
+          {
+            "name": "appeal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Appeal Id"
+            }
+          },
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TicketUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tickets/{appeal_id}/transition": {
+      "post": {
+        "tags": [
+          "appeals"
+        ],
+        "summary": "Move a ticket through its state machine (open/in_progress/closed)",
+        "description": "Move a ticket through its state machine (open/in_progress/closed). Requires: operator:act.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/appeals/{appeal_id}/transition. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
+        "operationId": "transition_ticket_api_tickets__appeal_id__transition_post",
+        "deprecated": true,
+        "parameters": [
+          {
+            "name": "appeal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Appeal Id"
             }
           },
           {
@@ -9325,22 +11118,193 @@
         }
       }
     },
-    "/api/tickets/{ticket_id}/link": {
+    "/api/appeals/{appeal_id}/transition": {
       "post": {
         "tags": [
-          "tickets"
+          "appeals"
         ],
-        "summary": "Link another conversation to the ticket (cross-conversation tracking)",
-        "description": "Link another conversation to the ticket (cross-conversation tracking). Requires: operator:act.",
-        "operationId": "link_ticket_conversation_api_tickets__ticket_id__link_post",
+        "summary": "Move a ticket through its state machine (open/in_progress/closed)",
+        "description": "Move a ticket through its state machine (open/in_progress/closed). Requires: operator:act.",
+        "operationId": "transition_ticket_api_appeals__appeal_id__transition_post",
         "parameters": [
           {
-            "name": "ticket_id",
+            "name": "appeal_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Ticket Id"
+              "title": "Appeal Id"
+            }
+          },
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TicketTransitionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tickets/{appeal_id}/link": {
+      "post": {
+        "tags": [
+          "appeals"
+        ],
+        "summary": "Link another conversation to the ticket (cross-conversation tracking)",
+        "description": "Link another conversation to the ticket (cross-conversation tracking). Requires: operator:act.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/appeals/{appeal_id}/link. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
+        "operationId": "link_ticket_conversation_api_tickets__appeal_id__link_post",
+        "deprecated": true,
+        "parameters": [
+          {
+            "name": "appeal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Appeal Id"
+            }
+          },
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TicketLinkRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/appeals/{appeal_id}/link": {
+      "post": {
+        "tags": [
+          "appeals"
+        ],
+        "summary": "Link another conversation to the ticket (cross-conversation tracking)",
+        "description": "Link another conversation to the ticket (cross-conversation tracking). Requires: operator:act.",
+        "operationId": "link_ticket_conversation_api_appeals__appeal_id__link_post",
+        "parameters": [
+          {
+            "name": "appeal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Appeal Id"
             }
           },
           {
@@ -10519,9 +12483,10 @@
         "tags": [
           "analytics"
         ],
-        "summary": "Break down inference cost by agent",
-        "description": "Per-agent spend (triage, language_detect, language_translate, copilot_suggest, copilot_rewrite, summary) for one date, from the per-inference detail table. Requires ``admin:manage``.",
+        "summary": "Break down inference cost by reviewer",
+        "description": "Per-agent spend (triage, language_detect, language_translate, copilot_suggest, copilot_rewrite, summary) for one date, from the per-inference detail table. Requires ``admin:manage``.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/analytics/costs/by_reviewer. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
         "operationId": "cost_by_agent_api_analytics_costs_by_agent_get",
+        "deprecated": true,
         "parameters": [
           {
             "name": "date",
@@ -10584,6 +12549,93 @@
                     "additionalProperties": true
                   },
                   "title": "Response Cost By Agent Api Analytics Costs By Agent Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/analytics/costs/by_reviewer": {
+      "get": {
+        "tags": [
+          "analytics"
+        ],
+        "summary": "Break down inference cost by reviewer",
+        "description": "Per-agent spend (triage, language_detect, language_translate, copilot_suggest, copilot_rewrite, summary) for one date, from the per-inference detail table. Requires ``admin:manage``.",
+        "operationId": "cost_by_agent_api_analytics_costs_by_reviewer_get",
+        "parameters": [
+          {
+            "name": "date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date"
+            }
+          },
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  "title": "Response Cost By Agent Api Analytics Costs By Reviewer Get"
                 }
               }
             }
@@ -12294,11 +14346,72 @@
     "/api/widget/sessions": {
       "post": {
         "tags": [
-          "widget"
+          "submission_portal"
+        ],
+        "summary": "Open a widget chat session (signed token)",
+        "description": "Open a widget chat session bound to the token's tenant.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/submission-portal/sessions. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
+        "operationId": "create_widget_session_api_widget_sessions_post",
+        "deprecated": true,
+        "parameters": [
+          {
+            "name": "X-Widget-Token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Widget-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WidgetSessionCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WidgetSessionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/submission-portal/sessions": {
+      "post": {
+        "tags": [
+          "submission_portal"
         ],
         "summary": "Open a widget chat session (signed token)",
         "description": "Open a widget chat session bound to the token's tenant.",
-        "operationId": "create_widget_session_api_widget_sessions_post",
+        "operationId": "create_widget_session_api_submission_portal_sessions_post",
         "parameters": [
           {
             "name": "X-Widget-Token",
@@ -12354,11 +14467,12 @@
     "/api/widget/sessions/{conversation_id}/messages": {
       "post": {
         "tags": [
-          "widget"
+          "submission_portal"
         ],
         "summary": "Send a widget message (channel-id idempotent)",
-        "description": "Send a customer message; channel_message_id replays are idempotent.\n\nDefault (sync) returns the completed ``TurnResponse``. With\n``async_mode=true`` the message is enqueued as a turn job and the\nresponse is ``{\"job_id\": ..., \"status\": \"queued\"}``; the client then\nstreams progressive output from ``GET /stream``. Either way, replaying\nthe same ``channel_message_id`` never creates a second turn.",
+        "description": "Send a customer message; channel_message_id replays are idempotent.\n\nDefault (sync) returns the completed ``TurnResponse``. With\n``async_mode=true`` the message is enqueued as a turn job and the\nresponse is ``{\"job_id\": ..., \"status\": \"queued\"}``; the client then\nstreams progressive output from ``GET /stream``. Either way, replaying\nthe same ``channel_message_id`` never creates a second turn.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/submission-portal/sessions/{conversation_id}/messages. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
         "operationId": "send_widget_message_api_widget_sessions__conversation_id__messages_post",
+        "deprecated": true,
         "parameters": [
           {
             "name": "conversation_id",
@@ -12433,11 +14547,12 @@
       },
       "get": {
         "tags": [
-          "widget"
+          "submission_portal"
         ],
         "summary": "List widget conversation messages",
-        "description": "List the customer-visible transcript, resumable through ``cursor``.\n\nResponses carry ``X-Conversation-Status`` (and ``X-CSAT-Survey-URL`` once a\nsurvey is pending) alongside the shared opaque pagination headers\n``X-Next-Cursor`` / ``X-Has-More``, so a client can poll for the delta and\nresume a dropped read instead of re-fetching the whole transcript.",
+        "description": "List the customer-visible transcript, resumable through ``cursor``.\n\nResponses carry ``X-Conversation-Status`` (and ``X-CSAT-Survey-URL`` once a\nsurvey is pending) alongside the shared opaque pagination headers\n``X-Next-Cursor`` / ``X-Has-More``, so a client can poll for the delta and\nresume a dropped read instead of re-fetching the whole transcript.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/submission-portal/sessions/{conversation_id}/messages. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
         "operationId": "list_widget_messages_api_widget_sessions__conversation_id__messages_get",
+        "deprecated": true,
         "parameters": [
           {
             "name": "conversation_id",
@@ -12522,14 +14637,255 @@
         }
       }
     },
+    "/api/submission-portal/sessions/{conversation_id}/messages": {
+      "post": {
+        "tags": [
+          "submission_portal"
+        ],
+        "summary": "Send a widget message (channel-id idempotent)",
+        "description": "Send a customer message; channel_message_id replays are idempotent.\n\nDefault (sync) returns the completed ``TurnResponse``. With\n``async_mode=true`` the message is enqueued as a turn job and the\nresponse is ``{\"job_id\": ..., \"status\": \"queued\"}``; the client then\nstreams progressive output from ``GET /stream``. Either way, replaying\nthe same ``channel_message_id`` never creates a second turn.",
+        "operationId": "send_widget_message_api_submission_portal_sessions__conversation_id__messages_post",
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Conversation Id"
+            }
+          },
+          {
+            "name": "async_mode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Async Mode"
+            }
+          },
+          {
+            "name": "X-Widget-Token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Widget-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WidgetMessageSendRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Send Widget Message Api Submission Portal Sessions  Conversation Id  Messages Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "submission_portal"
+        ],
+        "summary": "List widget conversation messages",
+        "description": "List the customer-visible transcript, resumable through ``cursor``.\n\nResponses carry ``X-Conversation-Status`` (and ``X-CSAT-Survey-URL`` once a\nsurvey is pending) alongside the shared opaque pagination headers\n``X-Next-Cursor`` / ``X-Has-More``, so a client can poll for the delta and\nresume a dropped read instead of re-fetching the whole transcript.",
+        "operationId": "list_widget_messages_api_submission_portal_sessions__conversation_id__messages_get",
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Conversation Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 512
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "name": "X-Widget-Token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Widget-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MessageOut"
+                  },
+                  "title": "Response List Widget Messages Api Submission Portal Sessions  Conversation Id  Messages Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/widget/sessions/{conversation_id}/stream": {
       "get": {
         "tags": [
-          "widget"
+          "submission_portal"
+        ],
+        "summary": "SSE stream for the widget conversation's latest turn",
+        "description": "SSE stream of the conversation's latest turn job (Phase 23.1).\n\nReuses the same token/job events as the operator turn-job stream so the\nwidget gets progressive output without holding an API key.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/submission-portal/sessions/{conversation_id}/stream. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
+        "operationId": "stream_widget_turn_api_widget_sessions__conversation_id__stream_get",
+        "deprecated": true,
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Conversation Id"
+            }
+          },
+          {
+            "name": "timeout",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 120,
+              "minimum": 1,
+              "default": 30,
+              "title": "Timeout"
+            }
+          },
+          {
+            "name": "X-Widget-Token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Widget-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/submission-portal/sessions/{conversation_id}/stream": {
+      "get": {
+        "tags": [
+          "submission_portal"
         ],
         "summary": "SSE stream for the widget conversation's latest turn",
         "description": "SSE stream of the conversation's latest turn job (Phase 23.1).\n\nReuses the same token/job events as the operator turn-job stream so the\nwidget gets progressive output without holding an API key.",
-        "operationId": "stream_widget_turn_api_widget_sessions__conversation_id__stream_get",
+        "operationId": "stream_widget_turn_api_submission_portal_sessions__conversation_id__stream_get",
         "parameters": [
           {
             "name": "conversation_id",
@@ -12594,11 +14950,53 @@
     "/api/csat/{token}": {
       "post": {
         "tags": [
-          "csat"
+          "qa_spot_check"
         ],
         "summary": "Submit a one-time CSAT satisfaction rating",
-        "description": "Record a one-time CSAT rating for a resolved conversation.\n\nAccepts either a JSON body (``{\"rating\": 1-5}``, the API contract) or a\nbrowser ``application/x-www-form-urlencoded`` submission from the survey\nform. Both are routed through the same atomic single-use write, and a\nbrowser submission receives a thank-you page back.",
+        "description": "Record a one-time spot-check rating for a decided review case.\n\nAccepts either a JSON body (``{\"rating\": 1-5}``, the API contract) or a\nbrowser ``application/x-www-form-urlencoded`` submission from the survey\nform. Both are routed through the same atomic single-use write, and a\nbrowser submission receives a thank-you page back.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/qa-spot-check/{token}. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
         "operationId": "submit_csat_rating_api_csat__token__post",
+        "deprecated": true,
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/qa-spot-check/{token}": {
+      "post": {
+        "tags": [
+          "qa_spot_check"
+        ],
+        "summary": "Submit a one-time CSAT satisfaction rating",
+        "description": "Record a one-time spot-check rating for a decided review case.\n\nAccepts either a JSON body (``{\"rating\": 1-5}``, the API contract) or a\nbrowser ``application/x-www-form-urlencoded`` submission from the survey\nform. Both are routed through the same atomic single-use write, and a\nbrowser submission receives a thank-you page back.",
+        "operationId": "submit_csat_rating_api_qa_spot_check__token__post",
         "parameters": [
           {
             "name": "token",

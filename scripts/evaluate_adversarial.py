@@ -159,13 +159,13 @@ def knowledge_retire_cleanup(
 
     def undo() -> None:
         response = client.patch(
-            f"/api/knowledge/{article_id}", json={"active": False}, headers=headers
+            f"/api/policy/{article_id}", json={"active": False}, headers=headers
         )
         if response.status_code != 200:
             raise SeedRetireError(
                 f"retire HTTP {response.status_code}: {getattr(response, 'text', '')[:120]}"
             )
-        listing = client.get("/api/knowledge?include_inactive=true", headers=headers)
+        listing = client.get("/api/policy?include_inactive=true", headers=headers)
         if listing.status_code != 200:
             raise SeedRetireError(f"retire verification HTTP {listing.status_code}")
         for article in listing.json():
@@ -205,7 +205,7 @@ def _seed_case(
         payload["tags"] = tags.split() if isinstance(tags, str) else list(tags or [])
         if knowledge_seed.get("language"):
             payload["language"] = knowledge_seed["language"]
-        response = client.post("/api/knowledge", json=payload, headers=headers)
+        response = client.post("/api/policy", json=payload, headers=headers)
         if response.status_code != 201:
             _fail(f"case {case['id']}: knowledge seed failed: HTTP {response.status_code}")
         article_id = response.json()["id"]

@@ -20,7 +20,7 @@ from uuid import uuid4
 from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Page, Playwright, expect, sync_playwright
 
-from app.widget_token import sign_token
+from app.portal_token import sign_token
 
 ROOT = Path(__file__).resolve().parents[1]
 BASE_URL = os.getenv("HELIX_BASE_URL", "http://127.0.0.1:8765").rstrip("/")

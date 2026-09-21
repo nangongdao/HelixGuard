@@ -148,7 +148,7 @@ class SdkEndToEndTests(unittest.TestCase):
 
     def test_widget_chat_and_channel_idempotency_through_sdk(self) -> None:
         """Phase 23: widget session + channel_message_id replay dedup."""
-        from app.widget_token import sign_token
+        from app.portal_token import sign_token
 
         token = sign_token(
             secret=self.settings.widget_secret, tenant_id="demo", customer_ref="CUST-1"

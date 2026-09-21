@@ -50,7 +50,7 @@ class AutoRoutingTests(unittest.TestCase):
 
     def _group(self, capacity: int = 1) -> str:
         response = self.client.post(
-            "/api/admin/agent-groups",
+            "/api/admin/reviewer-groups",
             json={"name": "Order Support", "skills": ["orders"], "capacity": capacity},
             headers=self.admin,
         )
@@ -58,7 +58,7 @@ class AutoRoutingTests(unittest.TestCase):
         group_id = response.json()["id"]
         for actor in ("agent.a", "agent.b"):
             added = self.client.post(
-                f"/api/admin/agent-groups/{group_id}/agents",
+                f"/api/admin/reviewer-groups/{group_id}/reviewers",
                 json={"actor_id": actor},
                 headers=self.admin,
             )
@@ -94,7 +94,7 @@ class AutoRoutingTests(unittest.TestCase):
 
     def test_group_and_rule_crud(self) -> None:
         group_id = self._group()
-        listed = self.client.get("/api/admin/agent-groups", headers=self.admin)
+        listed = self.client.get("/api/admin/reviewer-groups", headers=self.admin)
         self.assertEqual(listed.status_code, 200)
         self.assertEqual(len(listed.json()), 1)
         self.assertEqual(listed.json()[0]["skills"], ["orders"])
@@ -136,7 +136,7 @@ class AutoRoutingTests(unittest.TestCase):
     def test_priority_picks_highest(self) -> None:
         group_a = self._group()
         group_b = self.client.post(
-            "/api/admin/agent-groups",
+            "/api/admin/reviewer-groups",
             json={"name": "General", "skills": [], "capacity": 2},
             headers=self.admin,
         ).json()["id"]
@@ -175,7 +175,7 @@ class AutoRoutingTests(unittest.TestCase):
         )
         try:
             response = client.get(
-                "/api/admin/agent-groups",
+                "/api/admin/reviewer-groups",
                 headers={"X-API-Key": op_key, "X-Tenant-Id": "demo"},
             )
             self.assertEqual(response.status_code, 403)

@@ -168,7 +168,7 @@ export function applyMacroFromSuggest(responseId) {
   bumpDraftVersion(ctx.state.selectedId);
   saveDraft(ctx.state.selectedId, ctx.els.operatorInput.value);
   ctx.els.operatorInput.focus();
-  void ctx.api(`/api/canned-responses/${encodeURIComponent(responseId)}/use`, { method: "POST" }).catch(
+  void ctx.api(`/api/canned-verdicts/${encodeURIComponent(responseId)}/use`, { method: "POST" }).catch(
     () => {},
   );
 }
@@ -201,7 +201,7 @@ export async function loadCannedResponses({ force = false } = {}) {
   }
   if (!force && ctx.state.cannedLoadedAt && Date.now() - ctx.state.cannedLoadedAt < 120000) return;
   try {
-    ctx.state.cannedResponses = await ctx.api("/api/canned-responses");
+    ctx.state.cannedResponses = await ctx.api("/api/canned-verdicts");
     ctx.state.cannedLoadedAt = Date.now();
   } catch {
     ctx.state.cannedResponses = [];
@@ -212,7 +212,7 @@ export async function loadCannedResponses({ force = false } = {}) {
 /** Usage tracking for island-applied macros (best-effort, like legacy). */
 export async function recordMacroUse(responseId) {
   try {
-    await ctx.api(`/api/canned-responses/${encodeURIComponent(responseId)}/use`, { method: "POST" });
+    await ctx.api(`/api/canned-verdicts/${encodeURIComponent(responseId)}/use`, { method: "POST" });
   } catch {
     // usage tracking is best-effort
   }

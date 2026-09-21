@@ -62,7 +62,7 @@ export function KnowledgeIsland() {
     queryFn: async () => {
       // Writers need drafts/retired too, or the summary counters and the
       // editor would only ever see published articles (legacy parity).
-      const path = canWrite ? "/api/knowledge?include_inactive=true" : "/api/knowledge";
+      const path = canWrite ? "/api/policy?include_inactive=true" : "/api/policy";
       const res = await fetch(path, {
         headers: { "X-Tenant-Id": "demo" },
       });

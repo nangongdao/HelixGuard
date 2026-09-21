@@ -2,6 +2,104 @@
 
 所有版本遵循[语义化版本](https://semver.org)。API 变更遵循 `docs/API_POLICY.md`(响应体只增不改、弃用需 `Deprecation`/`Sunset` 头 + 至少一个次版本过渡、每次变更记录于此)。
 
+## 2.26.0 — 域迁移 P3a：模块名与 API 路径改到内容审核域 (2026-09-21)
+
+本版把**模块名与 API 路径**（术语契约 T4、T6–T9、T12、T13；**不含 T5 审核单**）迁到内容审核域：5 个模块改名、24 条路径改名（展开为 31 个 operation）、5 组 OpenAPI tag 收敛。旧路径**不删除** —— 按 `docs/API_POLICY.md` §2 经弃用窗口继续服务（响应带 `Deprecation`/`Sunset` 头，spec 标 `deprecated:true`）。产品行为、数据库对象、用户可见文案不变。
+
+### 为什么拆成 P3a / P3b，为什么走弃用而不是申请豁免
+
+迁移方案（`docs/DOMAIN_MIGRATION_PLAN.md` §2.3）建议 T5（`conversation` → `review_case`，约 70% 改动量、5,572 处）最后单独做，故本版只做 T4/T6–T9/T12/T13；T5 与含 T5 前缀的路径（`/api/conversations/*`）原样保留。
+
+风险 R1 问的是「路径改名要不要破 `docs/API_POLICY.md` §1」。判定结果是**不破**：§1 禁止的是*就地*改路径，而弃用注册表机制（`app/deprecation.py` + 响应头中间件 + spec 标注）在 43.3 已建成、`_DEPRECATIONS` 一直空置待填，**标记既有 endpoint 属数据变更而非新基础设施**，因此无需 ADR 豁免。走豁免等于把规则改绿，不是遵守规则。
+
+### 改名映射
+
+模块（`git mv`，含 16 处 import 同步，覆盖 `app/` / `tests/` / `scripts/` / `clients/python/`）：
+
+| 旧 | 新 |
+| --- | --- |
+| `app/routers/tickets.py` | `app/routers/appeals.py` |
+| `app/routers/csat.py` | `app/routers/qa_spot_check.py` |
+| `app/routers/knowledge.py` | `app/routers/policy.py` |
+| `app/widget_routes.py` | `app/portal_routes.py` |
+| `app/widget_token.py` | `app/portal_token.py` |
+
+路径（24 条退役路径，最长前缀优先替换，`app/` `tests/` `scripts/` `clients/` `frontend/` `docs/` 共 52 文件 373 处）：
+
+| 面 | 旧 | 新 |
+| --- | --- | --- |
+| T6 申诉单 | `/api/tickets`（及 `/{id}`、`/{id}/transition`、`/{id}/link`） | `/api/appeals…` |
+| T7 抽检评分 | `/api/csat/{token}`、`/api/admin/csat-summary` | `/api/qa-spot-check/{token}`、`/api/admin/qa-spot-check-summary` |
+| T8 提交端 | `/api/widget/sessions…` | `/api/submission-portal/sessions…` |
+| T9 策略库 | `/api/knowledge…`、`/api/copilot/knowledge(-draft)`、`/api/supervisor/knowledge-gaps` | `/api/policy…`、`/api/copilot/policy(-draft)`、`/api/supervisor/policy-gaps` |
+| T12 预置结论 | `/api/canned-responses…` | `/api/canned-verdicts…` |
+| T13 审核组 | `/api/admin/agent-groups…` | `/api/admin/reviewer-groups…`（`/agents` → `/reviewers`） |
+| T4 指派审核员 | `/api/analytics/costs/by_agent` | `/api/analytics/costs/by_reviewer` |
+
+tag 收敛 22 处（`knowledge`→`policy` 6、`tickets`→`appeals` 6、`widget`→`submission_portal` 4、`canned-responses`→`canned-verdicts` 5、`csat`→`qa_spot_check` 1）。
+
+### 弃用双挂载
+
+新增 `app/routers/common.py::legacy_route`：在主装饰器内侧、**同一个 router** 上把同一个 handler 再注册一次旧路径（`deprecated=True`），因此 `include_router` 与模块导出接口零变更。三种目标形态都覆盖：`APIRouter`、`app/main.py` 里内联的 `FastAPI` 实例、以及 `app/routers/analytics.py` 那种 `prefix` + 相对路径的写法。
+
+注册表由空元组改为 `_DOMAIN_RENAMES`（每条 `(退役路径, 动词, successor)`）展开，共 **31 条**，`validate_registry()==[]`、`active_deprecations()==31`，窗口 `2026-09-21 → 2027-09-21`。终态实测：**157 路径 / 187 operation / 30 条 deprecated operation / 0 重复 operationId / 0 缺 summary**。
+
+31 与 30 的差是 `GET /api/csat/{token}`：那是 `include_in_schema=False` 的浏览器落地页，**故意不入 spec**，故其操作在文档侧不可见（`tests/test_domain_path_renames.py` 用 `OFF_SCHEMA` 显式登记这一例外）。表单 `action` 同时改为 `{request.url.path}`，使从旧链接进入的页面回指旧路径 —— 否则弃用头会写在错误的响应上。
+
+弃用别名从 successor 路径继承 `summary`/`tags`/`description` 并在描述末尾追加 `Migrate to <successor>`，由 `app/openapi_meta.py::enrich_openapi` 完成（`_ENDPOINT_META` 只认新路径，别名原先拿不到元数据）。
+
+### 验证过程中自己产生、并已修掉的缺陷
+
+这一节是本版的主要成本来源。**下列六处都是本次改动引入的（第（六）处是文档侧复发），不是既有缺陷**，记录在此以便复用同一批判据。
+
+**（一）路径占位符改名没跟 handler 形参 —— 参数从 path 静默降级为 query。** 脚本把路由模板 `/api/tickets/{ticket_id}` 改成 `/api/appeals/{appeal_id}`，但 handler 形参仍是 `ticket_id`。FastAPI 按模板声明参数位置，`ticket_id` 不在模板里，于是被当作 **query** 参数：URL 照样匹配、不报错，但每次真实调用返回 422 `query.ticket_id: Field required`。8 个 operation（4 条主路径 × 主/别名）全部中招。修法：形参同步改名（`artifacts/p3a_fix_appeal_param.py`，9 处）。新守护测试断言**每个路径模板的占位符集合必须等于该 operation 声明的 `in: path` 参数集合**。
+
+**（二）占位符替换被套用到 f-string。** 同一处替换表把 `{ticket_id}` → `{appeal_id}` 做成了裸子串替换，于是 `tests/ui_tickets.py` 里 `f".ticket-row[data-ticket-id='{ticket_id}']"` 也被改掉，而局部变量仍叫 `ticket_id` → `NameError`。该文件**既不被 `pytest tests` 收集**（`ui_*.py` 不匹配默认 pattern）**也不在 CI 浏览器作业列表**里，唯一能看见它的是 `ruff check` 的 F821。修法：把 8 处 f-string 回退（体字段 `"ticket_id"` 属契约、本版不动），并从替换脚本里**删掉** `PARAM_RENAMES` 这一段，附注说明理由 —— 占位符只能作为「模板 + 形参 + 调用点」的**一个整体**改名。
+
+**（三）JS 正则字面量与片段匹配漏改。** `tests/frontend/composer-tools.test.js` 的断言写成 `/\/api\/canned-responses\/m1\/use$/`，斜杠被转义成 `\/`，连续的 `/api/canned-responses` 根本不存在，替换表看不见它；`tests/frontend/quality-panel.test.js` 的 mock 选择器写的是 `url.includes("knowledge-gaps")`（裸片段，非完整路径），改路径后该分支永远不命中，测试**仍然绿**但已不再验证它声称验证的东西 —— 这比红灯更危险。两处均修；后者正是「测试活着但空了」。
+
+**（四）`legacy_route(app, ...)` 的类型注解错误。** 形参原声明为 `APIRouter`，而 `app/main.py` 传入的是 `FastAPI`；两者在 FastAPI 0.139 里**不是继承关系**，`pyright` 报 `Argument of type "FastAPI" cannot be assigned to parameter "router" of type "APIRouter"`。运行时因两者都暴露 `add_api_route` 而正常，正因如此才必须靠类型检查抓住。修法：注解改为 `APIRouter | FastAPI`。
+
+**（五）`add_api_route` 默认只注册 GET。** 首版 31 条别名全部按 GET 注册，POST/PATCH/DELETE 别名静默消失，spec 里出现 11 条缺元数据的幽灵 GET、并产生 7 个重复 `operationId`。GET-only 的别名仍会对 `GET /api/tickets` 返回 200，所以**只有逐动词断言才能发现**。修法：逐条显式传 `methods=[...]`，且每条别名的动词取其上方主装饰器的动词（对齐后 `duplicate operationId = 0`）。守护测试因此断言「别名动词必须与主路由一致」。
+
+**（六）文档里的 `csat-summary` 漏改，因为校验不变量太弱。** `docs/api/reference.md` 的对齐脚本把锚点写成 `/api/csat-summary`，而目标路径是 `/api/admin/csat-summary` —— 前者不是后者的前缀，漏掉 `/admin` 段（与代码侧 `artifacts/p3a_fix_csat_summary.py` 修掉的是**同一个错误**，在文档侧复发了）。更值得记的是**它为什么会通过校验**：当时的判据是「文档中每条路径都必须存在于 spec」，而退役路径在 spec 里**确实存在**（作为弃用别名），所以判据为真、漏改被放过。换成本版最终的强判据 ——「文档中每条路径都**不得**在 spec 里是 `deprecated`」—— 才把它逼出来。**弱判据给出绿灯，比没有判据更危险。**
+
+### 四个同源根因（判据，非叙述）
+
+1. **子串替换对上下文无感知。** 同一个 `{ticket_id}` 在路由模板里是路径参数、在 f-string 里是 Python 变量，在同一次 `str.replace` 里长得一模一样。（一）（二）（三）都是它的变体。
+2. **「收敛为 0」只证明幂等，不证明落盘正确。** 脚本 `--apply` 复跑报 0 改动，而（一）的 422、（二）的 NameError 都已经被冻结在树里。必须另配**独立扫描**（`artifacts/p3a_residue_scan.py`，17 个词 × 原形/转义形两态，571 文件过筛），且扫描口径要**故意过宽**、逐条人工判定。
+3. **门禁只覆盖它覆盖的那部分。** （二）落在 `pytest` 与浏览器作业的**双重盲区**里，（三）让一条测试静默失效，（四）只在 `pyright app` 下暴露。增量必须逐个门禁问「这条改动若写错，谁会红」，写不出来就是在裸奔。
+4. **「收敛为 0」在机制落地后会失效。** 路径改名脚本的幂等判据在别名层存在前成立；`legacy_route` 与注册表一落地，退役字符串就**应当**存在于树中，「又扫出 64 处待改」恰恰是正确状态。此时盲跑 `--apply` 会把别名声明改回新名，**等于删除弃用窗口**。本版给该脚本加了硬失败（检测到 `legacy_route(` 即 `exit 3`）并在注释里写明它已用完。**校验判据与被校验的机制是共同演化的，不是一次写死的。**
+
+### 验证
+
+- 新增 `tests/test_domain_path_renames.py`（11 例）：注册表合法/在窗口内、successor 均为活路径、每条弃用 operation 实际注册且标 `deprecated` 且带迁移注释、别名文档继承 successor、**路径占位符与声明的 path 参数一致**、**别名动词与主路由一致**、退役路径端到端服务且带 `Deprecation`/`Sunset` 头、退役与现行路径返回一致、`/api/csat/{token}` 属 `OFF_SCHEMA`、健康与现行路径绝不带弃用头。`tests/test_deprecation.py` 的「空注册表是合法的」改为「注册表合法且非空」。
+- 全量 `pytest tests`（带覆盖率）：**1952 passed / 44 skipped / 2 failed**，较 2.25.1 的 1941 多 11 —— 恰为本版新增守护用例数。两例失败与前八个版本记录一致，是**本机既有环境噪声**（site-packages 装有 `opentelemetry`，走不到「未安装」分支），CI 全绿；`coverage report --fail-under=85` 实测 **TOTAL 89%**。
+- `scripts/openapi_snapshot.py`（比较模式）`openapi spec matches snapshot`，`api/openapi.json` 用 `--dump` 重生成（版本号先行、快照后生成，否则 `tests/test_openapi_gate.py` 的全等断言必红）。
+- `scripts/frontend_gate.py` 400 tests 通过（修复前 399/400）；`scripts/evaluate.py --min-pass-rate 1.0`、`scripts/evaluate_adversarial.py` 通过。
+- `scripts/migration_gate.py`（48 migrations）、`verify_migration_registry`、`tauri_config_gate --allow-empty-pubkey`、`scan_secrets`、`check_workflows`、`license_gate`、`vuln_review`、`threat_model_gate`、`release_manifest --build/--verify`、`node --check app/static/app.js` 全通过。
+- `clients/python` SDK 测试 28 例通过（该套件不在 CI 门禁内，本版主动复跑）。
+- ruff 0.9.9 `format --check app tests scripts`（375 files）与 `check` 全过；`pyright app` 报 `0 errors, 0 warnings`。
+- 独立残留扫描（`artifacts/p3a_residue_scan.py`，17 个词 ×「原形 / 转义形」两态，过筛 571 文件）：报告 **122 条命中，全部逐条判定**，无一条属于「该改未改」——
+  - **29 条属有意保留**：`app/deprecation.py` 的注册表（24）与 `tests/test_domain_path_renames.py` 的退役路径断言（5）；
+  - **48 条属本阶段范围外**：JS 状态键 / 函数名（`cannedResponses`、`agentGroupsCache`、`renderCannedResponses` 等，P5）；
+  - **44 条属别名声明与标识符**：各 router 的 `@legacy_route(...)` 与 handler / 测试函数名（`cost_by_agent`、`KnowledgeGapsRobustnessTests` 等）；
+  - **1 条是档案性注释**（`scripts/split_main.py` 的拆分锚点注释）。
+- 文档侧强判据（`artifacts/p3a_fix_reference_doc.py`）：`docs/api/reference.md` 131 个 operation 标题 / 107 条不同路径，**0 条不在 spec、0 条在 spec 里是 `deprecated`、0 个陈旧 tag**。
+
+### 版本位
+
+`APP_VERSION` 2.25.1 → 2.26.0；README 首屏徽章 `v2.25.1` → `v2.26.0`；README 底部域迁移横幅阶段进度更新（P3a 落地、P3b–P5 待做）；`api/openapi.json` 用 `--dump` 重生成。全部改动 CRLF 保真，`git diff --numstat` 逐文件无行尾翻转（纯改名文件增删对称，不对称文件均为有意新增）。
+
+### 未覆盖（有意为之）
+
+- **T5（`conversation` → `review_case`）** 整体留到 P3b：包括 `/api/conversations/*` 全部路径，以及 `app/routers/` 下 conversations 系列模块。含 T5 前缀的 `/api/conversations/{id}/messages/{id}/knowledge-draft` 与 `operator-messages` 因路径完整性同样留到 P3b。
+- **数据层（P4）与测试/文件名（P5）**：表名、列名、`app/db/` mixin、迁移文件名、312 个测试函数与约 40 个测试文件名（`tests/test_tickets.py`、`tests/test_csat.py`、`tests/ui_csat.py` 等仍为旧名）均未动。`app/main.py.bak`、`app/database.py.bak` 也未清（P5 计划内）。
+- **代码标识符**：JS 侧状态键与函数名（`cannedResponses`、`renderCannedResponses`、`agentGroupsCache`）、Python handler 名（`cost_by_agent`、`list_knowledge_gaps`）、DB 方法名（`get_ticket`、`list_ticket_conversations`）仍是旧域词汇。P3 的范围是「模块与路由」，标识符改名属 P4/P5；本版只登记，不改。
+- **契约类字段**：响应体/请求体字段与请求头（`widget_token`、`X-Widget-Token`）是 API 契约，改名需各自的弃用窗口，不在本版。
+- **历史档案不改写**：`CHANGELOG.md` 历史条目、`docs/RELEASE_1_2_0*`、`docs/PHASE_21_COMPLETION.md`、`supplychain/*.json`（含 `tests/test_widget_routes.py` 这类当时的测试名）按 `docs/DOMAIN.md` §6 保持原样。两处 ADR 的**现状性**句子随术语更新（`0006` 的路由清单 `knowledge`→`policy`、`widget_routes`→`portal_routes`；`0009` 的 `app/widget_token.py`→`app/portal_token.py`），其结论、数字、日期不动。
+- **`docs/api/reference.md` 未重生成，只做改名对齐**（58 处：路径、`{ticket_id}`→`{appeal_id}`、tag 名、章节标题）。该文件由 `scripts/api_docs.py` 从快照生成，但在 HEAD 时**已落后 spec 26 个端点（107 vs 133）**——重生成会把 3541/1493 行无关漂移夹带进本增量。`git diff --numstat` 为 54/54（纯改名、行数对称），已用强判据复核（见「验证」）。**该既存漂移登记为独立事项**，不在本版处理。
+
 ## 2.25.1 — 哨兵不再自伤: canary 生成器改为无数字形态 (2026-09-21)
 
 本版修的是一个**测试夹具自伤**缺陷：`make_canary()` 生成的哨兵约有 0.5% 的概率被内容风控判为敏感形态，使对抗集里注入该哨兵的两个用例偶发路由到「升级人工」，`ai-eval` 随机变红。产品行为、API、数据库、用户可见文案均不变。

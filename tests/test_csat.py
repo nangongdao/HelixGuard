@@ -69,20 +69,20 @@ class CsatSurveyTests(unittest.TestCase):
 
     def test_resolve_creates_survey_and_one_time_rating(self) -> None:
         conversation_id, token = self._resolve_conversation("one")
-        response = self.client.post(f"/api/csat/{token}", json={"rating": 5})
+        response = self.client.post(f"/api/qa-spot-check/{token}", json={"rating": 5})
         self.assertEqual(response.status_code, 200, response.text)
         self.assertEqual(response.json()["conversation_id"], conversation_id)
         # One-time: second submission is rejected.
-        second = self.client.post(f"/api/csat/{token}", json={"rating": 1})
+        second = self.client.post(f"/api/qa-spot-check/{token}", json={"rating": 1})
         self.assertEqual(second.status_code, 404)
 
     def test_invalid_token_rejected(self) -> None:
-        response = self.client.post("/api/csat/no-such-token", json={"rating": 3})
+        response = self.client.post("/api/qa-spot-check/no-such-token", json={"rating": 3})
         self.assertEqual(response.status_code, 404)
 
     def test_rating_reflows_to_feedback(self) -> None:
         _, token = self._resolve_conversation("reflow")
-        self.client.post(f"/api/csat/{token}", json={"rating": 5})
+        self.client.post(f"/api/qa-spot-check/{token}", json={"rating": 5})
         with self.services.database.connect() as conn:
             row = conn.execute(
                 "SELECT rating, reason FROM feedback WHERE actor='csat' LIMIT 1"
@@ -120,26 +120,26 @@ class CsatSurveyTests(unittest.TestCase):
             ).fetchone()
         self.assertIsNotNone(row, "resolved webhook delivery should be enqueued")
         payload = json.loads(row["payload_json"])
-        self.assertEqual(payload["survey_url"], f"/api/csat/{token}")
+        self.assertEqual(payload["survey_url"], f"/api/qa-spot-check/{token}")
         self.assertEqual(payload["conversation_id"], conversation_id)
 
     def test_browser_landing_page_validates_token(self) -> None:
         _, token = self._resolve_conversation("page")
-        page = self.client.get(f"/api/csat/{token}")
+        page = self.client.get(f"/api/qa-spot-check/{token}")
         self.assertEqual(page.status_code, 200)
         self.assertIn("请为本次服务评分", page.text)
         # After use, the same link shows the invalid message, not the form.
-        self.client.post(f"/api/csat/{token}", json={"rating": 4})
-        stale = self.client.get(f"/api/csat/{token}")
+        self.client.post(f"/api/qa-spot-check/{token}", json={"rating": 4})
+        stale = self.client.get(f"/api/qa-spot-check/{token}")
         self.assertIn("链接已失效", stale.text)
         # Unknown tokens render the invalid message too.
-        unknown = self.client.get("/api/csat/no-such-token")
+        unknown = self.client.get("/api/qa-spot-check/no-such-token")
         self.assertIn("链接已失效", unknown.text)
 
     def test_browser_form_submission_returns_thank_you(self) -> None:
         _, token = self._resolve_conversation("form")
         response = self.client.post(
-            f"/api/csat/{token}",
+            f"/api/qa-spot-check/{token}",
             data={"rating": "5"},
             headers={"Content-Type": "application/x-www-form-urlencoded"},
         )
@@ -188,7 +188,7 @@ class CsatSurveyTests(unittest.TestCase):
             )
             response = client.post(f"/api/conversations/{conv['id']}/resolve", headers=admin)
             url = response.json()["survey_url"]
-            self.assertTrue(url.startswith("https://support.example.com/api/csat/"))
+            self.assertTrue(url.startswith("https://support.example.com/api/qa-spot-check/"))
             services.database.close()
 
 

@@ -14,7 +14,7 @@ from app.main import (
     require_permission,
 )
 from app.orchestrator import InvalidTransitionError
-from app.routers.common import RouteDeps
+from app.routers.common import RouteDeps, legacy_route
 from app.schemas import (
     AuditArchiveDetailOut,
     AuditArchiveOut,
@@ -36,7 +36,10 @@ def build_router(deps: RouteDeps) -> APIRouter:
     router = APIRouter()
     database = deps.database
 
-    @router.get("/api/canned-responses", response_model=list[CannedResponseOut])
+    @router.get("/api/canned-verdicts", response_model=list[CannedResponseOut])
+    @legacy_route(
+        router, "/api/canned-responses", methods=["GET"], response_model=list[CannedResponseOut]
+    )
     def list_canned_responses(
         principal: Annotated[Principal, Depends(require_permission("conversation:read"))],
         search: Annotated[str | None, Query(max_length=120)] = None,
@@ -53,7 +56,14 @@ def build_router(deps: RouteDeps) -> APIRouter:
             )
         ]
 
-    @router.post("/api/canned-responses", response_model=CannedResponseOut, status_code=201)
+    @router.post("/api/canned-verdicts", response_model=CannedResponseOut, status_code=201)
+    @legacy_route(
+        router,
+        "/api/canned-responses",
+        methods=["POST"],
+        response_model=CannedResponseOut,
+        status_code=201,
+    )
     def create_canned_response(
         payload: CannedResponseCreateRequest,
         principal: Annotated[Principal, Depends(require_permission("knowledge:write"))],
@@ -78,7 +88,13 @@ def build_router(deps: RouteDeps) -> APIRouter:
         )
         return canned_response_out(row)
 
-    @router.patch("/api/canned-responses/{response_id}", response_model=CannedResponseOut)
+    @router.patch("/api/canned-verdicts/{response_id}", response_model=CannedResponseOut)
+    @legacy_route(
+        router,
+        "/api/canned-responses/{response_id}",
+        methods=["PATCH"],
+        response_model=CannedResponseOut,
+    )
     def update_canned_response(
         response_id: str,
         payload: CannedResponseUpdateRequest,
@@ -107,7 +123,13 @@ def build_router(deps: RouteDeps) -> APIRouter:
         )
         return canned_response_out(row)
 
-    @router.post("/api/canned-responses/{response_id}/use", response_model=CannedResponseOut)
+    @router.post("/api/canned-verdicts/{response_id}/use", response_model=CannedResponseOut)
+    @legacy_route(
+        router,
+        "/api/canned-responses/{response_id}/use",
+        methods=["POST"],
+        response_model=CannedResponseOut,
+    )
     def use_canned_response(
         response_id: str,
         principal: Annotated[Principal, Depends(require_permission("operator:act"))],
@@ -175,7 +197,10 @@ def build_router(deps: RouteDeps) -> APIRouter:
             raise HTTPException(status_code=404, detail="Audit archive not found")
         return AuditArchiveDetailOut(**row)
 
-    @router.get("/api/knowledge", response_model=list[KnowledgeArticleOut])
+    @router.get("/api/policy", response_model=list[KnowledgeArticleOut])
+    @legacy_route(
+        router, "/api/knowledge", methods=["GET"], response_model=list[KnowledgeArticleOut]
+    )
     def list_knowledge(
         principal: Annotated[Principal, Depends(require_permission("conversation:read"))],
         include_inactive: bool = False,
@@ -187,7 +212,14 @@ def build_router(deps: RouteDeps) -> APIRouter:
             for row in database.list_knowledge(principal.tenant_id, include_inactive)
         ]
 
-    @router.post("/api/knowledge", response_model=KnowledgeArticleOut, status_code=201)
+    @router.post("/api/policy", response_model=KnowledgeArticleOut, status_code=201)
+    @legacy_route(
+        router,
+        "/api/knowledge",
+        methods=["POST"],
+        response_model=KnowledgeArticleOut,
+        status_code=201,
+    )
     def create_knowledge(
         payload: KnowledgeCreateRequest,
         principal: Annotated[Principal, Depends(require_permission("knowledge:write"))],
@@ -210,7 +242,10 @@ def build_router(deps: RouteDeps) -> APIRouter:
         )
         return knowledge_out(article)
 
-    @router.patch("/api/knowledge/{article_id}", response_model=KnowledgeArticleOut)
+    @router.patch("/api/policy/{article_id}", response_model=KnowledgeArticleOut)
+    @legacy_route(
+        router, "/api/knowledge/{article_id}", methods=["PATCH"], response_model=KnowledgeArticleOut
+    )
     def update_knowledge(
         article_id: str,
         payload: KnowledgeUpdateRequest,
@@ -239,7 +274,14 @@ def build_router(deps: RouteDeps) -> APIRouter:
     # ------------------------------------------------------------------
 
     @router.post(
+        "/api/policy/drafts",
+        response_model=KnowledgeArticleOut,
+        status_code=201,
+    )
+    @legacy_route(
+        router,
         "/api/knowledge/drafts",
+        methods=["POST"],
         response_model=KnowledgeArticleOut,
         status_code=201,
     )
@@ -272,7 +314,13 @@ def build_router(deps: RouteDeps) -> APIRouter:
         return knowledge_out(article)
 
     @router.post(
+        "/api/policy/{article_id}/review",
+        response_model=KnowledgeArticleOut,
+    )
+    @legacy_route(
+        router,
         "/api/knowledge/{article_id}/review",
+        methods=["POST"],
         response_model=KnowledgeArticleOut,
     )
     def review_knowledge_article(

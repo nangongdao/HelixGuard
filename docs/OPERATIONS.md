@@ -7,7 +7,7 @@
 - `GET /api/system/metrics`: request latency, database pool/cache/search, and tenant turn-job/worker statistics, supervisor/admin only.
 - `GET /api/dashboard`: queue, SLA, confidence, grounding, and feedback indicators.
 - `GET /api/supervisor/quality`: daily quality buckets (turn count, escalation rate, negative-feedback rate, avg first response, avg latency, estimated tokens) with keyset pagination (`X-Next-Cursor`/`X-Has-More`), `metrics:read` RBAC. Use `intent`/`prompt_version`/`since`/`until` filters to drill into a quality regression.
-- `GET /api/supervisor/knowledge-gaps`: conversations whose negative feedback had no knowledge citation — the starting point for a knowledge-base reflow. Each row carries the rated message id so a draft article can be created from it.
+- `GET /api/supervisor/policy-gaps`: conversations whose negative feedback had no knowledge citation — the starting point for a knowledge-base reflow. Each row carries the rated message id so a draft article can be created from it.
 - `GET /api/admin/usage`: raw daily usage rows (conversation/turn/message counts) for billing reconciliation, `tenant:manage` RBAC.
 - Every response includes `X-Request-Id`; audit events persist the same identifier.
 - `PROCESS_ROLE` (Phase 42.1) splits the runtime role of a process: `all` (default, single-process dev/legacy) serves the API and runs the turn worker + housekeeping; `web` is a stateless API tier that never starts the worker (scale the web fleet without adding workers); `worker` runs the worker and is expected not to expose public business endpoints at the deploy-time network layer. `/health/ready` reports `process_role` and `runs_turn_worker`; `/api/admin/diagnostics` reports `process_role` in `config`. The role never changes the endpoint surface inside the app — restricting worker ingress is a network/ingress concern.
@@ -20,7 +20,7 @@
 seeds baseline knowledge articles so it is immediately serviceable, and sets
 quota/policy columns. Re-posting the same `tenant_id` is a no-op for the row
 and re-applies quota fields. Verify with `GET /api/admin/tenants/{id}/quota`
-and a knowledge search (`/api/knowledge?q=分级` under that tenant).
+and a knowledge search (`/api/policy?q=分级` under that tenant).
 
 ### Member Lifecycle
 
@@ -49,9 +49,9 @@ stays for compliance.
 ## Web Chat Widget
 
 The customer client is served at `GET /widget`; its endpoints
-(`/api/widget/sessions*`) authenticate via signed customer tokens instead of
+(`/api/submission-portal/sessions*`) authenticate via signed customer tokens instead of
 an API key. A short-lived bootstrap token carries the tenant id and optional
-customer reference. `POST /api/widget/sessions` exchanges it for a fresh token
+customer reference. `POST /api/submission-portal/sessions` exchanges it for a fresh token
 bound to that exact conversation; only the fresh token can send, stream, or
 read the session. Both tokens expire after one hour with a clock-skew guard.
 
@@ -83,7 +83,7 @@ read the session. Both tokens expire after one hour with a clock-skew guard.
   message. Replaying the same id returns the original turn
   (`idempotent_replay: true`) and never creates a second turn; the unique
   index `idx_messages_channel_dedup` enforces this at the database level.
-- **Streaming**: `GET /api/widget/sessions/{id}/stream` serves SSE
+- **Streaming**: `GET /api/submission-portal/sessions/{id}/stream` serves SSE
   token/job events for the conversation's latest turn job; the client uses
   `?async_mode=true` on message send, then parses the stream through `fetch()`
   because native `EventSource` cannot attach `X-Widget-Token`.
@@ -479,7 +479,7 @@ daily `tenant_cost_daily` rollup. Four admin endpoints (`admin:manage`)
 expose it:
 
 - `GET /api/analytics/costs/daily?start_date=&end_date=` — cumulative summary
-- `GET /api/analytics/costs/by_agent?date=` and `/by_prompt?date=` — breakdowns
+- `GET /api/analytics/costs/by_reviewer?date=` and `/by_prompt?date=` — breakdowns
 - `GET /api/analytics/costs/anomaly` — current day vs the 7-day baseline
   (`anomaly` fires at 2x by default; rows without vendor pricing carry
   `cost_usd = NULL` and count toward tokens only)

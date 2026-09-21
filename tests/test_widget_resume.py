@@ -9,7 +9,7 @@ resume from after a dropped connection.
 
 Two contracts are covered here:
 
-1. ``GET /api/widget/sessions/{id}/messages`` exposes the *same* cursor contract
+1. ``GET /api/submission-portal/sessions/{id}/messages`` exposes the *same* cursor contract
    as the operator console, and the cursor advances over every row it scanned —
    including rows the customer may not see.  A page made entirely of internal
    notes must not stall the customer's cursor, or the poll loop can never reach
@@ -32,7 +32,7 @@ from fastapi.testclient import TestClient
 
 from app.config import Settings
 from app.main import create_app
-from app.widget_token import sign_token
+from app.portal_token import sign_token
 
 
 class _WidgetFixture(unittest.TestCase):
@@ -72,7 +72,7 @@ class _WidgetFixture(unittest.TestCase):
     def _session(self, customer_name: str = "Visitor") -> tuple[str, str]:
         """Open a widget session; return ``(conversation_id, session_token)``."""
         response = self.client.post(
-            "/api/widget/sessions",
+            "/api/submission-portal/sessions",
             json={"customer_name": customer_name, "channel": "web_chat"},
             headers={
                 "X-Widget-Token": sign_token(
@@ -93,7 +93,7 @@ class _WidgetFixture(unittest.TestCase):
     def _list(self, conversation_id: str, token: str, query: str = ""):
         """Return ``(status, headers, body)``; headers stay case-insensitive."""
         response = self.client.get(
-            f"/api/widget/sessions/{conversation_id}/messages{query}",
+            f"/api/submission-portal/sessions/{conversation_id}/messages{query}",
             headers={"X-Widget-Token": token},
         )
         body = response.json() if response.status_code == 200 else []

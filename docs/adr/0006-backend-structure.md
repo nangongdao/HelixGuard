@@ -10,7 +10,7 @@
 ## 决策
 
 1. **数据库层**：`Database` 拆为 9 个域 mixin（`app/db/`）：`core`（连接/缓存/性能）、`core_schema`（建表/FTS）、`tenancy`（租户/配额/成员）、`conversations`、`conversations_query`、`messages`、`jobs`、`knowledge`、`audit`。`app/database.py` 变成薄组合类，`PostgresDatabase(Database)` 继承关系不变。模块级辅助（`utc_now` 等）移至 `app/db/_util.py` 并由各 mixin 导入。
-2. **API 层**：`create_app` 内的路由闭包按域拆为 `app/routers/` 工厂（`build_router(deps: RouteDeps) -> APIRouter`）：`system`、`conversations`、`knowledge`、`admin`、`auth`。`RouteDeps` dataclass 持有闭包依赖（settings/database/orchestrator/turn_worker/services/queue/oidc 等），main.py 组装一次并注入各 router。已有 `quality_routes`/`widget_routes` 保持。
+2. **API 层**：`create_app` 内的路由闭包按域拆为 `app/routers/` 工厂（`build_router(deps: RouteDeps) -> APIRouter`）：`system`、`conversations`、`policy`、`admin`、`auth`。`RouteDeps` dataclass 持有闭包依赖（settings/database/orchestrator/turn_worker/services/queue/oidc 等），main.py 组装一次并注入各 router。已有 `quality_routes`/`portal_routes` 保持。
 3. **迁移框架**：`app/migrations.py` 保持单一迁移入口（`@migration` 装饰器 + `run_migrations`），新增迁移按版本号追加；`_ensure_column`/`_create_seq_trigger_if_table_exists` 容忍部分表缺失（旧测试库）。
 
 ## 后果

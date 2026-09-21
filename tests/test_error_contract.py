@@ -112,13 +112,13 @@ class ProblemDetailsContractTests(unittest.TestCase):
         # Retiring a non-existent article yields 404; a duplicate shortcut is
         # 409. Use canned-response shortcut conflict for a deterministic 409.
         first = self.client.post(
-            "/api/canned-responses",
+            "/api/canned-verdicts",
             json={"title": "T", "body": "body", "shortcut": "dup"},
             headers=self.admin,
         )
         self.assertEqual(first.status_code, 201, first.text)
         second = self.client.post(
-            "/api/canned-responses",
+            "/api/canned-verdicts",
             json={"title": "T2", "body": "body2", "shortcut": "dup"},
             headers=self.admin,
         )

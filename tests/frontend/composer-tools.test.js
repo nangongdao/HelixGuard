@@ -72,9 +72,9 @@ function configureDeps({ overrides = {} } = {}) {
     els,
     api: async (url, options) => {
       apiCalls.push({ url, options });
-      if (url === "/api/canned-responses") return [{ id: "m1", title: "催单", shortcut: "cd", body: "加急中" }];
+      if (url === "/api/canned-verdicts") return [{ id: "m1", title: "催单", shortcut: "cd", body: "加急中" }];
       if (url === "/api/copilot/suggest") return { suggestions: SUGGESTIONS };
-      if (url === "/api/copilot/knowledge") return { articles: [{ title: "配送时效", category: "物流" }] };
+      if (url === "/api/copilot/policy") return { articles: [{ title: "配送时效", category: "物流" }] };
       if (url === "/api/copilot/rewrite") return { rewritten: "改写后", source: "model" };
       return {};
     },
@@ -144,7 +144,7 @@ test("recordMacroUse posts the usage counter best-effort", async () => {
   installWindow({ islandMode: true });
   const { apiCalls } = configureDeps();
   await recordMacroUse("m1");
-  assert.match(apiCalls[0].url, /\/api\/canned-responses\/m1\/use$/);
+  assert.match(apiCalls[0].url, /\/api\/canned-verdicts\/m1\/use$/);
   assert.equal(apiCalls[0].options.method, "POST");
 });
 

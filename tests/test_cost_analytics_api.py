@@ -82,7 +82,7 @@ class CostAnalyticsAPITests(unittest.TestCase):
             date_str="2026-09-01",
         )
         response = self.client.get(
-            "/api/analytics/costs/by_agent", params={"date": "2026-09-01"}, headers=self.admin
+            "/api/analytics/costs/by_reviewer", params={"date": "2026-09-01"}, headers=self.admin
         )
         self.assertEqual(response.status_code, 200)
         rows = response.json()

@@ -590,7 +590,7 @@ class ConversationLifecycleMixin:
     def _csat_survey_url(self, token: str) -> str:
         """Build the customer survey URL (absolute when configured fully)."""
         base = self.settings.csat_base_url or ""
-        return f"{base}/api/csat/{token}"
+        return f"{base}/api/qa-spot-check/{token}"
 
     def _emit_webhook(
         self,

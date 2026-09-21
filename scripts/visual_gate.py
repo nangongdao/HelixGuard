@@ -155,7 +155,7 @@ def compare(name: str, current: Image.Image, update: bool = False) -> tuple[bool
 
 
 def widget_url() -> str:
-    from app.widget_token import sign_token
+    from app.portal_token import sign_token
 
     token = sign_token(
         secret=WIDGET_SECRET,

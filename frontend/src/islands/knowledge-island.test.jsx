@@ -188,12 +188,12 @@ describe("KnowledgeIsland editor surface", () => {
 
   it("requests inactive articles for a writer", async () => {
     await renderIsland();
-    expect(fetch).toHaveBeenCalledWith("/api/knowledge?include_inactive=true", expect.anything());
+    expect(fetch).toHaveBeenCalledWith("/api/policy?include_inactive=true", expect.anything());
   });
 
   it("requests only published articles for a reader", async () => {
     await renderIsland([makeArticle({ status: "published" })], "viewer");
-    expect(fetch).toHaveBeenCalledWith("/api/knowledge", expect.anything());
+    expect(fetch).toHaveBeenCalledWith("/api/policy", expect.anything());
   });
 });
 

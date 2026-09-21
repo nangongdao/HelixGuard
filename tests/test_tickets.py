@@ -77,7 +77,7 @@ class TicketAppTests(unittest.TestCase):
 
     def _create_ticket(self, conversation_id: str, subject: str = "发货异常") -> dict[str, Any]:
         response = self.client.post(
-            "/api/tickets",
+            "/api/appeals",
             json={"conversation_id": conversation_id, "subject": subject},
             headers=self.admin,
         )
@@ -107,7 +107,7 @@ class TicketAppTests(unittest.TestCase):
 
     def test_convert_unknown_conversation_404(self) -> None:
         response = self.client.post(
-            "/api/tickets",
+            "/api/appeals",
             json={"conversation_id": "conv_nonexistent", "subject": "问题"},
             headers=self.admin,
         )
@@ -116,7 +116,7 @@ class TicketAppTests(unittest.TestCase):
     def test_explicit_description_used(self) -> None:
         conversation_id = self._open_conversation()
         response = self.client.post(
-            "/api/tickets",
+            "/api/appeals",
             json={
                 "conversation_id": conversation_id,
                 "subject": "备用问题",
@@ -133,21 +133,21 @@ class TicketAppTests(unittest.TestCase):
         conversation_id = self._open_conversation()
         ticket = self._create_ticket(conversation_id)
         response = self.client.post(
-            f"/api/tickets/{ticket['id']}/transition",
+            f"/api/appeals/{ticket['id']}/transition",
             json={"status": "in_progress", "reason": "开始处理"},
             headers=self.admin,
         )
         self.assertEqual(response.status_code, 200, response.text)
         self.assertEqual(response.json()["status"], "in_progress")
         response = self.client.post(
-            f"/api/tickets/{ticket['id']}/transition",
+            f"/api/appeals/{ticket['id']}/transition",
             json={"status": "closed"},
             headers=self.admin,
         )
         self.assertEqual(response.json()["status"], "closed")
         self.assertIsNotNone(response.json()["closed_at"])
         response = self.client.post(
-            f"/api/tickets/{ticket['id']}/transition",
+            f"/api/appeals/{ticket['id']}/transition",
             json={"status": "open"},
             headers=self.admin,
         )
@@ -157,14 +157,14 @@ class TicketAppTests(unittest.TestCase):
         conversation_id = self._open_conversation()
         ticket = self._create_ticket(conversation_id)
         response = self.client.post(
-            f"/api/tickets/{ticket['id']}/transition",
+            f"/api/appeals/{ticket['id']}/transition",
             json={"status": "closed"},
             headers=self.admin,
         )
         self.assertEqual(response.status_code, 200, response.text)
         # closed -> in_progress is not a legal move.
         response = self.client.post(
-            f"/api/tickets/{ticket['id']}/transition",
+            f"/api/appeals/{ticket['id']}/transition",
             json={"status": "in_progress"},
             headers=self.admin,
         )
@@ -174,7 +174,7 @@ class TicketAppTests(unittest.TestCase):
         conversation_id = self._open_conversation()
         ticket = self._create_ticket(conversation_id)
         self.client.post(
-            f"/api/tickets/{ticket['id']}/transition",
+            f"/api/appeals/{ticket['id']}/transition",
             json={"status": "closed"},
             headers=self.admin,
         )
@@ -193,12 +193,12 @@ class TicketAppTests(unittest.TestCase):
         second = self._open_conversation("提交方A", "CUST-2001")
         ticket = self._create_ticket(first)
         response = self.client.post(
-            f"/api/tickets/{ticket['id']}/link",
+            f"/api/appeals/{ticket['id']}/link",
             json={"conversation_id": second},
             headers=self.admin,
         )
         self.assertEqual(response.status_code, 200, response.text)
-        detail = self.client.get(f"/api/tickets/{ticket['id']}", headers=self.admin).json()
+        detail = self.client.get(f"/api/appeals/{ticket['id']}", headers=self.admin).json()
         conversation_ids = [item["id"] for item in detail["conversations"]]
         self.assertIn(first, conversation_ids)
         self.assertIn(second, conversation_ids)
@@ -210,7 +210,7 @@ class TicketAppTests(unittest.TestCase):
         conversation_id = self._open_conversation()
         ticket = self._create_ticket(conversation_id)
         response = self.client.post(
-            f"/api/tickets/{ticket['id']}/link",
+            f"/api/appeals/{ticket['id']}/link",
             json={"conversation_id": "conv_nonexistent"},
             headers=self.admin,
         )
@@ -224,7 +224,7 @@ class TicketAppTests(unittest.TestCase):
             headers=self.admin,
         )
         ticket = self._create_ticket(conversation_id)
-        response = self.client.get(f"/api/tickets/{ticket['id']}", headers=self.admin)
+        response = self.client.get(f"/api/appeals/{ticket['id']}", headers=self.admin)
         body = response.text
         self.assertNotIn("内部机密", body)
         self.assertNotIn("消协", body)
@@ -237,15 +237,15 @@ class TicketAppTests(unittest.TestCase):
         t1 = self._create_ticket(c1, "问题甲")
         self._create_ticket(c2, "问题乙")
         self.client.post(
-            f"/api/tickets/{t1['id']}/transition",
+            f"/api/appeals/{t1['id']}/transition",
             json={"status": "closed"},
             headers=self.admin,
         )
-        response = self.client.get("/api/tickets?status=closed", headers=self.admin)
+        response = self.client.get("/api/appeals?status=closed", headers=self.admin)
         self.assertEqual(response.status_code, 200, response.text)
         closed = [t for t in response.json() if t["id"] == t1["id"]]
         self.assertEqual(len(closed), 1)
-        response = self.client.get("/api/tickets?customer_ref=CUST-3001", headers=self.admin)
+        response = self.client.get("/api/appeals?customer_ref=CUST-3001", headers=self.admin)
         ids = [t["id"] for t in response.json()]
         self.assertIn(t1["id"], ids)
 
@@ -253,7 +253,7 @@ class TicketAppTests(unittest.TestCase):
         conversation_id = self._open_conversation()
         ticket = self._create_ticket(conversation_id)
         response = self.client.patch(
-            f"/api/tickets/{ticket['id']}",
+            f"/api/appeals/{ticket['id']}",
             json={"assigned_agent": "operator-1", "priority": "high"},
             headers=self.admin,
         )
@@ -266,10 +266,10 @@ class TicketAppTests(unittest.TestCase):
     def test_viewer_denied_writes(self) -> None:
         conversation_id = self._open_conversation()
         calls = [
-            ("POST", "/api/tickets", {"conversation_id": conversation_id, "subject": "x"}),
-            ("PATCH", "/api/tickets/tkt_none", {"subject": "x"}),
-            ("POST", "/api/tickets/tkt_none/transition", {"status": "closed"}),
-            ("POST", "/api/tickets/tkt_none/link", {"conversation_id": conversation_id}),
+            ("POST", "/api/appeals", {"conversation_id": conversation_id, "subject": "x"}),
+            ("PATCH", "/api/appeals/tkt_none", {"subject": "x"}),
+            ("POST", "/api/appeals/tkt_none/transition", {"status": "closed"}),
+            ("POST", "/api/appeals/tkt_none/link", {"conversation_id": conversation_id}),
         ]
         for method, path, body in calls:
             response = self.client.request(method, path, json=body, headers=self.viewer)
@@ -278,7 +278,7 @@ class TicketAppTests(unittest.TestCase):
     def test_viewer_can_read_tickets(self) -> None:
         conversation_id = self._open_conversation()
         ticket = self._create_ticket(conversation_id)
-        response = self.client.get(f"/api/tickets/{ticket['id']}", headers=self.viewer)
+        response = self.client.get(f"/api/appeals/{ticket['id']}", headers=self.viewer)
         self.assertEqual(response.status_code, 200, response.text)
         self.assertEqual(response.json()["id"], ticket["id"])
 

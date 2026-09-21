@@ -119,7 +119,7 @@ class CopilotAppTests(unittest.TestCase):
 
     def _add_knowledge(self, title: str, tags: list[str], language: str | None = None) -> None:
         response = self.client.post(
-            "/api/knowledge",
+            "/api/policy",
             json={
                 "title": title,
                 "content": f"关于 {title} 的详细说明，供策略库检索使用。",
@@ -211,7 +211,7 @@ class CopilotAppTests(unittest.TestCase):
         conversation_id = self._open_conversation()
         self._send(conversation_id, "refund 怎么申请", "copilot-key-5")
         response = self.client.post(
-            "/api/copilot/knowledge",
+            "/api/copilot/policy",
             json={"conversation_id": conversation_id},
             headers=self.admin,
         )
@@ -225,7 +225,7 @@ class CopilotAppTests(unittest.TestCase):
         self._add_knowledge("发票政策", ["invoice"], "zh")
         conversation_id = self._open_conversation()
         response = self.client.post(
-            "/api/copilot/knowledge",
+            "/api/copilot/policy",
             json={"conversation_id": conversation_id, "query": "invoice"},
             headers=self.admin,
         )
@@ -236,7 +236,7 @@ class CopilotAppTests(unittest.TestCase):
     def test_recommend_knowledge_empty_conversation_returns_empty(self) -> None:
         conversation_id = self._open_conversation()
         response = self.client.post(
-            "/api/copilot/knowledge",
+            "/api/copilot/policy",
             json={"conversation_id": conversation_id},
             headers=self.admin,
         )
@@ -250,7 +250,7 @@ class CopilotAppTests(unittest.TestCase):
         # English customer message -> conversation.language = en.
         self._send(conversation_id, "How do I apply for a refund?", "copilot-key-6")
         response = self.client.post(
-            "/api/copilot/knowledge",
+            "/api/copilot/policy",
             json={"conversation_id": conversation_id, "query": "refund"},
             headers=self.admin,
         )
@@ -309,7 +309,7 @@ class CopilotAppTests(unittest.TestCase):
         conversation_id = self._open_conversation()
         calls = [
             ("/api/copilot/suggest", {"conversation_id": conversation_id}),
-            ("/api/copilot/knowledge", {"conversation_id": conversation_id}),
+            ("/api/copilot/policy", {"conversation_id": conversation_id}),
             ("/api/copilot/rewrite", {"text": "你好", "tone": "friendly"}),
         ]
         for path, body in calls:

@@ -24,7 +24,7 @@ export async function enrichTicketBadge(ticketId) {
     return;
   }
   try {
-    const ticket = await ctx.api(`/api/tickets/${encodeURIComponent(ticketId)}`);
+    const ticket = await ctx.api(`/api/appeals/${encodeURIComponent(ticketId)}`);
     const status = TICKET_STATUS_NAMES[ticket.status] || ticket.status || "";
     ticketBadgeCache[ticketId] = status;
     if (ctx.state.selectedId && ctx.els.ticketBadge) {
@@ -41,7 +41,7 @@ export async function convertToTicket() {
   const subject = window.prompt("转申诉单主题（长周期问题描述）", "问题跟进");
   if (subject === null || !subject.trim()) return;
   try {
-    await ctx.api("/api/tickets", {
+    await ctx.api("/api/appeals", {
       method: "POST",
       body: JSON.stringify({ conversation_id: conversationId, subject: subject.trim() }),
     });
@@ -107,7 +107,7 @@ export async function loadTickets() {
   const status = ctx.els.ticketStatusFilter?.value || "";
   const query = status ? `?status=${encodeURIComponent(status)}` : "";
   try {
-    const tickets = await ctx.api(`/api/tickets${query}`);
+    const tickets = await ctx.api(`/api/appeals${query}`);
     ticketListLoaded = true;
     renderTicketList(tickets || []);
   } catch (error) {
@@ -150,9 +150,9 @@ export function renderTicketList(tickets) {
 export async function openTicketDetail(ticketId) {
   activeTicketId = ticketId;
   try {
-    const detail = await ctx.api(`/api/tickets/${encodeURIComponent(ticketId)}`);
+    const detail = await ctx.api(`/api/appeals/${encodeURIComponent(ticketId)}`);
     // 过期响应守卫:await 期间用户已切换另一申诉单或关闭详情(activeTicketId
-    // 变化),旧票响应不得覆盖当前视图,也不得把 null 传给 /api/tickets/null。
+    // 变化),旧票响应不得覆盖当前视图,也不得把 null 传给 /api/appeals/null。
     if (activeTicketId !== ticketId) return;
     renderTicketDetail(detail);
     if (ctx.els.ticketDetailView) ctx.els.ticketDetailView.hidden = false;
@@ -240,7 +240,7 @@ export async function transitionActiveTicket(status) {
   const ticketId = activeTicketId;
   if (!ticketId) return;
   try {
-    await ctx.api(`/api/tickets/${encodeURIComponent(ticketId)}/transition`, {
+    await ctx.api(`/api/appeals/${encodeURIComponent(ticketId)}/transition`, {
       method: "POST",
       body: JSON.stringify({ status }),
     });
@@ -256,7 +256,7 @@ export async function linkActiveTicketConversation() {
   const conversationId = ctx.state.selectedId;
   if (!ticketId || !conversationId) return;
   try {
-    await ctx.api(`/api/tickets/${encodeURIComponent(ticketId)}/link`, {
+    await ctx.api(`/api/appeals/${encodeURIComponent(ticketId)}/link`, {
       method: "POST",
       body: JSON.stringify({ conversation_id: conversationId }),
     });

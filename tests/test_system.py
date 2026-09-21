@@ -269,7 +269,7 @@ class HelixGuardTests(unittest.TestCase):
 
     def test_knowledge_management_is_tenant_scoped(self) -> None:
         created = self.client.post(
-            "/api/knowledge",
+            "/api/policy",
             json={
                 "title": "发票开具",
                 "content": "订单完成后可在订单详情中申请电子发票，通常在 24 小时内开具。",
@@ -284,14 +284,14 @@ class HelixGuardTests(unittest.TestCase):
         self.assertEqual(article["version"], 1)
 
         updated = self.client.patch(
-            f"/api/knowledge/{article['id']}",
+            f"/api/policy/{article['id']}",
             json={"active": False},
             headers=self.headers,
         )
         self.assertEqual(updated.status_code, 200, updated.text)
         self.assertEqual(updated.json()["version"], 2)
         self.assertFalse(updated.json()["active"])
-        self.assertEqual(self.client.get("/api/knowledge", headers=self.other_headers).json(), [])
+        self.assertEqual(self.client.get("/api/policy", headers=self.other_headers).json(), [])
 
     def test_queue_pagination_headers_are_stable(self) -> None:
         created_ids = {
@@ -822,7 +822,7 @@ class HelixGuardTests(unittest.TestCase):
 
     def test_knowledge_fts_updates_and_excludes_inactive_articles(self) -> None:
         article = self.client.post(
-            "/api/knowledge",
+            "/api/policy",
             json={
                 "title": "Priority launch policy",
                 "content": "Rocketline orders receive a dedicated launch window.",
@@ -842,7 +842,7 @@ class HelixGuardTests(unittest.TestCase):
         )
 
         updated = self.client.patch(
-            f"/api/knowledge/{article_id}",
+            f"/api/policy/{article_id}",
             json={"title": "Updated launch policy", "tags": ["newrocket"]},
             headers=self.headers,
         )
@@ -854,7 +854,7 @@ class HelixGuardTests(unittest.TestCase):
         )
 
         inactive = self.client.patch(
-            f"/api/knowledge/{article_id}",
+            f"/api/policy/{article_id}",
             json={"active": False},
             headers=self.headers,
         )
@@ -954,7 +954,7 @@ class HelixGuardTests(unittest.TestCase):
         self.assertFalse(released.json()["claim_active"])
 
         macro = self.client.post(
-            "/api/canned-responses",
+            "/api/canned-verdicts",
             json={
                 "title": "退款说明",
                 "body": "退款申请需要人工审核，通常 1-3 个工作日完成。",
@@ -965,10 +965,10 @@ class HelixGuardTests(unittest.TestCase):
         )
         self.assertEqual(macro.status_code, 201, macro.text)
         macro_id = macro.json()["id"]
-        used = self.client.post(f"/api/canned-responses/{macro_id}/use", headers=self.headers)
+        used = self.client.post(f"/api/canned-verdicts/{macro_id}/use", headers=self.headers)
         self.assertEqual(used.status_code, 200, used.text)
         self.assertEqual(used.json()["usage_count"], 1)
-        listed = self.client.get("/api/canned-responses", headers=self.headers)
+        listed = self.client.get("/api/canned-verdicts", headers=self.headers)
         self.assertEqual(listed.status_code, 200, listed.text)
         self.assertTrue(any(item["id"] == macro_id for item in listed.json()))
 

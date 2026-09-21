@@ -22,7 +22,7 @@ from fastapi.testclient import TestClient
 from app.config import Settings
 from app.domain import ConversationStatus
 from app.main import create_app
-from app.widget_token import WidgetTokenError, sign_token, verify_token
+from app.portal_token import WidgetTokenError, sign_token, verify_token
 
 ADMIN_KEY = "p23-admin-key-0001"
 
@@ -93,7 +93,9 @@ class WidgetSessionTests(unittest.TestCase):
         self._tmp.cleanup()
 
     def test_create_session_anonymous(self) -> None:
-        response = self.client.post("/api/widget/sessions", json={}, headers=self.headers)
+        response = self.client.post(
+            "/api/submission-portal/sessions", json={}, headers=self.headers
+        )
         self.assertEqual(response.status_code, 201, response.text)
         body = response.json()
         self.assertEqual(body["conversation"]["channel"], "web_chat")
@@ -101,25 +103,27 @@ class WidgetSessionTests(unittest.TestCase):
         self.assertEqual(body["conversation"]["status"], "open")
 
     def test_create_session_missing_token_401(self) -> None:
-        response = self.client.post("/api/widget/sessions", json={})
+        response = self.client.post("/api/submission-portal/sessions", json={})
         self.assertEqual(response.status_code, 401)
 
     def test_create_session_forged_token_401(self) -> None:
         response = self.client.post(
-            "/api/widget/sessions", json={}, headers={"X-Widget-Token": "forged.token"}
+            "/api/submission-portal/sessions", json={}, headers={"X-Widget-Token": "forged.token"}
         )
         self.assertEqual(response.status_code, 401)
 
     def test_create_session_unknown_tenant_404(self) -> None:
         token = sign_token(secret=self.settings.widget_secret, tenant_id="ghost")
         response = self.client.post(
-            "/api/widget/sessions", json={}, headers={"X-Widget-Token": token}
+            "/api/submission-portal/sessions", json={}, headers={"X-Widget-Token": token}
         )
         self.assertEqual(response.status_code, 404)
 
     def test_conversation_visible_in_operator_queue(self) -> None:
         created = self.client.post(
-            "/api/widget/sessions", json={"customer_name": "Visitor"}, headers=self.headers
+            "/api/submission-portal/sessions",
+            json={"customer_name": "Visitor"},
+            headers=self.headers,
         ).json()
         conversation_id = created["conversation"]["id"]
         admin = {"X-API-Key": ADMIN_KEY, "X-Tenant-Id": "demo"}
@@ -141,7 +145,9 @@ class WidgetChannelIdempotencyTests(unittest.TestCase):
         )
         self.headers = {"X-Widget-Token": self.token}
         self.session = self.client.post(
-            "/api/widget/sessions", json={"customer_name": "Replayer"}, headers=self.headers
+            "/api/submission-portal/sessions",
+            json={"customer_name": "Replayer"},
+            headers=self.headers,
         ).json()
         self.conversation_id = self.session["conversation"]["id"]
         # Session operations require the fresh conversation-bound token. The
@@ -155,7 +161,7 @@ class WidgetChannelIdempotencyTests(unittest.TestCase):
 
     def _send(self, content: str, channel_message_id: str) -> dict:
         return self.client.post(
-            f"/api/widget/sessions/{self.conversation_id}/messages",
+            f"/api/submission-portal/sessions/{self.conversation_id}/messages",
             json={"content": content, "channel_message_id": channel_message_id},
             headers=self.headers,
         ).json()
@@ -168,7 +174,7 @@ class WidgetChannelIdempotencyTests(unittest.TestCase):
         self.assertTrue(replay["idempotent_replay"])
         # Only one customer message persisted for that channel id.
         messages = self.client.get(
-            f"/api/widget/sessions/{self.conversation_id}/messages", headers=self.headers
+            f"/api/submission-portal/sessions/{self.conversation_id}/messages", headers=self.headers
         ).json()
         customer_messages = [m for m in messages if m["role"] == "customer"]
         self.assertEqual(len(customer_messages), 1)
@@ -177,21 +183,21 @@ class WidgetChannelIdempotencyTests(unittest.TestCase):
         self._send("ORD-10482 的来源", "ch-a")
         self._send("申诉时限是多久", "ch-b")
         messages = self.client.get(
-            f"/api/widget/sessions/{self.conversation_id}/messages", headers=self.headers
+            f"/api/submission-portal/sessions/{self.conversation_id}/messages", headers=self.headers
         ).json()
         customer_messages = [m for m in messages if m["role"] == "customer"]
         self.assertEqual(len(customer_messages), 2)
 
     def test_async_mode_enqueues_job_and_is_replay_safe(self) -> None:
         first = self.client.post(
-            f"/api/widget/sessions/{self.conversation_id}/messages?async_mode=true",
+            f"/api/submission-portal/sessions/{self.conversation_id}/messages?async_mode=true",
             json={"content": "高风险内容怎么处置", "channel_message_id": "ch-async-1"},
             headers=self.headers,
         )
         self.assertEqual(first.status_code, 200)
         self.assertEqual(first.json()["status"], "queued")
         replay = self.client.post(
-            f"/api/widget/sessions/{self.conversation_id}/messages?async_mode=true",
+            f"/api/submission-portal/sessions/{self.conversation_id}/messages?async_mode=true",
             json={"content": "高风险内容怎么处置", "channel_message_id": "ch-async-1"},
             headers=self.headers,
         )
@@ -200,7 +206,7 @@ class WidgetChannelIdempotencyTests(unittest.TestCase):
 
     def test_async_worker_persists_channel_message_id(self) -> None:
         queued = self.client.post(
-            f"/api/widget/sessions/{self.conversation_id}/messages?async_mode=true",
+            f"/api/submission-portal/sessions/{self.conversation_id}/messages?async_mode=true",
             json={"content": "异步消息持久化", "channel_message_id": "ch-worker-id"},
             headers=self.headers,
         )
@@ -213,24 +219,26 @@ class WidgetChannelIdempotencyTests(unittest.TestCase):
 
     def test_stream_endpoint_serves_after_async_turn(self) -> None:
         job = self.client.post(
-            f"/api/widget/sessions/{self.conversation_id}/messages?async_mode=true",
+            f"/api/submission-portal/sessions/{self.conversation_id}/messages?async_mode=true",
             json={"content": "违规内容怎么分级", "channel_message_id": "ch-stream-1"},
             headers=self.headers,
         ).json()
         self.assertEqual(job["status"], "queued")
         stream = self.client.get(
-            f"/api/widget/sessions/{self.conversation_id}/stream", headers=self.headers
+            f"/api/submission-portal/sessions/{self.conversation_id}/stream", headers=self.headers
         )
         self.assertEqual(stream.status_code, 200)
         self.assertIn("text/event-stream", stream.headers["content-type"])
 
     def test_session_token_cannot_read_another_conversation(self) -> None:
         other = self.client.post(
-            "/api/widget/sessions",
+            "/api/submission-portal/sessions",
             json={"customer_name": "Other"},
             headers={"X-Widget-Token": self.token},
         ).json()["conversation"]["id"]
-        response = self.client.get(f"/api/widget/sessions/{other}/messages", headers=self.headers)
+        response = self.client.get(
+            f"/api/submission-portal/sessions/{other}/messages", headers=self.headers
+        )
         self.assertEqual(response.status_code, 404)
 
     def test_internal_notes_are_not_exposed_to_widget(self) -> None:
@@ -240,7 +248,7 @@ class WidgetChannelIdempotencyTests(unittest.TestCase):
             headers={"X-API-Key": ADMIN_KEY, "X-Tenant-Id": "demo"},
         )
         response = self.client.get(
-            f"/api/widget/sessions/{self.conversation_id}/messages", headers=self.headers
+            f"/api/submission-portal/sessions/{self.conversation_id}/messages", headers=self.headers
         )
         self.assertEqual(response.status_code, 200)
         self.assertNotIn("private operator note", response.text)
@@ -254,7 +262,7 @@ class WidgetChannelIdempotencyTests(unittest.TestCase):
         )
         self.assertIsNotNone(transitioned)
         response = self.client.get(
-            f"/api/widget/sessions/{self.conversation_id}/messages", headers=self.headers
+            f"/api/submission-portal/sessions/{self.conversation_id}/messages", headers=self.headers
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.headers["x-conversation-status"], "waiting_human")

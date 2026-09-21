@@ -255,7 +255,7 @@ export function renderRuleGroups(groups) {
 
 export async function loadRuleGroups() {
   try {
-    const groups = await ctx.api("/api/admin/agent-groups");
+    const groups = await ctx.api("/api/admin/reviewer-groups");
     renderRuleGroups(Array.isArray(groups) ? groups : []);
   } catch (error) {
     agentGroupsCache = [];

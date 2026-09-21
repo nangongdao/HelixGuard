@@ -435,7 +435,7 @@ class HelixClient:
     # --------------------------------------------------------------- knowledge
 
     def list_knowledge(self) -> list[dict[str, Any]]:
-        return self._request("GET", "/api/knowledge")
+        return self._request("GET", "/api/policy")
 
     def create_knowledge_draft(
         self,
@@ -448,7 +448,7 @@ class HelixClient:
     ) -> dict[str, Any]:
         return self._request(
             "POST",
-            "/api/knowledge/drafts",
+            "/api/policy/drafts",
             json_body={
                 "title": title,
                 "content": content,
@@ -560,7 +560,7 @@ class HelixClient:
             body["customer_name"] = customer_name
         return self._request(
             "POST",
-            "/api/widget/sessions",
+            "/api/submission-portal/sessions",
             json_body=body,
             headers={"X-Widget-Token": widget_token},
         )
@@ -581,7 +581,7 @@ class HelixClient:
         params = {"async_mode": "true"} if async_mode else None
         return self._request(
             "POST",
-            f"/api/widget/sessions/{conversation_id}/messages",
+            f"/api/submission-portal/sessions/{conversation_id}/messages",
             json_body=body,
             params=params,
             headers={"X-Widget-Token": widget_token},

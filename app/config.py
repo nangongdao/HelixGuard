@@ -128,7 +128,7 @@ class Settings:
     channel_webhook_replay_window_seconds: int = 300
     # Backlog (CSAT): public base URL prefix used to build absolute customer
     # survey links. When empty, resolution surfaces a relative path
-    # (``/api/csat/{token}``); production should set this so emailed
+    # (``/api/qa-spot-check/{token}``); production should set this so emailed
     # survey links point at the right host.
     csat_base_url: str = ""
     # Backlog (多语言审核): the language the support team writes replies in.

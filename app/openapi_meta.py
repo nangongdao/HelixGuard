@@ -104,7 +104,7 @@ _ENDPOINT_META: dict[str, tuple[str, list[str], str]] = {
         ["conversations"],
         "operator:act",
     ),
-    "GET /api/admin/csat-summary": (
+    "GET /api/admin/qa-spot-check-summary": (
         "Aggregate answered CSAT surveys; days only bounds the per-day trend (readouts are all-history)",
         ["admin"],
         "admin:manage",
@@ -194,54 +194,54 @@ _ENDPOINT_META: dict[str, tuple[str, list[str], str]] = {
         ["dashboard"],
         "conversation:read",
     ),
-    "GET /api/canned-responses": (
+    "GET /api/canned-verdicts": (
         "List canned responses",
-        ["canned-responses"],
+        ["canned-verdicts"],
         "conversation:read",
     ),
-    "POST /api/canned-responses": (
+    "POST /api/canned-verdicts": (
         "Create a canned response",
-        ["canned-responses"],
+        ["canned-verdicts"],
         "knowledge:write",
     ),
-    "PATCH /api/canned-responses/{response_id}": (
+    "PATCH /api/canned-verdicts/{response_id}": (
         "Update a canned response",
-        ["canned-responses"],
+        ["canned-verdicts"],
         "knowledge:write",
     ),
-    "DELETE /api/canned-responses/{response_id}": (
+    "DELETE /api/canned-verdicts/{response_id}": (
         "Delete a canned response",
-        ["canned-responses"],
+        ["canned-verdicts"],
         "knowledge:write",
     ),
-    "GET /api/knowledge": (
+    "GET /api/policy": (
         "List published knowledge articles",
-        ["knowledge"],
+        ["policy"],
         "conversation:read",
     ),
-    "POST /api/knowledge": (
+    "POST /api/policy": (
         "Create a published knowledge article",
-        ["knowledge"],
+        ["policy"],
         "knowledge:write",
     ),
-    "PATCH /api/knowledge/{article_id}": (
+    "PATCH /api/policy/{article_id}": (
         "Update a knowledge article",
-        ["knowledge"],
+        ["policy"],
         "knowledge:write",
     ),
-    "POST /api/knowledge/drafts": (
+    "POST /api/policy/drafts": (
         "Create a knowledge draft (invisible until approved)",
-        ["knowledge"],
+        ["policy"],
         "knowledge:write",
     ),
-    "POST /api/knowledge/{article_id}/review": (
+    "POST /api/policy/{article_id}/review": (
         "Publish or retire a pending knowledge article",
-        ["knowledge"],
+        ["policy"],
         "knowledge:write",
     ),
     "POST /api/conversations/{conversation_id}/messages/{message_id}/knowledge-draft": (
         "Create a draft from a negatively-rated message",
-        ["knowledge"],
+        ["policy"],
         "knowledge:write",
     ),
     "GET /api/audit-events": (
@@ -279,7 +279,7 @@ _ENDPOINT_META: dict[str, tuple[str, list[str], str]] = {
         ["quality"],
         "metrics:read",
     ),
-    "GET /api/supervisor/knowledge-gaps": (
+    "GET /api/supervisor/policy-gaps": (
         "Negative-feedback turns without knowledge citations",
         ["quality"],
         "metrics:read",
@@ -459,27 +459,27 @@ _ENDPOINT_META: dict[str, tuple[str, list[str], str]] = {
         ["admin"],
         "admin:manage",
     ),
-    "GET /api/admin/agent-groups": (
+    "GET /api/admin/reviewer-groups": (
         "List agent groups (skills + capacity)",
         ["admin"],
         "admin:manage",
     ),
-    "POST /api/admin/agent-groups": (
+    "POST /api/admin/reviewer-groups": (
         "Create an agent group",
         ["admin"],
         "admin:manage",
     ),
-    "DELETE /api/admin/agent-groups/{group_id}": (
+    "DELETE /api/admin/reviewer-groups/{group_id}": (
         "Delete an agent group",
         ["admin"],
         "admin:manage",
     ),
-    "POST /api/admin/agent-groups/{group_id}/agents": (
+    "POST /api/admin/reviewer-groups/{group_id}/reviewers": (
         "Add an agent to a group",
         ["admin"],
         "admin:manage",
     ),
-    "DELETE /api/admin/agent-groups/{group_id}/agents/{actor_id}": (
+    "DELETE /api/admin/reviewer-groups/{group_id}/reviewers/{actor_id}": (
         "Remove an agent from a group",
         ["admin"],
         "admin:manage",
@@ -524,9 +524,9 @@ _ENDPOINT_META: dict[str, tuple[str, list[str], str]] = {
         ["admin"],
         "admin:manage",
     ),
-    "POST /api/widget/sessions": (
+    "POST /api/submission-portal/sessions": (
         "Open a widget chat session (signed token)",
-        ["widget"],
+        ["submission_portal"],
         "X-Widget-Token (signed, no API key)",
     ),
     "POST /api/channels/{account_id}/webhook": (
@@ -534,24 +534,24 @@ _ENDPOINT_META: dict[str, tuple[str, list[str], str]] = {
         ["channels"],
         "X-Helix-Timestamp + raw-body HMAC signature (no API key)",
     ),
-    "POST /api/widget/sessions/{conversation_id}/messages": (
+    "POST /api/submission-portal/sessions/{conversation_id}/messages": (
         "Send a widget message (channel-id idempotent)",
-        ["widget"],
+        ["submission_portal"],
         "X-Widget-Token (signed, no API key)",
     ),
-    "GET /api/widget/sessions/{conversation_id}/messages": (
+    "GET /api/submission-portal/sessions/{conversation_id}/messages": (
         "List widget conversation messages",
-        ["widget"],
+        ["submission_portal"],
         "X-Widget-Token (signed, no API key)",
     ),
-    "GET /api/widget/sessions/{conversation_id}/stream": (
+    "GET /api/submission-portal/sessions/{conversation_id}/stream": (
         "SSE stream for the widget conversation's latest turn",
-        ["widget"],
+        ["submission_portal"],
         "X-Widget-Token (signed, no API key)",
     ),
-    "POST /api/csat/{token}": (
+    "POST /api/qa-spot-check/{token}": (
         "Submit a one-time CSAT satisfaction rating",
-        ["csat"],
+        ["qa_spot_check"],
         "one-time survey token (no API key)",
     ),
     "POST /api/copilot/suggest": (
@@ -559,7 +559,7 @@ _ENDPOINT_META: dict[str, tuple[str, list[str], str]] = {
         ["copilot"],
         "operator:act",
     ),
-    "POST /api/copilot/knowledge": (
+    "POST /api/copilot/policy": (
         "Recommend knowledge articles for the latest customer message",
         ["copilot"],
         "operator:act",
@@ -569,34 +569,34 @@ _ENDPOINT_META: dict[str, tuple[str, list[str], str]] = {
         ["copilot"],
         "operator:act",
     ),
-    "POST /api/tickets": (
+    "POST /api/appeals": (
         "Convert a conversation into a long-cycle ticket (idempotent)",
-        ["tickets"],
+        ["appeals"],
         "operator:act",
     ),
-    "GET /api/tickets": (
+    "GET /api/appeals": (
         "List tickets (filter by status or customer reference)",
-        ["tickets"],
+        ["appeals"],
         "conversation:read",
     ),
-    "GET /api/tickets/{ticket_id}": (
+    "GET /api/appeals/{appeal_id}": (
         "Ticket detail with linked conversations",
-        ["tickets"],
+        ["appeals"],
         "conversation:read",
     ),
-    "PATCH /api/tickets/{ticket_id}": (
+    "PATCH /api/appeals/{appeal_id}": (
         "Update ticket subject/description/priority/assignee",
-        ["tickets"],
+        ["appeals"],
         "operator:act",
     ),
-    "POST /api/tickets/{ticket_id}/transition": (
+    "POST /api/appeals/{appeal_id}/transition": (
         "Move a ticket through its state machine (open/in_progress/closed)",
-        ["tickets"],
+        ["appeals"],
         "operator:act",
     ),
-    "POST /api/tickets/{ticket_id}/link": (
+    "POST /api/appeals/{appeal_id}/link": (
         "Link another conversation to the ticket (cross-conversation tracking)",
-        ["tickets"],
+        ["appeals"],
         "operator:act",
     ),
     "POST /api/admin/report-subscriptions": (
@@ -667,9 +667,9 @@ _ENDPOINT_META: dict[str, tuple[str, list[str], str]] = {
         "none (unauthenticated)",
     ),
     "GET /": ("Operator workspace", ["ui"], "none (unauthenticated)"),
-    "POST /api/canned-responses/{response_id}/use": (
+    "POST /api/canned-verdicts/{response_id}/use": (
         "Record canned-response usage",
-        ["canned-responses"],
+        ["canned-verdicts"],
         "operator:act",
     ),
     "GET /auth/login": ("OIDC login redirect", ["auth"], "none (unauthenticated)"),
@@ -722,7 +722,19 @@ def enrich_openapi(app: Any) -> None:
         key = _operation_key(route)
         if key is None:
             continue
+        # 43.3: deprecated operations are flagged on the route itself so the
+        # generated spec (and clients reading it) see ``deprecated: true``.
+        from app.deprecation import deprecation_for
+
+        entry = deprecation_for(key)
+        # Domain migration (docs/DOMAIN.md): an operation that still serves its
+        # retired path is documented exactly like the successor it points at —
+        # same summary, tags and RBAC note — so the migration window does not
+        # degrade the generated docs and SDK.
         meta = _ENDPOINT_META.get(key)
+        if meta is None and entry is not None:
+            method = key.split(" ", 1)[0]
+            meta = _ENDPOINT_META.get(f"{method} {entry.successor}")
         if meta is None:
             continue
         summary, tags, permission = meta
@@ -732,11 +744,6 @@ def enrich_openapi(app: Any) -> None:
             route.description = f"{summary}. Requires: {permission}."
         if not getattr(route, "tags", None):
             route.tags = tags
-        # 43.3: deprecated operations are flagged on the route itself so the
-        # generated spec (and clients reading it) see ``deprecated: true``.
-        from app.deprecation import deprecation_for
-
-        entry = deprecation_for(key)
         if entry is not None:
             route.deprecated = True
 

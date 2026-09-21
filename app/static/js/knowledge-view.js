@@ -182,7 +182,7 @@ export async function loadKnowledgeView({ force = false } = {}) {
   if (ctx.els.knowledgeList) ctx.els.knowledgeList.setAttribute("aria-busy", "true");
   if (ctx.els.knowledgeListStatus) ctx.els.knowledgeListStatus.textContent = "正在加载文章…";
   try {
-    const path = canWriteKnowledge() ? "/api/knowledge?include_inactive=true" : "/api/knowledge";
+    const path = canWriteKnowledge() ? "/api/policy?include_inactive=true" : "/api/policy";
     const articles = await ctx.api(path);
     ctx.state.knowledgeArticles = Array.isArray(articles)
       ? articles.map(normalizeKnowledgeArticle)
@@ -264,8 +264,8 @@ export async function saveKnowledgeArticle(event) {
   ctx.setFormBusy(ctx.els.knowledgeForm, true);
   try {
     const path = editingId
-      ? `/api/knowledge/${encodeURIComponent(editingId)}`
-      : "/api/knowledge/drafts";
+      ? `/api/policy/${encodeURIComponent(editingId)}`
+      : "/api/policy/drafts";
     await ctx.api(path, {
       method: editingId ? "PATCH" : "POST",
       body: JSON.stringify(payload),
@@ -287,8 +287,8 @@ export async function saveKnowledgeFromIsland({ payload, editingId } = {}) {
   let ok = false;
   try {
     const path = editingId
-      ? `/api/knowledge/${encodeURIComponent(editingId)}`
-      : "/api/knowledge/drafts";
+      ? `/api/policy/${encodeURIComponent(editingId)}`
+      : "/api/policy/drafts";
     await ctx.api(path, { method: editingId ? "PATCH" : "POST", body: JSON.stringify(payload) });
     ok = true;
     ctx.state.knowledgeLoadedAt = 0;
@@ -307,7 +307,7 @@ export async function reviewKnowledgeArticle(articleId, action) {
   }
   if (ctx.els.knowledgeList) ctx.els.knowledgeList.setAttribute("aria-busy", "true");
   try {
-    await ctx.api(`/api/knowledge/${encodeURIComponent(articleId)}/review`, {
+    await ctx.api(`/api/policy/${encodeURIComponent(articleId)}/review`, {
       method: "POST",
       body: JSON.stringify({ action }),
     });
