@@ -1,5 +1,5 @@
 /**
- * Helix Support — conversation write actions (app.js <500 campaign slice 18).
+ * Helix Guard — conversation write actions (app.js <500 campaign slice 18).
  *
  * The operator's write paths on a conversation: the simulated customer
  * message send (shared by the legacy form and the composer island's
@@ -38,7 +38,7 @@ export async function sendCustomerMessage(content) {
       },
     );
     ctx.els.customerInput.value = "";
-    if (!result.assistant_message) ctx.showToast("客户消息已进入人工队列");
+    if (!result.assistant_message) ctx.showToast("待审内容已进入人工队列");
     await ctx.loadDetail(conversationId);
     void ctx.refreshAll({ silent: true, refreshDetail: false });
   } catch (error) {
@@ -88,9 +88,9 @@ export function bindConversationActions() {
     if (!content || !kind) return;
     if (kind === "customer") void sendCustomerMessage(content);
   });
-  ctx.els.claimBtn.addEventListener("click", () => performConversationAction("claim", "会话已认领"));
+  ctx.els.claimBtn.addEventListener("click", () => performConversationAction("claim", "审核单已认领"));
   if (ctx.els.conversationLanguageSelect) {
-    // Backlog (多语言客服): PATCH the manual override; the select rolls back on
+    // Backlog (多语言审核): PATCH the manual override; the select rolls back on
     // failure and a background refresh re-syncs the whole view.
     ctx.els.conversationLanguageSelect.addEventListener("change", async () => {
       if (!ctx.state.selectedId) return;
@@ -105,8 +105,8 @@ export function bindConversationActions() {
         ctx.renderLanguagePicker(ctx.state.detail.conversation);
         ctx.showToast(
           language
-            ? `会话语言已设为 ${ctx.languageNames[language] || language}`
-            : "会话语言已恢复自动检测",
+            ? `内容语言已设为 ${ctx.languageNames[language] || language}`
+            : "内容语言已恢复自动检测",
         );
         ctx.scheduleIdle(() => ctx.refreshAll());
       } catch (error) {
@@ -125,7 +125,7 @@ export function bindConversationActions() {
           method: "POST",
           body: JSON.stringify({ assignee_id: ctx.state.me.actor_id }),
         });
-        ctx.showToast("会话已转派给自己");
+        ctx.showToast("审核单已转派给自己");
         await ctx.loadDetail(conversationId);
         await ctx.refreshAll({ refreshDetail: false });
       } catch (error) {
@@ -133,19 +133,19 @@ export function bindConversationActions() {
       }
     });
   }
-  ctx.els.acceptBtn.addEventListener("click", () => performConversationAction("accept", "会话已接入"));
-  ctx.els.resolveBtn.addEventListener("click", () => performConversationAction("resolve", "会话已解决"));
+  ctx.els.acceptBtn.addEventListener("click", () => performConversationAction("accept", "审核单已接入"));
+  ctx.els.resolveBtn.addEventListener("click", () => performConversationAction("resolve", "审核单已判定"));
   ctx.els.csatCopyBtn.addEventListener("click", async () => {
     const url = ctx.els.csatUrl.textContent;
     if (!url) return;
     try {
       await navigator.clipboard.writeText(url);
-      ctx.showToast("满意度链接已复制");
+      ctx.showToast("抽检评分链接已复制");
     } catch (error) {
-      window.prompt("请手动复制满意度链接：", url);
+      window.prompt("请手动复制抽检评分链接：", url);
     }
   });
-  ctx.els.reopenBtn.addEventListener("click", () => performConversationAction("reopen", "会话已重开"));
+  ctx.els.reopenBtn.addEventListener("click", () => performConversationAction("reopen", "审核单已重开"));
   return true;
 }
 

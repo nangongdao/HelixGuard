@@ -1,4 +1,4 @@
-// Helix Support — composer tool-surface unit tests (D3 long tail slice 14)
+// Helix Guard — composer tool-surface unit tests (D3 long tail slice 14)
 // Run: node --test tests/frontend/composer-tools.test.js
 //
 // js/composer.js keeps the copilot/canned write cores shared by the legacy

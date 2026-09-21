@@ -1,5 +1,5 @@
 /**
- * Helix Support — quality panel & CSAT readout (ROADMAP §41.6 / ARC-001).
+ * Helix Guard — quality panel & CSAT readout (ROADMAP §41.6 / ARC-001).
  *
  * Supervisor quality dashboard (buckets/gaps/charts) and the admin CSAT
  * summary. Extracted from the legacy app.js; app.js keeps thin delegating
@@ -128,7 +128,7 @@ export function renderQualityCharts(buckets) {
     ? `<div class="quality-chart-block"><h4>趋势</h4>${trend}</div>`
     : "";
   const heatmapBlock = heatmap
-    ? `<div class="quality-chart-block"><h4>意图 × 版本</h4>${heatmap}</div>`
+    ? `<div class="quality-chart-block"><h4>风险类别 × 版本</h4>${heatmap}</div>`
     : "";
   return `<section class="quality-charts" aria-label="质量图表">${trendBlock}${heatmapBlock}</section>`;
 }
@@ -138,7 +138,7 @@ export function renderQualityCharts(buckets) {
  * path and the island publish path so both render identical markup. */
 export function buildQualityBucketsHtml(buckets) {
   if (!buckets.length) {
-    return '<p class="quality-empty">暂无质量数据。处理一些会话后会在此汇总。</p>';
+    return '<p class="quality-empty">暂无质量数据。处理一些审核单后会在此汇总。</p>';
   }
   // ROADMAP §17.3: native-SVG charts (trend line + intent × version
   // heatmap) from the pure quality-charts module, above the intent cards.
@@ -183,7 +183,7 @@ export function buildQualityBucketsHtml(buckets) {
       <article class="quality-card">
         <header><span class="quality-card-kicker">INTENT</span><h4>${ctx.escapeHtml(intent)}</h4></header>
         <dl class="quality-card-grid">
-          <div><dt>会话数</dt><dd>${turns}</dd></div>
+          <div><dt>审核单数</dt><dd>${turns}</dd></div>
           <div><dt>升级率</dt><dd>${escalationRate}%</dd></div>
           <div><dt>负反馈率</dt><dd>${negativeRate}%</dd></div>
           <div><dt>平均延迟</dt><dd>${avgLatency} ms</dd></div>
@@ -206,8 +206,8 @@ export function buildQualityGapsHtml(gaps) {
       (gap) => `
       <article class="quality-gap">
         <div class="quality-gap-head">
-          <strong>${ctx.escapeHtml(gap.customer_name || "客户")}</strong>
-          <span class="quality-gap-intent">${ctx.escapeHtml(gap.intent || "未知意图")}</span>
+          <strong>${ctx.escapeHtml(gap.customer_name || "提交方")}</strong>
+          <span class="quality-gap-intent">${ctx.escapeHtml(gap.intent || "未知风险类别")}</span>
         </div>
         <p class="quality-gap-preview">${ctx.escapeHtml((gap.assistant_content || "").slice(0, 120))}</p>
         <button class="button button-secondary quality-gap-draft" data-conversation-id="${ctx.escapeHtml(gap.conversation_id)}" data-message-id="${ctx.escapeHtml(gap.message_id)}" type="button">
@@ -265,7 +265,7 @@ export function renderCsatSummary(data) {
   if (!ctx.els.csatReadout || !ctx.els.csatTrend) return;
   const days = Array.isArray(data.per_day) ? data.per_day : [];
   const total = Math.round(Number(data.total || 0));
-  // 有样本才有均值/好评率;空态用 — 而非 0.00(客户不可能打 0 分,W2)。
+  // 有样本才有均值/好评率;空态用 — 而非 0.00(提交方不可能打 0 分,W2)。
   const avg = total > 0 ? `${Number(data.avg_rating || 0).toFixed(2)} / 5` : "— / 5";
   const pct = total > 0 ? `${Math.round(Number(data.positive_rate || 0) * 100)}%` : "—";
   ctx.els.csatReadout.innerHTML = `

@@ -1,5 +1,5 @@
 /**
- * Helix Support — summary banner model + legacy paint (D3 long tail slice 15,
+ * Helix Guard — summary banner model + legacy paint (D3 long tail slice 15,
  * app.js <500 campaign).
  *
  * Derives the conversation summary banner content from the detail payload's

@@ -1,5 +1,5 @@
 /**
- * Helix Support — conversation detail lifecycle (app.js <500 campaign).
+ * Helix Guard — conversation detail lifecycle (app.js <500 campaign).
  *
  * The operator's conversation-detail assembly, extracted verbatim from app.js:
  * loadDetail fetches the transcript tail (+ opaque X-Prev-Cursor) and hands it
@@ -32,7 +32,7 @@ function renderSubtitle(conversation) {
   ctx.els.conversationSubtitle.textContent = subtitleParts.join(" · ");
 }
 
-// Backlog (多语言客服): the header select mirrors the stored manual override
+// Backlog (多语言审核): the header select mirrors the stored manual override
 // (empty = auto). Options are injected once; renderDetail sets the value so a
 // PATCH error can roll back by re-rendering.
 function renderLanguagePicker(conversation) {
@@ -65,7 +65,7 @@ async function loadDetail(id) {
 
 async function selectConversation(id) {
   ctx.state.selectedId = id;
-  // 切换会话时收起 note 的候选列表(旧会话的 @token 不再适用)。
+  // 切换审核单时收起 note 的候选列表(旧审核单的 @token 不再适用)。
   ctx.hideMentionSuggest();
   // Nudge first so a virtual-mode re-render centers on the just-selected row.
   ensureSelectedRowVisible(id);
@@ -77,7 +77,7 @@ async function selectConversation(id) {
   if (typeof window !== "undefined" && window.__HELIX_ISLAND_MODE__) {
     window.HelixModules?.thread?.publishThreadState?.({ loading: true });
   } else {
-    ctx.els.messages.innerHTML = '<div class="thread-empty">正在加载会话</div>';
+    ctx.els.messages.innerHTML = '<div class="thread-empty">正在加载审核单</div>';
   }
   ctx.stopWatching();
   try {

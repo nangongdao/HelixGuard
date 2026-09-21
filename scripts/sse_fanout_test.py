@@ -1,6 +1,6 @@
 """ROADMAP 18.5 SSE 扇出压测(1.3 验收门:≥500 并发订阅)。
 
-对运行中的 Helix Support 实例并发建立 ``GET /api/events/queue`` SSE 连接,
+对运行中的 Helix Guard 实例并发建立 ``GET /api/events/queue`` SSE 连接,
 度量:
 
 - 成功建立数(HTTP 200 + snapshot 事件到达 = 服务端接受了流);

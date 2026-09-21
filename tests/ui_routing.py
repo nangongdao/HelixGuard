@@ -6,12 +6,12 @@
 编辑回填)与「自动路由规则」卡(列表 + 创建 + 删除,分配组下拉来自
 agent-groups)。
 
-本测在真实会话里闭环验证:
-1. API 预建一个坐席组供下拉选择;
+本测在真实审核单里闭环验证:
+1. API 预建一个审核组供下拉选择;
 2. 切到管理视图 → SLA/路由卡可见,分配组下拉含预建组;
-3. 保存 SLA 策略(高优 + 首响 30min/解决 720min)→ 列表出现「高优 · 全渠道」;
+3. 保存 SLA 策略(高优 + 首次响应 30min/判定 720min)→ 列表出现「高优 · 全渠道」;
 4. 点「编辑」→ 表单回填该策略(upsert 同键覆盖,测试幂等);
-5. 添加路由规则(意图=退款-{run_id}, 优先级 10)→ 列表出现;
+5. 添加路由规则(风险类别=退款-{run_id}, 优先级 10)→ 列表出现;
 6. 删除该规则 → 行消失;
 7. 全程无 console/page/HTTP 4xx+ 错误。
 """
@@ -74,7 +74,7 @@ def main() -> None:
         "/api/admin/agent-groups",
         {"name": group_name, "skills": ["support"], "capacity": 5},
     )
-    assert status == 201, f"预建坐席组失败: {status} {group}"
+    assert status == 201, f"预建审核组失败: {status} {group}"
     group_id = group["id"]
     intent = f"退款-{run_id}"
 
@@ -113,7 +113,7 @@ def main() -> None:
         expect(page.locator("#ruleGroup")).to_contain_text(group_name)
         page.screenshot(path=ARTIFACTS / "ui-routing-admin.png", full_page=True)
 
-        # 保存 SLA 策略(高优 / 全渠道 / 首响 30min / 解决 720min)。
+        # 保存 SLA 策略(高优 / 全渠道 / 首次响应 30min / 判定 720min)。
         page.locator("#slaPriority").select_option("high")
         page.locator("#slaFirstResponse").fill("30")
         page.locator("#slaResolve").fill("720")
@@ -128,7 +128,7 @@ def main() -> None:
         sla_row = page.locator("#slaPolicyList .sla-rule-row", has_text="高优").first
         expect(sla_row).to_contain_text("高优")
         expect(sla_row).to_contain_text("全渠道")
-        expect(sla_row).to_contain_text("首响 30min")
+        expect(sla_row).to_contain_text("首次响应 30min")
 
         # 「编辑」回填表单(pure 前端, 校验 upsert 同键覆盖)。
         sla_row.get_by_role("button", name="编辑").click()
@@ -136,7 +136,7 @@ def main() -> None:
         expect(page.locator("#slaFirstResponse")).to_have_value("30")
         expect(page.locator("#slaResolve")).to_have_value("720")
 
-        # 添加路由规则(意图=${intent}, 优先级 10)→ 列表出现。
+        # 添加路由规则(风险类别=${intent}, 优先级 10)→ 列表出现。
         page.locator("#ruleIntent").fill(intent)
         page.locator("#rulePriority").fill("10")
         with page.expect_response(
@@ -149,7 +149,7 @@ def main() -> None:
         assert rule_info.value.ok, rule_info.value.text()
         rule_id = rule_info.value.json()["id"]
         rule_row = page.locator(f".routing-rule-row[data-id='{rule_id}']")
-        expect(rule_row).to_contain_text(f"意图 {intent}")
+        expect(rule_row).to_contain_text(f"风险类别 {intent}")
         expect(rule_row).to_contain_text("优先级 10")
         page.screenshot(path=ARTIFACTS / "ui-routing-rules.png", full_page=True)
 

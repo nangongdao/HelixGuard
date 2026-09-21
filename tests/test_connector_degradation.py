@@ -139,7 +139,7 @@ class OrchestratorFaultInjectionTests(unittest.TestCase):
         self.assertEqual(assistant["metadata"]["agent"], "knowledge")
         self.assertTrue(assistant["metadata"]["citations"])
         self.assertEqual(response["conversation"]["status"], "open")
-        self.assertNotIn("转接人工", assistant["content"])
+        self.assertNotIn("转接人工复核", assistant["content"])
 
     def test_order_unavailable_escalates_and_does_not_leak(self) -> None:
         self.orchestrator.tools = ToolGateway(

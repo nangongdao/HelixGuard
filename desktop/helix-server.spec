@@ -1,5 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
-"""PyInstaller spec: package the Helix Support backend as an onedir sidecar.
+"""PyInstaller spec: package the Helix Guard backend as an onedir sidecar.
 
 Output: dist/helix-server/helix-server.exe (+ support DLLs and _internal).
 The Tauri supervisor bundles this directory under src-tauri/resources/server/.

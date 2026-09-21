@@ -1,4 +1,4 @@
-// Helix Support — palette command dispatcher unit tests (app.js <500 slice 22)
+// Helix Guard — palette command dispatcher unit tests (app.js <500 slice 22)
 // Run: node --test tests/frontend/command-dispatch.test.js
 
 import { test, beforeEach } from "node:test";
@@ -231,7 +231,7 @@ test("openCommandPalette loads conversations, renders groups and opens the dialo
   assert.equal(commandInput.value, "");
   assert.ok(rendered.html.includes('class="command-group-label">视图</div>'));
   assert.ok(rendered.html.includes('class="command-group-label">动作</div>'));
-  assert.ok(rendered.html.includes('class="command-group-label">会话</div>'));
+  assert.ok(rendered.html.includes('class="command-group-label">审核单</div>'));
   assert.ok(rendered.html.includes("Alice"), "conversation jump commands are merged in");
   void commandResults;
 });
@@ -250,7 +250,7 @@ test("renderCommandResults escapes labels and reports the empty state", async ()
 
   commandInput.value = "zzz-no-such-command";
   renderCommandResults();
-  assert.equal(rendered.html, '<div class="command-empty">没有匹配的命令或会话</div>');
+  assert.equal(rendered.html, '<div class="command-empty">没有匹配的命令或审核单</div>');
 });
 
 test("closeCommandPalette closes the native dialog or clears the open attribute", () => {

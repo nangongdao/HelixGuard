@@ -1,4 +1,4 @@
-"""Backlog: 坐席协作 (operator collaboration).
+"""Backlog: 审核协作 (operator collaboration).
 
 Covers: @-mentioning colleagues in an internal note creates tenant-scoped
 mention records with an unread flag; the mentioned operator's inbox lists
@@ -209,7 +209,7 @@ class CollaborationTests(unittest.TestCase):
         self._accept(conversation_id)
         self.client.post(
             f"/api/conversations/{conversation_id}/messages",
-            json={"content": "客户消息"},
+            json={"content": "待审内容"},
             headers={**self.admin, "Idempotency-Key": "collab-badtarget-msg"},
         )
         details = self.client.get(
@@ -218,7 +218,7 @@ class CollaborationTests(unittest.TestCase):
         customer_msg = next(m for m in details["messages"] if m["role"] == "customer")
         response = self.client.post(
             f"/api/conversations/{conversation_id}/notes",
-            json={"content": "回复一条客户消息是不允许的", "reply_to": customer_msg["id"]},
+            json={"content": "回复一条待审内容是不允许的", "reply_to": customer_msg["id"]},
             headers=self.op_a,
         )
         self.assertIn(response.status_code, (409, 422), response.text)

@@ -8,12 +8,12 @@
 
 | 目标 | 验收线 | 证据来源 |
 |------|--------|----------|
-| 单实例(4C8G,PG+Redis)并发活跃会话 | ≥ 50 并发 | 已测(2026-08-17,`scripts/load_test.py --concurrency 50` PG+Redis,见 §3.6) |
+| 单实例(4C8G,PG+Redis)并发活跃审核单 | ≥ 50 并发 | 已测(2026-08-17,`scripts/load_test.py --concurrency 50` PG+Redis,见 §3.6) |
 | turn P95(确定性路径) | < 2s | 已测(2026-08-17,PG+Redis 多 worker 串行 20 turn,见 §3.6) |
 | 队列首屏 P95 | < 150ms | `scripts/pagination_load_test.py` queue 基准(PG 实测) |
 | SSE 扇出连接数 | ≥ 500 | 已测(2026-08-17,`scripts/sse_fanout_test.py`,见 §3.5) |
 | 双实例滚动重启 | 零任务丢失、可用性不中断 | 已测(2026-08-17,`scripts/rolling_restart_test.py`,见 §3.7) |
-| 10 万会话/百万消息数据集 | 队列任意页 P95 < 300ms | `scripts/pagination_load_test.py --scale full`(PG 实测) |
+| 10 万审核单/百万消息数据集 | 队列任意页 P95 < 300ms | `scripts/pagination_load_test.py --scale full`(PG 实测) |
 | 同上数据集 | 消息搜索 P95 < 500ms | `pagination_load_test.py` FTS `queue.search.fts.worst/selective`(PG 实测) |
 
 度量口径:分位数由 `statistics.quantiles(n=100, method="inclusive")` 计算;
@@ -22,13 +22,13 @@
 ## 2. 测量方法与环境
 
 - 合成分页压测:`scripts/pagination_load_test.py`。种子用 executemany 批量
-  直插以减少逐条往返;SQLite 写触发对直插仍会执行(会话投影/`message_fts`
+  直插以减少逐条往返;SQLite 写触发对直插仍会执行(审核单投影/`message_fts`
   镜像随之增量填充),脚本随后强制线性重建 `message_fts` 镜像
   (DELETE + 批量 INSERT,非 O(n²) 反连接),保证搜索基准读到完整数据。
   消息 `seq` 由 rowid 触发回填(单调,分页排序键)。SQLite FTS5 走
   `queue.search.fts.{worst,selective}` 两档探针;PG 上该镜像不存在,搜索测
   LIKE 回退。
-- 档位:`smoke` 2 千会话/2 万消息(秒级)、`mid` 2 万/20 万、`full` 10 万/百万
+- 档位:`smoke` 2 千审核单/2 万消息(秒级)、`mid` 2 万/20 万、`full` 10 万/百万
   (§18.5 gate)。用例:队列 offset 首屏/深页、队列 keyset 续页、消息 keyset
   前向/后向、消息 FTS 搜索(全匹配最坏情形 + 唯一索引词选择性检索两档)。
 - turn 分段与 TTFT:见 `docs/PERF_NOTES.md`(18.2a/18.2c),本地开发机
@@ -48,7 +48,7 @@ SQLite 本地库(保守上界;PG 目标线 1.3 实测,此处同量级 SQLite 数
 | queue.offset.page0 | smoke(2k/20k) | 20 | 6.2 | 6.0 | 7.0 | 7.6 |
 | queue.offset.depth(pages×50) | smoke | 20 | 6.2 | 6.2 | 6.7 | 6.8 |
 | queue.keyset.walk(5 页) | smoke | 20 | 17.4 | 17.4 | 18.7 | 19.2 |
-| messages.keyset.forward(深会话) | smoke | 20 | 2.5 | 2.4 | 3.1 | 3.1 |
+| messages.keyset.forward(深审核单) | smoke | 20 | 2.5 | 2.4 | 3.1 | 3.1 |
 | messages.keyset.backward | smoke | 20 | 1.1 | 0.9 | 1.8 | 1.9 |
 | queue.search.fts.worst(全匹配) | smoke | 20 | 51.0 | 50.3 | 56.5 | 61.3 |
 | queue.search.fts.selective(唯一索引词) | smoke | 20 | 1.3 | 1.3 | 1.5 | 1.6 |
@@ -62,7 +62,7 @@ full(10 万/百万)档位实测(2026-08-16,SQLite,线性 FTS 重建后):
 | queue.offset.page0 | full(100k/1M) | 20 | 230.5 | 230.8 | 241.2 | 243.7 |
 | queue.offset.depth | full | 20 | 244.5 | 244.2 | 256.4 | 258.8 |
 | queue.keyset.walk(5 页) | full | 20 | 788.9 | 773.9 | 891.1 | 956.4 |
-| messages.keyset.forward(深会话) | full | 20 | 1.5 | 1.4 | 1.8 | 1.9 |
+| messages.keyset.forward(深审核单) | full | 20 | 1.5 | 1.4 | 1.8 | 1.9 |
 | messages.keyset.backward | full | 20 | 0.6 | 0.6 | 0.7 | 0.9 |
 | queue.search.fts.worst(全匹配) | full | 20 | 2738.0 | 2596.2 | 3438.7 | 3598.1 |
 | queue.search.fts.selective(唯一索引词) | full | 20 | 111.3 | 102.0 | 141.8 | 178.5 |
@@ -70,7 +70,7 @@ full(10 万/百万)档位实测(2026-08-16,SQLite,线性 FTS 重建后):
 ### 3.2b PostgreSQL 全量档实测(2026-08-17 基线,2026-08-18 搜索收敛复测)
 
 PG 环境:本机 scratch 实例(PostgreSQL 18.4,5433),`DATABASE_BACKEND=
-postgresql` 跑同一 `scripts/pagination_load_test.py --scale full`(10 万会话/
+postgresql` 跑同一 `scripts/pagination_load_test.py --scale full`(10 万审核单/
 百万消息,同种子;PG 无消息 FTS 镜像,搜索走 LIKE/pg_trgm 回退路径)。
 压测脚本在 seed 后对 PG 执行 `ANALYZE`(`_analyze_postgres`),使 planner 统计
 与生产 autovacuum 一致。2026-08-18 复测在全新 `bench_final3` 库上同脚本同
@@ -87,7 +87,7 @@ offset 分页实际执行降到 0.4ms(根因与复测见 `docs/PERF_NOTES.md` §
 | queue.offset.page0 | full(100k/1M) | 20 | 2.9 / 2.9 / 3.6 / 4.0 | 3.7 / 3.5 / 5.4 / 5.6 |
 | queue.offset.depth(offset=250) | full | 20 | 3.3 / 3.2 / 4.5 / 5.2 | 4.2 / 4.2 / 4.6 / 4.8 |
 | queue.keyset.walk(5 页累计) | full | 20 | 16.7 / 16.6 / 18.9 / 20.6 | 21.4 / 21.4 / 22.9 / 23.0 |
-| messages.keyset.forward(深会话) | full | 20 | 9.4 / 8.8 / 12.3 / 14.0 | 12.7 / 12.8 / 13.2 / 13.8 |
+| messages.keyset.forward(深审核单) | full | 20 | 9.4 / 8.8 / 12.3 / 14.0 | 12.7 / 12.8 / 13.2 / 13.8 |
 | messages.keyset.backward | full | 20 | 1.7 / 1.6 / 2.2 / 2.9 | 2.8 / 2.8 / 3.2 / 3.2 |
 | queue.search.fts.worst(全匹配) | full | 20 | 660.4 / 653.8 / 735.2 / 840.3 | **6.2 / 6.1 / 7.0 / 7.0** |
 | queue.search.fts.selective(唯一索引词) | full | 20 | 269.1 / 263.1 / 316.7 / 384.9 | 126.7 / 106.5 / 273.4 / 339.4 |
@@ -104,7 +104,7 @@ offset 分页实际执行降到 0.4ms(根因与复测见 `docs/PERF_NOTES.md` §
   (`app/db/conversations_query.py` `_query_conversations_windowed`,见
   `docs/PERF_NOTES.md` §18.2e)+ 新索引 `idx_conversations_tenant_updated_id`
   (`app/pg_compat.install_updated_sort_index`)不依赖估计:先按有序索引取最新
-  `offset+limit` 个会话,再逐会话探测搜索谓词,窗口填满即返回
+  `offset+limit` 个审核单,再逐审核单探测搜索谓词,窗口填满即返回
   (completeness rule,窗口外任何匹配按序都在窗口之下)。同脚本同配置复测:
   全匹配 worst P95 **735.2 → 7.0ms**,选择性 **316.7 → 273.4ms**,均远低于
   500ms 线;"已知上限"标记解除,产品侧无需二段词过滤规避。普通 `updated`
@@ -120,7 +120,7 @@ offset 分页实际执行降到 0.4ms(根因与复测见 `docs/PERF_NOTES.md` §
 - 消息搜索 P95 < 500ms:**选择性检索达标,全匹配最坏路径不达标**——真实
   检索形态(唯一索引词 `000007`)full 档 P95=141.8ms,达标且余量充足;全
   匹配最坏情形(种子全量同词)avg 2.7s / P95 3.4s,且 run-to-run 方差大
-  (前次同配置复测 avg 2.05s / P95 2.12s)——枚举百万命中再归并会话是真实
+  (前次同配置复测 avg 2.05s / P95 2.12s)——枚举百万命中再归并审核单是真实
   的慢路径。PG 侧该镜像不存在(搜索走 LIKE 回退,更弱),故 §18.2 计划的
   PG `pg_trgm` 相似度索引应从"可选对齐"升级为 **1.3 验收的必要前置**,用
   来把最坏命中路径收敛到可接受线内。归档后(`archived=true`)搜索按设计走
@@ -141,8 +141,8 @@ offset 分页实际执行降到 0.4ms(根因与复测见 `docs/PERF_NOTES.md` §
 
 Phase 37 复核上述结论时发现,原 selective 探针 `000007` 并不在消息正文
 (正文使用未补零的 `7-...`),却存在于 `conversations.id=conv_000007`。因此旧
-selective 数字实际由会话字段满足,不能作为消息索引路径证据。基准现改为只写入
-`conv_000007` 十条消息正文的 `selectiveneedle`,并在测量前强制断言 0 个会话
+selective 数字实际由审核单字段满足,不能作为消息索引路径证据。基准现改为只写入
+`conv_000007` 十条消息正文的 `selectiveneedle`,并在测量前强制断言 0 个审核单
 字段命中、10 条消息命中;不满足即拒绝产出数据。
 
 全匹配路径使用确定性窗口:先由
@@ -151,7 +151,7 @@ selective 数字实际由会话字段满足,不能作为消息索引路径证据
 填满请求页,窗口外任何命中都排在该页之后,可直接返回;不足一页则回退原
 tenant-scoped pg_trgm 聚合,保持稀疏词、筛选、游标和租户隔离语义。
 
-同一 scratch PostgreSQL 18.4 数据集(100,000 会话/1,000,990 消息,三轮、
+同一 scratch PostgreSQL 18.4 数据集(100,000 审核单/1,000,990 消息,三轮、
 每项 20 次)修正后的最终结果:
 
 | benchmark | 三轮 P50 ms | 三轮 P95 ms | 判定 |
@@ -177,9 +177,9 @@ index-only scan,50 个候选的消息探测使用 `idx_messages_page_seq`,执行
 
 ### 3.4 归档分层对热表体积的约束(§18.3)
 
-归档把已解决会话整体移出热表(会话/消息/标签/反馈 → `*_archive`),
+归档把已判定审核单整体移出热表(审核单/消息/标签/反馈 → `*_archive`),
 热表 delete 经既有 trigger 级联 `message_fts`。作用直接对应 §18.5 的
-"10 万会话"规模约束:热队列与 FTS 镜像只承载活跃工作。进度以
+"10 万审核单"规模约束:热队列与 FTS 镜像只承载活跃工作。进度以
 `GET /api/system/metrics` 的 `archived_total` 观测(worker
 `CONVERSATION_ARCHIVE_*` 4 项配置,见 DEPLOYMENT.md)。
 
@@ -202,21 +202,21 @@ SSE 流。首包延迟随连接数线性上升——每连接在 snapshot 前同
 连接保持本质是事件循环能力,与 DB 后端无关,生产 PG 连接池 + 多 worker
 下该排队会显著下降。首包延迟非门禁行,记为单 worker SQLite 的特征观测。
 
-### 3.6 并发活跃会话与 turn P95(§18.5,2026-08-17)
+### 3.6 并发活跃审核单与 turn P95(§18.5,2026-08-17)
 
 PG(scratch 5433/`helix_load`)+ Redis(6379)多 worker 场景。uvicorn `--workers 7`、
 `TURN_WORKER_CONCURRENCY=8`(每进程)、`DATABASE_POOL_SIZE=12`、
 `RATE_LIMIT_PER_MINUTE=20000`(50 并发注入下排除限流干扰)。
 
 - **50 并发注入**(`scripts/load_test.py --concurrency 50 --duration 45
-  --poll-turn-jobs`,demo 租户):818 会话 / 2454 请求,**success=1.0、
+  --poll-turn-jobs`,demo 租户):818 审核单 / 2454 请求,**success=1.0、
   failed=0、rate_limited=0**。操作级延迟:create p50/p95 453/859ms、
   enqueue 438/843ms、poll(turn 端到端)p50/p95 1718/2453ms。服务端累计
   3028 turn 全部完成、0 failed。
 - **turn 确定性路径**(队列空、串行 20 turn):p50 688ms / **p95 907ms** /
   max 922ms——**P95 < 2s 达标**。
-- **判定:达标**。实例稳定承载 50 并发活跃会话零丢失、零限流;确定性路径
-  turn P95 < 1s。并发下 poll P95 2.45s 是 56 并发处理池面对 50 冷启动会话
+- **判定:达标**。实例稳定承载 50 并发活跃审核单零丢失、零限流;确定性路径
+  turn P95 < 1s。并发下 poll P95 2.45s 是 56 并发处理池面对 50 冷启动审核单
   同时涌入的瞬时排队,反映端到端(入队→完成)而非确定性路径,记为特征观测。
 
 注意:demo 模式鉴权只放行 `demo` 租户(`security.py:129`),多租户并发注入需
@@ -255,7 +255,7 @@ claim 不再被 peer 翻回 queued)、Redis 队列孤儿补偿(`reconciled`)、c
 以下目标曾依赖 1.3 环境的 service 压测/故障注入,先登记为待验收、不得视为
 达标;现已在 2026-08-17 开发窗口内全部实测并移入 §3 已测证据:
 
-1. ~~**≥50 并发活跃会话 / turn P95 < 2s(确定性路径)**~~:**已测(2026-08-17)**,
+1. ~~**≥50 并发活跃审核单 / turn P95 < 2s(确定性路径)**~~:**已测(2026-08-17)**,
    见 §3.6——PG+Redis 多 worker 实例 50 并发注入零失败,确定性路径 turn
    P95 907ms 达标;并发端到端 poll P95 2.45s 记为排队观测。
 2. ~~**双实例滚动重启零任务丢失**~~:**已测(2026-08-17)**,见 §3.7——

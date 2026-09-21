@@ -1,4 +1,4 @@
-// Helix Support — quality dashboard SVG charts unit tests (ROADMAP §17.3)
+// Helix Guard — quality dashboard SVG charts unit tests (ROADMAP §17.3)
 // Run: node --test tests/frontend/quality-charts.test.js
 
 import { test } from "node:test";

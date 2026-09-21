@@ -155,7 +155,7 @@ class TurnExecutionStage:
                         AgentResult(
                             agent=AgentName.ORDER,
                             content=(
-                                "客户资料服务暂时不可用。为避免给出过期信息，我已转交人工客服继续核实。"
+                                "提交方资料服务暂时不可用。为避免给出过期信息，我已转交人工复核继续核实。"
                             ),
                             confidence=1.0,
                             tool_calls=[crm_record],
@@ -169,8 +169,8 @@ class TurnExecutionStage:
                         AgentResult(
                             agent=AgentName.ORDER,
                             content=(
-                                "当前会话的客户身份无法在当前租户验证。为保护订单信息，"
-                                "我已转交人工客服核验。"
+                                "当前审核单的提交方身份无法在当前租户验证。为保护订单信息，"
+                                "我已转交人工复核核验。"
                             ),
                             confidence=1.0,
                             tool_calls=[crm_record],

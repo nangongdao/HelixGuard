@@ -33,7 +33,7 @@ test("locale and accent normalization stay inside supported choices", () => {
 test("localized structural titles are complete", () => {
   assert.equal(copy("en", "chatTitle"), "Support conversation");
   assert.equal(copy("en", "fatalTitle"), "Chat link unavailable");
-  assert.equal(copy("zh", "loading"), "正在恢复对话…");
+  assert.equal(copy("zh", "loading"), "正在恢复提交…");
 });
 
 test("SSE parser handles split frames, comments and multiline data", () => {

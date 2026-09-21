@@ -1,4 +1,4 @@
-// Helix Support — density module unit tests (UI 升级 §17.2 三档密度)
+// Helix Guard — density module unit tests (UI 升级 §17.2 三档密度)
 // Run: node --test tests/frontend/density.test.js
 
 import { test } from "node:test";

@@ -47,12 +47,12 @@ def csat_landing_page(request: Request, token: str) -> HTMLResponse:
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>满意度评价</title>
+<title>抽检评分评价</title>
 <style>{_PAGE_CSS}</style>
 </head>
 <body>
 <h2>链接已失效</h2>
-<p>这个评价链接无效、已过期或已被使用。如果您仍在等待帮助，请重新发起一次会话。</p>
+<p>这个评价链接无效、已过期或已被使用。如果您仍在等待帮助，请重新发起一次审核单。</p>
 </body>
 </html>"""
         )
@@ -61,7 +61,7 @@ def csat_landing_page(request: Request, token: str) -> HTMLResponse:
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>满意度评价</title>
+<title>抽检评分评价</title>
 <style>{_PAGE_CSS}</style>
 </head>
 <body>

@@ -1,5 +1,5 @@
 /**
- * Helix Support — note composer & mention suggest (app.js <500 campaign slice 19).
+ * Helix Guard — note composer & mention suggest (app.js <500 campaign slice 19).
  *
  * The internal-note composer's legacy DOM flow: @mention autocomplete over
  * the tenant roster (loadCollaborators + renderMentionSuggest + keyboard
@@ -132,7 +132,7 @@ export function bindNotes() {
   });
   ctx.els.noteInput.addEventListener("input", (event) => {
     // IME 组合期间(input 事件带中间拼音/片假名)不渲染也不收起;避免候选
-    // 列表干扰选字(中文客服台第一优先,HIGH-1 修复)。
+    // 列表干扰选字(中文审核台第一优先,HIGH-1 修复)。
     if (event.isComposing) return;
     const ta = ctx.els.noteInput;
     const caret = ta.selectionStart ?? ta.value.length;

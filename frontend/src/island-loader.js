@@ -1,5 +1,5 @@
 /**
- * Helix Support — island loader (D2)
+ * Helix Guard — island loader (D2)
  *
  * Bridges the Vite-produced React island bundles into the legacy
  * zero-build host page. Each island is a dynamic import of its chunk
@@ -97,7 +97,7 @@ export const ISLANDS = [
     mountId: "conversationDialogReactIsland",
     yieldsLegacy: ["newConversationDialog"],
   },
-  // The workspace tabs island owns the 队列/工单 tablist; pane switching and
+  // The workspace tabs island owns the 队列/申诉单 tablist; pane switching and
   // data loading stay legacy via helix-workspace-tab/-changed.
   {
     name: "workspace-tabs",

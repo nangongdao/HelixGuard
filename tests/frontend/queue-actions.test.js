@@ -1,4 +1,4 @@
-// Helix Support — queue pagination & bulk actions tests (app.js <500 slice 24)
+// Helix Guard — queue pagination & bulk actions tests (app.js <500 slice 24)
 // Run: node --test tests/frontend/queue-actions.test.js
 
 import { test, beforeEach } from "node:test";
@@ -138,7 +138,7 @@ test("applyBulkAction builds a priority payload and refreshes silently", async (
     action: "set_priority",
     priority: "high",
   });
-  assert.ok(calls.some((call) => call.toast === "已更新 2 个会话"));
+  assert.ok(calls.some((call) => call.toast === "已更新 2 个审核单"));
   assert.ok(calls.some((call) => call.refreshAll && call.refreshAll.silent === true));
   assert.ok(calls.includes("renderBulkToolbar"));
   assert.equal(calls.filter((call) => call.busy !== undefined).length, 2);

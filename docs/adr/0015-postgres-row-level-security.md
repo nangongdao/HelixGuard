@@ -21,7 +21,7 @@ Security（RLS）。当前所有租户隔离都依赖应用代码在每个查询
 
 ## 决策
 
-- **单一策略、事务级 GUC**（`app/rls.py`）：18 张核心客户数据表统一挂
+- **单一策略、事务级 GUC**（`app/rls.py`）：18 张核心提交方数据表统一挂
   `helix_tenant_isolation` 策略，USING/WITH CHECK 均为
   `tenant_id = current_setting('app.tenant_id', true)`。GUC 由
   `PostgresDatabase.connect()` 从 ambient `app.context.tenant_scope_context`
@@ -43,7 +43,7 @@ Security（RLS）。当前所有租户隔离都依赖应用代码在每个查询
   app 角色（无 BYPASSRLS）只拿 DML。owner 是否也受 RLS 约束由
   `FORCE ROW LEVEL SECURITY` 可选决定。
 - **保护面**：v01 baseline + attachments(v22) + archive 冷层(v24) + channel
-  threads(v27) 中所有 `tenant_id TEXT NOT NULL` 的客户数据表共 18 张。配置/
+  threads(v27) 中所有 `tenant_id TEXT NOT NULL` 的提交方数据表共 18 张。配置/
   registry 类表（tenants、sla_policies、prompt_versions、csat_surveys、webhook_*、
   quality_daily）混有全局行或无 token 路径，暂不纳入，与其访问路径改造一起进后续迭代。
 - **验证**：`verify_rls()` 读 pg_class/pg_policy 报告每张表的 ENABLE/policy 状态；

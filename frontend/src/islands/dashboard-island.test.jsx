@@ -1,5 +1,5 @@
 /**
- * Helix Support — dashboard island component tests (D3 long tail)
+ * Helix Guard — dashboard island component tests (D3 long tail)
  *
  * The island owns the workspace metrics strip; legacy foreground
  * refreshAll cycles drive refetches via helix-dashboard-refresh. These

@@ -1,5 +1,5 @@
 /**
- * Helix Support — composer command/receipt contract (ROADMAP H02).
+ * Helix Guard — composer command/receipt contract (ROADMAP H02).
  *
  * The operator workspace fires several async commands at the same composer:
  * copilot suggestions, tone rewrites, knowledge lookups and the reply send

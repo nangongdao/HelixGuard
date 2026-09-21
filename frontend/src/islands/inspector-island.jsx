@@ -1,5 +1,5 @@
 /**
- * Helix Support — inspector domain React island (D3)
+ * Helix Guard — inspector domain React island (D3)
  *
  * Mirrors the inspector surface in the desktop shell. The legacy
  * inspector.js owns the render from detail (pure functions) and the update
@@ -111,8 +111,8 @@ export function InspectorIsland() {
   if (collapsed) return null;
 
   return (
-    <aside className="inspector-surface" aria-label="会话检查器">
-      <nav id="inspectorTabs" className="inspector-tabs" role="tablist" aria-label="会话信息">
+    <aside className="inspector-surface" aria-label="审核单检查器">
+      <nav id="inspectorTabs" className="inspector-tabs" role="tablist" aria-label="审核单信息">
         {INSPECTOR_TABS.map((tab) => (
           <button
             key={tab}
@@ -160,7 +160,7 @@ export function InspectorIsland() {
                   </div>
                 </>
               ) : (
-                <div className="inspector-empty">暂无质量数据。处理一些会话后会在此汇总。</div>
+                <div className="inspector-empty">暂无质量数据。处理一些审核单后会在此汇总。</div>
               )}
             </div>
           );

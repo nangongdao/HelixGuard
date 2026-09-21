@@ -1,6 +1,6 @@
 # Helix Client (Python SDK)
 
-Thin, typed client for the Helix Support customer-service API. Covers
+Thin, typed client for the Helix Guard customer-service API. Covers
 conversations, messages, async turn jobs with SSE streaming, feedback,
 knowledge drafts, and webhook signature verification. Depends only on
 `httpx`.

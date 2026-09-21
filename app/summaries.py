@@ -68,7 +68,7 @@ _MAX_TRANSCRIPT_CHARS = 6000
 
 
 def _message_label(role: str, author: str) -> str:
-    names = {"customer": "客户", "assistant": "客服助手", "operator": "坐席"}
+    names = {"customer": "提交方", "assistant": "审核助手", "operator": "审核员"}
     if role in names:
         return names[role]
     if author and author != role:
@@ -224,17 +224,17 @@ class SummaryService:
         with the conversation metadata and the latest visible exchanges."""
         msg_count = conversation.get("message_count", len(messages))
         header = (
-            f"客户 {conversation.get('customer_name') or '(匿名)'}"
+            f"提交方 {conversation.get('customer_name') or '(匿名)'}"
             f" · 渠道 {conversation.get('channel') or '未知'}"
             f" · 优先级 {conversation.get('priority') or 'normal'}"
-            f" · 意图 {conversation.get('intent') or '未知'}"
+            f" · 风险类别 {conversation.get('intent') or '未知'}"
             f" · {msg_count} 条消息"
         )
         if conversation.get("handoff_reason"):
-            header += f" · 转人工原因: {conversation['handoff_reason']}"
+            header += f" · 转人工复核原因: {conversation['handoff_reason']}"
         transcript = self._render_transcript(
             [m for m in messages if not is_internal_message_role(m.get("role"))]
         )
         if not transcript:
             return header
-        return f"{header}\n最近对话:\n{_truncate(transcript, 2000)}"
+        return f"{header}\n最近往来:\n{_truncate(transcript, 2000)}"

@@ -4,8 +4,8 @@
 就绪;本轮把消息内附件 chip 从不可点击 ``<span>`` 升级为 ``<a>`` 下载链接,
 图片(安全子集 png/jpeg/gif/webp)额外渲染懒加载缩略图预览。
 
-本测在真实会话里闭环验证:
-1. 坐席上传 PNG + PDF(set_input_files 触发 change → 自动 POST /api/attachments);
+本测在真实审核单里闭环验证:
+1. 审核员上传 PNG + PDF(set_input_files 触发 change → 自动 POST /api/attachments);
 2. 发送人工回复携带 attachment_ids;
 3. 消息区 `.attachment-chip` 渲染为下载链接,图片 chip 含缩略图;
 4. 缩略图真实加载(naturalWidth > 0,即 download 端点为 img 可服务);
@@ -39,15 +39,15 @@ _PDF = b"%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\ntrailer<</Root 1 
 
 def open_new_conversation(page: Page, name: str) -> None:
     page.get_by_role("button", name="新建").click()
-    expect(page.get_by_role("heading", name="新建会话")).to_be_visible()
-    page.get_by_label("客户名称").fill(name)
+    expect(page.get_by_role("heading", name="新建审核单")).to_be_visible()
+    page.get_by_label("提交方名称").fill(name)
     with page.expect_response(
         lambda response: (
             response.url.endswith("/api/conversations") and response.request.method == "POST"
         )
     ) as response_info:
-        page.get_by_role("button", name="创建会话").click()
-    assert response_info.value.ok, f"会话创建失败: {response_info.value.status}"
+        page.get_by_role("button", name="创建审核单").click()
+    assert response_info.value.ok, f"审核单创建失败: {response_info.value.status}"
     expect(page.locator("#conversationTitle")).to_have_text(name)
 
 
@@ -55,7 +55,7 @@ def request_human_handoff(page: Page, message: str) -> None:
     """Send a customer message requesting human, then drive the conversation to
     human_active.  Depending on auto-routing the session may land directly in
     人工处理中, or queue at 等待人工 where 接入 must be clicked."""
-    page.get_by_label("客户消息", exact=True).fill(message)
+    page.get_by_label("待审内容", exact=True).fill(message)
     with page.expect_response(
         lambda response: (
             "/api/conversations/" in response.url
@@ -63,8 +63,8 @@ def request_human_handoff(page: Page, message: str) -> None:
             and response.request.method == "POST"
         )
     ) as response_info:
-        page.get_by_role("button", name="发送客户消息").click()
-    assert response_info.value.ok, f"客户消息失败: {response_info.value.status}"
+        page.get_by_role("button", name="发送待审内容").click()
+    assert response_info.value.ok, f"待审内容失败: {response_info.value.status}"
     status = page.locator("#conversationStatus")
     deadline = monotonic() + 20
     while monotonic() < deadline:
@@ -80,9 +80,9 @@ def request_human_handoff(page: Page, message: str) -> None:
                 page.get_by_role("button", name="接入", exact=True).click()
             assert accept_info.value.ok, f"接入失败: {accept_info.value.status}"
             return
-        if "已解决" in text or "自动处理中" in text:
+        if "已判定" in text or "自动处理中" in text:
             page.wait_for_timeout(300)
-    raise AssertionError(f"会话未进入人工处理: status={status.text_content()!r}")
+    raise AssertionError(f"审核单未进入人工处理: status={status.text_content()!r}")
 
 
 def attach_file(page: Page, *, name: str, mime: str, data: bytes) -> None:
@@ -146,12 +146,12 @@ def main() -> None:
         )
         page.goto(BASE_URL)
         expect(page.locator("#operatorIdentity")).to_contain_text("demo.admin")
-        expect(page.get_by_role("heading", name="会话队列")).to_be_visible()
+        expect(page.get_by_role("heading", name="审核队列")).to_be_visible()
 
         run_id = uuid4().hex[:6]
         open_new_conversation(page, f"附件验收-{run_id}")
 
-        # 客户消息请求转人工 → 接入后上传附件(pending chip 展示)。
+        # 待审内容请求转人工复核 → 接入后上传附件(pending chip 展示)。
         request_human_handoff(page, "附件验收：请人工介入，我稍后上传文件。")
         attach_file(page, name="chart.png", mime="image/png", data=_PNG)
         attach_file(page, name="report.pdf", mime="application/pdf", data=_PDF)

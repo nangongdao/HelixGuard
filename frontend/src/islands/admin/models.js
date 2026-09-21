@@ -1,5 +1,5 @@
 /**
- * Helix Support — admin island pure models.
+ * Helix Guard — admin island pure models.
  *
  * Framework-agnostic row/readout builders (§43.6): verbatim logic from the
  * legacy app.js render* helpers and js/admin-report.js, with ctx reads
@@ -34,7 +34,7 @@ export function quotaReadoutRows(quota) {
     : "—";
   return [
     ["租户", quota.name || quota.tenant_id],
-    ["会话配额", quota.conversation_quota ?? "—"],
+    ["审核单配额", quota.conversation_quota ?? "—"],
     ["存储配额", `${storageMb} MB`],
     ["每日 turn 预算", quota.daily_turn_budget ?? "—"],
     ["允许模型", (quota.allowed_models || []).join(", ") || "全部"],
@@ -76,10 +76,10 @@ export function slaPolicyLabel(policy) {
 
 export function routingRuleLabel(rule) {
   const parts = [];
-  if (rule.intent) parts.push(`意图 ${rule.intent}`);
+  if (rule.intent) parts.push(`风险类别 ${rule.intent}`);
   if (rule.label) parts.push(`标签 ${rule.label}`);
   if (rule.channel) parts.push(`渠道 ${rule.channel}`);
-  return parts.length ? parts.join(" · ") : "全部会话";
+  return parts.length ? parts.join(" · ") : "全部审核单";
 }
 
 export function routingRuleMeta(rule, groups) {
@@ -90,7 +90,7 @@ export function routingRuleMeta(rule, groups) {
 export function csatModel(data = {}) {
   const days = Array.isArray(data.per_day) ? data.per_day : [];
   const total = Math.round(Number(data.total || 0));
-  // 有样本才有均值/好评率;空态用 — 而非 0.00(客户不可能打 0 分,W2)。
+  // 有样本才有均值/好评率;空态用 — 而非 0.00(提交方不可能打 0 分,W2)。
   const avg = total > 0 ? `${Number(data.avg_rating || 0).toFixed(2)} / 5` : "— / 5";
   const pct = total > 0 ? `${Math.round(Number(data.positive_rate || 0) * 100)}%` : "—";
   return {
@@ -214,7 +214,7 @@ export function governanceFeedbackItems(rows) {
     const reason = String(document.reason || "").slice(0, 60);
     return {
       id: String(row.id),
-      subject: `会话 ${String(row.conversation_id || "—").slice(0, 12)}`,
+      subject: `审核单 ${String(row.conversation_id || "—").slice(0, 12)}`,
       meta: `${document.rating > 0 ? "+" : ""}${document.rating ?? "?"} 评分${reason ? ` · ${reason}` : ""}`,
     };
   });

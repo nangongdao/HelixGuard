@@ -1,4 +1,4 @@
-// Helix Support — saved-views lifecycle unit tests (app.js <500 slice 21 + 23)
+// Helix Guard — saved-views lifecycle unit tests (app.js <500 slice 21 + 23)
 // Run: node --test tests/frontend/saved-views.test.js
 
 import { test, beforeEach } from "node:test";

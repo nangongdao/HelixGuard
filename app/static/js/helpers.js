@@ -1,5 +1,5 @@
 /**
- * Helix Support — shared UI/format helpers (app.js <500 campaign).
+ * Helix Guard — shared UI/format helpers (app.js <500 campaign).
  *
  * The console's cross-cutting helpers, extracted verbatim from app.js:
  * escapeHtml/icon/formatTime/formatSla/newIdempotencyKey (pure),
@@ -48,7 +48,7 @@ export function statusLabel(status) {
       open: "自动处理中",
       waiting_human: "等待人工",
       human_active: "人工处理中",
-      resolved: "已解决",
+      resolved: "已判定",
     }[status] || status || "未知"
   );
 }
@@ -61,7 +61,7 @@ export function roleLabel(role) {
     {
       admin: "管理员",
       supervisor: "主管",
-      operator: "客服",
+      operator: "审核员",
       channel: "渠道",
       viewer: "只读",
       auditor: "审计员",

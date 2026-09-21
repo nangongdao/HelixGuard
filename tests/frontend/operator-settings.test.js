@@ -1,4 +1,4 @@
-// Helix Support — operator-settings (density/prefs/permissions) unit tests
+// Helix Guard — operator-settings (density/prefs/permissions) unit tests
 // Run: node --test tests/frontend/operator-settings.test.js
 
 import { afterEach, beforeEach, test } from "node:test";

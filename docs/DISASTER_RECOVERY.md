@@ -28,7 +28,7 @@
    exit 0=intact / 1=TAMPER / 2=DB 不存在。**恢复后未通过校验的证据不能作为合规证据**
    (Phase 41.3 / SEC-005,部署约定见 `docs/SECURITY_MODEL.md` §Phase 41.3 与
    `docs/adr/0011-audit-external-anchoring.md`)。
-4. 抽样验证最近会话/消息可读。
+4. 抽样验证最近审核单/消息可读。
 
 ## 故障演练
 

@@ -56,7 +56,7 @@ cd src-tauri
 cargo tauri build
 ```
 
-产出：`src-tauri/target/release/bundle/nsis/Helix Support_1.4.0_x64-setup.exe`
+产出：`src-tauri/target/release/bundle/nsis/Helix Guard_1.4.0_x64-setup.exe`
 
 ### 5. 代码签名（D5 阶段）
 
@@ -64,7 +64,7 @@ cargo tauri build
 
 ```bash
 # 配置 signtool 或 tauri.conf.json 中的签名设置
-signtool sign /f cert.pfx /p <password> /t http://timestamp.digicert.com "Helix Support_1.4.0_x64-setup.exe"
+signtool sign /f cert.pfx /p <password> /t http://timestamp.digicert.com "Helix Guard_1.4.0_x64-setup.exe"
 ```
 
 向 Microsoft 提交误报白名单（本项目有 EICAR 拦截前科）。
@@ -82,7 +82,7 @@ Tauri updater 配置在 `tauri.conf.json` 的 `plugins.updater` 节：
 
 桌面包内置遥测，启动后检查：
 ```
-%APPDATA%/HelixSupport/telemetry/startup.json
+%APPDATA%/HelixGuard/telemetry/startup.json
 ```
 
 包含三个时间戳：
@@ -115,8 +115,8 @@ CI nightly 断言 p95 < 3s。
 
 ## 数据目录
 
-- 桌面版 DB：`%APPDATA%/HelixSupport/data/support.db`
-- 遥测：`%APPDATA%/HelixSupport/telemetry/startup.json`
+- 桌面版 DB：`%APPDATA%/HelixGuard/data/support.db`
+- 遥测：`%APPDATA%/HelixGuard/telemetry/startup.json`
 - 开发覆盖：设置 `HELIX_DATA_DIR` 环境变量
 
 ## 故障排查

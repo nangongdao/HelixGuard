@@ -1,7 +1,7 @@
 [package]
 name = "helix-desktop"
 version = "1.4.0"
-description = "Helix Support desktop shell"
+description = "Helix Guard desktop shell"
 authors = ["nangongdao"]
 edition = "2021"
 

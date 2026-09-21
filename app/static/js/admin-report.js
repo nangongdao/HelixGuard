@@ -1,5 +1,5 @@
 /**
- * Helix Support — admin report controller (ROADMAP §41.6 / ARC-001).
+ * Helix Guard — admin report controller (ROADMAP §41.6 / ARC-001).
  *
  * Report subscriptions/export, SLA policies and automatic routing rules in
  * the admin view. Extracted from the legacy app.js; app.js keeps thin
@@ -185,7 +185,7 @@ export function renderSlaPolicies(policies) {
       <li class="sla-rule-row" data-id="${ctx.escapeHtml(policy.id)}">
         <span class="sla-rule-main">
           <span class="sla-rule-title">${ctx.escapeHtml(slaPolicyLabel(policy))}</span>
-          <span class="sla-rule-meta">首响 ${policy.first_response_minutes}min · 解决 ${policy.resolve_minutes}min</span>
+          <span class="sla-rule-meta">首次响应 ${policy.first_response_minutes}min · 判定 ${policy.resolve_minutes}min</span>
         </span>
         <span class="admin-member-actions">
           <button type="button" class="admin-ghost-button sla-policy-fill" data-id="${ctx.escapeHtml(policy.id)}" title="填入表单编辑">编辑</button>
@@ -222,7 +222,7 @@ export async function saveSlaPolicy(event) {
   const firstResponse = Number(ctx.els.slaFirstResponse?.value || 0);
   const resolveMinutes = Number(ctx.els.slaResolve?.value || 0);
   if (!firstResponse || !resolveMinutes) {
-    ctx.showToast("请填写首响与解决时限", true);
+    ctx.showToast("请填写首次响应与判定时限", true);
     return;
   }
   const body = {
@@ -250,7 +250,7 @@ export function renderRuleGroups(groups) {
     ? groups
         .map((group) => `<option value="${ctx.escapeHtml(group.id)}">${ctx.escapeHtml(group.name)}</option>`)
         .join("")
-    : '<option value="">暂无坐席组（请先创建）</option>';
+    : '<option value="">暂无审核组（请先创建）</option>';
 }
 
 export async function loadRuleGroups() {
@@ -260,17 +260,17 @@ export async function loadRuleGroups() {
   } catch (error) {
     agentGroupsCache = [];
     if (ctx.els.ruleGroup) {
-      ctx.els.ruleGroup.innerHTML = `<option value="">坐席组加载失败（${ctx.escapeHtml(error.message || error)}）</option>`;
+      ctx.els.ruleGroup.innerHTML = `<option value="">审核组加载失败（${ctx.escapeHtml(error.message || error)}）</option>`;
     }
   }
 }
 
 export function routingRuleLabel(rule) {
   const parts = [];
-  if (rule.intent) parts.push(`意图 ${rule.intent}`);
+  if (rule.intent) parts.push(`风险类别 ${rule.intent}`);
   if (rule.label) parts.push(`标签 ${rule.label}`);
   if (rule.channel) parts.push(`渠道 ${rule.channel}`);
-  return parts.length ? parts.join(" · ") : "全部会话";
+  return parts.length ? parts.join(" · ") : "全部审核单";
 }
 
 export function renderRoutingRules(rules) {

@@ -1,5 +1,5 @@
 /**
- * Helix Support — settings island (D3 long tail: settings/desktop-info).
+ * Helix Guard — settings island (D3 long tail: settings/desktop-info).
  *
  * Owns the settings surface (#placeholderView) in the desktop shell: the
  * desktop runtime readout (version/port/mode/data dir) and the preferences
@@ -60,7 +60,7 @@ export function desktopInfoModel(backend, isDesktop) {
         ["版本", DESKTOP_VERSION],
         ["后端端口", info.backendPort ? `127.0.0.1:${info.backendPort}` : "等待中…"],
         ["运行模式", info.error ? `错误：${info.error}` : "桌面 sidecar"],
-        ["数据目录", "%APPDATA%/HelixSupport/data"],
+        ["数据目录", "%APPDATA%/HelixGuard/data"],
       ],
       envNoteHidden: true,
     };

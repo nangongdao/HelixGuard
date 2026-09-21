@@ -1,5 +1,5 @@
 /**
- * Helix Support — quality island tests (D3 long tail glue slice)
+ * Helix Guard — quality island tests (D3 long tail glue slice)
  *
  * The quality island has rendered the buckets since D2; this slice added
  * the refresh bridge (helix-quality-refresh) that mirrors the legacy 10s

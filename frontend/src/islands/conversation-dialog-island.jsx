@@ -1,5 +1,5 @@
 /**
- * Helix Support — conversation dialog island (D3 long tail).
+ * Helix Guard — conversation dialog island (D3 long tail).
  *
  * Owns the new-conversation dialog in the desktop shell. Legacy app.js
  * keeps the whole create lifecycle (POST /api/conversations, selection,
@@ -120,8 +120,8 @@ export function ConversationDialogIsland() {
       <form id={DIALOG_IDS.form} method="dialog" onSubmit={submit} aria-busy={busy}>
         <div className="dialog-heading">
           <div>
-            <span className="section-kicker">NEW CONTACT</span>
-            <h2>新建会话</h2>
+            <span className="section-kicker">NEW SUBMISSION</span>
+            <h2>新建审核单</h2>
           </div>
           <button
             className="icon-button"
@@ -133,7 +133,7 @@ export function ConversationDialogIsland() {
             <svg className="icon"><use href="/static/icons.svg?v=1.4.0#x" /></svg>
           </button>
         </div>
-        <label className="field-label" htmlFor={DIALOG_IDS.customerName}>客户名称</label>
+        <label className="field-label" htmlFor={DIALOG_IDS.customerName}>提交方名称</label>
         <input
           id={DIALOG_IDS.customerName}
           ref={nameRef}
@@ -145,7 +145,7 @@ export function ConversationDialogIsland() {
           onChange={setValue("customerName")}
         />
         <label className="field-label" htmlFor={DIALOG_IDS.customerRef}>
-          客户身份标识 <span>可选</span>
+          提交方标识 <span>可选</span>
         </label>
         <input
           id={DIALOG_IDS.customerRef}
@@ -172,7 +172,7 @@ export function ConversationDialogIsland() {
           </button>
           <button className="button button-primary" type="submit">
             <svg className="icon" aria-hidden="true"><use href="/static/icons.svg?v=1.4.0#plus" /></svg>
-            <span>创建会话</span>
+            <span>创建审核单</span>
           </button>
         </div>
       </form>

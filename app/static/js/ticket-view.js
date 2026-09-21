@@ -1,5 +1,5 @@
 /**
- * Helix Support — ticket view (ROADMAP §41.6 / ARC-001).
+ * Helix Guard — ticket view (ROADMAP §41.6 / ARC-001).
  *
  * Ticket list/detail/state machine and the workspace queue/tickets tab.
  * Extracted from the legacy app.js; app.js keeps thin delegating wrappers
@@ -20,7 +20,7 @@ let ticketBadgeCache = {};
 export async function enrichTicketBadge(ticketId) {
   if (!ticketId || !ctx.els.ticketBadge) return;
   if (ticketBadgeCache[ticketId]) {
-    ctx.els.ticketBadge.textContent = `工单 ${ticketId} · ${ticketBadgeCache[ticketId]}`;
+    ctx.els.ticketBadge.textContent = `申诉单 ${ticketId} · ${ticketBadgeCache[ticketId]}`;
     return;
   }
   try {
@@ -28,7 +28,7 @@ export async function enrichTicketBadge(ticketId) {
     const status = TICKET_STATUS_NAMES[ticket.status] || ticket.status || "";
     ticketBadgeCache[ticketId] = status;
     if (ctx.state.selectedId && ctx.els.ticketBadge) {
-      ctx.els.ticketBadge.textContent = `工单 ${ticketId} · ${status}`;
+      ctx.els.ticketBadge.textContent = `申诉单 ${ticketId} · ${status}`;
     }
   } catch {
     /* badge stays at the id-only form */
@@ -38,7 +38,7 @@ export async function enrichTicketBadge(ticketId) {
 export async function convertToTicket() {
   const conversationId = ctx.state.selectedId;
   if (!conversationId || !ctx.canOperate()) return;
-  const subject = window.prompt("转工单主题（长周期问题描述）", "问题跟进");
+  const subject = window.prompt("转申诉单主题（长周期问题描述）", "问题跟进");
   if (subject === null || !subject.trim()) return;
   try {
     await ctx.api("/api/tickets", {
@@ -47,12 +47,12 @@ export async function convertToTicket() {
     });
     await ctx.loadDetail(conversationId);
   } catch (error) {
-    window.alert(`转工单失败：${error.message || error}`);
+    window.alert(`转申诉单失败：${error.message || error}`);
   }
 }
 
 let ticketListLoaded = false;
-// 工单详情「跳转关联会话」窗口内抑制 runRefresh 自动选第一条会话的计数标志
+// 申诉单详情「跳转关联审核单」窗口内抑制 runRefresh 自动选第一条审核单的计数标志
 // (jumpToTicketConversation 独占);>0 时 else-if 的 auto-select 被跳过。
 let suppressAutoSelect = 0;
 let activeTicketId = null;
@@ -124,7 +124,7 @@ export function refreshTicketsList() {
 export function renderTicketList(tickets) {
   if (!ctx.els.ticketList) return;
   if (!tickets.length) {
-    ctx.els.ticketList.innerHTML = `<p class="ticket-empty">暂无工单</p>`;
+    ctx.els.ticketList.innerHTML = `<p class="ticket-empty">暂无申诉单</p>`;
     return;
   }
   ctx.els.ticketList.innerHTML = tickets
@@ -151,7 +151,7 @@ export async function openTicketDetail(ticketId) {
   activeTicketId = ticketId;
   try {
     const detail = await ctx.api(`/api/tickets/${encodeURIComponent(ticketId)}`);
-    // 过期响应守卫:await 期间用户已切换另一工单或关闭详情(activeTicketId
+    // 过期响应守卫:await 期间用户已切换另一申诉单或关闭详情(activeTicketId
     // 变化),旧票响应不得覆盖当前视图,也不得把 null 传给 /api/tickets/null。
     if (activeTicketId !== ticketId) return;
     renderTicketDetail(detail);
@@ -161,7 +161,7 @@ export async function openTicketDetail(ticketId) {
   } catch (error) {
     if (activeTicketId === ticketId) {
       activeTicketId = null;
-      window.alert(`工单加载失败：${error.message || error}`);
+      window.alert(`申诉单加载失败：${error.message || error}`);
     }
   }
 }
@@ -218,11 +218,11 @@ export function renderTicketTransitions(status) {
 export function renderTicketConvs(convs) {
   if (!ctx.els.ticketDetailConvs) return;
   if (!convs || !convs.length) {
-    ctx.els.ticketDetailConvs.innerHTML = `<h3 class="ticket-convs-title">关联会话</h3><p class="ticket-empty">未关联会话</p>`;
+    ctx.els.ticketDetailConvs.innerHTML = `<h3 class="ticket-convs-title">关联审核单</h3><p class="ticket-empty">未关联审核单</p>`;
     return;
   }
   ctx.els.ticketDetailConvs.innerHTML =
-    `<h3 class="ticket-convs-title">关联会话</h3>` +
+    `<h3 class="ticket-convs-title">关联审核单</h3>` +
     convs
       .map(
         (c) =>
@@ -236,7 +236,7 @@ export function renderTicketConvs(convs) {
 }
 
 export async function transitionActiveTicket(status) {
-  // 入口拷贝:await 期间用户可能已关闭详情或切到另一工单,不能读模块级变量。
+  // 入口拷贝:await 期间用户可能已关闭详情或切到另一申诉单,不能读模块级变量。
   const ticketId = activeTicketId;
   if (!ticketId) return;
   try {
@@ -247,7 +247,7 @@ export async function transitionActiveTicket(status) {
     void openTicketDetail(ticketId);
     void refreshTicketsList();
   } catch (error) {
-    window.alert(`工单状态变更失败：${error.message || error}`);
+    window.alert(`申诉单状态变更失败：${error.message || error}`);
   }
 }
 

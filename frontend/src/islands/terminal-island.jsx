@@ -1,5 +1,5 @@
 /**
- * Helix Support — xterm.js terminal island (D4)
+ * Helix Guard — xterm.js terminal island (D4)
  *
  * Built-in diagnostic terminal for tenant admins/platform operators.
  * Renders a bottom drawer (40% height, Ctrl+` toggle) with xterm.js +
@@ -132,7 +132,7 @@ function TerminalIsland() {
     termRef.current = term;
     fitRef.current = fitAddon;
 
-    term.writeln("\x1b[1;36mHelix Support 诊断终端\x1b[0m");
+    term.writeln("\x1b[1;36mHelix Guard 诊断终端\x1b[0m");
     term.writeln("\x1b[2mCtrl+` 切换 · 白名单命令模式\x1b[0m");
     term.writeln("");
 

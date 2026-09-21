@@ -51,7 +51,7 @@ controller 中；无任何性能预算执行点；视觉层只有 axe/键盘/red
   25 KB——正常特性迭代不触发，失控依赖或未压缩 vendor blob 即失败。
 - **真实浏览器预算**（Playwright Chromium，与 tests/ui_smoke.py 同 harness）：
   LCP ≤ 2500 ms（PerformanceObserver buffered）、CLS ≤ 0.10、5 s 窗口长任务
-  数 ≤ 50（longtask buffered）、10k 合成会话注入后单次 windowed render
+  数 ≤ 50（longtask buffered）、10k 合成审核单注入后单次 windowed render
   （renderQueue 全量调用计时，VIRTUAL_THRESHOLD=200 以上路径）≤ 2000 ms、
   20 个刷新周期的 JS heap 波动 ≤ 15 MB。
 - 关键工程事实：operator 控制台的队列 SSE 流（/api/events/queue，45 s
@@ -68,7 +68,7 @@ controller 中；无任何性能预算执行点；视觉层只有 axe/键盘/red
 
 - 四个稳定表面入基线（tests/baselines/*.png）：workspace-dark /
   workspace-light（主题 token 集）/ knowledge-view / mobile-queue drawer。
-  会话数据、时间戳、SLA 倒计时等动态区域在截图前统一 mask（textContent='0'
+  审核单数据、时间戳、SLA 倒计时等动态区域在截图前统一 mask（textContent='0'
   + color:transparent），基线因此对数据churn免疫。
 - 比较参数：像素通道容差 ±12（主题过渡抗锯齿）、整图差分比上限 0.5%；
   viewport 尺寸变化视为布局级变更→重建基线并放行（显式提示）。

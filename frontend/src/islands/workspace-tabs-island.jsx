@@ -1,7 +1,7 @@
 /**
- * Helix Support — workspace tabs island (D3 long tail).
+ * Helix Guard — workspace tabs island (D3 long tail).
  *
- * Owns the workspace tablist (队列/工单) in the desktop shell. The pane
+ * Owns the workspace tablist (队列/申诉单) in the desktop shell. The pane
  * switching itself — queuePane dataset.mode, ticketPane visibility, ticket
  * loading and the queue refresh — stays in legacy switchWorkspaceTab
  * (js/ticket-view.js); the island renders the two tabs and bridges clicks:
@@ -28,7 +28,7 @@ export const WORKSPACE_TAB_EVENTS = Object.freeze({
 
 const TABS = [
   { field: "queue", label: "队列" },
-  { field: "tickets", label: "工单" },
+  { field: "tickets", label: "申诉单" },
 ];
 
 /** Pure state transition for the tablist. */

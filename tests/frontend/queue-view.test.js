@@ -1,4 +1,4 @@
-// Helix Support — queue-view module unit tests (ROADMAP §43.6)
+// Helix Guard — queue-view module unit tests (ROADMAP §43.6)
 // Run: node --test tests/frontend/queue-view.test.js
 
 import { test } from "node:test";

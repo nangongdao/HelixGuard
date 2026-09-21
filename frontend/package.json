@@ -1,9 +1,9 @@
 {
-  "name": "helix-support-frontend",
+  "name": "helix-guard-frontend",
   "private": true,
   "version": "1.4.0",
   "type": "module",
-  "description": "React island sources for the Helix Support operator console (D2 scaffold).",
+  "description": "React island sources for the Helix Guard operator console (D2 scaffold).",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

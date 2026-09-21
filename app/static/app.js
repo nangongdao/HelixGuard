@@ -233,7 +233,7 @@ function renderMetrics(...args) { return window.HelixModules?.['refresh']?.['ren
 
 function canOperate(...args) { return window.HelixModules?.['operatorSettings']?.['canOperate'](...args); }
 
-// Backlog (多语言客服): language override + translate both require
+// Backlog (多语言审核): language override + translate both require
 // conversation:write (the console's write gate, distinct from canOperate's
 // operator:act so channel/operator roles can still act).
 function canWriteConversations(...args) { return window.HelixModules?.['operatorSettings']?.['canWriteConversations'](...args); }
@@ -304,7 +304,7 @@ function renderQualityPanel(...args) { return window.HelixModules?.['qualityPane
 
 function renderSubtitle(...args) { return window.HelixModules?.['conversationDetail']?.['renderSubtitle'](...args); }
 
-// Backlog (多语言客服): header select lives in js/conversation-detail.js
+// Backlog (多语言审核): header select lives in js/conversation-detail.js
 // (renderLanguagePicker — injected once; PATCH rollback via renderDetail).
 function renderLanguagePicker(...args) { return window.HelixModules?.['conversationDetail']?.['renderLanguagePicker'](...args); }
 
@@ -326,7 +326,7 @@ async function loadDetail(...args) { return window.HelixModules?.['conversationD
 // X-Prev-Cursor — never parsed or synthesized client-side.
 async function loadOlderMessages(...args) { return window.HelixModules?.['thread']?.['loadOlderMessages'](...args); }
 
-// ------------------------------------------------------------- 坐席协作
+// ------------------------------------------------------------- 审核协作
 // Mentions inbox, internal discussion threads, and the supervisor live view.
 
 function canReadConversations(...args) { return window.HelixModules?.['operatorSettings']?.['canReadConversations'](...args); }

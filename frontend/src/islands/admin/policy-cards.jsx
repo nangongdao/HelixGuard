@@ -1,5 +1,5 @@
 /**
- * Helix Support — admin island policy cards: SLA policies, routing rules.
+ * Helix Guard — admin island policy cards: SLA policies, routing rules.
  *
  * Split out of admin-island.jsx (400-line module limit). Both cards write
  * through the helix-admin-* bridge; the SLA card's 编辑 button only fills
@@ -45,7 +45,7 @@ export function AdminSlaCard({ policies }) {
             <span className="sla-rule-main">
               <span className="sla-rule-title">{slaPolicyLabel(policy)}</span>
               <span className="sla-rule-meta">
-                首响 {policy.first_response_minutes}min · 解决 {policy.resolve_minutes}min
+                首次响应 {policy.first_response_minutes}min · 判定 {policy.resolve_minutes}min
               </span>
             </span>
             <span className="admin-member-actions">
@@ -80,7 +80,7 @@ export function AdminSlaCard({ policies }) {
             onChange={(e) => setChannel(e.target.value)}
           />
         </label>
-        <label className="admin-field">首响时限（分钟）
+        <label className="admin-field">首次响应时限（分钟）
           <input
             id={CARD_IDS.slaFirstResponse}
             type="number"
@@ -90,7 +90,7 @@ export function AdminSlaCard({ policies }) {
             onChange={(e) => setFirstResponse(e.target.value)}
           />
         </label>
-        <label className="admin-field">解决时限（分钟）
+        <label className="admin-field">判定时限（分钟）
           <input
             id={CARD_IDS.slaResolve}
             type="number"
@@ -157,7 +157,7 @@ export function AdminRoutingCard({ rules, groups }) {
         ))}
       </ul>
       <form id={CARD_IDS.routingRuleForm} className="admin-form" onSubmit={submit}>
-        <label className="admin-field">意图
+        <label className="admin-field">风险类别
           <input
             id={CARD_IDS.ruleIntent}
             type="text"
@@ -193,7 +193,7 @@ export function AdminRoutingCard({ rules, groups }) {
               ? groups.map((group) => (
                   <option value={group.id} key={group.id}>{group.name}</option>
                 ))
-              : <option value="">暂无坐席组（请先创建）</option>}
+              : <option value="">暂无审核组（请先创建）</option>}
           </select>
         </label>
         <label className="admin-field">优先级

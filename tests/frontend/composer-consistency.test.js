@@ -1,4 +1,4 @@
-// Helix Support — composer cross-conversation consistency tests (ROADMAP H02)
+// Helix Guard — composer cross-conversation consistency tests (ROADMAP H02)
 // Run: node --test tests/frontend/composer-consistency.test.js
 //
 // The acceptance scenarios for H02: an unfinished request for A, a slow

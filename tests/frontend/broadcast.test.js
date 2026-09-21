@@ -1,4 +1,4 @@
-// Helix Support — broadcast leader-election/relay module unit tests (ROADMAP §18.4)
+// Helix Guard — broadcast leader-election/relay module unit tests (ROADMAP §18.4)
 // Run: node --test tests/frontend/broadcast.test.js
 
 import { test } from "node:test";

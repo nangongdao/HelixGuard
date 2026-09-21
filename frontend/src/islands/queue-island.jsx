@@ -1,5 +1,5 @@
 /**
- * Helix Support — conversation queue React island (D3)
+ * Helix Guard — conversation queue React island (D3)
  *
  * Renders the conversation queue list AND the footer strip controls in the
  * desktop shell. Data flows through the legacy app.js: it owns polling, SSE,
@@ -123,7 +123,7 @@ export function QueueIsland() {
   if (!snapshot) {
     return (
       <div className="queue-island">
-        <div className="queue-loading" role="status" aria-label="队列加载中">正在同步会话队列</div>
+        <div className="queue-loading" role="status" aria-label="队列加载中">正在同步审核队列</div>
         <QueueStrip count={0} hasMore={false} loadingMore={false} />
       </div>
     );
@@ -134,7 +134,7 @@ export function QueueIsland() {
   if (!conversations.length) {
     return (
       <div className="queue-island">
-        <div className="queue-empty">当前筛选条件下没有会话</div>
+        <div className="queue-empty">当前筛选条件下没有审核单</div>
         <QueueStrip count={0} hasMore={false} loadingMore={false} />
       </div>
     );

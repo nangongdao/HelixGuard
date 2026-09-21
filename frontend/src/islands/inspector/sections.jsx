@@ -1,5 +1,5 @@
 /**
- * Helix Support — inspector island overview + evidence sections.
+ * Helix Guard — inspector island overview + evidence sections.
  *
  * Split out of inspector-island.jsx (400-line module limit). Both mirror
  * the legacy inspector.js render output (same classes/ids/aria) so the
@@ -22,13 +22,13 @@ export function OverviewSection({ conversation, assistant, canOperate, onPriorit
   return (
     <>
       <section className="inspector-section">
-        <h3>会话</h3>
+        <h3>审核单</h3>
         <dl className="detail-list">
-          <div className="detail-row"><dt>会话 ID</dt><dd>{escapeHtml(conversation.id)}</dd></div>
+          <div className="detail-row"><dt>审核单 ID</dt><dd>{escapeHtml(conversation.id)}</dd></div>
           <div className="detail-row"><dt>渠道</dt><dd>{escapeHtml(conversation.channel)}</dd></div>
-          <div className="detail-row"><dt>客户标识</dt><dd>{escapeHtml(conversation.customer_ref || "未绑定")}</dd></div>
+          <div className="detail-row"><dt>提交方标识</dt><dd>{escapeHtml(conversation.customer_ref || "未绑定")}</dd></div>
           <div className="detail-row"><dt>优先级</dt><dd>
-            <div className="priority-control" role="group" aria-label="调整会话优先级">
+            <div className="priority-control" role="group" aria-label="调整审核单优先级">
               <button className={`priority-option normal${conversation.priority === "normal" ? " is-active" : ""}`} type="button" data-priority="normal" aria-pressed={conversation.priority === "normal"} onClick={() => onPriority("normal")}>普通</button>
               <button className={`priority-option high${conversation.priority === "high" ? " is-active" : ""}`} type="button" data-priority="high" aria-pressed={conversation.priority === "high"} onClick={() => onPriority("high")}>高</button>
             </div>
@@ -41,7 +41,7 @@ export function OverviewSection({ conversation, assistant, canOperate, onPriorit
           <form id="conversationLabelsForm" className="label-editor" onSubmit={handleLabelsSubmit}>
             <label className="label-editor-field">
               <svg className="icon"><use href="/static/icons.svg?v=1.4.0#tag" /></svg>
-              <span className="sr-only">会话标签</span>
+              <span className="sr-only">审核单标签</span>
               <input name="labels" type="text" maxLength={240} defaultValue={labels.join(", ")} placeholder="VIP, 退款风险" />
             </label>
             <button type="submit" title="保存标签" aria-label="保存标签">
@@ -56,9 +56,9 @@ export function OverviewSection({ conversation, assistant, canOperate, onPriorit
           <>
             <dl className="detail-list">
               <div className="detail-row"><dt>Agent</dt><dd>{escapeHtml(metadata.agent || "-")}</dd></div>
-              <div className="detail-row"><dt>意图</dt><dd>{escapeHtml(metadata.intent || "-")}</dd></div>
+              <div className="detail-row"><dt>风险类别</dt><dd>{escapeHtml(metadata.intent || "-")}</dd></div>
               <div className="detail-row"><dt>路由模式</dt><dd>{escapeHtml(metadata.route_mode || "-")}</dd></div>
-              <div className="detail-row"><dt>质量门</dt><dd>{metadata.quality_approved ? "通过" : "转人工"}</dd></div>
+              <div className="detail-row"><dt>质量门</dt><dd>{metadata.quality_approved ? "通过" : "转人工复核"}</dd></div>
               <div className="detail-row"><dt>置信度</dt><dd>{confidence}%</dd></div>
             </dl>
             <progress className="confidence-progress" max={100} value={confidence}>{confidence}%</progress>

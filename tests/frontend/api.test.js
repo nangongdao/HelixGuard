@@ -1,4 +1,4 @@
-// Helix Support — api module unit tests (Phase 26.1)
+// Helix Guard — api module unit tests (Phase 26.1)
 // Run: node --test tests/frontend/api.test.js
 
 import { test } from "node:test";

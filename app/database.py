@@ -1,4 +1,4 @@
-"""Helix Support database layer (Phase 27.1 refactor).
+"""Helix Guard database layer (Phase 27.1 refactor).
 
 The domain methods were extracted into mixin modules under ``app/db/``
 (core, tenancy, conversations, messages, jobs, knowledge, audit); this file

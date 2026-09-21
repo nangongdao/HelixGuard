@@ -133,7 +133,7 @@ def generate() -> str:
     info = spec.get("info", {})
 
     lines: list[str] = [
-        "# Helix Support API Reference",
+        "# Helix Guard API Reference",
         "",
         f"Version: `{info.get('version', 'unknown')}`",
         "",

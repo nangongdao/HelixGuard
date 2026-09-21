@@ -1,5 +1,5 @@
 /**
- * Helix Support — legacy app-core singletons (app.js <500 campaign facade).
+ * Helix Guard — legacy app-core singletons (app.js <500 campaign facade).
  *
  * The legacy app.js const/state/els blocks, extracted verbatim. These are the
  * shared singletons every extracted js/ domain module receives through
@@ -31,7 +31,7 @@ const POLL_INTERVAL_LOW = 90000;
 const PREF_DENSITY = "helix-queue-density";
 const PREF_LOW_PERF = "helix-low-perf";
 const PREF_INSPECTOR = "helix-inspector-collapsed";
-// Backlog (多语言客服): ISO 639-1 code -> display name for the operator
+// Backlog (多语言审核): ISO 639-1 code -> display name for the operator
 // console language badge; falls back to the raw code when unmapped.
 const LANGUAGE_NAMES = {
   zh: "中文",
@@ -50,7 +50,7 @@ const LANGUAGE_NAMES = {
   pt: "Português",
 };
 
-// Backlog (多语言客服): shared option rows for the language override select
+// Backlog (多语言审核): shared option rows for the language override select
 // and every per-message translate bar. Built once so re-renders stay cheap.
 const LANGUAGE_OPTIONS = Object.keys(LANGUAGE_NAMES)
   .sort((a, b) => LANGUAGE_NAMES[a].localeCompare(LANGUAGE_NAMES[b], "zh"))
@@ -60,7 +60,7 @@ const LANGUAGE_OPTIONS = Object.keys(LANGUAGE_NAMES)
 const ROLE_LABELS = {
   admin: "管理员",
   supervisor: "主管",
-  operator: "客服",
+  operator: "审核员",
   channel: "渠道",
   viewer: "只读",
   auditor: "审计员",

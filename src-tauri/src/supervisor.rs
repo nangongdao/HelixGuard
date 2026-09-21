@@ -1,4 +1,4 @@
-//! Helix Support desktop shell — sidecar supervision.
+//! Helix Guard desktop shell — sidecar supervision.
 //!
 //! Spawns the packaged Python backend (PyInstaller onedir) or a dev
 //! interpreter, probes `/health/ready` with exponential backoff, and shuts
@@ -164,7 +164,7 @@ fn dirs_fallback() -> PathBuf {
     #[cfg(windows)]
     {
         std::env::var("APPDATA")
-            .map(|d| PathBuf::from(d).join("HelixSupport"))
+            .map(|d| PathBuf::from(d).join("HelixGuard"))
             .unwrap_or_else(|_| PathBuf::from("."))
     }
     #[cfg(not(windows))]
@@ -173,7 +173,7 @@ fn dirs_fallback() -> PathBuf {
     }
 }
 
-/// Telemetry directory: %APPDATA%/HelixSupport/telemetry/
+/// Telemetry directory: %APPDATA%/HelixGuard/telemetry/
 pub fn telemetry_dir() -> PathBuf {
     dirs_fallback().join("telemetry")
 }
@@ -344,7 +344,7 @@ pub fn record_ui_ready(state: &SupervisorState, boot_start_ms: u64) {
     persist_telemetry(&state.telemetry);
 }
 
-/// Persist telemetry to %APPDATA%/HelixSupport/telemetry/startup.json.
+/// Persist telemetry to %APPDATA%/HelixGuard/telemetry/startup.json.
 fn persist_telemetry(state: &Mutex<StartupTelemetry>) {
     let tel = state.lock().unwrap().clone();
     let dir = telemetry_dir();

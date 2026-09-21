@@ -1,5 +1,5 @@
 /**
- * Helix Support — identity island (D3 long tail: header identity readout).
+ * Helix Guard — identity island (D3 long tail: header identity readout).
  *
  * Owns the header identity readout in the desktop shell: "actor · role"
  * (the only data-derived element in the header; the surrounding toggles
@@ -28,7 +28,7 @@ export const IDENTITY_EVENTS = Object.freeze({
 const ROLE_LABELS = {
   admin: "管理员",
   supervisor: "主管",
-  operator: "客服",
+  operator: "审核员",
   channel: "渠道",
   viewer: "只读",
   auditor: "审计员",

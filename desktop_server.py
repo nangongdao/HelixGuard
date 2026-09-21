@@ -1,4 +1,4 @@
-"""Packaged server entrypoint for the Helix Support desktop sidecar.
+"""Packaged server entrypoint for the Helix Guard desktop sidecar.
 
 Reads HELIX_PORT (default 8766) and DATABASE_PATH from the environment —
 both are injected by the Tauri supervisor. Kept dependency-free so

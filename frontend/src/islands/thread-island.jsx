@@ -1,5 +1,5 @@
 /**
- * Helix Support — message thread React island (D3 long tail glue slice)
+ * Helix Guard — message thread React island (D3 long tail glue slice)
  *
  * Island-rendered but legacy-fed: js/thread.js owns the loadDetail /
  * loadOlderMessages lifecycle and the feedback/translate write paths, and
@@ -29,9 +29,9 @@ export const THREAD_EVENTS = Object.freeze({
 });
 
 const ROLE_NAMES = {
-  customer: "客户",
-  assistant: "自动客服",
-  operator: "人工客服",
+  customer: "提交方",
+  assistant: "自动审核",
+  operator: "人工复核",
   internal_note: "内部备注",
 };
 
@@ -243,10 +243,10 @@ export function ThreadIsland({ container }) {
   const noteIds = new Set(messages.filter((m) => m.role === "internal_note").map((m) => m.id));
 
   if (snapshot.loading) {
-    return <div className="thread-empty">正在加载会话</div>;
+    return <div className="thread-empty">正在加载审核单</div>;
   }
   if (!messages.length) {
-    return <div className="thread-empty">等待第一条客户消息</div>;
+    return <div className="thread-empty">等待第一条待审内容</div>;
   }
 
   const truncated =

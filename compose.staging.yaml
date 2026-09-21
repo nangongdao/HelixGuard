@@ -6,7 +6,7 @@
 # queue, and an OpenTelemetry collector receiving traces.
 
 services:
-  helix-support:
+  helix-guard:
     build:
       context: .
     profiles: ["staging"]

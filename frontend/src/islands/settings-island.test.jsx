@@ -1,5 +1,5 @@
 /**
- * Helix Support — settings island component tests (D3 long tail)
+ * Helix Guard — settings island component tests (D3 long tail)
  *
  * The island owns the settings surface in the desktop shell; the backend
  * info arrives asynchronously via window.__HELIX_BACKEND__ +
@@ -36,7 +36,7 @@ describe("desktopInfoModel parity with js/desktop-info.js", () => {
       ["版本", "1.4.0"],
       ["后端端口", "127.0.0.1:55954"],
       ["运行模式", "桌面 sidecar"],
-      ["数据目录", "%APPDATA%/HelixSupport/data"],
+      ["数据目录", "%APPDATA%/HelixGuard/data"],
     ]);
     expect(model.envNoteHidden).toBe(true);
   });
@@ -91,7 +91,7 @@ describe("SettingsIsland", () => {
     });
     expect(document.getElementById(SETTINGS_IDS.desktopBackendPort).textContent).toBe("127.0.0.1:51234");
     expect(document.getElementById(SETTINGS_IDS.desktopBackendMode).textContent).toBe("桌面 sidecar");
-    expect(document.getElementById(SETTINGS_IDS.desktopDataDir).textContent).toBe("%APPDATA%/HelixSupport/data");
+    expect(document.getElementById(SETTINGS_IDS.desktopDataDir).textContent).toBe("%APPDATA%/HelixGuard/data");
   });
 
   it("seeds from an already-injected backend without waiting for the event", () => {

@@ -1,5 +1,5 @@
 /**
- * Helix Support — queue filter controls (app.js <500 campaign slice 24).
+ * Helix Guard — queue filter controls (app.js <500 campaign slice 24).
  *
  * The queue filter inputs (status/label/priority/ownership/channel/sort), the
  * "needs response" focus toggle, the debounced search box and the label-filter

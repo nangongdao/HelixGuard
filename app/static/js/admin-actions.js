@@ -1,5 +1,5 @@
 /**
- * Helix Support — tenant admin quota/member/webhook CRUD (app.js <500
+ * Helix Guard — tenant admin quota/member/webhook CRUD (app.js <500
  * campaign slice 25).
  *
  * The admin page's quota/member/webhook domain: legacy renders (quota
@@ -22,9 +22,9 @@ export function configure(deps) {
 }
 
 export const WEBHOOK_EVENTS = [
-  ["conversation.created", "会话创建"],
+  ["conversation.created", "审核单创建"],
   ["conversation.escalated", "升级人工"],
-  ["conversation.resolved", "会话解决"],
+  ["conversation.resolved", "判定完成"],
   ["conversation.sla_breached", "SLA 违约"],
   ["conversation.sla_impending", "SLA 临近"],
   ["report.generated", "报表生成"],
@@ -56,7 +56,7 @@ export function renderQuota(quota) {
     : "—";
   ctx.els.quotaReadout.innerHTML = `
     <dt>租户</dt><dd>${ctx.escapeHtml(quota.name || quota.tenant_id)}</dd>
-    <dt>会话配额</dt><dd>${quota.conversation_quota ?? "—"}</dd>
+    <dt>审核单配额</dt><dd>${quota.conversation_quota ?? "—"}</dd>
     <dt>存储配额</dt><dd>${storageMb} MB</dd>
     <dt>每日 turn 预算</dt><dd>${quota.daily_turn_budget ?? "—"}</dd>
     <dt>允许模型</dt><dd>${(quota.allowed_models || []).join(", ") || "全部"}</dd>`;

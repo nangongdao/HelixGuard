@@ -1,4 +1,4 @@
-// Helix Support — quality panel unit tests (D3 long tail glue slice)
+// Helix Guard — quality panel unit tests (D3 long tail glue slice)
 // Run: node --test tests/frontend/quality-panel.test.js
 //
 // Covers the two render paths of js/quality-panel.js:
@@ -38,7 +38,7 @@ const GAPS = [
   {
     conversation_id: "conv-1",
     message_id: "msg-1",
-    customer_name: "客户甲",
+    customer_name: "提交方甲",
     intent: "退款",
     assistant_content: "抱歉给您带来不便……",
   },

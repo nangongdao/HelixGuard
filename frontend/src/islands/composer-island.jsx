@@ -1,5 +1,5 @@
 /**
- * Helix Support — composer domain React island (D3 + tools slice)
+ * Helix Guard — composer domain React island (D3 + tools slice)
  *
  * Mirrors the message composer forms AND the operator tool surfaces in the
  * desktop shell. Legacy composer.js owns the send lifecycle (drafts, macros,
@@ -227,12 +227,12 @@ export function ComposerIsland() {
         data-busy={String(state.customerBusy)}
         aria-busy={state.customerBusy}
       >
-        <label className="sr-only" htmlFor={INPUT_IDS.customerInput}>客户消息</label>
+        <label className="sr-only" htmlFor={INPUT_IDS.customerInput}>待审内容</label>
         <textarea
           id={INPUT_IDS.customerInput}
           rows={2}
           maxLength={4000}
-          placeholder="输入一条模拟客户消息…"
+          placeholder="输入一条模拟待审内容…"
           required
           disabled={state.resolved || state.customerBusy}
           value={customerMessage}
@@ -244,8 +244,8 @@ export function ComposerIsland() {
         <button
           className="send-button"
           type="submit"
-          title="发送客户消息"
-          aria-label="发送客户消息"
+          title="发送待审内容"
+          aria-label="发送待审内容"
           disabled={state.resolved || state.customerBusy}
         >
           <svg className="icon" aria-hidden="true"><use href="/static/icons.svg?v=1.4.0#send" /></svg>
@@ -271,7 +271,7 @@ export function ComposerIsland() {
             ref={operatorInputRef}
             rows={2}
             maxLength={4000}
-            placeholder="输入人工回复… 输入 / 插入快捷回复，Ctrl+Enter 发送"
+            placeholder="输入人工回复… 输入 / 插入预置结论，Ctrl+Enter 发送"
             disabled={state.operatorBusy}
             value={operatorReply}
             onChange={(e) => {

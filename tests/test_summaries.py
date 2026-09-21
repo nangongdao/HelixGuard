@@ -1,4 +1,4 @@
-"""Backlog: session intelligent summary (会话智能摘要).
+"""Backlog: session intelligent summary (审核单智能摘要).
 
 Covers: handoff generates a context brief ("前情摘要") that the detail API
 surfaces to the operator; resolve drafts a disposition record ("处置记录草稿");
@@ -95,7 +95,7 @@ class SummaryTests(unittest.TestCase):
         self.assertEqual(len(context), 1)
         self.assertEqual(context[0]["source"], "unconfigured")
         self.assertIn("ORD-10482", context[0]["content"])
-        self.assertIn("客户 ctx", context[0]["content"])
+        self.assertIn("提交方 ctx", context[0]["content"])
 
     def test_detail_surfaces_summary_field(self) -> None:
         conversation_id = self._open_conversation("ctx2")
@@ -176,7 +176,7 @@ class SummaryTests(unittest.TestCase):
         conversation_id = self._open_conversation("notes")
         self.client.post(
             f"/api/conversations/{conversation_id}/notes",
-            json={"content": "内部讨论：客户可能要求退款，先别答应"},
+            json={"content": "内部讨论：提交方可能要求退款，先别答应"},
             headers=self.admin,
         )
         with self.services.database.connect() as conn:

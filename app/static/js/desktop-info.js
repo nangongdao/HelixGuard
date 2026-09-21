@@ -1,5 +1,5 @@
 /**
- * Helix Support — desktop-info module (extracted from app.js)
+ * Helix Guard — desktop-info module (extracted from app.js)
  *
  * Holds the settings-page desktop runtime info (D1). In island mode the
  * settings island (frontend/src/islands/settings-island.jsx) owns this
@@ -38,7 +38,7 @@ export function loadDesktopInfo(els) {
       els.desktopBackendMode.textContent = backend.error
         ? `错误：${backend.error}`
         : "桌面 sidecar";
-    if (els.desktopDataDir) els.desktopDataDir.textContent = "%APPDATA%/HelixSupport/data";
+    if (els.desktopDataDir) els.desktopDataDir.textContent = "%APPDATA%/HelixGuard/data";
   } else {
     if (els.desktopEnvNote) els.desktopEnvNote.hidden = false;
     if (els.desktopBackendPort) els.desktopBackendPort.textContent = "仅桌面可用";

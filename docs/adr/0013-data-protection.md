@@ -10,7 +10,7 @@ ROADMAP 41.4 要求把隐私运营从"DSR 能跑"升级为"可审计、可恢复
 - 数据分类：public/internal/confidential/restricted，字段级登记收集目的、保留期、区域和下游。
 - secret、token、受限 PII 在日志/trace/diagnostics 中使用统一结构化 redaction，并增加 canary 泄漏测试。
 - DSR 队列增加 SLA、审批看板、导出 checksum、删除证明和失败重试；大规模删除不得占用同步 API 路径。
-- 备份恢复后继续执行 tombstone，防止已删除客户数据从旧备份重新出现。
+- 备份恢复后继续执行 tombstone，防止已删除提交方数据从旧备份重新出现。
 
 M0（Phase 40）已落地 DSR maker-checker 状态机与加密导出（`app/retention.py`、migration 29），但缺少：
 1. 字段级分类的机器可读 registry；
@@ -81,7 +81,7 @@ migration 32 为 `data_subject_requests` 增加：
 
 - 每次删除执行后写 `customer_tombstones`（tenant_id, customer_ref, request_id, deleted_at, deleted_by, secret_hash）。
 - 应用启动时（`main.py` lifespan）调用 `enforce_tombstones_after_restore()`，重放所有 tombstone 删除。
-- 恢复旧备份后，已删除客户数据不会复活。
+- 恢复旧备份后，已删除提交方数据不会复活。
 
 ## 后果
 

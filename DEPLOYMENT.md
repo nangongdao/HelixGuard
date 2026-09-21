@@ -11,7 +11,7 @@ On Windows, `powershell.exe -NoLogo -NoProfile -NonInteractive -File .\scripts\s
 
 ## Desktop App (Tauri, v1.4.0-desktop)
 
-Windows 桌面档位以 Tauri 2.x 原生壳替代浏览器：Python sidecar 随包捆绑并由 Rust supervisor 编排（动态端口、就绪探测、崩溃自愈、单实例锁），数据落在 `%APPDATA%/HelixSupport/data/support.db`。打包、签名、自动更新与冷启动验收见 [`DEPLOYMENT_DESKTOP.md`](DEPLOYMENT_DESKTOP.md)。
+Windows 桌面档位以 Tauri 2.x 原生壳替代浏览器：Python sidecar 随包捆绑并由 Rust supervisor 编排（动态端口、就绪探测、崩溃自愈、单实例锁），数据落在 `%APPDATA%/HelixGuard/data/support.db`。打包、签名、自动更新与冷启动验收见 [`DEPLOYMENT_DESKTOP.md`](DEPLOYMENT_DESKTOP.md)。
 
 ## Container Runtime
 
@@ -90,7 +90,7 @@ WEBHOOK_DELIVERY_INTERVAL_SECONDS=30
 PROMPT_CANARY_RATIO=0.0
 CLAIM_TTL_SECONDS=900
 OTEL_EXPORTER_OTLP_ENDPOINT=
-OTEL_SERVICE_NAME=helix-support
+OTEL_SERVICE_NAME=helix-guard
 ```
 
 Keep `DATABASE_POOL_SIZE` bounded (normally 2-8) and continue to run one Uvicorn worker. Cache entries are invalidated by application writes and expire automatically; direct out-of-process database writers are not supported. Pool and cache statistics are available under `GET /api/system/metrics` for supervisor/admin roles.
@@ -102,7 +102,7 @@ The app emits an OpenTelemetry-compatible span per HTTP request (method, path, r
 ```bash
 pip install -e '.[otel]'
 export OTEL_EXPORTER_OTLP_ENDPOINT=http://collector:4318
-export OTEL_SERVICE_NAME=helix-support
+export OTEL_SERVICE_NAME=helix-guard
 ```
 
 Spans are exported to `{OTEL_EXPORTER_OTLP_ENDPOINT}/v1/traces`; without the endpoint set (or without the SDK installed) the app silently keeps its zero-dependency lightweight tracing and metric registry, and `GET /api/system/metrics` still surfaces the in-process counters and histograms under `telemetry`.

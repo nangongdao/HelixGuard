@@ -1,7 +1,7 @@
 /**
- * Helix Support — workspace tabs island tests (D3 long tail)
+ * Helix Guard — workspace tabs island tests (D3 long tail)
  *
- * The island owns the 队列/工单 tablist; pane switching and data loading
+ * The island owns the 队列/申诉单 tablist; pane switching and data loading
  * stay legacy via helix-workspace-tab/-changed. These tests cover the
  * optimistic switch, the reconciliation event, and the legacy class
  * contract — no legacy app.js.
@@ -34,7 +34,7 @@ describe("WorkspaceTabsIsland", () => {
     const tablist = container.querySelector(".workspace-tabs");
     expect(tablist.getAttribute("role")).toBe("tablist");
     const queue = screen.getByRole("tab", { name: "队列" });
-    const tickets = screen.getByRole("tab", { name: "工单" });
+    const tickets = screen.getByRole("tab", { name: "申诉单" });
     expect(queue.getAttribute("aria-selected")).toBe("true");
     expect(queue.classList.contains("is-active")).toBe(true);
     expect(queue.dataset.wstab).toBe("queue");
@@ -45,8 +45,8 @@ describe("WorkspaceTabsIsland", () => {
   it("applies clicks optimistically and bridges helix-workspace-tab", () => {
     const dispatchSpy = vi.spyOn(window, "dispatchEvent");
     render(<WorkspaceTabsIsland />);
-    fireEvent.click(screen.getByRole("tab", { name: "工单" }));
-    const tickets = screen.getByRole("tab", { name: "工单" });
+    fireEvent.click(screen.getByRole("tab", { name: "申诉单" }));
+    const tickets = screen.getByRole("tab", { name: "申诉单" });
     expect(tickets.classList.contains("is-active")).toBe(true);
     expect(tickets.getAttribute("aria-selected")).toBe("true");
     expect(screen.getByRole("tab", { name: "队列" }).getAttribute("aria-selected")).toBe("false");
@@ -71,7 +71,7 @@ describe("WorkspaceTabsIsland", () => {
         new CustomEvent(WORKSPACE_TAB_EVENTS.CHANGED, { detail: { field: "tickets" } }),
       );
     });
-    expect(screen.getByRole("tab", { name: "工单" }).classList.contains("is-active")).toBe(true);
+    expect(screen.getByRole("tab", { name: "申诉单" }).classList.contains("is-active")).toBe(true);
   });
 
   it("ignores changed events with unknown fields", () => {

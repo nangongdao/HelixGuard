@@ -1,5 +1,5 @@
 /**
- * Helix Support — mentions island (D3 long tail).
+ * Helix Guard — mentions island (D3 long tail).
  *
  * Owns the mentions inbox in the desktop shell: the footer badge (rendered
  * through a portal into the queue footer, next to the legacy live dot) and

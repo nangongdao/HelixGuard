@@ -1,5 +1,5 @@
 /**
- * Helix Support — frontend module entry (Phase 26.1/26.2/26.3)
+ * Helix Guard — frontend module entry (Phase 26.1/26.2/26.3)
  *
  * Loaded from index.html as `<script type="module">` alongside the legacy
  * app.js. It wires the design-token theme switcher, resolves the UI locale,

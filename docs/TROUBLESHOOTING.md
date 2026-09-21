@@ -27,9 +27,9 @@
 | 级别 | 影响范围 | 响应 SLA | 示例 |
 | --- | --- | --- | --- |
 | **P0** | 全局服务中断、数据泄露 | 立即响应，15 分钟内开始缓解 | 所有请求 5xx、跨租户数据泄露、认证绕过 |
-| **P1** | 单租户服务中断、关键功能失效 | 30 分钟内响应 | 特定租户无法创建会话、队列完全堵塞、数据库不可达 |
+| **P1** | 单租户服务中断、关键功能失效 | 30 分钟内响应 | 特定租户无法创建审核单、队列完全堵塞、数据库不可达 |
 | **P2** | 性能降级、非关键功能失效 | 2 小时内响应 | 响应延迟 > 5s、知识检索失效但确定性路径可用 |
-| **P3** | 个别用户影响、间歇性问题 | 1 个工作日内响应 | 个别会话卡住、偶发超时 |
+| **P3** | 个别用户影响、间歇性问题 | 1 个工作日内响应 | 个别审核单卡住、偶发超时 |
 
 ---
 
@@ -66,7 +66,7 @@ curl -H "X-API-Key: <supervisor-key>" \
   https://support.example.com/api/system/metrics | jq
 
 # 3. 最近日志（最近 5 分钟，ERROR 级别）
-tail -n 1000 /var/log/helix-support/app.log | grep ERROR
+tail -n 1000 /var/log/helix-guard/app.log | grep ERROR
 
 # 4. 审计事件（最近 1 小时）
 curl -H "X-API-Key: <supervisor-key>" \
@@ -78,7 +78,7 @@ curl -H "X-API-Key: <supervisor-key>" \
 使用 **5 Why 分析法**：
 
 ```
-现象：客户端报告无法创建会话，返回 503
+现象：客户端报告无法创建审核单，返回 503
 ↓ Why?
 服务器返回 "queue_unavailable"
 ↓ Why?
@@ -113,7 +113,7 @@ Redis Sentinel 配置未同步到应用服务器
 # 1. 检查应用进程
 ps aux | grep uvicorn
 # 或
-systemctl status helix-support
+systemctl status helix-guard
 
 # 2. 检查监听端口
 netstat -tlnp | grep 8000
@@ -121,9 +121,9 @@ netstat -tlnp | grep 8000
 ss -tlnp | grep 8000
 
 # 3. 检查应用日志
-journalctl -u helix-support -n 100 --no-pager
+journalctl -u helix-guard -n 100 --no-pager
 # 或
-tail -n 100 /var/log/helix-support/app.log
+tail -n 100 /var/log/helix-guard/app.log
 
 # 4. 尝试直接访问应用（绕过反向代理）
 curl http://localhost:8000/health/live
@@ -133,7 +133,7 @@ curl http://localhost:8000/health/live
 
 ```bash
 # 重启应用服务
-systemctl restart helix-support
+systemctl restart helix-guard
 
 # 如果进程无法启动，检查配置文件
 python -c "from app.config import Settings; Settings()"
@@ -178,7 +178,7 @@ df -h
 # 数据库连接失败 → 检查凭据、网络、数据库服务状态
 # Redis 失败 → 检查 Redis 服务、网络、凭据
 # 磁盘满 → 清理日志、临时文件、旧归档
-find /var/log/helix-support -name "*.log.*" -mtime +7 -delete
+find /var/log/helix-guard -name "*.log.*" -mtime +7 -delete
 ```
 
 ---
@@ -218,7 +218,7 @@ curl -H "X-API-Key: <supervisor-key>" \
   https://support.example.com/api/system/metrics | jq '.turn_jobs'
 
 # 4. 检查模型 API 延迟
-tail -f /var/log/helix-support/app.log | grep "model_api"
+tail -f /var/log/helix-guard/app.log | grep "model_api"
 ```
 
 **缓解措施**：
@@ -235,7 +235,7 @@ DATABASE_POOL_SIZE=8  # 从默认 4 增加
 TURN_WORKER_CONCURRENCY=2  # 从默认 1 增加（多实例可更高）
 
 # 4. 重启应用释放内存
-systemctl restart helix-support
+systemctl restart helix-guard
 ```
 
 ---
@@ -266,7 +266,7 @@ curl -H "X-API-Key: <supervisor-key>" \
 # }
 
 # 2. 检查 worker 日志
-tail -f /var/log/helix-support/app.log | grep "turn_worker"
+tail -f /var/log/helix-guard/app.log | grep "turn_worker"
 
 # 3. 检查是否有卡住的 job
 psql $DATABASE_URL -c "
@@ -280,7 +280,7 @@ WHERE status = 'processing'
 
 ```bash
 # 1. 重启 worker 进程
-systemctl restart helix-support-worker
+systemctl restart helix-guard-worker
 
 # 2. 手动重试失败的 job（如果外部依赖已恢复）
 curl -X POST https://support.example.com/api/turn-jobs/{job_id}/retry \
@@ -416,9 +416,9 @@ python scripts/cleanup_attachments.py --older-than 90
 psql $DATABASE_URL -c "VACUUM ANALYZE;"
 
 # 4. SQLite VACUUM（需要停机，需要额外磁盘空间）
-systemctl stop helix-support
+systemctl stop helix-guard
 sqlite3 /path/to/support.db "VACUUM;"
-systemctl start helix-support
+systemctl start helix-guard
 ```
 
 ---
@@ -485,7 +485,7 @@ curl https://support.example.com/api/admin/diagnostics | jq '.config.base_url'
 curl https://support.example.com/api/admin/diagnostics | jq '.config | {oidc_issuer_url, oidc_client_id}'
 
 # 3. 查看登录失败日志
-tail -f /var/log/helix-support/app.log | grep "oidc"
+tail -f /var/log/helix-guard/app.log | grep "oidc"
 ```
 
 **缓解措施**：
@@ -499,7 +499,7 @@ BASE_URL=https://support.example.com  # 去掉尾部斜杠
 # {BASE_URL}/auth/callback
 
 # 3. 重启应用
-systemctl restart helix-support
+systemctl restart helix-guard
 ```
 
 ---
@@ -536,7 +536,7 @@ curl -H "X-API-Key: <tenant-admin-key>" \
   https://support.example.com/api/webhooks
 
 # 3. 查看发送失败日志
-tail -f /var/log/helix-support/app.log | grep "webhook_delivery"
+tail -f /var/log/helix-guard/app.log | grep "webhook_delivery"
 ```
 
 **缓解措施**：
@@ -572,7 +572,7 @@ LIMIT 10;"
 
 ```bash
 # 1. 检查 housekeeping 日志
-tail -f /var/log/helix-support/app.log | grep "housekeeping"
+tail -f /var/log/helix-guard/app.log | grep "housekeeping"
 
 # 2. 查看最近的归档记录
 psql $DATABASE_URL -c "
@@ -595,7 +595,7 @@ python scripts/archive_old_audit.py
 python scripts/cleanup_old_data.py --retention-days 90
 
 # 3. 重启 worker 进程
-systemctl restart helix-support-worker
+systemctl restart helix-guard-worker
 ```
 
 ---
@@ -623,7 +623,7 @@ curl -X POST https://api.openai.com/v1/chat/completions \
 # （访问模型提供商控制台）
 
 # 3. 查看应用日志中的错误
-tail -f /var/log/helix-support/app.log | grep "model_api_error"
+tail -f /var/log/helix-guard/app.log | grep "model_api_error"
 ```
 
 **缓解措施**：
@@ -634,7 +634,7 @@ tail -f /var/log/helix-support/app.log | grep "model_api_error"
 ENABLE_LLM=false
 
 # 2. 重启应用
-systemctl restart helix-support
+systemctl restart helix-guard
 
 # 3. 确认确定性路径可用
 curl -X POST https://support.example.com/api/conversations \
@@ -730,22 +730,22 @@ python scripts/export_diagnostics.py --output /tmp/helix-diag-$(date +%Y%m%d-%H%
 
 ```bash
 # 1. 查找错误和异常
-grep -E "ERROR|CRITICAL" /var/log/helix-support/app.log
+grep -E "ERROR|CRITICAL" /var/log/helix-guard/app.log
 
 # 2. 查找特定租户的活动
-grep "tenant_id=tenant-1" /var/log/helix-support/app.log
+grep "tenant_id=tenant-1" /var/log/helix-guard/app.log
 
 # 3. 查找慢请求（> 5 秒）
-grep -E "duration=[5-9]\d{3}|duration=\d{5,}" /var/log/helix-support/app.log
+grep -E "duration=[5-9]\d{3}|duration=\d{5,}" /var/log/helix-guard/app.log
 
 # 4. 统计错误类型
-grep ERROR /var/log/helix-support/app.log | \
+grep ERROR /var/log/helix-guard/app.log | \
   awk -F'error_code=' '{print $2}' | \
   awk '{print $1}' | \
   sort | uniq -c | sort -rn
 
 # 5. 分析请求分布
-grep "request_id=" /var/log/helix-support/app.log | \
+grep "request_id=" /var/log/helix-guard/app.log | \
   awk -F'method=' '{print $2}' | \
   awk '{print $1}' | \
   sort | uniq -c | sort -rn

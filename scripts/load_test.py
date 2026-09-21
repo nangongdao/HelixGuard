@@ -1,4 +1,4 @@
-"""Load testing script for Helix Support.
+"""Load testing script for Helix Guard.
 
 Simulates the real operator workload — create a conversation, send a message
 (which routes through the orchestrator), and optionally poll the resulting
@@ -17,7 +17,7 @@ Usage:
     python scripts/load_test.py --base-url http://127.0.0.1:8000 \
         --concurrency 10 --duration 30 --poll-turn-jobs
 
-Requires a running Helix Support instance with AUTH_MODE=demo.
+Requires a running Helix Guard instance with AUTH_MODE=demo.
 """
 
 from __future__ import annotations
@@ -323,7 +323,7 @@ def run_load_test(config: LoadTestConfig) -> LoadTestReport:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Helix Support load test")
+    parser = argparse.ArgumentParser(description="Helix Guard load test")
     parser.add_argument(
         "--base-url", default="http://127.0.0.1:8000", help="Base URL of the instance"
     )

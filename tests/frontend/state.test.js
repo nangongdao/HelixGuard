@@ -1,4 +1,4 @@
-// Helix Support — state reducer module unit tests (Phase 26.1)
+// Helix Guard — state reducer module unit tests (Phase 26.1)
 // Run: node --test tests/frontend/state.test.js
 
 import { test } from "node:test";

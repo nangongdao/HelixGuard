@@ -36,7 +36,7 @@ configure_logging()
 configure_tracing()
 logger = logging.getLogger("helix")
 IDEMPOTENCY_KEY_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{8,128}$")
-APP_VERSION = "2.22.1"
+APP_VERSION = "2.24.0"
 
 
 def _conversation_quota_exceeded(database: Any, tenant_id: str) -> str | None:
@@ -308,7 +308,7 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
     oidc_flow = ctx.oidc_flow
 
     app = FastAPI(
-        title="Helix Support",
+        title="Helix Guard",
         version=APP_VERSION,
         docs_url="/docs" if settings.docs_enabled else None,
         redoc_url="/redoc" if settings.docs_enabled else None,

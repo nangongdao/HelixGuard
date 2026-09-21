@@ -155,7 +155,7 @@ class DatabaseKnowledgeMixin:
                     else 1
                 )
                 scored.append((lang_pref, score, item))
-        # Backlog (多语言客服): articles in the customer's language (or
+        # Backlog (多语言审核): articles in the customer's language (or
         # language-agnostic ones) rank before cross-language matches.
         scored.sort(key=lambda pair: (pair[0], pair[1], pair[2]["updated_at"]), reverse=True)
         return [item for _, _, item in scored[:limit]]

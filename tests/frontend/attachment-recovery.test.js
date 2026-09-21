@@ -1,4 +1,4 @@
-// Helix Support — attachment failure recovery tests (ROADMAP H02, 2.19.0)
+// Helix Guard — attachment failure recovery tests (ROADMAP H02, 2.19.0)
 // Run: node --test tests/frontend/attachment-recovery.test.js
 //
 // The remaining half of H02's acceptance: "附件失败…不丢稿". An upload that

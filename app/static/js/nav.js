@@ -1,5 +1,5 @@
 /**
- * Helix Support — global navigation module (UI 升级 §17.1)
+ * Helix Guard — global navigation module (UI 升级 §17.1)
  *
  * Pure view registry for the left icon rail: the five top-level mount
  * points (workspace / quality / knowledge / admin / settings) and which of

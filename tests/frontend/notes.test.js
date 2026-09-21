@@ -1,4 +1,4 @@
-// Helix Support — note composer & mention suggest unit tests (slice 19)
+// Helix Guard — note composer & mention suggest unit tests (slice 19)
 // Run: node --test tests/frontend/notes.test.js
 
 import { test, beforeEach } from "node:test";
@@ -61,7 +61,7 @@ function configureDeps({ collaborators = [], me = { actor_id: "demo.admin" } } =
     },
     canOperate: () => true,
     escapeHtml: (v) => String(v ?? ""),
-    roleLabels: { operator: "坐席" },
+    roleLabels: { operator: "审核员" },
     setFormBusy: (form, busy) => calls.push({ busy }),
   });
   return { calls, els };
@@ -93,7 +93,7 @@ test("renderMentionSuggest filters the roster, excludes the writer and labels ro
   renderMentionSuggest("col");
   assert.equal(els.mentionSuggest.hidden, false);
   assert.match(els.mentionSuggest.innerHTML, /colleague\.a/);
-  assert.match(els.mentionSuggest.innerHTML, /坐席/);
+  assert.match(els.mentionSuggest.innerHTML, /审核员/);
   assert.doesNotMatch(els.mentionSuggest.innerHTML, /demo\.admin/);
 });
 

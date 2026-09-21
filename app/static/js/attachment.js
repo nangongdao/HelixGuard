@@ -1,5 +1,5 @@
 /**
- * Helix Support — attachment surface (ROADMAP §41.6 / ARC-001).
+ * Helix Guard — attachment surface (ROADMAP §41.6 / ARC-001).
  *
  * Voice/rich-message attachments: pending-per-conversation uploads, chip
  * rendering, name backfill. Extracted from the legacy app.js; app.js keeps
@@ -23,11 +23,11 @@ export function configure(deps) {
   ctx = deps;
 }
 
-// pending 附件按会话隔离(conversationId → id[]):上传/移除/发送/清除全部
-// 作用在当前会话,避免 A 会话已上传的附件在切到 B 会话发送时被错误挂载。
+// pending 附件按审核单隔离(conversationId → id[]):上传/移除/发送/清除全部
+// 作用在当前审核单,避免 A 审核单已上传的附件在切到 B 审核单发送时被错误挂载。
 let pendingAttachmentsByConv = {};
 // 失败待重试(conversationId → [{token, file, filename, size, error}]):保留
-// File 本身,让坐席可以在不清空文件选择框的情况下重试同一份文件。同样按会话
+// File 本身,让审核员可以在不清空文件选择框的情况下重试同一份文件。同样按审核单
 // 隔离,并且有界 —— 内存里攥着 File 引用不能无上限。
 let failedUploadsByConv = {};
 /** Bounded: an operator can accumulate failures faster than they dismiss them. */

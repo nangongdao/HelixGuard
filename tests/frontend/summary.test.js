@@ -1,4 +1,4 @@
-// Helix Support — summary banner model unit tests (D3 long tail slice 15)
+// Helix Guard — summary banner model unit tests (D3 long tail slice 15)
 // Run: node --test tests/frontend/summary.test.js
 
 import { afterEach, test } from "node:test";
@@ -17,11 +17,11 @@ test("summaryModel hides the banner with no summaries", () => {
 
 test("summaryModel renders a context summary with the projected badge", () => {
   const model = summaryModel([
-    { kind: "context", source: "rule", content: "客户此前咨询过配送时效。" },
+    { kind: "context", source: "rule", content: "提交方此前咨询过配送时效。" },
   ]);
   assert.equal(model.visible, true);
   assert.equal(model.title, "前情摘要（接入参考）");
-  assert.equal(model.text, "客户此前咨询过配送时效。（自动投影）");
+  assert.equal(model.text, "提交方此前咨询过配送时效。（自动投影）");
 });
 
 test("summaryModel marks model-sourced summaries as AI drafts", () => {
@@ -30,7 +30,7 @@ test("summaryModel marks model-sourced summaries as AI drafts", () => {
 });
 
 test("summaryModel renders a disposition summary with its own title", () => {
-  const model = summaryModel([{ kind: "disposition", source: "rule", content: "已退款并安抚客户" }]);
+  const model = summaryModel([{ kind: "disposition", source: "rule", content: "已退款并安抚提交方" }]);
   assert.equal(model.title, "处置记录草稿");
   assert.equal(model.visible, true);
 });

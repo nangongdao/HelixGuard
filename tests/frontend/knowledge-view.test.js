@@ -1,4 +1,4 @@
-// Helix Support — knowledge view lifecycle unit tests (D3 long tail slice 17)
+// Helix Guard — knowledge view lifecycle unit tests (D3 long tail slice 17)
 // Run: node --test tests/frontend/knowledge-view.test.js
 
 import { test, beforeEach } from "node:test";

@@ -1,5 +1,5 @@
 /**
- * Helix Support — command palette React island (D3, §5.3)
+ * Helix Guard — command palette React island (D3, §5.3)
  *
  * Upgrades the existing commands.js fuzzy-search palette to a React
  * component with Ctrl+K global shortcut, fuzzy scoring (~60 lines, no
@@ -39,19 +39,19 @@ const COMMAND_GROUPS = [
   {
     label: "导航",
     commands: [
-      { id: "nav:workspace", label: "工作台", hint: "切换到会话工作台" },
+      { id: "nav:workspace", label: "工作台", hint: "切换到审核单工作台" },
       { id: "nav:quality", label: "质量看板", hint: "查看质量仪表板" },
-      { id: "nav:knowledge", label: "知识库", hint: "管理知识文章" },
+      { id: "nav:knowledge", label: "策略库", hint: "管理知识文章" },
       { id: "nav:admin", label: "管理", hint: "管理租户与成员" },
       { id: "nav:settings", label: "设置", hint: "桌面运行时信息" },
     ],
   },
   {
-    label: "会话操作",
+    label: "审核单操作",
     commands: [
-      { id: "conv:new", label: "新建会话", hint: "创建新的客户会话" },
-      { id: "conv:refresh", label: "刷新队列", hint: "重新同步会话列表" },
-      { id: "conv:convert-ticket", label: "转为工单", hint: "将当前会话转为工单" },
+      { id: "conv:new", label: "新建审核单", hint: "创建新的提交方审核单" },
+      { id: "conv:refresh", label: "刷新队列", hint: "重新同步审核单列表" },
+      { id: "conv:convert-ticket", label: "转为申诉单", hint: "将当前审核单转为申诉单" },
     ],
   },
   {

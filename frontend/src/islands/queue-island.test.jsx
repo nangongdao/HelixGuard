@@ -1,5 +1,5 @@
 /**
- * Helix Support — queue island component tests (D3)
+ * Helix Guard — queue island component tests (D3)
  *
  * The island is a pure mirror of the legacy queue: it listens for
  * helix-conversations-updated snapshots and renders the same row classes as
@@ -110,15 +110,15 @@ describe("QueueIsland mirror contract", () => {
   it("shows the empty state when a snapshot has no conversations", async () => {
     render(<QueueIsland />);
     publish({ conversations: [], selectedId: null, bulkSelected: [], canOperate: true, compact: false });
-    expect(await waitFor(() => screen.getByText("当前筛选条件下没有会话"))).toBeTruthy();
+    expect(await waitFor(() => screen.getByText("当前筛选条件下没有审核单"))).toBeTruthy();
   });
 
   it("renders the syncing placeholder plus a zeroed strip before the first snapshot", () => {
     // Island owns the strip now, so even the pre-snapshot frame mirrors
-    // legacy's initial "0 个会话" instead of rendering nothing at all.
+    // legacy's initial "0 个审核单" instead of rendering nothing at all.
     const { container } = render(<QueueIsland />);
     expect(screen.getByRole("status", { name: "队列加载中" })).toBeTruthy();
-    expect(screen.getByText("0 个会话")).toBeTruthy();
+    expect(screen.getByText("0 个审核单")).toBeTruthy();
     expect(container.querySelector(".queue-island")).toBeTruthy();
   });
 });
@@ -134,7 +134,7 @@ describe("QueueIsland footer strip", () => {
       compact: false,
       queueHasMore: true,
     });
-    expect(await waitFor(() => screen.getByText("1+ 个会话"))).toBeTruthy();
+    expect(await waitFor(() => screen.getByText("1+ 个审核单"))).toBeTruthy();
     const more = screen.getByRole("button", { name: /加载更多/ });
     expect(more.hidden).toBe(false);
     expect(more.disabled).toBe(false);
@@ -150,7 +150,7 @@ describe("QueueIsland footer strip", () => {
       compact: false,
       queueHasMore: false,
     });
-    expect(await waitFor(() => screen.getByText("1 个会话"))).toBeTruthy();
+    expect(await waitFor(() => screen.getByText("1 个审核单"))).toBeTruthy();
     // hidden 按钮不进可访问性树,按 DOM 断言其隐藏态。
     const more = container.querySelector(".queue-more");
     expect(more.hidden).toBe(true);

@@ -1,5 +1,5 @@
 /**
- * Helix Support — quality dashboard React island (D2)
+ * Helix Guard — quality dashboard React island (D2)
  *
  * Mounts into #qualityReactIsland and renders the quality trend +
  * intent×version heatmap using the same SVG generation logic as the
@@ -93,8 +93,8 @@ function QualityTrend({ buckets }) {
       <label className="qc-metric-select">
         指标
         <select value={metric} onChange={(e) => setMetric(e.target.value)}>
-          <option value="turn_count">对话轮次</option>
-          <option value="conversation_count">会话数</option>
+          <option value="turn_count">交互轮次</option>
+          <option value="conversation_count">审核单数</option>
         </select>
       </label>
       <div dangerouslySetInnerHTML={{ __html: svg }} />
@@ -121,7 +121,7 @@ function QualityHeatmap({ buckets }) {
   if (!cells.length) {
     return (
       <div className="qc-empty" role="status">
-        暂无意图 × 版本数据。
+        暂无风险类别 × 版本数据。
       </div>
     );
   }
@@ -168,7 +168,7 @@ function QualityHeatmap({ buckets }) {
     })
     .join("");
   const svg =
-    `<svg class="qc-heatmap" viewBox="0 0 ${widthOut} ${heightOut}" role="img" aria-label="意图 × 提示词版本热图">` +
+    `<svg class="qc-heatmap" viewBox="0 0 ${widthOut} ${heightOut}" role="img" aria-label="风险类别 × 提示词版本热图">` +
     headers +
     body +
     `</svg>`;

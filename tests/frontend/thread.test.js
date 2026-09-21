@@ -1,4 +1,4 @@
-// Helix Support — thread domain module unit tests (D3 long tail glue slice)
+// Helix Guard — thread domain module unit tests (D3 long tail glue slice)
 // Run: node --test tests/frontend/thread.test.js
 //
 // js/thread.js keeps the transcript lifecycle (render/paginate/feedback/
@@ -99,9 +99,9 @@ beforeEach(() => {
 
 test("ROLE_NAMES covers the four transcript roles", () => {
   assert.deepEqual({ ...ROLE_NAMES }, {
-    customer: "客户",
-    assistant: "自动客服",
-    operator: "人工客服",
+    customer: "提交方",
+    assistant: "自动审核",
+    operator: "人工复核",
     internal_note: "内部备注",
   });
 });
@@ -156,7 +156,7 @@ test("legacy renderMessages renders the empty state and keeps XSS escaped", () =
   installWindow({ islandMode: false });
   const { els } = configureDeps();
   renderMessages([]);
-  assert.match(els.messages.innerHTML, /等待第一条客户消息/);
+  assert.match(els.messages.innerHTML, /等待第一条待审内容/);
   renderMessages([
     { id: "m", role: "customer", content: "<script>alert(1)</script>", created_at: "2026-08-30T08:00:00Z" },
   ]);

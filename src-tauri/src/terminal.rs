@@ -1,4 +1,4 @@
-//! Helix Support — terminal PTY module (D4)
+//! Helix Guard — terminal PTY module (D4)
 //!
 //! Provides a whitelist-command diagnostic terminal and an optional
 //! interactive PTY for DEBUG builds. RBAC: terminal commands are only

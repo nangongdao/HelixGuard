@@ -1,4 +1,4 @@
-// Helix Support — global keyboard shortcuts unit tests (app.js <500 slice 24)
+// Helix Guard — global keyboard shortcuts unit tests (app.js <500 slice 24)
 // Run: node --test tests/frontend/shortcuts.test.js
 
 import { beforeEach, test } from "node:test";

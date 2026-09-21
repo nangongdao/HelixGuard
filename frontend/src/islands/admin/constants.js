@@ -1,5 +1,5 @@
 /**
- * Helix Support — admin island domain constants.
+ * Helix Guard — admin island domain constants.
  *
  * Split out of admin-island.jsx (D3 long tail) when that file crossed the
  * project's 400-line module limit. Values are verbatim from app.js /
@@ -9,9 +9,9 @@
  */
 
 export const WEBHOOK_EVENTS = [
-  ["conversation.created", "会话创建"],
+  ["conversation.created", "审核单创建"],
   ["conversation.escalated", "升级人工"],
-  ["conversation.resolved", "会话解决"],
+  ["conversation.resolved", "判定完成"],
   ["conversation.sla_breached", "SLA 违约"],
   ["conversation.sla_impending", "SLA 临近"],
   ["report.generated", "报表生成"],
@@ -20,7 +20,7 @@ export const WEBHOOK_EVENTS = [
 export const ROLE_LABELS = {
   admin: "管理员",
   supervisor: "主管",
-  operator: "客服",
+  operator: "审核员",
   channel: "渠道",
   viewer: "只读",
   auditor: "审计员",
@@ -37,7 +37,7 @@ export const COST_AGENT_LABELS = Object.freeze({
   language_translate: "语言翻译",
   copilot_suggest: "回复建议",
   copilot_rewrite: "语气润色",
-  summary: "会话摘要",
+  summary: "内容摘要",
   unknown: "未归因",
 });
 

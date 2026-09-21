@@ -1,5 +1,5 @@
 /**
- * Helix Support — command palette fuzzy scorer tests (D2, §3.5)
+ * Helix Guard — command palette fuzzy scorer tests (D2, §3.5)
  *
  * The fuzzyScore function is a pure scoring routine; vitest covers it
  * without a DOM. The frontend gate runs this suite (§3.5 vitest segment).
@@ -38,7 +38,7 @@ describe("ALL_COMMANDS registry", () => {
   it("contains navigation, conversation, and diagnostic groups", () => {
     const groups = new Set(ALL_COMMANDS.map((c) => c.group));
     expect(groups.has("导航")).toBe(true);
-    expect(groups.has("会话操作")).toBe(true);
+    expect(groups.has("审核单操作")).toBe(true);
     expect(groups.has("诊断命令")).toBe(true);
   });
 

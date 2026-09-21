@@ -1,5 +1,5 @@
 /**
- * Helix Support — composer island component tests (D3)
+ * Helix Guard — composer island component tests (D3)
  *
  * The composer island mirrors the customer/operator forms with a fixed DOM
  * contract (ids + aria-labels) so accessible locators keep resolving, and
@@ -35,8 +35,8 @@ describe("ComposerIsland mirror contract", () => {
     expect(document.getElementById(INPUT_IDS.operatorForm)).toBeTruthy();
     expect(document.getElementById(INPUT_IDS.customerInput)).toBeTruthy();
     // Accessible labels stay the legacy wording so get_by_label works.
-    expect(screen.getByLabelText("客户消息")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "发送客户消息" })).toBeTruthy();
+    expect(screen.getByLabelText("待审内容")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "发送待审内容" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "发送人工回复" })).toBeTruthy();
   });
 
@@ -170,13 +170,13 @@ describe("ComposerIsland copilot tools", () => {
     render(<ComposerIsland />);
     publishToolsState();
     fireEvent.change(document.getElementById(INPUT_IDS.operatorInput), {
-      target: { value: "客户催单，帮我起草" },
+      target: { value: "提交方催单，帮我起草" },
     });
     fireEvent.click(document.getElementById("copilotSuggestBtn"));
     const suggestEvent = dispatchSpy.mock.calls.map(([ev]) => ev).find(
       (ev) => ev.type === COMPOSER_EVENTS.COPILOT_SUGGEST,
     );
-    expect(suggestEvent.detail).toEqual({ draft: "客户催单，帮我起草" });
+    expect(suggestEvent.detail).toEqual({ draft: "提交方催单，帮我起草" });
   });
 
   it("renders published suggestions and applies one into the textarea", () => {

@@ -1,5 +1,5 @@
 /**
- * Helix Support — inspector domain module (ROADMAP §43.6 / ARC-001 第二步).
+ * Helix Guard — inspector domain module (ROADMAP §43.6 / ARC-001 第二步).
  *
  * The right-hand inspector surface: overview / evidence / audit tab
  * renderers plus the label & priority mutation flows embedded in the
@@ -162,13 +162,13 @@ export function renderOverview(detail) {
   const toolCalls = metadata.tool_calls || [];
   ctx.els.inspectorOverview.innerHTML = `
     <section class="inspector-section">
-      <h3>会话</h3>
+      <h3>审核单</h3>
       <dl class="detail-list">
-        <div class="detail-row"><dt>会话 ID</dt><dd>${ctx.escapeHtml(conversation.id)}</dd></div>
+        <div class="detail-row"><dt>审核单 ID</dt><dd>${ctx.escapeHtml(conversation.id)}</dd></div>
         <div class="detail-row"><dt>渠道</dt><dd>${ctx.escapeHtml(conversation.channel)}</dd></div>
-        <div class="detail-row"><dt>客户标识</dt><dd>${ctx.escapeHtml(conversation.customer_ref || "未绑定")}</dd></div>
+        <div class="detail-row"><dt>提交方标识</dt><dd>${ctx.escapeHtml(conversation.customer_ref || "未绑定")}</dd></div>
         <div class="detail-row"><dt>优先级</dt><dd>
-          <div class="priority-control" role="group" aria-label="调整会话优先级">
+          <div class="priority-control" role="group" aria-label="调整审核单优先级">
             <button class="priority-option normal${conversation.priority === "normal" ? " is-active" : ""}" type="button" data-priority="normal" aria-pressed="${conversation.priority === "normal"}">普通</button>
             <button class="priority-option high${conversation.priority === "high" ? " is-active" : ""}" type="button" data-priority="high" aria-pressed="${conversation.priority === "high"}">高</button>
           </div>
@@ -180,7 +180,7 @@ export function renderOverview(detail) {
       ${ctx.canOperate() ? `<form id="conversationLabelsForm" class="label-editor">
         <label class="label-editor-field">
           <svg class="icon"><use href="/static/icons.svg?v=1.4.0#tag" /></svg>
-          <span class="sr-only">会话标签</span>
+          <span class="sr-only">审核单标签</span>
           <input name="labels" type="text" maxlength="240" value="${ctx.escapeHtml(labels.join(", "))}" placeholder="VIP, 退款风险" />
         </label>
         <button type="submit" title="保存标签" aria-label="保存标签">
@@ -193,9 +193,9 @@ export function renderOverview(detail) {
       ${assistant ? `
         <dl class="detail-list">
           <div class="detail-row"><dt>Agent</dt><dd>${ctx.escapeHtml(metadata.agent || "-")}</dd></div>
-          <div class="detail-row"><dt>意图</dt><dd>${ctx.escapeHtml(metadata.intent || "-")}</dd></div>
+          <div class="detail-row"><dt>风险类别</dt><dd>${ctx.escapeHtml(metadata.intent || "-")}</dd></div>
           <div class="detail-row"><dt>路由模式</dt><dd>${ctx.escapeHtml(metadata.route_mode || "-")}</dd></div>
-          <div class="detail-row"><dt>质量门</dt><dd>${metadata.quality_approved ? "通过" : "转人工"}</dd></div>
+          <div class="detail-row"><dt>质量门</dt><dd>${metadata.quality_approved ? "通过" : "转人工复核"}</dd></div>
           <div class="detail-row"><dt>置信度</dt><dd>${confidence}%</dd></div>
         </dl>
         <progress class="confidence-progress" max="100" value="${confidence}">${confidence}%</progress>

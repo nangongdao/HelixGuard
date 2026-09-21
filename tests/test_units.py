@@ -262,7 +262,7 @@ class QualityAgentTests(unittest.TestCase):
         agent = QualityAgent()
         result = AgentResult(
             agent=AgentName.ORDER,
-            content="客户资料服务暂时不可用。",
+            content="提交方资料服务暂时不可用。",
             confidence=1.0,
             tool_calls=[
                 {

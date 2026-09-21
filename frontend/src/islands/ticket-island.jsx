@@ -1,5 +1,5 @@
 /**
- * Helix Support — ticket view React island (D3)
+ * Helix Guard — ticket view React island (D3)
  *
  * Migrates the ticket list rendering to React. The legacy ticket-view.js
  * module is heavily DOM-coupled (uses configure(deps) + ctx.els); this
@@ -79,7 +79,7 @@ function TicketIsland() {
 
   if (isLoading) {
     return (
-      <div className="qc-skeleton" role="status" aria-label="工单加载中">
+      <div className="qc-skeleton" role="status" aria-label="申诉单加载中">
         <div className="qc-skeleton-bar" />
         <div className="qc-skeleton-bar" />
       </div>
@@ -88,7 +88,7 @@ function TicketIsland() {
   if (error) {
     return (
       <div className="qc-error" role="alert">
-        工单加载失败：{String(error.message || error)}
+        申诉单加载失败：{String(error.message || error)}
       </div>
     );
   }
@@ -97,13 +97,13 @@ function TicketIsland() {
     <div className="ticket-island">
       <div className="ticket-filters">
         <label className="filter-field">
-          <span className="sr-only">筛选工单状态</span>
+          <span className="sr-only">筛选申诉单状态</span>
           <select
-            aria-label="筛选工单状态"
+            aria-label="筛选申诉单状态"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
           >
-            <option value="">全部工单</option>
+            <option value="">全部申诉单</option>
             <option value="open">待处理</option>
             <option value="in_progress">处理中</option>
             <option value="closed">已关闭</option>
@@ -112,7 +112,7 @@ function TicketIsland() {
       </div>
       <div className="ticket-list" aria-live="polite">
         {tickets.length === 0 ? (
-          <p className="ticket-empty">暂无工单</p>
+          <p className="ticket-empty">暂无申诉单</p>
         ) : (
           tickets.map((t) => (
             <TicketRow key={t.id} ticket={t} onSelect={handleSelect} />

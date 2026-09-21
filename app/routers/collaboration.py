@@ -57,7 +57,7 @@ def build_collaboration_router(deps: RouteDeps, router: APIRouter) -> None:
     ) -> ConversationOut:
         """Set (or clear) the manual language override for a conversation.
 
-        Backlog (多语言客服): ``language`` null clears the override so the
+        Backlog (多语言审核): ``language`` null clears the override so the
         writer path re-detects automatically. The endpoint is a full upsert —
         it returns the stored row so the frontend can sync its select.
         """
@@ -89,7 +89,7 @@ def build_collaboration_router(deps: RouteDeps, router: APIRouter) -> None:
     ) -> TranslateOut:
         """Translate one customer message into ``target_language``.
 
-        Backlog (多语言客服): never blocks on model availability — without a
+        Backlog (多语言审核): never blocks on model availability — without a
         configured provider the original text is returned with
         ``was_translated=False`` and ``source="rule"`` so the frontend can
         degrade gracefully.

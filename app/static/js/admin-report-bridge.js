@@ -1,5 +1,5 @@
 /**
- * Helix Support — admin report/SLA/routing island bridges (app.js <500 campaign).
+ * Helix Guard — admin report/SLA/routing island bridges (app.js <500 campaign).
  *
  * The report-subscription, report-generation, SLA-policy and routing-rule
  * write bridges for the React admin island. The island dispatches helix-admin-*
@@ -105,7 +105,7 @@ export async function saveSlaFromIsland({ priority, channel, firstResponseMinute
   const firstResponse = Number(firstResponseMinutes || 0);
   const resolve = Number(resolveMinutes || 0);
   if (!firstResponse || !resolve) {
-    ctx.showToast("请填写首响与解决时限", true);
+    ctx.showToast("请填写首次响应与判定时限", true);
     return;
   }
   let ok = false;

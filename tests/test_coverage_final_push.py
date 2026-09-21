@@ -2,10 +2,10 @@
 
 补充以下未覆盖的路径：
 - SSE 队列事件流（lines 186-211）
-- 创建会话（lines 309-340）
-- 更新会话优先级（lines 348-355）
-- 替换会话标签（lines 363-370）
-- 获取会话详情（lines 381-414）
+- 创建审核单（lines 309-340）
+- 更新审核单优先级（lines 348-355）
+- 替换审核单标签（lines 363-370）
+- 获取审核单详情（lines 381-414）
 - Turn job 查询和重试（lines 798-851）
 - 内部备注（lines 914-936）
 - 反馈操作（lines 945-987）
@@ -43,7 +43,7 @@ def _settings(db_path: Path) -> Settings:
 
 
 class ConversationCreateAndUpdateTests(unittest.TestCase):
-    """会话创建和更新操作（lines 309-370）"""
+    """审核单创建和更新操作（lines 309-370）"""
 
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
@@ -98,7 +98,7 @@ class ConversationCreateAndUpdateTests(unittest.TestCase):
 
 
 class ConversationDetailTests(unittest.TestCase):
-    """获取会话详情（lines 381-414）"""
+    """获取审核单详情（lines 381-414）"""
 
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()

@@ -1,4 +1,4 @@
-// Helix Support — inspector tab-machine unit tests (ROADMAP §43.6)
+// Helix Guard — inspector tab-machine unit tests (ROADMAP §43.6)
 // Run: node --test tests/frontend/inspector.test.js
 
 import { test } from "node:test";

@@ -1,5 +1,5 @@
 /**
- * Helix Support — saved views island (D3 long tail).
+ * Helix Guard — saved views island (D3 long tail).
  *
  * Owns the workspace saved-views controls in the desktop shell: the view
  * select, the save button and the delete button. Legacy app.js keeps the

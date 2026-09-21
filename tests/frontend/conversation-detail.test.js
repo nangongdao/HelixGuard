@@ -1,4 +1,4 @@
-// Helix Support — conversation detail lifecycle unit tests (app.js <500)
+// Helix Guard — conversation detail lifecycle unit tests (app.js <500)
 // Run: node --test tests/frontend/conversation-detail.test.js
 
 import { afterEach, beforeEach, test } from "node:test";

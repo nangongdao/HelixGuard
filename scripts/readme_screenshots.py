@@ -48,23 +48,23 @@ def wait_for_operator(page: Page) -> None:
 
 def open_new_conversation(page: Page, name: str, customer_ref: str = "") -> None:
     page.get_by_role("button", name="新建").click()
-    expect(page.get_by_role("heading", name="新建会话")).to_be_visible()
-    page.get_by_label("客户名称").fill(name)
+    expect(page.get_by_role("heading", name="新建审核单")).to_be_visible()
+    page.get_by_label("提交方名称").fill(name)
     if customer_ref:
-        page.get_by_label("客户身份标识 可选").fill(customer_ref)
+        page.get_by_label("提交方标识 可选").fill(customer_ref)
     with page.expect_response(
         lambda r: r.url.endswith("/api/conversations") and r.request.method == "POST"
     ):
-        page.get_by_role("button", name="创建会话").click()
+        page.get_by_role("button", name="创建审核单").click()
     expect(page.get_by_role("heading", name=name)).to_be_visible()
 
 
 def send_customer_message(page: Page, message: str) -> None:
-    page.get_by_label("客户消息", exact=True).fill(message)
+    page.get_by_label("待审内容", exact=True).fill(message)
     with page.expect_response(
         lambda r: "/api/conversations/" in r.url and r.url.endswith("/messages")
     ):
-        page.get_by_role("button", name="发送客户消息").click()
+        page.get_by_role("button", name="发送待审内容").click()
 
 
 def capture_desktop_shell(context, name_hint: str) -> None:
@@ -116,7 +116,7 @@ def main() -> int:
 
         # 1) operator-workspace — dark theme, conversation + evidence panel.
         wait_for_operator(page)
-        open_new_conversation(page, f"演示会话-{run_id}", "CUST-1001")
+        open_new_conversation(page, f"演示审核单-{run_id}", "CUST-1001")
         page.get_by_role("button", name="折叠检查器").click()
         page.get_by_role("button", name="展开检查器").click()
         send_customer_message(page, "配送一般多久能到？")
@@ -129,7 +129,7 @@ def main() -> int:
 
         # 2) operator-handoff — human takeover with summary banner + audit tab.
         open_new_conversation(page, f"人工接管-{run_id}")
-        send_customer_message(page, "我要退款并投诉，请转人工")
+        send_customer_message(page, "我要退款并投诉，请转人工复核")
         expect(page.locator("#conversationStatus")).to_have_text("等待人工")
         with page.expect_response(
             lambda r: r.url.endswith("/accept") and r.request.method == "POST"
@@ -138,8 +138,8 @@ def main() -> int:
         expect(page.locator("#conversationStatus")).to_have_text("人工处理中")
         page.get_by_label("人工回复", exact=True).fill("已接入，正在核验退款条件。")
         page.get_by_role("button", name="发送人工回复", exact=True).click()
-        page.get_by_role("button", name="解决", exact=True).click()
-        expect(page.locator("#conversationStatus")).to_have_text("已解决")
+        page.get_by_role("button", name="判定", exact=True).click()
+        expect(page.locator("#conversationStatus")).to_have_text("已判定")
         page.get_by_role("tab", name="审计").click()
         expect(page.locator("#inspectorAudit")).to_be_visible()
         page.wait_for_timeout(400)

@@ -1,5 +1,5 @@
 /**
- * Helix Support — command palette module (UI 升级 §17.1 Ctrl+K)
+ * Helix Guard — command palette module (UI 升级 §17.1 Ctrl+K)
  *
  * Pure command registry + filtering. Static commands cover view switching
  * (the five nav mount points) and workspace actions (new conversation,
@@ -16,16 +16,16 @@
 
 /** View-switch commands backed by the global nav rail. */
 export const VIEW_COMMANDS = [
-  { id: "view.workspace", group: "视图", label: "工作台", keywords: ["workspace", "队列", "会话"], run: "view:workspace" },
+  { id: "view.workspace", group: "视图", label: "工作台", keywords: ["workspace", "队列", "审核单"], run: "view:workspace" },
   { id: "view.quality", group: "视图", label: "质量看板", keywords: ["quality", "质量"], run: "view:quality" },
-  { id: "view.knowledge", group: "视图", label: "知识库", keywords: ["knowledge", "知识"], run: "view:knowledge" },
+  { id: "view.knowledge", group: "视图", label: "策略库", keywords: ["knowledge", "知识"], run: "view:knowledge" },
   { id: "view.admin", group: "视图", label: "管理", keywords: ["admin", "管理"], run: "view:admin" },
   { id: "view.settings", group: "视图", label: "设置", keywords: ["settings", "设置"], run: "view:settings" },
 ];
 
 /** Workspace actions; each maps to an existing UI handler. */
 export const ACTION_COMMANDS = [
-  { id: "action.new_conversation", group: "动作", label: "新建会话", keywords: ["新建", "会话", "create"], run: "action:new_conversation" },
+  { id: "action.new_conversation", group: "动作", label: "新建审核单", keywords: ["新建", "审核单", "create"], run: "action:new_conversation" },
   { id: "action.refresh", group: "动作", label: "刷新队列", keywords: ["刷新", "refresh"], run: "action:refresh" },
   { id: "action.toggle_theme", group: "动作", label: "切换深浅主题", keywords: ["主题", "theme", "暗色", "浅色"], run: "action:toggle_theme" },
   { id: "action.toggle_lowperf", group: "动作", label: "切换低配模式", keywords: ["低配", "性能", "lowperf"], run: "action:toggle_lowperf" },
@@ -45,7 +45,7 @@ export function buildStaticCommands() {
 export function conversationCommand(conversation) {
   return {
     id: `conversation:${conversation.id}`,
-    group: "会话",
+    group: "审核单",
     label: conversation.customer_name || conversation.id,
     keywords: [conversation.id, conversation.customer_name || "", conversation.channel || ""],
     run: `conversation:${conversation.id}`,

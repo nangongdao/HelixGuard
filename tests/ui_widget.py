@@ -100,7 +100,7 @@ def main() -> None:
                 response.url.endswith("/api/widget/sessions") and response.request.method == "POST"
             )
         ) as session_info:
-            page.get_by_role("button", name="开始对话").click()
+            page.get_by_role("button", name="开始提交").click()
         assert session_info.value.status == 201, session_info.value.text()
         session_data = session_info.value.json()
         widget_conversation_id = session_data["conversation"]["id"]
@@ -182,7 +182,7 @@ def main() -> None:
         page.evaluate("() => sessionStorage.setItem('widget-delay-history', '1')")
         page.reload(wait_until="domcontentloaded")
         expect(page.locator("#chatView")).to_be_visible()
-        expect(page.locator("#connectionBanner")).to_contain_text("正在恢复对话")
+        expect(page.locator("#connectionBanner")).to_contain_text("正在恢复提交")
         expect(page.locator("#messageForm")).to_have_attribute("aria-busy", "true")
         expect(page.locator("#fatalState")).to_be_hidden()
         expect(page.locator(".message-row.customer")).to_have_count(2)
@@ -228,7 +228,7 @@ def main() -> None:
                 return json.loads(response.read().decode("utf-8"))
 
         # Handoff/claim so the lifecycle reaches human_active first (the
-        # console's 解决 button is available from open too, but claim makes
+        # console's 判定 button is available from open too, but claim makes
         # the flow deterministic), then resolve — creating the CSAT survey.
         api_post(f"/api/conversations/{conversation_id}/accept", {})
         api_post(f"/api/conversations/{conversation_id}/resolve", {})
@@ -239,7 +239,7 @@ def main() -> None:
         page.reload(wait_until="domcontentloaded")
         resolved_banner = page.locator("#resolvedBanner")
         expect(resolved_banner).to_be_visible(timeout=30000)
-        expect(resolved_banner).to_contain_text("会话已解决")
+        expect(resolved_banner).to_contain_text("审核单已判定")
         csat_href = resolved_banner.locator("#csatLink").get_attribute("href")
         assert csat_href and "/api/csat/" in csat_href, csat_href
         survey_token = csat_href.rsplit("/", 1)[-1]
@@ -275,7 +275,7 @@ def main() -> None:
         # token instead of leaving an interactive but permanently broken chat.
         expired_page = context.new_page()
         expired_page.goto(url, wait_until="domcontentloaded")
-        expired_page.get_by_role("button", name="开始对话").click()
+        expired_page.get_by_role("button", name="开始提交").click()
         expect(expired_page.locator("#chatView")).to_be_visible()
         expired_page.route(
             "**/api/widget/sessions/*/messages?async_mode=true",

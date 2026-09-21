@@ -1,4 +1,4 @@
-// Helix Support — request transport unit tests (app.js <500 slice 15)
+// Helix Guard — request transport unit tests (app.js <500 slice 15)
 // Run: node --test tests/frontend/http.test.js
 
 import { afterEach, test } from "node:test";

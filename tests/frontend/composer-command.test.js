@@ -1,4 +1,4 @@
-// Helix Support — composer command/receipt contract unit tests (ROADMAP H02)
+// Helix Guard — composer command/receipt contract unit tests (ROADMAP H02)
 // Run: node --test tests/frontend/composer-command.test.js
 //
 // js/composer-command.js owns the two facts that decide whether an async

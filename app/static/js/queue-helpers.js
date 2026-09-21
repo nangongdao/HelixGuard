@@ -1,5 +1,5 @@
 /**
- * Helix Support — queue helpers (app.js <500 campaign).
+ * Helix Guard — queue helpers (app.js <500 campaign).
  *
  * The queue list's shared query/derive helpers, extracted verbatim from
  * app.js: conversationQuery builds the live-filter URL query from the queue

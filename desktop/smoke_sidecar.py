@@ -1,4 +1,4 @@
-"""Smoke test for the packaged Helix Support sidecar.
+"""Smoke test for the packaged Helix Guard sidecar.
 
 Spawns dist/helix-server/helix-server.exe, waits for /health/ready,
 exercises a sample API call, then shuts it down cleanly. Exit code 0

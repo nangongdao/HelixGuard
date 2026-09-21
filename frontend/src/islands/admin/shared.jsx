@@ -1,5 +1,5 @@
 /**
- * Helix Support — admin island identity gate + shared card bits.
+ * Helix Guard — admin island identity gate + shared card bits.
  *
  * Split out of admin-island.jsx (400-line module limit). The identity gate
  * is the security-relevant half: every admin query stays disabled until

@@ -85,7 +85,7 @@
   "time": { "from": "now-6h", "to": "now" },
   "timepicker": {},
   "timezone": "browser",
-  "title": "Helix Support SLO",
-  "uid": "helix-support-slo",
+  "title": "Helix Guard SLO",
+  "uid": "helix-guard-slo",
   "version": 1
 }

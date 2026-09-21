@@ -9,17 +9,17 @@
 
 ```
         ┌──────────┐    TLS    ┌──────────────────┐
-客户 ──▶ │ Web Chat │ ───────▶ │                  │
+提交方 ──▶ │ Web Chat │ ───────▶ │                  │
         └──────────┘          │                  │
-        ┌──────────┐    TLS    │   Helix Support  │──▶ SQLite/PostgreSQL
-坐席 ──▶ │ 工作台    │ ───────▶ │   (API + BFF)    │──▶ Redis(可选队列)
+        ┌──────────┐    TLS    │   Helix Guard  │──▶ SQLite/PostgreSQL
+审核员 ──▶ │ 工作台    │ ───────▶ │   (API + BFF)    │──▶ Redis(可选队列)
         └──────────┘          │                  │──▶ 连接器(Order/CRM/Knowledge)
         ┌──────────┐          │                  │──▶ 模型供应商(可选)
 管理员 ─▶ │ 管理 API  │ ───────▶ │                  │──▶ Webhook 消费者
         └──────────┘          └──────────────────┘
 ```
 
-信任主体:客户(匿名/签名 token)、坐席(API key)、管理员(API key,tenant:manage)、
+信任主体:提交方(匿名/签名 token)、审核员(API key)、管理员(API key,tenant:manage)、
 系统(编排器/worker)、连接器(外部 HTTP)、模型供应商、数据库、Webhook 消费者。
 
 ## STRIDE 分析
@@ -27,19 +27,19 @@
 | 威胁类别 | 资产/入口 | 现有控制 | 阶段整改项 |
 |---------|----------|---------|-----------|
 | **Spoofing** | API key 认证 | `hmac.compare_digest` 常量时间比对、租户绑定、`X-Tenant-Id` 校验 | 28.2 key 吊销 + 会话密钥轮换 |
-| **Spoofing** | Web Chat 客户 token | HMAC 签名 + 过期 + 时钟偏差;session fresh token 绑定 conversation_id | — |
+| **Spoofing** | Web Chat 提交方 token | HMAC 签名 + 过期 + 时钟偏差;session fresh token 绑定 conversation_id | — |
 | **Tampering** | 审计事件 | — | **28.3 哈希链 + 校验脚本** |
 | **Tampering** | 会话 cookie | HMAC 签名、SameSite=lax | 28.2 kid 多密钥;28.4 Origin 校验 |
 | **Repudiation** | 操作审计 | 审计事件全量记录(actor/request_id) | 28.3 链头可校验 |
-| **Information disclosure** | 跨租户/客户数据 | 租户绑定、widget 会话绑定、内部备注服务端过滤、`_ensure_same_tenant`、order not_found 统一 | — |
+| **Information disclosure** | 跨租户/提交方数据 | 租户绑定、widget 会话绑定、内部备注服务端过滤、`_ensure_same_tenant`、order not_found 统一 | — |
 | **Clickjacking** | 操作台 / Web Chat | 操作台 `DENY`/`frame-ancestors 'none'`;仅 `/widget` 使用精确 origin allowlist | — |
 | **Information disclosure** | 错误体 | RFC 9457 Problem Details(Phase 25.1) | — |
-| **Denial of service** | API 滥用 | 全局限流(每 key)+ 会话配额(429) | 28.4 auth 独立限流 |
+| **Denial of service** | API 滥用 | 全局限流(每 key)+ 审核单配额(429) | 28.4 auth 独立限流 |
 | **Elevation of privilege** | RBAC | `require_permission` 单一入口 + 权限矩阵测试(Phase 22.3) | — |
 
 ## 控制矩阵(按信任主体)
 
-| 控制 | 客户 | 坐席 | 管理员 | 连接器 |
+| 控制 | 提交方 | 审核员 | 管理员 | 连接器 |
 |------|------|------|--------|--------|
 | 认证 | 签名 token | API key | API key + tenant:manage | HMAC(出站验签) |
 | 授权 | conversation:write(渠道) | operator:act | admin:manage | 契约只读 |

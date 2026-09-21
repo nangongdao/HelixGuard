@@ -5,7 +5,7 @@ and drives the message transcript end-to-end in island mode:
 
 - selecting a conversation renders the transcript from the thread island while
   the legacy #messages stays hidden and unpainted;
-- an empty conversation shows the legacy 等待第一条客户消息 empty state;
+- an empty conversation shows the legacy 等待第一条待审内容 empty state;
 - a feedback click travels the helix-thread-feedback bridge to a real POST and
   mirrors the recorded state;
 - the translate bar POSTs and degrades to the no-provider notice inline;
@@ -156,7 +156,7 @@ def main() -> int:
             # Empty conversation → island empty state (legacy copy).
             page.locator(f"#queueReactIsland .conversation-item[data-id='{seeded['emptyId']}']").click()
             page.wait_for_function(
-                "() => document.querySelector('#threadReactIsland')?.textContent.includes('等待第一条客户消息')",
+                "() => document.querySelector('#threadReactIsland')?.textContent.includes('等待第一条待审内容')",
                 timeout=15000,
             )
             checks["island_empty_state"] = True
@@ -200,7 +200,7 @@ def main() -> int:
                 "() => document.querySelectorAll('#threadReactIsland .message-row').length"
             )
             page.locator("#composerReactIsland .customer-composer textarea").fill("线程岛补发一条消息")
-            page.locator("#composerReactIsland button[aria-label='发送客户消息']").click()
+            page.locator("#composerReactIsland button[aria-label='发送待审内容']").click()
             page.wait_for_function(
                 "(before) => document.querySelectorAll('#threadReactIsland .message-row').length > before",
                 arg=rows_before,

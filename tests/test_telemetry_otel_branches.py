@@ -87,7 +87,7 @@ class TelemetryOtelTests(unittest.TestCase):
         self.addCleanup(lambda: _reload_without_otel(saved))
         tel.configure_tracing()
         provider = tel._tracer_provider
-        otel_span = provider.get_tracer("helix-support").start_as_current_span().__enter__()
+        otel_span = provider.get_tracer("helix-guard").start_as_current_span().__enter__()
         with tel.span("op", attr1="v1") as record:
             record.set_attribute("k2", "v2")
             record.add_event("midpoint", {"k": "v"})

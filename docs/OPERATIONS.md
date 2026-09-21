@@ -69,7 +69,7 @@ read the session. Both tokens expire after one hour with a clock-skew guard.
 
   ```html
   <iframe
-    title="客户服务"
+    title="内容提交服务"
     src="https://support.example.com/widget?brand=Northstar%20Care&accent=teal&locale=zh#token=SIGNED_BOOTSTRAP_TOKEN"
     width="380"
     height="700"

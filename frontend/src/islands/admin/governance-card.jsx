@@ -1,5 +1,5 @@
 /**
- * Helix Support — admin island governance operations card (2.7.0).
+ * Helix Guard — admin island governance operations card (2.7.0).
  *
  * The human operations surface for the governance plane wired in 2.5/2.6:
  * pending tool-enablement approvals (maker-checker decide buttons), the
