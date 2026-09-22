@@ -30,9 +30,15 @@ def wait_for_cdp(deadline_s: float = 90.0) -> list[dict]:
     deadline = time.time() + deadline_s
     while time.time() < deadline:
         try:
-            with urllib.request.urlopen(f"http://127.0.0.1:{DEBUG_PORT}/json/list", timeout=2) as res:
+            with urllib.request.urlopen(
+                f"http://127.0.0.1:{DEBUG_PORT}/json/list", timeout=2
+            ) as res:
                 targets = json.loads(res.read().decode("utf-8"))
-            pages = [t for t in targets if t.get("type") == "page" and "127.0.0.1" in (t.get("url") or "")]
+            pages = [
+                t
+                for t in targets
+                if t.get("type") == "page" and "127.0.0.1" in (t.get("url") or "")
+            ]
             if pages:
                 return targets
         except Exception:
@@ -89,7 +95,7 @@ def main() -> int:
                     };
                     const suffix = Math.random().toString(36).slice(2, 6);
                     const conv = await post('/api/review-cases', {
-                        customer_name: '摘要岛验证 ' + suffix,
+                        submitter_name: '摘要岛验证 ' + suffix,
                     });
                     if (!conv.ok) return { error: 'conversation ' + conv.status };
                     const turn = await post('/api/review-cases/' + conv.data.id + '/messages', {
@@ -101,7 +107,7 @@ def main() -> int:
                     const accept = await post('/api/review-cases/' + conv.data.id + '/accept');
                     if (!accept.ok) return { error: 'accept ' + accept.status };
                     const empty = await post('/api/review-cases', {
-                        customer_name: '摘要岛空线 ' + suffix,
+                        submitter_name: '摘要岛空线 ' + suffix,
                     });
                     if (!empty.ok) return { error: 'empty conversation ' + empty.status };
                     return { conversationId: conv.data.id, emptyId: empty.data.id };
@@ -113,10 +119,14 @@ def main() -> int:
                 return 1
 
             page.locator("#refreshList").click()
-            page.wait_for_selector("#queueReactIsland .conversation-item", state="visible", timeout=30000)
+            page.wait_for_selector(
+                "#queueReactIsland .conversation-item", state="visible", timeout=30000
+            )
 
             # Empty conversation → island banner stays hidden.
-            page.locator(f"#queueReactIsland .conversation-item[data-id='{seeded['emptyId']}']").click()
+            page.locator(
+                f"#queueReactIsland .conversation-item[data-id='{seeded['emptyId']}']"
+            ).click()
             page.wait_for_function(
                 """() => {
                     const banner = document.querySelector('#summaryReactIsland .summary-banner');
@@ -127,7 +137,9 @@ def main() -> int:
             checks["hidden_on_empty_conversation"] = True
 
             # Data conversation → deterministic context summary renders.
-            page.locator(f"#queueReactIsland .conversation-item[data-id='{seeded['conversationId']}']").click()
+            page.locator(
+                f"#queueReactIsland .conversation-item[data-id='{seeded['conversationId']}']"
+            ).click()
             page.wait_for_function(
                 """() => {
                     const banner = document.querySelector('#summaryReactIsland .summary-banner');

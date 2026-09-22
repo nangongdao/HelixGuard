@@ -59,23 +59,23 @@ class AttachmentRouterErrorTests(unittest.TestCase):
         self.client.close()
         self._tmp.cleanup()
 
-    def _open_conversation(self) -> str:
+    def _open_review_case(self) -> str:
         conv = self.client.post(
             "/api/review-cases", json={"customer_name": "S"}, headers=self.admin
         ).json()
         return conv["id"]
 
-    def _upload(self, conversation_id: str) -> dict[str, Any]:
+    def _upload(self, review_case_id: str) -> dict[str, Any]:
         response = self.client.post(
             "/api/attachments",
-            data={"conversation_id": conversation_id},
+            data={"conversation_id": review_case_id},
             files={"file": ("pic.png", PNG_BYTES, "image/png")},
             headers=self.admin,
         )
         self.assertEqual(response.status_code, 201, response.text)
         return response.json()
 
-    def test_upload_unknown_conversation_404(self) -> None:
+    def test_upload_unknown_review_case_404(self) -> None:
         response = self.client.post(
             "/api/attachments",
             data={"conversation_id": "nonexistent-conv"},
@@ -84,8 +84,8 @@ class AttachmentRouterErrorTests(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 404)
 
-    def test_upload_requires_operator_act(self) -> None:
-        conv_id = self._open_conversation()
+    def test_upload_requires_reviewer_act(self) -> None:
+        conv_id = self._open_review_case()
         response = self.client.post(
             "/api/attachments",
             data={"conversation_id": conv_id},
@@ -103,7 +103,7 @@ class AttachmentRouterErrorTests(unittest.TestCase):
         self.assertEqual(response.status_code, 404)
 
     def test_download_with_bad_token_403(self) -> None:
-        conv_id = self._open_conversation()
+        conv_id = self._open_review_case()
         attachment = self._upload(conv_id)
         response = self.client.get(
             f"/api/attachments/{attachment['id']}/download",
@@ -113,7 +113,7 @@ class AttachmentRouterErrorTests(unittest.TestCase):
         self.assertEqual(response.status_code, 403)
 
     def test_download_with_token_but_no_expiry_403(self) -> None:
-        conv_id = self._open_conversation()
+        conv_id = self._open_review_case()
         attachment = self._upload(conv_id)
         response = self.client.get(
             f"/api/attachments/{attachment['id']}/download",
@@ -123,7 +123,7 @@ class AttachmentRouterErrorTests(unittest.TestCase):
         self.assertEqual(response.status_code, 403)
 
     def test_verdict_conflict_409(self) -> None:
-        conv_id = self._open_conversation()
+        conv_id = self._open_review_case()
         attachment = self._upload(conv_id)
         # The in-process scanner already promoted this upload to stored;
         # a second verdict on a non-quarantined row is a conflict.
@@ -146,13 +146,13 @@ class AttachmentRouterErrorTests(unittest.TestCase):
         response = self.client.delete("/api/attachments/no-such-id", headers=self.admin)
         self.assertEqual(response.status_code, 404)
 
-    def test_delete_requires_operator_act(self) -> None:
-        conv_id = self._open_conversation()
+    def test_delete_requires_reviewer_act(self) -> None:
+        conv_id = self._open_review_case()
         attachment = self._upload(conv_id)
         response = self.client.delete(f"/api/attachments/{attachment['id']}", headers=self.viewer)
         self.assertEqual(response.status_code, 403)
 
-    def test_list_unknown_conversation_is_empty(self) -> None:
+    def test_list_unknown_review_case_is_empty(self) -> None:
         response = self.client.get(
             "/api/attachments",
             params={"conversation_id": "no-such-conv"},
@@ -161,8 +161,8 @@ class AttachmentRouterErrorTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), [])
 
-    def test_get_requires_conversation_read(self) -> None:
-        conv_id = self._open_conversation()
+    def test_get_requires_review_case_read(self) -> None:
+        conv_id = self._open_review_case()
         attachment = self._upload(conv_id)
         response = self.client.get(f"/api/attachments/{attachment['id']}", headers=self.viewer)
         self.assertEqual(response.status_code, 200)

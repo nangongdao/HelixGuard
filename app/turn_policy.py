@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from time import monotonic
 from typing import Any
 
-from app.domain import AgentName, ConversationStatus, RiskAssessment, TriageDecision
+from app.domain import AgentName, ReviewCaseStatus, RiskAssessment, TriageDecision
 from app.model_gateway import PURPOSE_TRIAGE, ModelCallGate
 from app.prompts import PromptVersion
 from app.turn_services import TurnServices
@@ -27,7 +27,7 @@ class TurnPolicyContext:
     """Immutable inputs the policy stage needs (ARC-001 typed context)."""
 
     tenant_id: str
-    conversation: dict[str, Any]
+    review_case: dict[str, Any]
     content: str
     actor_id: str
     turn_id: str
@@ -76,8 +76,8 @@ class TurnPolicyStage:
         """
         started = monotonic()
         tenant_id = context.tenant_id
-        conversation_id = context.conversation["id"]
-        conversation = context.conversation
+        review_case_id = context.review_case["id"]
+        review_case = context.review_case
         # Backlog (多语言审核): detect the customer message language up front --
         # best-effort and deterministic, so it never blocks or breaks intake.
         detected_language, language_source = self.services.languages.detect(
@@ -86,12 +86,12 @@ class TurnPolicyStage:
         # The operator's manual override (PATCH /language) wins over
         # auto-detection: it pins both the conversation badge AND the reply
         # translation target.
-        language = conversation.get("language") or detected_language
+        language = review_case.get("language") or detected_language
         customer_message = self.services.database.add_message(
             tenant_id,
-            conversation_id,
+            review_case_id,
             "customer",
-            conversation["customer_name"],
+            review_case["customer_name"],
             context.content,
             {
                 "source_actor": context.actor_id,
@@ -101,17 +101,17 @@ class TurnPolicyStage:
             context.turn_id,
             channel_message_id=channel_message_id,
         )
-        if detected_language and conversation.get("language") is None:
+        if detected_language and review_case.get("language") is None:
             # Backlog (多语言审核): the manual override is sticky -- an
             # auto-detected code is only written while the stored language is
             # null, so the pinned value survives the next customer message
             # until the operator clears it.
             self.services.database.set_conversation_language(
-                tenant_id, conversation_id, detected_language
+                tenant_id, review_case_id, detected_language
             )
         self.services.database.audit(
             tenant_id,
-            conversation_id,
+            review_case_id,
             context.actor_id,
             "customer.message_received",
             {
@@ -128,19 +128,19 @@ class TurnPolicyStage:
         # seconds earlier); an operator handoff in between must suppress this
         # turn instead of routing a specialist that then wastes model/tool
         # calls and writes audit rows the persist stage would contradict.
-        current = self.services.database.get_conversation(tenant_id, conversation_id)
+        current = self.services.database.get_review_case(tenant_id, review_case_id)
         if current is not None:
-            conversation = current
-        if conversation["status"] in {
-            ConversationStatus.WAITING_HUMAN,
-            ConversationStatus.HUMAN_ACTIVE,
+            review_case = current
+        if review_case["status"] in {
+            ReviewCaseStatus.WAITING_HUMAN,
+            ReviewCaseStatus.HUMAN_ACTIVE,
         }:
             self.services.database.audit(
                 tenant_id,
-                conversation_id,
+                review_case_id,
                 "orchestrator",
                 "automation.suppressed",
-                {"reason": f"conversation_status:{conversation['status']}"},
+                {"reason": f"conversation_status:{review_case['status']}"},
             )
             return TurnPolicyResult(
                 suppressed=True,
@@ -161,13 +161,13 @@ class TurnPolicyStage:
         prompt_version, prompt_channel = self.services.prompt_registry.resolve_prompt(
             tenant_id,
             "triage_prompt",
-            conversation_id,
+            review_case_id,
             self.services.settings.prompt_canary_ratio,
         )
         if prompt_version is not None:
             self.services.database.audit(
                 tenant_id,
-                conversation_id,
+                review_case_id,
                 "orchestrator",
                 "prompt_version.resolved",
                 {
@@ -183,7 +183,7 @@ class TurnPolicyStage:
         if budget_exceeded:
             self.services.database.audit(
                 tenant_id,
-                conversation_id,
+                review_case_id,
                 "orchestrator",
                 "turn.budget_exceeded",
                 {"used": budget_used, "limit": budget_limit},
@@ -210,7 +210,7 @@ class TurnPolicyStage:
                 allow_model = False
                 self.services.database.audit(
                     tenant_id,
-                    conversation_id,
+                    review_case_id,
                     "orchestrator",
                     "turn.model_denied",
                     {"model_ref": decision.model_ref, "reason": decision.reason},
@@ -220,7 +220,7 @@ class TurnPolicyStage:
         risk = self.services.policy.inspect(context.content)
         self.services.database.audit(
             tenant_id,
-            conversation_id,
+            review_case_id,
             AgentName.POLICY,
             "policy.assessed",
             {
@@ -236,7 +236,7 @@ class TurnPolicyStage:
         if risk.requires_human:
             decision = TriageDecision(
                 route=AgentName.ESCALATION,
-                intent="policy_risk",
+                risk_category="policy_risk",
                 confidence=1.0,
                 urgency="high",
                 reasons=[risk.handoff_reason or "Policy risk"],
@@ -251,12 +251,12 @@ class TurnPolicyStage:
             )
         self.services.database.audit(
             tenant_id,
-            conversation_id,
+            review_case_id,
             AgentName.TRIAGE,
             "agent.routed",
             {
                 "route": decision.route,
-                "intent": decision.intent,
+                "intent": decision.risk_category,
                 "confidence": decision.confidence,
                 "urgency": decision.urgency,
                 "reasons": decision.reasons,

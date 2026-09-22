@@ -22,7 +22,7 @@ BASE_URL = os.getenv("HELIX_BASE_URL", "http://127.0.0.1:8765").rstrip("/")
 ARTIFACTS = Path(__file__).resolve().parents[1] / "artifacts"
 
 
-def attach_failure_recorders(
+def attach_failure_recsource_lookups(
     page: Page,
     console_errors: list[str],
     page_errors: list[str],
@@ -85,7 +85,9 @@ def main() -> None:
 
         context = browser.new_context(viewport={"width": 1440, "height": 1000})
         page = context.new_page()
-        attach_failure_recorders(page, console_errors, page_errors, http_errors, failed_requests)
+        attach_failure_recsource_lookups(
+            page, console_errors, page_errors, http_errors, failed_requests
+        )
         page.goto(BASE_URL, wait_until="domcontentloaded")
         expect(page.locator("#operatorIdentity")).to_contain_text("demo.admin")
         expect(

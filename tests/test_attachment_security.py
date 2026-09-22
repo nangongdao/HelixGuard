@@ -153,7 +153,7 @@ class QuarantineFlowTests(unittest.TestCase):
         self.db = Database(root / "att.db")
         self.db.initialize()
         self.db.ensure_tenant("t1")
-        conv = self.db.create_conversation("t1", "Conv", "C-Q", "web", "admin", 120)
+        conv = self.db.create_review_case("t1", "Conv", "C-Q", "web", "admin", 120)
         self.conv_id = conv["id"]
         self.settings = _settings(
             root, attachment_storage_dir=root / "objects", attachment_scan_mode="external"
@@ -211,7 +211,7 @@ class SignedUrlAndIntegrityTests(unittest.TestCase):
         self.db.initialize()
         self.db.ensure_tenant("t1")
         self.db.ensure_tenant("t2")
-        conv = self.db.create_conversation("t1", "Conv", "C-S", "web", "admin", 120)
+        conv = self.db.create_review_case("t1", "Conv", "C-S", "web", "admin", 120)
         self.conv_id = conv["id"]
         self.settings = _settings(root, attachment_storage_dir=root / "objects")
         self.service = AttachmentService(

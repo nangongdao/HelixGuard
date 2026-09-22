@@ -17,7 +17,7 @@ pip install -e clients/python
 from helix_client import HelixClient
 
 with HelixClient(base_url="http://localhost:8000", api_key="sk-...", tenant_id="demo") as client:
-    conv = client.create_conversation(customer_name="Ada", customer_ref="CUST-1")
+    conv = client.create_review_case(customer_name="Ada", customer_ref="CUST-1")
     turn = client.send_message(conv["id"], "ORD-10482 到哪了？", idempotency_key="idem-1")
     print(turn["assistant_message"]["content"])
     print(turn["conversation"]["status"])
@@ -41,14 +41,14 @@ which returns cursor-envelope responses (`{"data": [...], "next_cursor":
 
 ```python
 # One page, with envelope + server version exposed.
-page = client.list_conversations_v2(limit=50, sort="updated", status="open")
+page = client.list_review_cases_v2(limit=50, sort="updated", status="open")
 print(page.data, page.next_cursor, page.api_version)  # api_version == "2.0"
 
 # Or walk every conversation without manual cursor bookkeeping.
-for conv in client.iter_conversations_v2(limit=200):
+for conv in client.iter_review_cases_v2(limit=200):
     print(conv["id"], conv["status"])
 
-page = client.get_conversation_v2(conv["id"])  # single resource
+page = client.get_review_case_v2(conv["id"])  # single resource
 page = client.list_messages_v2(conv["id"], limit=100)  # keyset pagination
 ```
 
@@ -56,7 +56,7 @@ v2 creation accepts an `Idempotency-Key`. Replays return the original
 resource, and the client flags them:
 
 ```python
-conv = client.create_conversation_v2("Ada", idempotency_key="order-42")
+conv = client.create_review_case_v2("Ada", idempotency_key="order-42")
 print(conv["_idempotent_replay"])  # False on first call, True on replay
 ```
 
@@ -73,7 +73,7 @@ raises `HelixRateLimitError` with `retry_after`.
 from helix_client import HelixNotFoundError
 
 try:
-    client.get_conversation("conv-nope")
+    client.get_review_case("conv-nope")
 except HelixNotFoundError as exc:
     print(exc.status, exc.code, exc.request_id)
 ```

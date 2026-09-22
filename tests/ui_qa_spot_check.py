@@ -1,12 +1,12 @@
 """Backlog CSAT 评分汇总 — 管理视图卡片浏览器验收。
 
-后端 `summarize_csat`(需响应 `POST /api/qa-spot-check/{token}` 已入 `csat_surveys`)
+后端 `summarize_csat`(需响应 `POST /api/qa-spot-check/{token}` 已入 `qa_spot_checks`)
 此前无前端;本轮把汇总接入管理视图「CSAT 评分汇总」卡:总体(样本数 /
 平均分 / 好评率)+ 近 14 天逐日趋势。
 
 本测在真实审核单里闭环验证:
 1. API 记录当前 CSAT 汇总基值(base_total,共享 DB 累积友好);
-2. API 创建 3 个审核单并 resolve(csat_surveys 行 → 响应带 survey_url),
+2. API 创建 3 个审核单并 resolve(qa_spot_checks 行 → 响应带 survey_url),
    提取 token 后通过公开端点 POST 评分(4 / 5 / 2);
 3. 切到管理视图 → CSAT 卡可见,样本数 = base_total + 3,平均分为
    非零「x.xx / 5」,好评率 = 2/(base_total+3);
@@ -52,7 +52,7 @@ def api_get(path: str) -> dict:
 
 
 def submit_ratings(count: int, ratings: list[int]) -> int:
-    """Resolve ``count`` fresh conversations and rate each via its survey link."""
+    """Resolve ``count`` fresh review_cases and rate each via its survey link."""
     answered = 0
     for rating in ratings[:count]:
         status, conv = api_post(

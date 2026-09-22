@@ -45,7 +45,7 @@ def _public_resolve(_host: str, _port: int) -> list[str]:
 
 ADMIN_KEY = "webhook-admin-key-001"
 OTHER_ADMIN_KEY = "webhook-other-admin-001"
-OPERATOR_KEY = "webhook-operator-key-01"
+REVIEWER_KEY = "webhook-operator-key-01"
 
 
 class RecordingTransport:
@@ -321,22 +321,22 @@ class WebhookServiceTests(unittest.TestCase):
 
     # ------------------------------------------------------------------- sla
 
-    def _overdue_conversation(self, tenant_id: str = "tenant-1") -> str:
-        conv = self.database.create_conversation(
+    def _overdue_review_case(self, tenant_id: str = "tenant-1") -> str:
+        conv = self.database.create_review_case(
             tenant_id, "Overdue Customer", None, "web", "admin", 120
         )
         with self.database.connect() as conn:
             conn.execute(
-                "UPDATE conversations SET sla_due_at=? WHERE id=?",
+                "UPDATE review_cases SET sla_due_at=? WHERE id=?",
                 ("2020-01-01T00:00:00+00:00", conv["id"]),
             )
         return conv["id"]
 
-    def test_sla_breach_emitted_once_per_conversation(self) -> None:
+    def test_sla_breach_emitted_once_per_review_case(self) -> None:
         self.webhooks.register_endpoint(
             "tenant-1", "https://example.com/hook", [EVENT_CONVERSATION_SLA_BREACHED], "secret-123"
         )
-        conv_id = self._overdue_conversation()
+        conv_id = self._overdue_review_case()
         self.assertEqual(self.webhooks.check_sla_breaches(), 1)
         self.assertEqual(self.webhooks.check_sla_breaches(), 0)
         deliveries = self.webhooks.list_deliveries("tenant-1")
@@ -359,17 +359,17 @@ class WebhookServiceTests(unittest.TestCase):
         self.webhooks.register_endpoint(
             "tenant-1", "https://example.com/hook", [EVENT_CONVERSATION_SLA_BREACHED], "secret-123"
         )
-        overdue = self._overdue_conversation()
-        current = self.database.create_conversation(
+        overdue = self._overdue_review_case()
+        current = self.database.create_review_case(
             "tenant-1", "Current Customer", None, "web", "admin", 120
         )
         self.assertEqual(self.webhooks.check_sla_breaches(), 1)
         # Resolving the overdue conversation removes it from the next scan;
         # the future-due conversation never appears.
-        from app.domain import ConversationStatus
+        from app.domain import ReviewCaseStatus
 
-        self.database.transition_conversation(
-            "tenant-1", overdue, [ConversationStatus.OPEN], ConversationStatus.RESOLVED
+        self.database.transition_review_case(
+            "tenant-1", overdue, [ReviewCaseStatus.OPEN], ReviewCaseStatus.RESOLVED
         )
         self.assertEqual(self.webhooks.check_sla_breaches(), 0)
         deliveries = self.webhooks.list_deliveries("tenant-1")
@@ -377,7 +377,7 @@ class WebhookServiceTests(unittest.TestCase):
         self.assertNotIn(current["id"], {d["event_id"] for d in deliveries})
 
     def test_sla_breach_no_endpoints_emits_nothing(self) -> None:
-        self._overdue_conversation()
+        self._overdue_review_case()
         self.assertEqual(self.webhooks.check_sla_breaches(), 0)
 
 
@@ -404,8 +404,8 @@ class WebhookOrchestratorTests(unittest.TestCase):
         self.database.close()
         self._tmp.cleanup()
 
-    def _create_conversation(self) -> str:
-        conv = self.database.create_conversation(
+    def _create_review_case(self) -> str:
+        conv = self.database.create_review_case(
             "demo", "Webhook Customer", None, "web", "admin", 120
         )
         return conv["id"]
@@ -414,7 +414,7 @@ class WebhookOrchestratorTests(unittest.TestCase):
         self.webhooks.register_endpoint(
             "demo", "https://example.com/hook", [EVENT_CONVERSATION_ESCALATED], "secret-123"
         )
-        conv_id = self._create_conversation()
+        conv_id = self._create_review_case()
         self.orchestrator.handle_customer_message(
             "demo", conv_id, "我要投诉并升级复审，请转人工复核", "admin", "idem-webhook-esc"
         )
@@ -426,14 +426,14 @@ class WebhookOrchestratorTests(unittest.TestCase):
         self.webhooks.register_endpoint(
             "demo", "https://example.com/hook", [EVENT_CONVERSATION_RESOLVED], "secret-123"
         )
-        conv_id = self._create_conversation()
+        conv_id = self._create_review_case()
         self.orchestrator.resolve("demo", conv_id, "admin")
         deliveries = self.webhooks.list_deliveries("demo")
         self.assertEqual(len(deliveries), 1)
         self.assertEqual(deliveries[0]["event_type"], EVENT_CONVERSATION_RESOLVED)
 
-    def test_conversation_without_endpoint_emits_nothing(self) -> None:
-        conv_id = self._create_conversation()
+    def test_review_case_without_endpoint_emits_nothing(self) -> None:
+        conv_id = self._create_review_case()
         self.orchestrator.resolve("demo", conv_id, "admin")
         self.assertEqual(self.webhooks.list_deliveries("demo"), [])
 
@@ -480,7 +480,7 @@ class WebhookApiTests(unittest.TestCase):
                 "actor_id": "other.admin",
                 "role": "admin",
             },
-            OPERATOR_KEY: {
+            REVIEWER_KEY: {
                 "tenant_id": "demo",
                 "actor_id": "operator.user",
                 "role": "operator",
@@ -498,7 +498,7 @@ class WebhookApiTests(unittest.TestCase):
         self.services.webhooks._resolve_host = _public_resolve
         self.headers = {"X-API-Key": ADMIN_KEY, "X-Tenant-Id": "demo"}
         self.other_headers = {"X-API-Key": OTHER_ADMIN_KEY, "X-Tenant-Id": "other-tenant"}
-        self.operator_headers = {"X-API-Key": OPERATOR_KEY, "X-Tenant-Id": "demo"}
+        self.reviewer_headers = {"X-API-Key": REVIEWER_KEY, "X-Tenant-Id": "demo"}
 
     def tearDown(self) -> None:
         self.client.close()
@@ -551,7 +551,7 @@ class WebhookApiTests(unittest.TestCase):
         response = self.client.delete("/api/webhooks/no-such-endpoint", headers=self.headers)
         self.assertEqual(response.status_code, 404, response.text)
 
-    def test_operator_forbidden(self) -> None:
+    def test_reviewer_forbidden(self) -> None:
         response = self.client.post(
             "/api/webhooks",
             json={
@@ -559,11 +559,11 @@ class WebhookApiTests(unittest.TestCase):
                 "events": ["conversation.created"],
                 "secret": "secret-123",
             },
-            headers=self.operator_headers,
+            headers=self.reviewer_headers,
         )
         self.assertEqual(response.status_code, 403, response.text)
         self.assertEqual(
-            self.client.get("/api/webhooks", headers=self.operator_headers).status_code, 403
+            self.client.get("/api/webhooks", headers=self.reviewer_headers).status_code, 403
         )
 
     def test_cross_tenant_isolation(self) -> None:
@@ -612,7 +612,7 @@ class WebhookApiTests(unittest.TestCase):
             [],
         )
 
-    def test_create_conversation_emits_created_webhook(self) -> None:
+    def test_create_review_case_emits_created_webhook(self) -> None:
         endpoint = self.client.post(
             "/api/webhooks",
             json={

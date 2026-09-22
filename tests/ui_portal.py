@@ -13,7 +13,7 @@ from playwright.sync_api import Page, expect, sync_playwright
 from app.portal_token import sign_token
 
 BASE_URL = os.getenv("HELIX_BASE_URL", "http://127.0.0.1:8774").rstrip("/")
-WIDGET_SECRET = os.getenv("WIDGET_SECRET", "helix-widget-dev-secret")
+PORTAL_SECRET = os.getenv("PORTAL_SECRET", "helix-widget-dev-secret")
 ARTIFACTS = Path(__file__).resolve().parents[1] / "artifacts"
 
 
@@ -41,9 +41,9 @@ def main() -> None:
     ARTIFACTS.mkdir(parents=True, exist_ok=True)
     run_id = uuid4().hex[:8]
     token = sign_token(
-        secret=WIDGET_SECRET,
+        secret=PORTAL_SECRET,
         tenant_id="demo",
-        customer_ref=f"WIDGET-{run_id}",
+        submitter_ref=f"WIDGET-{run_id}",
         ttl_seconds=1800,
     )
     query = (
@@ -104,7 +104,7 @@ def main() -> None:
             page.get_by_role("button", name="开始提交").click()
         assert session_info.value.status == 201, session_info.value.text()
         session_data = session_info.value.json()
-        widget_conversation_id = session_data["conversation"]["id"]
+        widget_review_case_id = session_data["conversation"]["id"]
         expect(page.locator("#chatView")).to_be_visible()
         expect(page.locator("#prechatView")).to_be_hidden()
         expect(page.locator("#fatalState")).to_be_hidden()
@@ -214,7 +214,7 @@ def main() -> None:
         # The operator resolves the widget conversation in the console (a
         # second page, same demo session); the widget's next history load
         # then surfaces the resolved banner and the customer's rating link.
-        conversation_id = widget_conversation_id
+        review_case_id = widget_review_case_id
         api_headers = {"X-API-Key": "helix-demo-key", "X-Tenant-Id": "demo"}
         import urllib.request
 
@@ -231,8 +231,8 @@ def main() -> None:
         # Handoff/claim so the lifecycle reaches human_active first (the
         # console's 判定 button is available from open too, but claim makes
         # the flow deterministic), then resolve — creating the CSAT survey.
-        api_post(f"/api/review-cases/{conversation_id}/accept", {})
-        api_post(f"/api/review-cases/{conversation_id}/resolve", {})
+        api_post(f"/api/review-cases/{review_case_id}/accept", {})
+        api_post(f"/api/review-cases/{review_case_id}/resolve", {})
 
         # The widget page polls history on reload: the resolved banner and
         # the rating link appear, pointing at the one-time survey.

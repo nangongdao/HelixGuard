@@ -30,7 +30,7 @@ class _FakeTransport:
 
 
 _CONFIG = HttpConnectorConfig(
-    base_url="https://orders.example.com",
+    base_url="https://source_lookups.example.com",
     timeout_seconds=5.0,
     signature_secret="shared-secret",
 )
@@ -98,14 +98,16 @@ class HttpOrderConnectorTests(unittest.TestCase):
         expected = _hmac_sign(
             "shared-secret",
             "GET",
-            "/orders/ORD-1",
+            "/source_lookups/ORD-1",
             headers["X-Helix-Timestamp"],
             params={"customer_ref": "CUST-1", "tenant_id": "t1"},
         )
         self.assertEqual(headers["X-Helix-Signature"], expected)
         self.assertNotEqual(
             headers["X-Helix-Signature"],
-            _hmac_sign("shared-secret", "GET", "/orders/ORD-1", headers["X-Helix-Timestamp"]),
+            _hmac_sign(
+                "shared-secret", "GET", "/source_lookups/ORD-1", headers["X-Helix-Timestamp"]
+            ),
         )
 
 
@@ -117,7 +119,7 @@ class HttpCRMConnectorTests(unittest.TestCase):
         self.assertTrue(result.ok)
         self.assertEqual(result.code, "ok")
         assert result.profile is not None
-        self.assertEqual(result.profile.customer_ref, "CUST-1")
+        self.assertEqual(result.profile.submitter_ref, "CUST-1")
         self.assertEqual(result.profile.name, "林嘉")
 
     def test_resolve_not_found(self) -> None:

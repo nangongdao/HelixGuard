@@ -67,7 +67,7 @@ def build_collaboration_router(deps: RouteDeps, router: APIRouter) -> None:
         writer path re-detects automatically. The endpoint is a full upsert —
         it returns the stored row so the frontend can sync its select.
         """
-        existing = database.get_conversation(principal.tenant_id, review_case_id)
+        existing = database.get_review_case(principal.tenant_id, review_case_id)
         if existing is None:
             raise HTTPException(status_code=404, detail="conversation not found")
         database.set_conversation_language(principal.tenant_id, review_case_id, payload.language)
@@ -78,7 +78,7 @@ def build_collaboration_router(deps: RouteDeps, router: APIRouter) -> None:
             "conversation.language_changed",
             {"language": payload.language},
         )
-        updated = database.get_conversation(principal.tenant_id, review_case_id)
+        updated = database.get_review_case(principal.tenant_id, review_case_id)
         if updated is None:
             raise HTTPException(status_code=404, detail="conversation not found")
         return conversation_out(updated)

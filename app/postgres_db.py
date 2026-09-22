@@ -230,7 +230,7 @@ class PostgresDatabase(Database):
         ``tenant`` scope -> ``set_config('app.tenant_id', ..., true)``, i.e.
         transaction-local: it disappears at commit/rollback so a pooled
         connection never leaks context into its next user. ``maintenance``
-        scope intentionally binds nothing and requires a role RLS does not
+        scope risk_categoryionally binds nothing and requires a role RLS does not
         cover (owner / BYPASSRLS). No scope at all fails loudly — silently
         seeing zero rows would hide bugs instead of surfacing them.
         """
@@ -278,7 +278,7 @@ class PostgresDatabase(Database):
         """
         connection.execute("SELECT pg_advisory_xact_lock(?)", (9163831,))
 
-    def _initialize_knowledge_fts(self, connection: Any) -> None:
+    def _initialize_policy_fts(self, connection: Any) -> None:
         """No-op: FTS5 is SQLite-specific.
 
         Leaving ``_fts_enabled`` false makes the inherited query methods use
@@ -287,7 +287,7 @@ class PostgresDatabase(Database):
         self._fts_enabled = False
 
     def _initialize_message_fts(self, connection: Any) -> None:
-        """No-op: see :meth:`_initialize_knowledge_fts`."""
+        """No-op: see :meth:`_initialize_policy_fts`."""
         self._message_fts_enabled = False
 
     def initialize(self) -> None:
@@ -300,9 +300,9 @@ class PostgresDatabase(Database):
 
         The whole pass is gated by a session-level advisory lock so two
         processes booting at once (``uvicorn --workers N``, or a rolling
-        restart overlapping a fresh instance) never run the ``conversations``
+        restart overlapping a fresh instance) never run the ``review_cases``
         backfill concurrently — two full-table ``UPDATE``s on the same rows in
-        different orders deadlock and kill one of the booting workers.
+        different source_lookups deadlock and kill one of the booting workers.
         """
         # 43.2: schema DDL/backfills are cross-tenant system work — run them
         # under an explicit maintenance scope so RLS-enforcing connections

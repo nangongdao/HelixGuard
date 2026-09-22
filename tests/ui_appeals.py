@@ -127,9 +127,9 @@ def main() -> None:
         assert create_response.ok, (
             f"转申诉单失败: {create_response.status} {create_response.text()}"
         )
-        ticket_id = create_response.json()["id"]
+        appeal_id = create_response.json()["id"]
         expect(page.locator("#ticketBadge")).to_be_visible()
-        expect(page.locator("#ticketBadge")).to_contain_text(ticket_id)
+        expect(page.locator("#ticketBadge")).to_contain_text(appeal_id)
 
         # 切到「申诉单」tab → 列表含该申诉单。matcher 收紧为列表 URL(/api/appeals
         # 或 ?status= 查询),避免命中 enrichTicketBadge 安排的 GET /api/appeals/{id}。
@@ -141,26 +141,26 @@ def main() -> None:
         ):
             page.get_by_role("tab", name="申诉单").click()
         expect(page.locator("#ticketPane")).to_be_visible()
-        ticket_row = page.locator(f".ticket-row[data-ticket-id='{ticket_id}']")
+        ticket_row = page.locator(f".ticket-row[data-ticket-id='{appeal_id}']")
         expect(ticket_row).to_contain_text("退款单提交失败申诉单")
         page.screenshot(path=ARTIFACTS / "ui-ticket-list.png", full_page=True)
 
         # 进详情:待处理 →「开始处理」。
         with page.expect_response(
             lambda response: (
-                response.url.endswith(f"/api/appeals/{ticket_id}")
+                response.url.endswith(f"/api/appeals/{appeal_id}")
                 and response.request.method == "GET"
             )
         ):
             ticket_row.click()
         expect(page.locator("#ticketDetailView")).to_be_visible()
         expect(page.locator("#ticketDetailStatus")).to_have_text("待处理")
-        expect(page.locator("#ticketDetailTitle")).to_contain_text(ticket_id)
+        expect(page.locator("#ticketDetailTitle")).to_contain_text(appeal_id)
         expect(page.get_by_role("button", name="开始处理")).to_be_visible()
 
         with page.expect_response(
             lambda response: (
-                response.url.endswith(f"/api/appeals/{ticket_id}/transition")
+                response.url.endswith(f"/api/appeals/{appeal_id}/transition")
                 and response.request.method == "POST"
             )
         ) as transition_info:
@@ -173,7 +173,7 @@ def main() -> None:
         # 关闭 → 已关闭 → 重开。
         with page.expect_response(
             lambda response: (
-                response.url.endswith(f"/api/appeals/{ticket_id}/transition")
+                response.url.endswith(f"/api/appeals/{appeal_id}/transition")
                 and response.request.method == "POST"
             )
         ) as close_info:
@@ -185,7 +185,7 @@ def main() -> None:
 
         with page.expect_response(
             lambda response: (
-                response.url.endswith(f"/api/appeals/{ticket_id}/transition")
+                response.url.endswith(f"/api/appeals/{appeal_id}/transition")
                 and response.request.method == "POST"
             )
         ) as reopen_info:
@@ -204,16 +204,16 @@ def main() -> None:
         expect(page.locator("#ticketPane")).to_be_visible()
         with page.expect_response(
             lambda response: (
-                response.url.endswith(f"/api/appeals/{ticket_id}")
+                response.url.endswith(f"/api/appeals/{appeal_id}")
                 and response.request.method == "GET"
             )
         ):
-            page.locator(f".ticket-row[data-ticket-id='{ticket_id}']").click()
+            page.locator(f".ticket-row[data-ticket-id='{appeal_id}']").click()
         expect(page.locator("#ticketDetailView")).to_be_visible()
         expect(page.get_by_role("button", name="关联当前审核单")).to_be_visible()
         with page.expect_response(
             lambda response: (
-                response.url.endswith(f"/api/appeals/{ticket_id}/link")
+                response.url.endswith(f"/api/appeals/{appeal_id}/link")
                 and response.request.method == "POST"
             )
         ) as link_info:
@@ -254,7 +254,7 @@ def main() -> None:
         json.dumps(
             {
                 "status": "ok",
-                "ticket_id": ticket_id,
+                "ticket_id": appeal_id,
                 "list": str(ARTIFACTS / "ui-ticket-list.png"),
                 "closed": str(ARTIFACTS / "ui-ticket-closed.png"),
                 "detail": str(ARTIFACTS / "ui-ticket-detail.png"),

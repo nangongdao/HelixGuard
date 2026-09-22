@@ -1,14 +1,14 @@
-"""Signed customer tokens for the embeddable Web Chat widget (Phase 23.1).
+"""Signed submitter tokens for the embeddable submission portal (Phase 23.1).
 
-The widget runs on the customer's browser and must not hold an API key.
+The portal runs on the submitter's browser and must not hold an API key.
 Instead, the embedding page obtains a short-lived signed token from the
 tenant's backend (or a trusted issuer) that binds the request to a tenant
-and optionally a customer reference. Every widget endpoint verifies the
+and optionally a submitter reference. Every portal endpoint verifies the
 token with an HMAC-SHA256 signature and a replay window on the timestamp.
 
 Token format: ``base64url(payload).signature`` where payload is
-``{"tenant_id", "customer_ref", "conversation_id", "iat", "exp"}`` and the signature is
-HMAC-SHA256 of ``base64url(payload)`` using the shared secret.
+``{"tenant_id", "submitter_ref", "review_case_id", "iat", "exp"}`` and the
+signature is HMAC-SHA256 of ``base64url(payload)`` using the shared secret.
 """
 
 from __future__ import annotations
@@ -29,8 +29,8 @@ class WidgetTokenError(ValueError):
 @dataclass(frozen=True)
 class WidgetToken:
     tenant_id: str
-    customer_ref: str | None
-    conversation_id: str | None
+    submitter_ref: str | None
+    review_case_id: str | None
     iat: int
     exp: int
 
@@ -48,8 +48,8 @@ def sign_token(
     *,
     secret: str,
     tenant_id: str,
-    customer_ref: str | None = None,
-    conversation_id: str | None = None,
+    submitter_ref: str | None = None,
+    review_case_id: str | None = None,
     ttl_seconds: int = 3600,
     now: int | None = None,
 ) -> str:
@@ -60,10 +60,10 @@ def sign_token(
         "iat": current,
         "exp": current + ttl_seconds,
     }
-    if customer_ref:
-        payload["customer_ref"] = customer_ref
-    if conversation_id:
-        payload["conversation_id"] = conversation_id
+    if submitter_ref:
+        payload["submitter_ref"] = submitter_ref
+    if review_case_id:
+        payload["review_case_id"] = review_case_id
     encoded = _b64encode(json.dumps(payload, separators=(",", ":")).encode("utf-8"))
     signature = hmac.new(
         secret.encode("utf-8"), encoded.encode("ascii"), hashlib.sha256
@@ -78,7 +78,7 @@ def verify_token(
     max_skew_seconds: int = 300,
     now: int | None = None,
 ) -> WidgetToken:
-    """Verify a widget token, returning the bound tenant/customer.
+    """Verify a widget token, returning the bound tenant/submitter.
 
     Raises :class:`WidgetTokenError` on malformed, expired, or forged
     tokens, and rejects tokens whose issue time is in the future beyond
@@ -106,12 +106,12 @@ def verify_token(
         raise WidgetTokenError("Widget token expired")
     if iat > current + max_skew_seconds:
         raise WidgetTokenError("Widget token issued in the future")
-    customer_ref = payload.get("customer_ref")
-    conversation_id = payload.get("conversation_id")
+    submitter_ref = payload.get("submitter_ref")
+    review_case_id = payload.get("review_case_id")
     return WidgetToken(
         tenant_id=tenant_id,
-        customer_ref=str(customer_ref) if customer_ref else None,
-        conversation_id=str(conversation_id) if conversation_id else None,
+        submitter_ref=str(submitter_ref) if submitter_ref else None,
+        review_case_id=str(review_case_id) if review_case_id else None,
         iat=iat,
         exp=exp,
     )

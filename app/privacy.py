@@ -20,8 +20,8 @@ path:
   dropped as a ``deferred_deletion_jobs`` row and returns an ``accepted``
   summary; the turn-worker housekeeping window drains jobs in bounded batches.
   Sync deletion remains only for small scopes.
-- **Tombstone-after-restore** — completed deletions write ``customer_tombstones``
-  keyed by (tenant, customer_reference); ``enforce_tombstones_after_restore``
+- **Tombstone-after-restore** — completed deletions write ``submitter_tombstones``
+  keyed by (tenant, submitter_reference); ``enforce_tombstones_after_restore``
   re-applies every recorded deletion at startup so a restored old backup can
   never resurrect erased customer data.
 
@@ -42,6 +42,7 @@ from typing import Any
 
 from app.audit_gap import audit_high_risk
 from app.database import utc_now
+from app.db._util import to_wire_row
 from app.retention import RetentionService
 
 logger = logging.getLogger(__name__)
@@ -89,19 +90,19 @@ class DeferredDeletionStore:
     def __init__(self, database: Any) -> None:
         self.database = database
 
-    def enqueue(self, tenant_id: str, request_id: str, customer_ref: str) -> None:
+    def enqueue(self, tenant_id: str, request_id: str, submitter_ref: str) -> None:
         with self.database.connect() as conn:
             conn.execute(
                 "INSERT OR IGNORE INTO deferred_deletion_jobs "
-                "(tenant_id, request_id, customer_ref, status, attempt, last_error, created_at) "
+                "(tenant_id, request_id, submitter_ref, status, attempt, last_error, created_at) "
                 "VALUES (?, ?, ?, 'approved', 0, '', ?)",
-                (tenant_id, request_id, customer_ref, utc_now()),
+                (tenant_id, request_id, submitter_ref, utc_now()),
             )
 
     def list_open(self, tenant_id: str | None = None) -> list[dict[str, Any]]:
         with self.database.connect() as conn:
             query = (
-                "SELECT tenant_id, request_id, customer_ref, status, attempt, last_error "
+                "SELECT tenant_id, request_id, submitter_ref, status, attempt, last_error "
                 "FROM deferred_deletion_jobs WHERE status IN ('approved', 'retryable')"
             )
             params: tuple[str, ...] = ()
@@ -109,7 +110,7 @@ class DeferredDeletionStore:
                 query += " AND tenant_id = ?"
                 params = (tenant_id,)
             query += " ORDER BY created_at ASC"
-            return [dict(row) for row in conn.execute(query, params).fetchall()]
+            return [to_wire_row(row) for row in conn.execute(query, params).fetchall()]
 
     def _update(self, conn: Any, job: dict[str, Any]) -> None:
         conn.execute(
@@ -160,7 +161,7 @@ class DataProtectionService:
     def create_data_subject_request(
         self,
         tenant_id: str,
-        customer_ref: str,
+        submitter_ref: str,
         request_type: str,
         requested_by: str,
         idempotency_key: str | None = None,
@@ -169,7 +170,7 @@ class DataProtectionService:
         due = self._sla_due()
         secret = secrets.token_hex(16)
         created = self.retention.create_data_subject_request(
-            tenant_id, customer_ref, request_type, requested_by, idempotency_key
+            tenant_id, submitter_ref, request_type, requested_by, idempotency_key
         )
         with self.database.connect() as conn:
             conn.execute(
@@ -327,7 +328,7 @@ class DataProtectionService:
         """Approval board rows: requests awaiting approval or execution."""
         with self.database.connect() as conn:
             rows = conn.execute(
-                "SELECT id, customer_ref, request_type, status, requested_by, "
+                "SELECT id, submitter_ref, request_type, status, requested_by, "
                 "approver, approved_at, executor, executed_at, sla_due_at, sla_breached, "
                 "last_errored_at, error_detail, created_at, completed_at "
                 "FROM data_subject_requests WHERE tenant_id = ? "
@@ -338,18 +339,18 @@ class DataProtectionService:
         redacted: list[dict[str, Any]] = []
         for row in rows:
             item = dict(row)
-            item["customer_ref"] = self._redact_ref(item["customer_ref"])
+            item["customer_ref"] = self._redact_ref(item.pop("submitter_ref"))
             redacted.append(item)
         return redacted
 
-    def _redact_ref(self, customer_ref: str) -> str:
+    def _redact_ref(self, submitter_ref: str) -> str:
         """Board rows expose only a stable one-way fingerprint of the reference."""
-        return hashlib.sha256(customer_ref.encode("utf-8")).hexdigest()[:16]
+        return hashlib.sha256(submitter_ref.encode("utf-8")).hexdigest()[:16]
 
     def _get_dsr(self, tenant_id: str, request_id: str) -> dict[str, Any]:
         with self.database.connect() as conn:
             row = conn.execute(
-                "SELECT id, tenant_id, customer_ref, request_type, status, "
+                "SELECT id, tenant_id, submitter_ref, request_type, status, "
                 "requested_by, approver, approved_at, executor, executed_at, "
                 "execution_summary_json, export_object_id, created_at, completed_at, "
                 "sla_due_at, sla_breached, execution_secret "
@@ -358,7 +359,7 @@ class DataProtectionService:
             ).fetchone()
         if row is None:
             raise LookupError("Data subject request not found")
-        item = dict(row)
+        item = to_wire_row(row)
         item.pop("execution_secret", None)
         return item
 
@@ -380,7 +381,7 @@ class DataProtectionService:
         return self._audit_high_risk(
             self.database,
             tenant_id=tenant_id,
-            conversation_id=None,
+            review_case_id=None,
             actor=actor,
             event_type=event_type,
             payload=payload,
@@ -398,7 +399,7 @@ class DataProtectionService:
     def record_deletion_proof(
         self,
         tenant_id: str,
-        customer_ref: str,
+        submitter_ref: str,
         request_id: str,
         deleted_by: str,
         secret: str,
@@ -407,15 +408,15 @@ class DataProtectionService:
         now = utc_now()
         with self.database.connect() as conn:
             conn.execute(
-                "INSERT INTO customer_tombstones "
-                "(tenant_id, customer_ref, request_id, deleted_at, deleted_by, secret_hash) "
+                "INSERT INTO submitter_tombstones "
+                "(tenant_id, submitter_ref, request_id, deleted_at, deleted_by, secret_hash) "
                 "VALUES (?, ?, ?, ?, ?, ?) "
-                "ON CONFLICT (tenant_id, customer_ref) DO UPDATE SET "
+                "ON CONFLICT (tenant_id, submitter_ref) DO UPDATE SET "
                 "request_id = excluded.request_id, deleted_at = excluded.deleted_at, "
                 "deleted_by = excluded.deleted_by, secret_hash = excluded.secret_hash",
                 (
                     tenant_id,
-                    customer_ref,
+                    submitter_ref,
                     request_id,
                     now,
                     deleted_by,
@@ -424,14 +425,14 @@ class DataProtectionService:
             )
 
     def deletion_proof(
-        self, tenant_id: str, customer_ref: str, secret: str
+        self, tenant_id: str, submitter_ref: str, secret: str
     ) -> dict[str, Any] | None:
         """Return the proof row when ``secret`` matches; otherwise ``None``."""
         with self.database.connect() as conn:
             row = conn.execute(
                 "SELECT request_id, deleted_at, deleted_by, secret_hash "
-                "FROM customer_tombstones WHERE tenant_id = ? AND customer_ref = ?",
-                (tenant_id, customer_ref),
+                "FROM submitter_tombstones WHERE tenant_id = ? AND submitter_ref = ?",
+                (tenant_id, submitter_ref),
             ).fetchone()
         if row is None:
             return None
@@ -440,7 +441,7 @@ class DataProtectionService:
             return None
         attestation = {
             "tenant_id": tenant_id,
-            "customer_ref": customer_ref,
+            "customer_ref": submitter_ref,
             "request_id": proof["request_id"],
             "deleted_at": proof["deleted_at"],
             "deleted_by": proof["deleted_by"],
@@ -450,30 +451,30 @@ class DataProtectionService:
     def list_tombstones(self, tenant_id: str) -> list[dict[str, Any]]:
         with self.database.connect() as conn:
             rows = conn.execute(
-                "SELECT request_id, customer_ref, deleted_at, deleted_by "
-                "FROM customer_tombstones WHERE tenant_id = ? ORDER BY deleted_at DESC",
+                "SELECT request_id, submitter_ref, deleted_at, deleted_by "
+                "FROM submitter_tombstones WHERE tenant_id = ? ORDER BY deleted_at DESC",
                 (tenant_id,),
             ).fetchall()
-        return [dict(row) for row in rows]
+        return [to_wire_row(row) for row in rows]
 
     def enforce_tombstones_after_restore(self) -> dict[str, int]:
         """Re-apply every recorded deletion; returns per-request status counts."""
         with self.database.connect() as conn:
             rows = conn.execute(
-                "SELECT tenant_id, customer_ref, request_id FROM customer_tombstones "
+                "SELECT tenant_id, submitter_ref, request_id FROM submitter_tombstones "
                 "ORDER BY deleted_at ASC"
             ).fetchall()
         if not rows:
             return {}
         results: dict[str, int] = {}
         for row in rows:
-            tenant_id, customer_ref, request_id = (
+            tenant_id, submitter_ref, request_id = (
                 row["tenant_id"],
-                row["customer_ref"],
+                row["submitter_ref"],
                 row["request_id"],
             )
             try:
-                counts = self.retention.execute_data_subject_deletion(tenant_id, customer_ref)
+                counts = self.retention.execute_data_subject_deletion(tenant_id, submitter_ref)
             except Exception:
                 logger.exception(
                     "restore.tombstone_failed tenant=%s request_id=%s", tenant_id, request_id
@@ -482,9 +483,9 @@ class DataProtectionService:
                 continue
             results["deleted"] = results.get("deleted", 0) + 1
             logger.info(
-                "restore.tombstone_applied tenant=%s customer_ref=%s counts=%s",
+                "restore.tombstone_applied tenant=%s submitter_ref=%s counts=%s",
                 tenant_id,
-                customer_ref,
+                submitter_ref,
                 counts,
             )
         return results
@@ -493,21 +494,21 @@ class DataProtectionService:
     # Deferred large-deletion drain (housekeeping)
     # ------------------------------------------------------------------
 
-    def estimate_deletion_size(self, tenant_id: str, customer_ref: str) -> int:
+    def estimate_deletion_size(self, tenant_id: str, submitter_ref: str) -> int:
         """Bound the deletion scope with two cheap counts (no per-child joins)."""
         with self.database.connect() as conn:
             row = conn.execute(
-                "SELECT COUNT(*) AS n FROM conversations WHERE tenant_id = ? AND customer_ref = ?",
-                (tenant_id, customer_ref),
+                "SELECT COUNT(*) AS n FROM review_cases WHERE tenant_id = ? AND submitter_ref = ?",
+                (tenant_id, submitter_ref),
             ).fetchone()
             count = int(row["n"]) if row else 0
             if count >= DEFERRED_DELETION_THRESHOLD:
                 return count
             msgs = conn.execute(
                 "SELECT COUNT(*) AS n FROM messages WHERE tenant_id = ? "
-                "AND conversation_id IN (SELECT id FROM conversations "
-                "WHERE tenant_id = ? AND customer_ref = ?)",
-                (tenant_id, tenant_id, customer_ref),
+                "AND review_case_id IN (SELECT id FROM review_cases "
+                "WHERE tenant_id = ? AND submitter_ref = ?)",
+                (tenant_id, tenant_id, submitter_ref),
             ).fetchone()
             return max(count, int(msgs["n"]) if msgs else 0)
 

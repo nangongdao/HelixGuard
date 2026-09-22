@@ -65,7 +65,7 @@ class BackpressureTests(unittest.TestCase):
 
     def test_queue_depth_threshold_returns_429(self) -> None:
         db = self.services.database
-        conv = db.create_conversation("demo", "C", None, "web", "admin", 120)
+        conv = db.create_review_case("demo", "C", None, "web", "admin", 120)
         # Cap=1: two queued jobs exceed the per-tenant concurrent cap.
         db.enqueue_turn_job("demo", conv["id"], "k-1", "admin", "hello", 3)
         db.enqueue_turn_job("demo", conv["id"], "k-2", "admin", "hello2", 3)
@@ -106,7 +106,7 @@ class GracefulShutdownTests(unittest.TestCase):
 
     def test_worker_stop_keeps_queued_jobs_durable(self) -> None:
         db = self.services.database
-        conv = db.create_conversation("demo", "C", None, "web", "admin", 120)
+        conv = db.create_review_case("demo", "C", None, "web", "admin", 120)
         job, replayed = db.enqueue_turn_job("demo", conv["id"], "k-stop-1", "admin", "hi", 3)
         self.assertFalse(replayed)
         worker = self.services.turn_worker
@@ -139,7 +139,7 @@ class GracefulShutdownTests(unittest.TestCase):
 
     def test_turn_job_sse_emits_shutdown_event_when_stopping(self) -> None:
         db = self.services.database
-        conv = db.create_conversation("demo", "C", None, "web", "admin", 120)
+        conv = db.create_review_case("demo", "C", None, "web", "admin", 120)
         job, _ = db.enqueue_turn_job("demo", conv["id"], "k-shut-1", "admin", "hi", 3)
         worker = self.services.turn_worker
         worker.stop()

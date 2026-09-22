@@ -3,15 +3,15 @@
 Seeds a conversation/message dataset and measures P50/P95 latency of the three
 hot pagination shapes the §18.2d audit cares about:
 
-- queue first page and deep offset pages (`list_conversations`, priority sort);
+- queue first page and deep offset pages (`list_review_cases`, priority sort);
 - queue keyset continuation (`cursor`);
 - message keyset paging forward and backward (`list_messages`).
 
 Scales:
 
-- ``--scale smoke``: 2_000 conversations / 20_000 messages — seconds, default.
-- ``--scale mid``:   20_000 conversations / 200_000 messages — ~1 min SQLite.
-- ``--scale full``:  100_000 conversations / 1_000_000 messages (§18.3 target).
+- ``--scale smoke``: 2_000 review_cases / 20_000 messages — seconds, default.
+- ``--scale mid``:   20_000 review_cases / 200_000 messages — ~1 min SQLite.
+- ``--scale full``:  100_000 review_cases / 1_000_000 messages (§18.3 target).
 
 Runs against a throwaway SQLite file by default; set ``DATABASE_BACKEND=postgresql``
 and ``DATABASE_URL`` to run the same harness against PostgreSQL (see
@@ -61,7 +61,7 @@ SELECTIVE_MESSAGE_CONVERSATION_INDEX = 7
 
 @dataclass(frozen=True)
 class SeedConfig:
-    conversations: int
+    review_cases: int
     messages_per_conversation: int
 
 
@@ -89,7 +89,7 @@ class BenchStats:
 
 
 def seed_dataset(database: Database, config: SeedConfig) -> str:
-    """Create ``config.conversations`` conversations with N messages each.
+    """Create ``config.review_cases`` review_cases with N messages each.
 
     Uses bulk executemany inserts; SQLite still fires the write triggers on
     direct inserts, but one ``executemany`` replaces thousands of per-statement
@@ -105,7 +105,7 @@ def seed_dataset(database: Database, config: SeedConfig) -> str:
     message_rows: list[tuple[Any, ...]] = []
     seq_counter = 0
 
-    for conv_index in range(config.conversations):
+    for conv_index in range(config.review_cases):
         conv_id = f"conv_{conv_index:06d}"
         conversation_rows.append(
             (
@@ -199,7 +199,7 @@ def validate_message_search_probe(database: Database, tenant_id: str) -> int:
     """Prove the selective benchmark term exercises message search only.
 
     A previous probe used a zero-padded conversation index that was absent from
-    message content but present in ``conversations.id``.  The resulting green
+    message content but present in ``review_cases.id``.  The resulting green
     timing never touched the message-search path.  Fail before measuring if a
     future seed change recreates that ambiguity.  Returns the message hit count
     for the benchmark log.
@@ -207,9 +207,9 @@ def validate_message_search_probe(database: Database, tenant_id: str) -> int:
     needle = f"%{SELECTIVE_MESSAGE_SEARCH_TERM}%"
     with database.connect() as connection:
         conversation_row = connection.execute(
-            """SELECT COUNT(*) AS total FROM conversations
+            """SELECT COUNT(*) AS total FROM review_cases
             WHERE tenant_id = ? AND (
-                customer_name LIKE ? OR id LIKE ? OR customer_ref LIKE ?
+                submitter_name LIKE ? OR id LIKE ? OR submitter_ref LIKE ?
             )""",
             (tenant_id, needle, needle, needle),
         ).fetchone()
@@ -246,9 +246,9 @@ def _populate_message_fts(database: Database) -> None:
         connection.execute("DELETE FROM message_fts")
         connection.execute(
             """INSERT INTO message_fts(
-                message_id, tenant_id, conversation_id, content, search_terms
+                message_id, tenant_id, review_case_id, content, search_terms
             )
-            SELECT m.id, m.tenant_id, m.conversation_id, m.content,
+            SELECT m.id, m.tenant_id, m.review_case_id, m.content,
                    helix_search_terms(m.content)
             FROM messages m"""
         )
@@ -262,8 +262,8 @@ def _flush_seed(
     with database.connect() as connection:
         if conversation_rows:
             connection.executemany(
-                """INSERT INTO conversations
-                (id, tenant_id, customer_name, customer_ref, channel, status, intent,
+                """INSERT INTO review_cases
+                (id, tenant_id, submitter_name, submitter_ref, channel, status, risk_category,
                  priority, sla_due_at, preview, labels_json, claimed_by, claim_expires_at,
                  created_at, updated_at, first_response_at, needs_response, waiting_since)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
@@ -272,7 +272,7 @@ def _flush_seed(
         if message_rows:
             connection.executemany(
                 """INSERT INTO messages
-                (id, tenant_id, conversation_id, turn_id, role, author, content,
+                (id, tenant_id, review_case_id, turn_id, role, author, content,
                  metadata_json, created_at, seq, channel_message_id, reply_to)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 message_rows,
@@ -297,7 +297,7 @@ def run_benchmarks(
     results.append(
         measure(
             "queue.offset.page0",
-            lambda: database.list_conversations(
+            lambda: database.list_review_cases(
                 tenant_id, sort="priority", limit=page_size, offset=0
             ),
         )
@@ -305,7 +305,7 @@ def run_benchmarks(
     results.append(
         measure(
             "queue.offset.depth",
-            lambda: database.list_conversations(
+            lambda: database.list_review_cases(
                 tenant_id, sort="priority", limit=page_size, offset=pages * page_size
             ),
         )
@@ -316,7 +316,7 @@ def run_benchmarks(
     def queue_keyset_walk() -> None:
         cursor: tuple[str, int | None, str | None, str, str] | None = None
         for _ in range(pages):
-            rows = database.list_conversations(
+            rows = database.list_review_cases(
                 tenant_id, sort="priority", limit=page_size, cursor=cursor
             )
             if not rows:
@@ -369,7 +369,7 @@ def run_benchmarks(
     results.append(
         measure(
             "queue.search.fts.worst",
-            lambda: database.list_conversations(
+            lambda: database.list_review_cases(
                 tenant_id, search=DENSE_MESSAGE_SEARCH_TERM, sort="updated", limit=page_size
             ),
         )
@@ -377,7 +377,7 @@ def run_benchmarks(
     results.append(
         measure(
             "queue.search.fts.selective",
-            lambda: database.list_conversations(
+            lambda: database.list_review_cases(
                 tenant_id,
                 search=SELECTIVE_MESSAGE_SEARCH_TERM,
                 sort="updated",
@@ -418,8 +418,8 @@ def main() -> int:
         "full": SeedConfig(100_000, 10),
     }[args.scale]
     print(
-        f"seeding {scale.conversations:,} conversations / "
-        f"{scale.conversations * scale.messages_per_conversation:,} messages "
+        f"seeding {scale.review_cases:,} review_cases / "
+        f"{scale.review_cases * scale.messages_per_conversation:,} messages "
         f"({args.scale}) ..."
     )
 

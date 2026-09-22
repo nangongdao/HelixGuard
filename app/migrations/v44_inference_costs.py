@@ -1,7 +1,7 @@
 """ROADMAP 2.3.x: AI inference cost attribution (expand phase).
 
 Adds per-inference cost records and daily tenant/provider/model aggregates so
-the operator can attribute spend to tenants, agents/prompts, and conversations:
+the operator can attribute spend to tenants, agents/prompts, and review_cases:
 
 - ``inference_costs`` — one row per model inference with vendor-reported token
   usage and the computed USD cost (``cost_usd`` is NULL when no pricing is
@@ -31,7 +31,7 @@ def migrate(connection: sqlite3.Connection) -> None:
         CREATE TABLE IF NOT EXISTS inference_costs (
             id TEXT PRIMARY KEY,
             tenant_id TEXT NOT NULL REFERENCES tenants(id),
-            conversation_id TEXT,
+            review_case_id TEXT,
             turn_id TEXT,
             message_id TEXT,
             agent TEXT,
@@ -52,7 +52,7 @@ def migrate(connection: sqlite3.Connection) -> None:
     )
     connection.execute(
         "CREATE INDEX IF NOT EXISTS idx_inference_costs_conversation "
-        "ON inference_costs(conversation_id, created_at)"
+        "ON inference_costs(review_case_id, created_at)"
     )
     connection.execute(
         """

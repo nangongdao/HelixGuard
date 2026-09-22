@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from app.database import Database, utc_now
+from app.db._util import to_wire_row
 from app.dsr import DsrExportStore
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -30,7 +31,7 @@ DEFAULT_RETENTION_DAYS: dict[str, int] = {
     "audit_events": 2555,  # ~7 years for compliance
     "feedback": 365,
     "turn_jobs": 30,
-    "conversations": 730,
+    "review_cases": 730,
 }
 
 # Fields considered PII – redacted in exports unless explicitly authorized.
@@ -123,7 +124,7 @@ class RetentionService:
         audit_high_risk(
             self.database,
             tenant_id=tenant_id,
-            conversation_id=None,
+            review_case_id=None,
             actor=actor,
             event_type="retention.policy_updated",
             payload={"data_type": data_type, "retention_days": retention_days},
@@ -195,10 +196,10 @@ class RetentionService:
                     (tenant_id, cutoff),
                 )
                 deleted = result.rowcount
-            elif data_type == "conversations":
+            elif data_type == "review_cases":
                 result = conn.execute(
-                    "DELETE FROM conversations WHERE tenant_id = ? AND status = 'resolved' "
-                    "AND resolved_at IS NOT NULL AND resolved_at < ?",
+                    "DELETE FROM review_cases WHERE tenant_id = ? AND status = 'resolved' "
+                    "AND decided_at IS NOT NULL AND decided_at < ?",
                     (tenant_id, cutoff),
                 )
                 deleted = result.rowcount
@@ -216,7 +217,7 @@ class RetentionService:
         """Persist one verifiable audit batch, then remove its hot rows."""
         with self.database.connect() as connection:
             rows = connection.execute(
-                """SELECT id, tenant_id, conversation_id, request_id, actor,
+                """SELECT id, tenant_id, review_case_id, request_id, actor,
                           event_type, payload_json, created_at, seq, prev_hash,
                           event_hash
                    FROM audit_events
@@ -228,7 +229,7 @@ class RetentionService:
             if not rows:
                 return 0
 
-            events = [dict(row) for row in rows]
+            events = [to_wire_row(row) for row in rows]
             created_at = utc_now()
             archive_id = f"audarc_{uuid4().hex}"
 
@@ -397,19 +398,19 @@ class RetentionService:
     def create_data_subject_request(
         self,
         tenant_id: str,
-        customer_ref: str,
+        submitter_ref: str,
         request_type: str,
         requested_by: str,
         idempotency_key: str | None = None,
     ) -> dict[str, Any]:
         if request_type not in {"deletion", "export"}:
             raise ValueError("request_type must be 'deletion' or 'export'")
-        if not customer_ref.strip():
-            raise ValueError("customer_ref cannot be blank")
+        if not submitter_ref.strip():
+            raise ValueError("submitter_ref cannot be blank")
         if idempotency_key:
             with self.database.connect() as conn:
                 row = conn.execute(
-                    "SELECT id, tenant_id, customer_ref, request_type, status, "
+                    "SELECT id, tenant_id, submitter_ref, request_type, status, "
                     "requested_by, created_at, completed_at "
                     "FROM data_subject_requests "
                     "WHERE tenant_id = ? AND idempotency_key = ?",
@@ -421,13 +422,13 @@ class RetentionService:
         with self.database.connect() as conn:
             conn.execute(
                 "INSERT INTO data_subject_requests "
-                "(id, tenant_id, customer_ref, request_type, status, requested_by, "
+                "(id, tenant_id, submitter_ref, request_type, status, requested_by, "
                 "idempotency_key, created_at) "
                 "VALUES (?, ?, ?, ?, 'pending', ?, ?, ?)",
                 (
                     request_id,
                     tenant_id,
-                    customer_ref,
+                    submitter_ref,
                     request_type,
                     requested_by,
                     idempotency_key,
@@ -441,7 +442,7 @@ class RetentionService:
         audit_high_risk(
             self.database,
             tenant_id=tenant_id,
-            conversation_id=None,
+            review_case_id=None,
             actor=requested_by,
             event_type="data_subject_request.created",
             payload={"request_id": request_id, "request_type": request_type},
@@ -450,7 +451,7 @@ class RetentionService:
         return {
             "id": request_id,
             "tenant_id": tenant_id,
-            "customer_ref": customer_ref,
+            "customer_ref": submitter_ref,
             "request_type": request_type,
             "status": "pending",
         }
@@ -478,7 +479,7 @@ class RetentionService:
         audit_high_risk(
             self.database,
             tenant_id=tenant_id,
-            conversation_id=None,
+            review_case_id=None,
             actor=approver,
             event_type="data_subject_request.approved",
             payload={"request_id": request_id, "request_type": row["request_type"]},
@@ -550,7 +551,7 @@ class RetentionService:
                 "byte_count": stored["byte_count"],
             }
             summary["exported"] = {
-                "conversations": len(raw.get("conversations", [])),
+                "review_cases": len(raw.get("review_cases", [])),
                 "messages": len(raw.get("messages", [])),
                 "feedback": len(raw.get("feedback", [])),
             }
@@ -575,7 +576,7 @@ class RetentionService:
         audit_high_risk(
             self.database,
             tenant_id=tenant_id,
-            conversation_id=None,
+            review_case_id=None,
             actor=executor,
             event_type="data_subject_request.executed",
             payload={"request_id": request_id, "request_type": request_type, "summary": summary},
@@ -593,7 +594,7 @@ class RetentionService:
     def _get_dsr(self, tenant_id: str, request_id: str) -> dict[str, Any]:
         with self.database.connect() as conn:
             row = conn.execute(
-                "SELECT id, tenant_id, customer_ref, request_type, status, "
+                "SELECT id, tenant_id, submitter_ref, request_type, status, "
                 "requested_by, approver, approved_at, executor, executed_at, "
                 "execution_summary_json, export_object_id, created_at, completed_at "
                 "FROM data_subject_requests WHERE id = ? AND tenant_id = ?",
@@ -601,19 +602,19 @@ class RetentionService:
             ).fetchone()
         if row is None:
             raise LookupError("Data subject request not found")
-        return dict(row)
+        return to_wire_row(row)
 
     def list_data_subject_requests(self, tenant_id: str) -> list[dict[str, Any]]:
         with self.database.connect() as conn:
             rows = conn.execute(
-                "SELECT id, tenant_id, customer_ref, request_type, status, "
+                "SELECT id, tenant_id, submitter_ref, request_type, status, "
                 "requested_by, approver, approved_at, executor, executed_at, "
                 "created_at, completed_at "
                 "FROM data_subject_requests WHERE tenant_id = ? "
                 "ORDER BY created_at DESC",
                 (tenant_id,),
             ).fetchall()
-        return [dict(row) for row in rows]
+        return [to_wire_row(row) for row in rows]
 
     def download_data_subject_export(
         self,
@@ -644,34 +645,34 @@ class RetentionService:
 
         return self.dsr_exports.prune_expired(now_epoch=int(_time.time()))
 
-    def execute_data_subject_deletion(self, tenant_id: str, customer_ref: str) -> dict[str, int]:
+    def execute_data_subject_deletion(self, tenant_id: str, submitter_ref: str) -> dict[str, int]:
         """Delete customer data while preserving independently retained audit evidence."""
         counts: dict[str, int] = {}
         with self.database.connect() as conn:
-            hot_conversation_ids = [
+            hot_review_case_ids = [
                 row[0]
                 for row in conn.execute(
-                    "SELECT id FROM conversations WHERE tenant_id = ? AND customer_ref = ?",
-                    (tenant_id, customer_ref),
+                    "SELECT id FROM review_cases WHERE tenant_id = ? AND submitter_ref = ?",
+                    (tenant_id, submitter_ref),
                 ).fetchall()
             ]
-            archived_conversation_ids = [
+            archived_review_case_ids = [
                 row[0]
                 for row in conn.execute(
-                    "SELECT id FROM conversations_archive WHERE tenant_id = ? AND customer_ref = ?",
-                    (tenant_id, customer_ref),
+                    "SELECT id FROM review_cases_archive WHERE tenant_id = ? AND submitter_ref = ?",
+                    (tenant_id, submitter_ref),
                 ).fetchall()
             ]
-            conversation_ids = list(dict.fromkeys(hot_conversation_ids + archived_conversation_ids))
-            if not conversation_ids:
+            review_case_ids = list(dict.fromkeys(hot_review_case_ids + archived_review_case_ids))
+            if not review_case_ids:
                 result = conn.execute(
-                    "DELETE FROM orders WHERE tenant_id = ? AND customer_ref = ?",
-                    (tenant_id, customer_ref),
+                    "DELETE FROM source_lookups WHERE tenant_id = ? AND submitter_ref = ?",
+                    (tenant_id, submitter_ref),
                 )
-                counts["orders"] = result.rowcount
+                counts["source_lookups"] = result.rowcount
                 return counts
-            placeholders = ",".join("?" * len(conversation_ids))
-            params = [tenant_id] + conversation_ids
+            placeholders = ",".join("?" * len(review_case_ids))
+            params = [tenant_id] + review_case_ids
 
             # 42.4 SEC-006: unlink attachment blobs before their rows vanish,
             # so the object store never outlives the database. The removal
@@ -681,7 +682,7 @@ class RetentionService:
                     str(row[0])
                     for row in conn.execute(
                         f"""SELECT storage_key FROM attachments
-                        WHERE tenant_id = ? AND conversation_id IN ({placeholders})
+                        WHERE tenant_id = ? AND review_case_id IN ({placeholders})
                           AND storage_key IS NOT NULL""",
                         params,
                     ).fetchall()
@@ -696,24 +697,24 @@ class RetentionService:
                 counts["attachment_objects"] = removed
 
             # Children first: anything keyed by a conversation id must go
-            # before the conversations themselves (FK-safe in SQLite and PG).
+            # before the review_cases themselves (FK-safe in SQLite and PG).
             for table, count_key in (
                 ("feedback", "feedback"),
                 ("messages", "messages"),
                 ("turn_jobs", "turn_jobs"),
                 ("turn_job_chunks", "turn_job_chunks"),
                 ("turn_requests", "turn_requests"),
-                ("conversation_labels", "conversation_labels"),
-                ("conversation_summaries", "conversation_summaries"),
-                ("conversation_pending_tasks", "pending_tasks"),
-                ("conversation_mentions", "conversation_mentions"),
-                ("csat_surveys", "csat_surveys"),
+                ("review_case_labels", "review_case_labels"),
+                ("review_case_summaries", "review_case_summaries"),
+                ("review_case_pending_tasks", "pending_tasks"),
+                ("review_case_mentions", "review_case_mentions"),
+                ("qa_spot_checks", "qa_spot_checks"),
                 ("attachments", "attachments"),
-                ("ticket_conversations", "ticket_conversations"),
+                ("appeal_review_cases", "appeal_review_cases"),
             ):
                 result = conn.execute(
                     f"DELETE FROM {table} WHERE tenant_id = ? "
-                    f"AND conversation_id IN ({placeholders})",
+                    f"AND review_case_id IN ({placeholders})",
                     params,
                 )
                 counts[count_key] = result.rowcount
@@ -726,95 +727,95 @@ class RetentionService:
             counts["audit_archives"] = 0
 
             result = conn.execute(
-                "DELETE FROM conversations WHERE tenant_id = ? AND customer_ref = ?",
-                (tenant_id, customer_ref),
+                "DELETE FROM review_cases WHERE tenant_id = ? AND submitter_ref = ?",
+                (tenant_id, submitter_ref),
             )
-            counts["conversations"] = result.rowcount
+            counts["review_cases"] = result.rowcount
 
             for table, count_key in (
                 ("feedback_archive", "feedback_archive"),
                 ("messages_archive", "messages_archive"),
-                ("conversation_labels_archive", "conversation_labels_archive"),
+                ("review_case_labels_archive", "review_case_labels_archive"),
             ):
                 result = conn.execute(
                     f"DELETE FROM {table} WHERE tenant_id = ? "
-                    f"AND conversation_id IN ({placeholders})",
+                    f"AND review_case_id IN ({placeholders})",
                     params,
                 )
                 counts[count_key] = result.rowcount
             result = conn.execute(
-                "DELETE FROM conversations_archive WHERE tenant_id = ? AND customer_ref = ?",
-                (tenant_id, customer_ref),
+                "DELETE FROM review_cases_archive WHERE tenant_id = ? AND submitter_ref = ?",
+                (tenant_id, submitter_ref),
             )
-            counts["conversations_archive"] = result.rowcount
+            counts["review_cases_archive"] = result.rowcount
 
             result = conn.execute(
-                "DELETE FROM orders WHERE tenant_id = ? AND customer_ref = ?",
-                (tenant_id, customer_ref),
+                "DELETE FROM source_lookups WHERE tenant_id = ? AND submitter_ref = ?",
+                (tenant_id, submitter_ref),
             )
-            counts["orders"] = result.rowcount
+            counts["source_lookups"] = result.rowcount
 
         logger.info(
-            "Data subject deletion for tenant=%s customer_ref=%s: %s",
+            "Data subject deletion for tenant=%s submitter_ref=%s: %s",
             tenant_id,
-            customer_ref,
+            submitter_ref,
             counts,
         )
         return counts
 
-    def execute_data_subject_export(self, tenant_id: str, customer_ref: str) -> dict[str, Any]:
+    def execute_data_subject_export(self, tenant_id: str, submitter_ref: str) -> dict[str, Any]:
         """Export all data associated with a customer reference (right to portability)."""
-        export: dict[str, Any] = {"customer_ref": customer_ref, "tenant_id": tenant_id}
+        export: dict[str, Any] = {"customer_ref": submitter_ref, "tenant_id": tenant_id}
         with self.database.connect() as conn:
-            hot_conversations = conn.execute(
-                "SELECT * FROM conversations WHERE tenant_id = ? AND customer_ref = ?",
-                (tenant_id, customer_ref),
+            hot_review_cases = conn.execute(
+                "SELECT * FROM review_cases WHERE tenant_id = ? AND submitter_ref = ?",
+                (tenant_id, submitter_ref),
             ).fetchall()
-            archived_conversations = conn.execute(
-                "SELECT * FROM conversations_archive WHERE tenant_id = ? AND customer_ref = ?",
-                (tenant_id, customer_ref),
+            archived_review_cases = conn.execute(
+                "SELECT * FROM review_cases_archive WHERE tenant_id = ? AND submitter_ref = ?",
+                (tenant_id, submitter_ref),
             ).fetchall()
-            orders = conn.execute(
-                "SELECT * FROM orders WHERE tenant_id = ? AND customer_ref = ?",
-                (tenant_id, customer_ref),
+            source_lookups = conn.execute(
+                "SELECT * FROM source_lookups WHERE tenant_id = ? AND submitter_ref = ?",
+                (tenant_id, submitter_ref),
             ).fetchall()
-            export["orders"] = [dict(row) for row in orders]
-            export["conversations"] = [
-                *[dict(row) for row in hot_conversations],
-                *[dict(row) for row in archived_conversations],
+            export["source_lookups"] = [to_wire_row(row) for row in source_lookups]
+            export["review_cases"] = [
+                *[to_wire_row(row) for row in hot_review_cases],
+                *[to_wire_row(row) for row in archived_review_cases],
             ]
-            conv_ids = [row["id"] for row in hot_conversations] + [
-                row["id"] for row in archived_conversations
+            conv_ids = [row["id"] for row in hot_review_cases] + [
+                row["id"] for row in archived_review_cases
             ]
             if conv_ids:
                 placeholders = ",".join("?" * len(conv_ids))
                 messages = conn.execute(
                     f"SELECT * FROM messages WHERE tenant_id = ? "
-                    f"AND conversation_id IN ({placeholders}) ORDER BY created_at",
+                    f"AND review_case_id IN ({placeholders}) ORDER BY created_at",
                     [tenant_id] + conv_ids,
                 ).fetchall()
                 archived_messages = conn.execute(
                     f"SELECT * FROM messages_archive WHERE tenant_id = ? "
-                    f"AND conversation_id IN ({placeholders}) ORDER BY created_at",
+                    f"AND review_case_id IN ({placeholders}) ORDER BY created_at",
                     [tenant_id] + conv_ids,
                 ).fetchall()
                 export["messages"] = [
-                    *[dict(row) for row in messages],
-                    *[dict(row) for row in archived_messages],
+                    *[to_wire_row(row) for row in messages],
+                    *[to_wire_row(row) for row in archived_messages],
                 ]
                 feedback = conn.execute(
                     f"SELECT * FROM feedback WHERE tenant_id = ? "
-                    f"AND conversation_id IN ({placeholders})",
+                    f"AND review_case_id IN ({placeholders})",
                     [tenant_id] + conv_ids,
                 ).fetchall()
                 archived_feedback = conn.execute(
                     f"SELECT * FROM feedback_archive WHERE tenant_id = ? "
-                    f"AND conversation_id IN ({placeholders})",
+                    f"AND review_case_id IN ({placeholders})",
                     [tenant_id] + conv_ids,
                 ).fetchall()
                 export["feedback"] = [
-                    *[dict(row) for row in feedback],
-                    *[dict(row) for row in archived_feedback],
+                    *[to_wire_row(row) for row in feedback],
+                    *[to_wire_row(row) for row in archived_feedback],
                 ]
             else:
                 export["messages"] = []

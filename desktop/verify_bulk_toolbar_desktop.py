@@ -30,9 +30,15 @@ def wait_for_cdp(deadline_s: float = 90.0) -> list[dict]:
     deadline = time.time() + deadline_s
     while time.time() < deadline:
         try:
-            with urllib.request.urlopen(f"http://127.0.0.1:{DEBUG_PORT}/json/list", timeout=2) as res:
+            with urllib.request.urlopen(
+                f"http://127.0.0.1:{DEBUG_PORT}/json/list", timeout=2
+            ) as res:
                 targets = json.loads(res.read().decode("utf-8"))
-            pages = [t for t in targets if t.get("type") == "page" and "127.0.0.1" in (t.get("url") or "")]
+            pages = [
+                t
+                for t in targets
+                if t.get("type") == "page" and "127.0.0.1" in (t.get("url") or "")
+            ]
             if pages:
                 return targets
         except Exception:
@@ -69,7 +75,9 @@ def main() -> int:
                 return 1
 
             page.wait_for_selector("#operatorIdentity", state="attached", timeout=30000)
-            page.wait_for_selector("#queueReactIsland .conversation-item", state="attached", timeout=30000)
+            page.wait_for_selector(
+                "#queueReactIsland .conversation-item", state="attached", timeout=30000
+            )
             checks: dict[str, object] = {}
             checks["island_mode"] = page.evaluate("() => window.__HELIX_ISLAND_MODE__ === true")
             checks["legacy_bulk_toolbar_hidden"] = page.evaluate(
@@ -80,7 +88,7 @@ def main() -> int:
                 "() => !document.querySelector('#queueReactIsland .bulk-toolbar')"
             )
 
-            # Seed conversations so at least two island rows exist.
+            # Seed review_cases so at least two island rows exist.
             uuid4().hex[:6]
             seeded = page.evaluate(
                 """async (count) => {
@@ -89,7 +97,7 @@ def main() -> int:
                         const res = await fetch('/api/review-cases', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json', 'X-Tenant-Id': 'demo' },
-                            body: JSON.stringify({ customer_name: `批量验证 ${i} (${Math.random().toString(36).slice(2, 8)})` }),
+                            body: JSON.stringify({ submitter_name: `批量验证 ${i} (${Math.random().toString(36).slice(2, 8)})` }),
                         });
                         if (res.ok) ok += 1;
                     }
@@ -114,10 +122,13 @@ def main() -> int:
             )
 
             # Apply a priority action through the bridge — a real POST.
-            page.locator("#queueReactIsland .bulk-action-field select").select_option("priority-high")
+            page.locator("#queueReactIsland .bulk-action-field select").select_option(
+                "priority-high"
+            )
             with page.expect_response(
-                lambda r: r.url.endswith("/api/review-cases/bulk-actions")
-                and r.request.method == "POST"
+                lambda r: (
+                    r.url.endswith("/api/review-cases/bulk-actions") and r.request.method == "POST"
+                )
             ) as bulk_info:
                 page.locator("#queueReactIsland .bulk-icon-button.is-primary").click()
             checks["bulk_post_status"] = bulk_info.value.status

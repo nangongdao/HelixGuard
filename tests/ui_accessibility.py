@@ -24,7 +24,7 @@ from app.portal_token import sign_token
 
 ROOT = Path(__file__).resolve().parents[1]
 BASE_URL = os.getenv("HELIX_BASE_URL", "http://127.0.0.1:8765").rstrip("/")
-WIDGET_SECRET = os.getenv("WIDGET_SECRET", "helix-widget-dev-secret")
+PORTAL_SECRET = os.getenv("PORTAL_SECRET", "helix-widget-dev-secret")
 AXE_PATH = ROOT / "node_modules" / "axe-core" / "axe.min.js"
 
 
@@ -66,8 +66,8 @@ def wait_for_desktop_shell(page: Page) -> None:
     page.wait_for_function("() => typeof window.HelixModules?.toggleTheme === 'function'")
 
 
-def seed_shell_conversations(page: Page) -> None:
-    """Push synthetic conversations through the island event bridge.
+def seed_shell_review_cases(page: Page) -> None:
+    """Push synthetic review_cases through the island event bridge.
 
     The shell scan would otherwise axe an empty-state queue, which says
     nothing about the row markup desktop users actually read. Seeding keeps
@@ -80,9 +80,9 @@ def seed_shell_conversations(page: Page) -> None:
         """() => {
           const now = new Date().toISOString();
           const statuses = ['open', 'waiting_human', 'human_active', 'resolved'];
-          const conversations = statuses.map((status, index) => ({
+          const review_cases = statuses.map((status, index) => ({
             id: `a11y_${index}`,
-            customer_name: `验收提交方 ${index}`,
+            submitter_name: `验收提交方 ${index}`,
             status,
             channel: 'web',
             preview: '无障碍验收合成审核单。',
@@ -91,10 +91,10 @@ def seed_shell_conversations(page: Page) -> None:
             version: 1,
             sla_due_at: null,
           }));
-          window.dispatchEvent(new CustomEvent('helix-conversations-updated', {
+          window.dispatchEvent(new CustomEvent('helix-review_cases-updated', {
             detail: {
-              conversations,
-              selectedId: conversations[0].id,
+              review_cases,
+              selectedId: review_cases[0].id,
               bulkSelected: [],
               canOperate: true,
               compact: false,
@@ -142,7 +142,7 @@ def assert_island_labels_bind_inside_their_island(page: Page) -> None:
 
 def assert_desktop_shell_accessibility(page: Page) -> None:
     wait_for_desktop_shell(page)
-    seed_shell_conversations(page)
+    seed_shell_review_cases(page)
     assert_island_labels_bind_inside_their_island(page)
     for theme in ("dark", "light"):
         page.evaluate(f"() => window.HelixModules.applyTheme({theme!r})")
@@ -323,9 +323,9 @@ def assert_reduced_motion(page: Page, label: str) -> None:
 
 def widget_url() -> str:
     token = sign_token(
-        secret=WIDGET_SECRET,
+        secret=PORTAL_SECRET,
         tenant_id="demo",
-        customer_ref=f"A11Y-{uuid4().hex[:8]}",
+        submitter_ref=f"A11Y-{uuid4().hex[:8]}",
         ttl_seconds=1800,
     )
     return f"{BASE_URL}/widget?brand=Northstar+Care&accent=teal&locale=zh#token={token}"

@@ -12,11 +12,12 @@ from uuid import uuid4
 from app.db._util import (
     ASCII_TERM_PATTERN,
     knowledge_search_terms,
+    to_wire_row,
     utc_now,
 )
 
 
-class DatabaseKnowledgeMixin:
+class DatabasePolicyMixin:
     @staticmethod
     def _public_knowledge_item(row: sqlite3.Row | dict[str, Any]) -> dict[str, Any]:
         """Return a knowledge row without backend-only ordering metadata."""
@@ -27,7 +28,7 @@ class DatabaseKnowledgeMixin:
         item.pop("seq", None)
         return item
 
-    def search_knowledge(
+    def search_policy_articles(
         self,
         tenant_id: str,
         query: str,
@@ -58,14 +59,14 @@ class DatabaseKnowledgeMixin:
                 with self.connect() as connection:
                     rows = connection.execute(
                         """SELECT k.*,
-                            bm25(knowledge_fts, 0.0, 0.0, 5.0, 1.0, 8.0, 3.0, 4.0)
+                            bm25(policy_fts, 0.0, 0.0, 5.0, 1.0, 8.0, 3.0, 4.0)
                                 AS fts_rank
-                        FROM knowledge_fts
-                        JOIN knowledge_articles k
-                          ON k.id = knowledge_fts.article_id
-                         AND k.tenant_id = knowledge_fts.tenant_id
-                        WHERE knowledge_fts MATCH ?
-                          AND knowledge_fts.tenant_id = ?
+                        FROM policy_fts
+                        JOIN policy_articles k
+                          ON k.id = policy_fts.article_id
+                         AND k.tenant_id = policy_fts.tenant_id
+                        WHERE policy_fts MATCH ?
+                          AND policy_fts.tenant_id = ?
                           AND k.tenant_id = ?
                           AND k.active = 1
                           AND (k.status = 'published' OR k.status IS NULL)
@@ -95,7 +96,7 @@ class DatabaseKnowledgeMixin:
     ) -> list[dict[str, Any]]:
         result: list[dict[str, Any]] = []
         for row in rows:
-            item = DatabaseKnowledgeMixin._public_knowledge_item(row)
+            item = DatabasePolicyMixin._public_knowledge_item(row)
             article_terms = set(
                 knowledge_search_terms(
                     f"{item['tags']} {item['title']} {item['category']} {item['content']}"
@@ -123,7 +124,7 @@ class DatabaseKnowledgeMixin:
                 # Full active list — this cache is shared with ``list_knowledge``
                 # and must not be truncated by the search candidate cap.
                 rows = connection.execute(
-                    """SELECT * FROM knowledge_articles
+                    """SELECT * FROM policy_articles
                     WHERE tenant_id = ? AND active = 1
                       AND (status = 'published' OR status IS NULL)
                     ORDER BY updated_at DESC, rowid DESC""",
@@ -160,14 +161,14 @@ class DatabaseKnowledgeMixin:
         scored.sort(key=lambda pair: (pair[0], pair[1], pair[2]["updated_at"]), reverse=True)
         return [item for _, _, item in scored[:limit]]
 
-    def list_knowledge(
+    def list_policy_articles(
         self, tenant_id: str, include_inactive: bool = False
     ) -> list[dict[str, Any]]:
         if not include_inactive:
             cached = self._knowledge_cache.get(tenant_id)
             if cached is not None:
                 return [dict(item) for item in cached]
-        query = "SELECT * FROM knowledge_articles WHERE tenant_id = ?"
+        query = "SELECT * FROM policy_articles WHERE tenant_id = ?"
         values: list[Any] = [tenant_id]
         if not include_inactive:
             query += " AND active = 1 AND (status = 'published' OR status IS NULL)"
@@ -179,7 +180,7 @@ class DatabaseKnowledgeMixin:
             self._knowledge_cache.set(tenant_id, result)
         return [dict(item) for item in result]
 
-    def create_knowledge(
+    def create_policy_article(
         self,
         tenant_id: str,
         title: str,
@@ -192,7 +193,7 @@ class DatabaseKnowledgeMixin:
         article_id = f"kb_{uuid4().hex[:12]}"
         with self.connect() as connection:
             connection.execute(
-                """INSERT INTO knowledge_articles
+                """INSERT INTO policy_articles
                 (id, tenant_id, title, content, tags, category, source_url, language,
                  active, version, updated_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 1, ?)""",
@@ -209,13 +210,13 @@ class DatabaseKnowledgeMixin:
                 ),
             )
             row = connection.execute(
-                "SELECT * FROM knowledge_articles WHERE id = ? AND tenant_id = ?",
+                "SELECT * FROM policy_articles WHERE id = ? AND tenant_id = ?",
                 (article_id, tenant_id),
             ).fetchone()
         self._invalidate_knowledge(tenant_id)
         return self._public_knowledge_item(row)
 
-    def update_knowledge(
+    def update_policy_article(
         self,
         tenant_id: str,
         article_id: str,
@@ -241,7 +242,7 @@ class DatabaseKnowledgeMixin:
             assignments = ", ".join(f"{key} = ?" for key in changes)
             with self.connect() as connection:
                 connection.execute(
-                    f"""UPDATE knowledge_articles
+                    f"""UPDATE policy_articles
                     SET {assignments}, version = version + 1
                     WHERE tenant_id = ? AND id = ?""",
                     [*changes.values(), tenant_id, article_id],
@@ -249,7 +250,7 @@ class DatabaseKnowledgeMixin:
             self._invalidate_knowledge(tenant_id)
         with self.connect() as connection:
             row = connection.execute(
-                "SELECT * FROM knowledge_articles WHERE tenant_id = ? AND id = ?",
+                "SELECT * FROM policy_articles WHERE tenant_id = ? AND id = ?",
                 (tenant_id, article_id),
             ).fetchone()
         return self._public_knowledge_item(row) if row else None
@@ -275,7 +276,7 @@ class DatabaseKnowledgeMixin:
         now = utc_now()
         with self.connect() as connection:
             connection.execute(
-                """INSERT INTO knowledge_articles
+                """INSERT INTO policy_articles
                 (id, tenant_id, title, content, tags, category, source_url, language,
                  active, version, updated_at, status, reviewed_by, reviewed_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 1, ?, 'draft', NULL, NULL)""",
@@ -292,7 +293,7 @@ class DatabaseKnowledgeMixin:
                 ),
             )
             row = connection.execute(
-                "SELECT * FROM knowledge_articles WHERE id = ? AND tenant_id = ?",
+                "SELECT * FROM policy_articles WHERE id = ? AND tenant_id = ?",
                 (article_id, tenant_id),
             ).fetchone()
         self._invalidate_knowledge(tenant_id)
@@ -320,7 +321,7 @@ class DatabaseKnowledgeMixin:
         now = utc_now()
         with self.connect() as connection:
             current = connection.execute(
-                "SELECT status FROM knowledge_articles WHERE id = ? AND tenant_id = ?",
+                "SELECT status FROM policy_articles WHERE id = ? AND tenant_id = ?",
                 (article_id, tenant_id),
             ).fetchone()
             if current is None:
@@ -335,14 +336,14 @@ class DatabaseKnowledgeMixin:
             new_status = "published" if action == "publish" else "retired"
             new_active = 1 if action == "publish" else 0
             connection.execute(
-                """UPDATE knowledge_articles
+                """UPDATE policy_articles
                 SET status = ?, active = ?, reviewed_by = ?, reviewed_at = ?,
                     updated_at = ?, version = version + 1
                 WHERE id = ? AND tenant_id = ?""",
                 (new_status, new_active, actor_id, now, now, article_id, tenant_id),
             )
             row = connection.execute(
-                "SELECT * FROM knowledge_articles WHERE id = ? AND tenant_id = ?",
+                "SELECT * FROM policy_articles WHERE id = ? AND tenant_id = ?",
                 (article_id, tenant_id),
             ).fetchone()
         self._invalidate_knowledge(tenant_id)
@@ -354,28 +355,28 @@ class DatabaseKnowledgeMixin:
         *,
         limit: int = 20,
     ) -> list[dict[str, Any]]:
-        """Return conversations with negative feedback and no citations.
+        """Return review_cases with negative feedback and no citations.
 
         Used by the supervisor quality panel (Phase 21.2) to surface where
         the knowledge base is failing customers.  Each row carries the
-        conversation id, customer name, intent, and the rated assistant
+        conversation id, customer name, risk_category, and the rated assistant
         message id so a draft can be generated from it.
         """
         limit = max(1, min(int(limit), 100))
         with self.connect() as connection:
             rows = connection.execute(
                 """SELECT DISTINCT
-                       c.id AS conversation_id,
-                       c.customer_name,
-                       c.intent,
+                       c.id AS review_case_id,
+                       c.submitter_name,
+                       c.risk_category,
                        f.message_id,
                        m.content AS assistant_content,
                        m.metadata_json
                    FROM feedback f
                    JOIN messages m
                      ON m.id = f.message_id AND m.tenant_id = f.tenant_id
-                   JOIN conversations c
-                     ON c.id = f.conversation_id AND c.tenant_id = f.tenant_id
+                   JOIN review_cases c
+                     ON c.id = f.review_case_id AND c.tenant_id = f.tenant_id
                    WHERE f.tenant_id = ?
                      AND f.rating = -1
                      AND (
@@ -392,7 +393,7 @@ class DatabaseKnowledgeMixin:
             ).fetchall()
         result: list[dict[str, Any]] = []
         for row in rows:
-            item = dict(row)
+            item = to_wire_row(row)
             try:
                 metadata = json.loads(item.pop("metadata_json") or "{}")
             except (TypeError, ValueError):
@@ -402,30 +403,30 @@ class DatabaseKnowledgeMixin:
         return result
 
     def get_order_for_customer(
-        self, tenant_id: str, customer_ref: str, order_id: str
+        self, tenant_id: str, submitter_ref: str, source_record_id: str
     ) -> dict[str, Any] | None:
         with self.connect() as connection:
             row = connection.execute(
-                """SELECT * FROM orders
+                """SELECT * FROM source_lookups
                 WHERE tenant_id = ?
-                  AND customer_ref = ? COLLATE NOCASE
+                  AND submitter_ref = ? COLLATE NOCASE
                   AND id = ? COLLATE NOCASE""",
-                (tenant_id, customer_ref, order_id),
+                (tenant_id, submitter_ref, source_record_id),
             ).fetchone()
-        return dict(row) if row else None
+        return to_wire_row(row) if row else None
 
-    def get_customer_profile(self, tenant_id: str, customer_ref: str) -> dict[str, Any] | None:
-        """Resolve a customer reference to a profile, if they have any orders."""
+    def get_customer_profile(self, tenant_id: str, submitter_ref: str) -> dict[str, Any] | None:
+        """Resolve a customer reference to a profile, if they have any source_lookups."""
         with self.connect() as connection:
             row = connection.execute(
-                """SELECT customer_ref, customer_name FROM orders
-                WHERE tenant_id = ? AND customer_ref = ? COLLATE NOCASE
+                """SELECT submitter_ref, submitter_name FROM source_lookups
+                WHERE tenant_id = ? AND submitter_ref = ? COLLATE NOCASE
                 LIMIT 1""",
-                (tenant_id, customer_ref),
+                (tenant_id, submitter_ref),
             ).fetchone()
-        return dict(row) if row else None
+        return to_wire_row(row) if row else None
 
-    def list_canned_responses(
+    def list_canned_verdicts(
         self,
         tenant_id: str,
         *,
@@ -445,21 +446,21 @@ class DatabaseKnowledgeMixin:
         values.append(max(1, min(limit, 200)))
         with self.connect() as connection:
             rows = connection.execute(
-                f"""SELECT * FROM canned_responses WHERE {where}
+                f"""SELECT * FROM canned_verdicts WHERE {where}
                 ORDER BY usage_count DESC, updated_at DESC, id DESC LIMIT ?""",
                 values,
             ).fetchall()
         return [self._canned_response_row(row) for row in rows]
 
-    def get_canned_response(self, tenant_id: str, response_id: str) -> dict[str, Any] | None:
+    def get_canned_verdict(self, tenant_id: str, response_id: str) -> dict[str, Any] | None:
         with self.connect() as connection:
             row = connection.execute(
-                "SELECT * FROM canned_responses WHERE tenant_id = ? AND id = ?",
+                "SELECT * FROM canned_verdicts WHERE tenant_id = ? AND id = ?",
                 (tenant_id, response_id),
             ).fetchone()
         return self._canned_response_row(row) if row else None
 
-    def create_canned_response(
+    def create_canned_verdict(
         self,
         tenant_id: str,
         *,
@@ -477,7 +478,7 @@ class DatabaseKnowledgeMixin:
         tags_json = json.dumps(list(tags), ensure_ascii=False)
         with self.connect() as connection:
             connection.execute(
-                """INSERT INTO canned_responses
+                """INSERT INTO canned_verdicts
                 (id, tenant_id, title, body, shortcut, tags_json, active, usage_count,
                  created_by, updated_by, created_at, updated_at)
                 VALUES (?, ?, ?, ?, ?, ?, 1, 0, ?, ?, ?, ?)""",
@@ -494,9 +495,9 @@ class DatabaseKnowledgeMixin:
                     now,
                 ),
             )
-        return self.get_canned_response(tenant_id, response_id) or {}
+        return self.get_canned_verdict(tenant_id, response_id) or {}
 
-    def update_canned_response(
+    def update_canned_verdict(
         self,
         tenant_id: str,
         response_id: str,
@@ -504,7 +505,7 @@ class DatabaseKnowledgeMixin:
         actor_id: str,
     ) -> dict[str, Any] | None:
         if not changes:
-            return self.get_canned_response(tenant_id, response_id)
+            return self.get_canned_verdict(tenant_id, response_id)
         assignments: list[str] = []
         values: list[Any] = []
         if "title" in changes and changes["title"] is not None:
@@ -525,32 +526,32 @@ class DatabaseKnowledgeMixin:
             assignments.append("active = ?")
             values.append(int(bool(changes["active"])))
         if not assignments:
-            return self.get_canned_response(tenant_id, response_id)
+            return self.get_canned_verdict(tenant_id, response_id)
         assignments.extend(["updated_by = ?", "updated_at = ?"])
         values.extend([actor_id, utc_now(), tenant_id, response_id])
         with self.connect() as connection:
             cursor = connection.execute(
-                f"""UPDATE canned_responses SET {", ".join(assignments)}
+                f"""UPDATE canned_verdicts SET {", ".join(assignments)}
                 WHERE tenant_id = ? AND id = ?""",
                 values,
             )
             if cursor.rowcount != 1:
                 return None
-        return self.get_canned_response(tenant_id, response_id)
+        return self.get_canned_verdict(tenant_id, response_id)
 
     def record_canned_response_usage(
         self, tenant_id: str, response_id: str
     ) -> dict[str, Any] | None:
         with self.connect() as connection:
             cursor = connection.execute(
-                """UPDATE canned_responses
+                """UPDATE canned_verdicts
                 SET usage_count = usage_count + 1, updated_at = updated_at
                 WHERE tenant_id = ? AND id = ? AND active = 1""",
                 (tenant_id, response_id),
             )
             if cursor.rowcount != 1:
                 return None
-        return self.get_canned_response(tenant_id, response_id)
+        return self.get_canned_verdict(tenant_id, response_id)
 
     @staticmethod
     def _canned_response_row(row: sqlite3.Row | dict[str, Any] | None) -> dict[str, Any]:

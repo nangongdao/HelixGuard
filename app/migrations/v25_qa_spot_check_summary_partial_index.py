@@ -20,8 +20,8 @@ def migration_25(connection: sqlite3.Connection) -> None:
     """
     connection.executescript(
         """
-        CREATE INDEX IF NOT EXISTS idx_csat_summary_tenant_responded
-            ON csat_surveys(tenant_id, substr(responded_at, 1, 10))
+        CREATE INDEX IF NOT EXISTS idx_qa_spot_check_summary_tenant_responded
+            ON qa_spot_checks(tenant_id, substr(responded_at, 1, 10))
             WHERE rating IS NOT NULL;
         """
     )

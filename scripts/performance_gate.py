@@ -133,7 +133,7 @@ BROWSER_BUDGETS = {
     # long tasks (§43.6 residual: "INP 直接归因列为后续增强"). The probe
     # clicks a real queue row and records the event handler's processing
     # duration from PerformanceObserver('event'); the worst single
-    # interaction of the load is asserted. P95-style tails are intentionally
+    # interaction of the load is asserted. P95-style tails are risk_categoryionally
     # out of scope for a synthetic probe — a single late click on a settled
     # page already indicates a main-thread regression.
     "inp_ms": 300,  # web: worst single row-click processing duration
@@ -189,8 +189,8 @@ async (customerName) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        customer_name: customerName,
-        customer_ref: 'PERF-SEED',
+        submitter_name: customerName,
+        submitter_ref: 'PERF-SEED',
         channel: 'web',
       }),
     });
@@ -202,12 +202,12 @@ async (customerName) => {
 """
 
 
-def _ensure_queue_row(page: Any, customer_name: str) -> None:
+def _ensure_queue_row(page: Any, submitter_name: str) -> None:
     """Guarantee a clickable queue row: seed via the API, then wait for a
     poll cycle to surface it. Both measured tracks render the same row
     classes (legacy queueRowHtml and the island's QueueRow), so one selector
     covers web and desktop shell."""
-    page.evaluate(f"() => Promise.resolve(({_SEED_SCRIPT})({customer_name!r}))")
+    page.evaluate(f"() => Promise.resolve(({_SEED_SCRIPT})({submitter_name!r}))")
     # The seeded conversation is visible only after a poll cycle (SSE push or
     # ~15 s fallback); asking for an explicit refresh makes it deterministic
     # and fast instead of racing the next cycle.
@@ -554,7 +554,7 @@ def check_browser_budgets(base_url: str) -> tuple[dict[str, float | None], list[
         metrics["long_task_count_30s"] = long_tasks
 
         # --- 10k-row queue render -------------------------------------
-        # Inject synthetic conversations straight into the legacy state and
+        # Inject synthetic review_cases straight into the legacy state and
         # time one full windowed render (the virtualized path above
         # VIRTUAL_THRESHOLD=200 rows).
         render_ms = page.evaluate(
@@ -562,9 +562,9 @@ def check_browser_budgets(base_url: str) -> tuple[dict[str, float | None], list[
             () => {
               const total = 10000;
               const now = new Date().toISOString();
-              state.conversations = Array.from({ length: total }, (_, i) => ({
+              state.review_cases = Array.from({ length: total }, (_, i) => ({
                 id: `perf_${i}`,
-                customer_name: `压测提交方 ${i}`,
+                submitter_name: `压测提交方 ${i}`,
                 status: i % 4 === 0 ? 'waiting_human' : 'open',
                 channel: ['web', 'email', 'chat'][i % 3],
                 preview: '预算门合成审核单，仅用于渲染测量。',
@@ -578,7 +578,7 @@ def check_browser_budgets(base_url: str) -> tuple[dict[str, float | None], list[
               renderQueue();
               const elapsed = performance.now() - start;
               // Restore real data on the next poll; keep the DOM honest.
-              state.conversations = [];
+              state.review_cases = [];
               // Re-render the emptied state: without it the synthetic rows
               // stay in the DOM and the subsequent INP probe would click a
               // fake `perf_*` id and 404 on the detail fetch.
@@ -614,7 +614,7 @@ def check_browser_budgets(base_url: str) -> tuple[dict[str, float | None], list[
             )
             shell_page.goto(base_url, wait_until="domcontentloaded")
             shell_page.evaluate("() => window.dispatchEvent(new Event('helix-backend-ready'))")
-            # The island may render the empty state (no conversations) —
+            # The island may render the empty state (no review_cases) —
             # any React content proves the mount, so wait on :not(:empty).
             shell_page.wait_for_selector("#queueReactIsland:not(:empty)", timeout=30000)
             shell_page.wait_for_timeout(1500)
@@ -642,9 +642,9 @@ def check_browser_budgets(base_url: str) -> tuple[dict[str, float | None], list[
                 () => new Promise((resolve) => {
                   const total = 10000;
                   const now = new Date().toISOString();
-                  const conversations = Array.from({ length: total }, (_, i) => ({
+                  const review_cases = Array.from({ length: total }, (_, i) => ({
                     id: `perf_island_${i}`,
-                    customer_name: `压测提交方 ${i}`,
+                    submitter_name: `压测提交方 ${i}`,
                     status: i % 4 === 0 ? 'waiting_human' : 'open',
                     channel: ['web', 'email', 'chat'][i % 3],
                     preview: '预算门合成审核单，仅用于渲染测量。',
@@ -654,9 +654,9 @@ def check_browser_budgets(base_url: str) -> tuple[dict[str, float | None], list[
                     sla_due_at: null,
                   }));
                   const started = performance.now();
-                  window.dispatchEvent(new CustomEvent('helix-conversations-updated', {
+                  window.dispatchEvent(new CustomEvent('helix-review_cases-updated', {
                     detail: {
-                      conversations,
+                      review_cases,
                       selectedId: null,
                       bulkSelected: [],
                       canOperate: true,

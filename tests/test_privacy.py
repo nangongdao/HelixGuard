@@ -42,7 +42,7 @@ from app.redaction import (
 ADMIN_A_KEY = "p41-admin-a-00001"
 ADMIN_B_KEY = "p41-admin-b-00002"
 ADMIN_C_KEY = "p41-admin-c-00003"
-OPERATOR_KEY = "p41-op-key-0000001"
+REVIEWER_KEY = "p41-op-key-0000001"
 AUDITOR_KEY = "p41-auditor-key-001"
 VIEWER_KEY = "p41-viewer-key-001"
 
@@ -50,7 +50,7 @@ _DEMO_PRINCIPALS = {
     ADMIN_A_KEY: {"tenant_id": "demo", "actor_id": "admin.a", "role": "admin"},
     ADMIN_B_KEY: {"tenant_id": "demo", "actor_id": "admin.b", "role": "admin"},
     ADMIN_C_KEY: {"tenant_id": "demo", "actor_id": "admin.c", "role": "admin"},
-    OPERATOR_KEY: {"tenant_id": "demo", "actor_id": "op.user", "role": "operator"},
+    REVIEWER_KEY: {"tenant_id": "demo", "actor_id": "op.user", "role": "operator"},
     AUDITOR_KEY: {"tenant_id": "demo", "actor_id": "aud.user", "role": "auditor"},
     VIEWER_KEY: {"tenant_id": "demo", "actor_id": "view.user", "role": "viewer"},
 }
@@ -80,35 +80,35 @@ class PrivacyAppCase(unittest.TestCase):
         self.client = TestClient(create_app(_settings(self.db_path)))
         self.services: Any = cast(Any, self.client.app).state.services
         self.dp: DataProtectionService = cast(Any, self.services).data_protection
-        self.customer_ref = "CUST-41"
-        self._seed_conversation(self.customer_ref)
+        self.submitter_ref = "CUST-41"
+        self._seed_review_case(self.submitter_ref)
 
     def tearDown(self) -> None:
         self.services.database.close()
         self.client.close()
         self._tmp.cleanup()
 
-    def _seed_conversation(self, customer_ref: str) -> str:
+    def _seed_review_case(self, submitter_ref: str) -> str:
         response = self.client.post(
             "/api/review-cases",
-            json={"customer_name": "Customer", "customer_ref": customer_ref},
+            json={"customer_name": "Customer", "customer_ref": submitter_ref},
             headers=_headers(ADMIN_A_KEY),
         )
         self.assertEqual(response.status_code, 201, response.text)
-        conversation_id = response.json()["id"]
+        review_case_id = response.json()["id"]
         sent = self.client.post(
-            f"/api/review-cases/{conversation_id}/messages",
+            f"/api/review-cases/{review_case_id}/messages",
             json={"content": "Hello from the customer"},
             headers=_headers(ADMIN_A_KEY),
         )
         self.assertEqual(sent.status_code, 200, sent.text)
-        return conversation_id
+        return review_case_id
 
-    def _create(self, request_type: str = "deletion", customer_ref: str | None = None) -> str:
+    def _create(self, request_type: str = "deletion", submitter_ref: str | None = None) -> str:
         response = self.client.post(
             "/api/data-subject-requests",
             json={
-                "customer_ref": customer_ref or self.customer_ref,
+                "customer_ref": submitter_ref or self.submitter_ref,
                 "request_type": request_type,
             },
             headers=_headers(ADMIN_A_KEY),
@@ -166,7 +166,7 @@ class RedactionCanaryTests(PrivacyAppCase):
         self.assertEqual(out["ref"], "[REDACTED]")
 
     def test_permissions_deny_privacy_console_to_non_admin(self) -> None:
-        for key in (OPERATOR_KEY, AUDITOR_KEY, VIEWER_KEY):
+        for key in (REVIEWER_KEY, AUDITOR_KEY, VIEWER_KEY):
             with self.subTest(key=key):
                 denied = self.client.get("/api/privacy/board", headers=_headers(key))
                 self.assertEqual(denied.status_code, 403, key)
@@ -238,13 +238,13 @@ class DeletionProofTests(PrivacyAppCase):
         secret = self._execution_secret(request_id)
         proof = self.client.get(
             "/api/privacy/deletion-proof",
-            params={"customer_ref": self.customer_ref, "secret": secret},
+            params={"customer_ref": self.submitter_ref, "secret": secret},
             headers=_headers(ADMIN_A_KEY),
         )
         self.assertEqual(proof.status_code, 200, proof.text)
         body = proof.json()
         self.assertEqual(body["request_id"], request_id)
-        self.assertEqual(body["customer_ref"], self.customer_ref)
+        self.assertEqual(body["customer_ref"], self.submitter_ref)
 
     def test_wrong_secret_yields_no_proof(self) -> None:
         request_id = self._create()
@@ -252,7 +252,7 @@ class DeletionProofTests(PrivacyAppCase):
         denied = self.client.get(
             "/api/privacy/deletion-proof",
             params={
-                "customer_ref": self.customer_ref,
+                "customer_ref": self.submitter_ref,
                 "secret": "forged-secret-value",
             },
             headers=_headers(ADMIN_A_KEY),
@@ -276,25 +276,25 @@ class TombstoneRestoreTests(PrivacyAppCase):
         self._approve_execute(request_id)
         with self.services.database.connect() as conn:
             gone = conn.execute(
-                "SELECT COUNT(*) AS n FROM conversations "
-                "WHERE tenant_id = 'demo' AND customer_ref = ?",
-                (self.customer_ref,),
+                "SELECT COUNT(*) AS n FROM review_cases "
+                "WHERE tenant_id = 'demo' AND submitter_ref = ?",
+                (self.submitter_ref,),
             ).fetchone()
         self.assertEqual(int(gone["n"]), 0)
 
         # Simulate a backup restore: the erased conversation is back on disk.
         with self.services.database.connect() as conn:
             conn.execute(
-                "INSERT INTO conversations "
-                "(id, tenant_id, customer_name, customer_ref, channel, status, "
+                "INSERT INTO review_cases "
+                "(id, tenant_id, submitter_name, submitter_ref, channel, status, "
                 "priority, message_count, created_at, updated_at) VALUES "
                 "('resurrected-1', 'demo', 'Customer', ?, 'web', 'open', "
                 "'normal', 1, '2026-01-01T00:00:00', '2026-01-01T00:00:00')",
-                (self.customer_ref,),
+                (self.submitter_ref,),
             )
             conn.execute(
                 "INSERT INTO messages "
-                "(id, tenant_id, conversation_id, author, content, role, "
+                "(id, tenant_id, review_case_id, author, content, role, "
                 "created_at) VALUES "
                 "('resurrected-msg', 'demo', 'resurrected-1', 'system', 'zombie text', "
                 "'user', '2026-01-01T00:00:00')",
@@ -304,9 +304,9 @@ class TombstoneRestoreTests(PrivacyAppCase):
         self.assertGreaterEqual(results.get("deleted", 0), 1)
         with self.services.database.connect() as conn:
             gone_again = conn.execute(
-                "SELECT COUNT(*) AS n FROM conversations "
-                "WHERE tenant_id = 'demo' AND customer_ref = ?",
-                (self.customer_ref,),
+                "SELECT COUNT(*) AS n FROM review_cases "
+                "WHERE tenant_id = 'demo' AND submitter_ref = ?",
+                (self.submitter_ref,),
             ).fetchone()
         self.assertEqual(int(gone_again["n"]), 0)
 
@@ -330,22 +330,22 @@ class DeferredDeletionTests(PrivacyAppCase):
             now = "2026-08-01T00:00:00"
             for i in range(DEFERRED_DELETION_THRESHOLD + 5):
                 conn.execute(
-                    "INSERT INTO conversations "
-                    "(id, tenant_id, customer_name, customer_ref, channel, status, "
+                    "INSERT INTO review_cases "
+                    "(id, tenant_id, submitter_name, submitter_ref, channel, status, "
                     "priority, message_count, created_at, updated_at) VALUES "
                     "(?, 'demo', 'Bulk', ?, 'web', 'open', 'normal', 0, ?, ?)",
                     (f"bulk-conv-{i:06d}", big_ref, now, now),
                 )
                 conn.execute(
                     "INSERT INTO messages "
-                    "(id, tenant_id, conversation_id, author, content, role, "
+                    "(id, tenant_id, review_case_id, author, content, role, "
                     "created_at) VALUES "
                     "(?, 'demo', ?, 'system', 'bulk payload', 'user', ?)",
                     (f"bulk-msg-{i:06d}", f"bulk-conv-{i:06d}", now),
                 )
         assert self.dp.estimate_deletion_size("demo", big_ref) >= DEFERRED_DELETION_THRESHOLD
 
-        request_id = self._create(customer_ref=big_ref)
+        request_id = self._create(submitter_ref=big_ref)
         approved = self.client.post(
             f"/api/data-subject-requests/{request_id}/approve",
             headers=_headers(ADMIN_B_KEY),
@@ -376,8 +376,8 @@ class DeferredDeletionTests(PrivacyAppCase):
                 (request_id,),
             ).fetchone()
             remaining = conn.execute(
-                "SELECT COUNT(*) AS n FROM conversations "
-                "WHERE tenant_id = 'demo' AND customer_ref = ?",
+                "SELECT COUNT(*) AS n FROM review_cases "
+                "WHERE tenant_id = 'demo' AND submitter_ref = ?",
                 (big_ref,),
             ).fetchone()
         self.assertEqual(str(status["status"]), "completed")
@@ -438,7 +438,7 @@ class RetryFailedRequestTests(PrivacyAppCase):
         self.assertEqual(denied.status_code, 404, denied.text)
 
     def test_privacy_permission_is_admin_only(self) -> None:
-        for key in (OPERATOR_KEY, AUDITOR_KEY, VIEWER_KEY):
+        for key in (REVIEWER_KEY, AUDITOR_KEY, VIEWER_KEY):
             with self.subTest(key=key):
                 denied = self.client.post("/api/privacy/sla/scan", headers=_headers(key))
                 self.assertEqual(denied.status_code, 403, key)

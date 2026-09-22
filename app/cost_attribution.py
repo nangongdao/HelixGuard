@@ -74,12 +74,12 @@ class InferenceContext:
     """Attribution dimensions for one model inference (ROADMAP 2.3.3).
 
     Optional per-inference context recorded alongside the numeric cost so the
-    dashboard can attribute spend to conversations, agents, and prompt
+    dashboard can attribute spend to review_cases, agents, and prompt
     versions. All fields are best-effort: callers that lack a value pass
     ``None`` and the row still records.
     """
 
-    conversation_id: str | None = None
+    review_case_id: str | None = None
     turn_id: str | None = None
     message_id: str | None = None
     agent: str | None = None
@@ -124,7 +124,7 @@ class CostAttributionService:
             connection.execute(
                 """
                 INSERT INTO inference_costs (
-                    id, tenant_id, conversation_id, turn_id, message_id,
+                    id, tenant_id, review_case_id, turn_id, message_id,
                     agent, prompt_version, provider, model, prompt_tokens,
                     completion_tokens, cost_usd, latency_ms, created_at
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -132,7 +132,7 @@ class CostAttributionService:
                 (
                     row_id,
                     tenant_id,
-                    ctx.conversation_id,
+                    ctx.review_case_id,
                     ctx.turn_id,
                     ctx.message_id,
                     ctx.agent,

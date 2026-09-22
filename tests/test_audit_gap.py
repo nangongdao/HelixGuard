@@ -98,7 +98,7 @@ class AuditHighRiskTests(unittest.TestCase):
         event_id = audit_high_risk(
             database,
             tenant_id="demo",
-            conversation_id=None,
+            review_case_id=None,
             actor="admin",
             event_type="credential.rotated",
             payload={"key_id": "k1"},
@@ -127,7 +127,7 @@ class AuditHighRiskTests(unittest.TestCase):
             audit_high_risk(
                 database,
                 tenant_id="demo",
-                conversation_id=None,
+                review_case_id=None,
                 actor="admin",
                 event_type="credential.rotated",
                 payload={"bad": object()},

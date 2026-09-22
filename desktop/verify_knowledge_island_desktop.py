@@ -36,9 +36,15 @@ def wait_for_cdp(deadline_s: float = 60.0) -> list[dict]:
     deadline = time.time() + deadline_s
     while time.time() < deadline:
         try:
-            with urllib.request.urlopen(f"http://127.0.0.1:{DEBUG_PORT}/json/list", timeout=2) as res:
+            with urllib.request.urlopen(
+                f"http://127.0.0.1:{DEBUG_PORT}/json/list", timeout=2
+            ) as res:
                 targets = json.loads(res.read().decode("utf-8"))
-            pages = [t for t in targets if t.get("type") == "page" and "127.0.0.1" in (t.get("url") or "")]
+            pages = [
+                t
+                for t in targets
+                if t.get("type") == "page" and "127.0.0.1" in (t.get("url") or "")
+            ]
             if pages:
                 return targets
         except Exception:
@@ -95,7 +101,9 @@ def main() -> int:
             run_id = uuid4().hex[:6]
             title = f"桌面岛编辑器验证 {run_id}"
             content = f"这是桌面壳 knowledge 岛编辑器的真机写旅程验证，运行标识 {run_id}。"
-            page.wait_for_selector("#knowledgeReactIsland .knowledge-list .knowledge-action", timeout=15000)
+            page.wait_for_selector(
+                "#knowledgeReactIsland .knowledge-list .knowledge-action", timeout=15000
+            )
             # The header button sits outside the island mount; in island mode
             # it opens the island editor via helix-knowledge-new.
             page.locator("#newKnowledgeDraft").click()

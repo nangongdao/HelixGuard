@@ -25,7 +25,7 @@ from app.main import create_app
 from app.security import ROLE_PERMISSIONS, Role
 
 ADMIN_KEY = "p22-admin-key-00001"
-OPERATOR_KEY = "p22-op-key-0000001"
+REVIEWER_KEY = "p22-op-key-0000001"
 AUDITOR_KEY = "p22-auditor-key-001"
 VIEWER_KEY = "p22-viewer-key-001"
 
@@ -33,7 +33,7 @@ VIEWER_KEY = "p22-viewer-key-001"
 def _settings(db_path: Path) -> Settings:
     principals = {
         ADMIN_KEY: {"tenant_id": "demo", "actor_id": "admin.user", "role": "admin"},
-        OPERATOR_KEY: {"tenant_id": "demo", "actor_id": "op.user", "role": "operator"},
+        REVIEWER_KEY: {"tenant_id": "demo", "actor_id": "op.user", "role": "operator"},
         AUDITOR_KEY: {"tenant_id": "demo", "actor_id": "aud.user", "role": "auditor"},
         VIEWER_KEY: {"tenant_id": "demo", "actor_id": "view.user", "role": "viewer"},
     }
@@ -88,14 +88,14 @@ class TenantProvisioningTests(unittest.TestCase):
 
     def test_provision_seeds_knowledge_for_immediate_service(self) -> None:
         self._provision("newco")
-        knowledge = self.services.database.search_knowledge("newco", "分级")
+        knowledge = self.services.database.search_policy_articles("newco", "分级")
         self.assertGreaterEqual(len(knowledge), 1)
         # Articles are keyed per tenant.
         ids = [article["id"] for article in knowledge]
         self.assertTrue(all("newco" in article_id for article_id in ids))
 
-    def test_operator_cannot_provision(self) -> None:
-        op = {"X-API-Key": OPERATOR_KEY, "X-Tenant-Id": "demo"}
+    def test_reviewer_cannot_provision(self) -> None:
+        op = {"X-API-Key": REVIEWER_KEY, "X-Tenant-Id": "demo"}
         response = self.client.post(
             "/api/admin/tenants",
             json={"tenant_id": "nope", "name": "Nope"},
@@ -203,8 +203,8 @@ class MemberLifecycleTests(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 404)
 
-    def test_operator_cannot_manage_members(self) -> None:
-        op = {"X-API-Key": OPERATOR_KEY, "X-Tenant-Id": "demo"}
+    def test_reviewer_cannot_manage_members(self) -> None:
+        op = {"X-API-Key": REVIEWER_KEY, "X-Tenant-Id": "demo"}
         response = self.client.get("/api/admin/tenants/demo/members", headers=op)
         self.assertEqual(response.status_code, 403)
 
@@ -392,7 +392,7 @@ class UsageMeteringTests(unittest.TestCase):
         self.client.close()
         self._tmp.cleanup()
 
-    def test_usage_tracks_conversations_turns_and_messages(self) -> None:
+    def test_usage_tracks_review_cases_turns_and_messages(self) -> None:
         for index in range(2):
             conv = self.client.post(
                 "/api/review-cases", json={"customer_name": f"C{index}"}, headers=self.admin
@@ -411,11 +411,11 @@ class UsageMeteringTests(unittest.TestCase):
 
     def test_usage_export_defaults_to_caller_tenant(self) -> None:
         # Operator lacks tenant:manage so the export is forbidden for them.
-        op = {"X-API-Key": OPERATOR_KEY, "X-Tenant-Id": "demo"}
+        op = {"X-API-Key": REVIEWER_KEY, "X-Tenant-Id": "demo"}
         response = self.client.get("/api/admin/usage", headers=op)
         self.assertEqual(response.status_code, 403)
 
-    def test_conversation_quota_returns_429(self) -> None:
+    def test_review_case_quota_returns_429(self) -> None:
         self.client.put(
             "/api/admin/tenants/demo/quota",
             json={"conversation_quota": 1},
@@ -432,8 +432,8 @@ class UsageMeteringTests(unittest.TestCase):
         body = blocked.json()
         self.assertEqual(body["code"], "rate_limited")
         # Resolving frees a slot.
-        conversation_id = first.json()["id"]
-        self.client.post(f"/api/review-cases/{conversation_id}/resolve", headers=self.admin)
+        review_case_id = first.json()["id"]
+        self.client.post(f"/api/review-cases/{review_case_id}/resolve", headers=self.admin)
         allowed = self.client.post(
             "/api/review-cases", json={"customer_name": "C3"}, headers=self.admin
         )
@@ -451,7 +451,7 @@ class PermissionMatrixTests(unittest.TestCase):
 
     ROLE_KEYS: dict[str, str] = {
         "admin": ADMIN_KEY,
-        "operator": OPERATOR_KEY,
+        "operator": REVIEWER_KEY,
         "auditor": AUDITOR_KEY,
         "viewer": VIEWER_KEY,
     }

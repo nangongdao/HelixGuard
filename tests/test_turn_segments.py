@@ -46,19 +46,19 @@ class TurnSegmentProfilingTests(unittest.TestCase):
         hist = telemetry_metrics.snapshot().get("histograms", {})
         return {key: hist[key]["count"] for key in hist}
 
-    def _make_conversation(self) -> str:
-        conv = self.database.create_conversation("demo", "Customer", None, "web", "admin", 120)
+    def _make_review_case(self) -> str:
+        conv = self.database.create_review_case("demo", "Customer", None, "web", "admin", 120)
         return conv["id"]
 
     def assert_segments_recorded(
         self,
         baseline: dict[str, int],
-        conversation_id: str,
+        review_case_id: str,
         content: str,
         idempotency_key: str,
     ) -> None:
         self.orchestrator.handle_customer_message(
-            "demo", conversation_id, content, "admin", idempotency_key
+            "demo", review_case_id, content, "admin", idempotency_key
         )
         after = telemetry_metrics.snapshot().get("histograms", {})
         for segment in ("intake", "policy", "triage", "specialist", "persist"):
@@ -92,12 +92,12 @@ class TurnSegmentProfilingTests(unittest.TestCase):
         self.assertEqual(summary["p99"], 42.0)
 
     def test_knowledge_turn_records_all_segments(self) -> None:
-        conv_id = self._make_conversation()
+        conv_id = self._make_review_case()
         baseline = self._baseline_histograms()
         self.assert_segments_recorded(baseline, conv_id, "违规内容怎么分级？", "idem-seg-1")
 
     def test_policy_risk_turn_records_segments(self) -> None:
-        conv_id = self._make_conversation()
+        conv_id = self._make_review_case()
         baseline = self._baseline_histograms()
         # A prompt-injection attempt trips the policy rule and takes the
         # escalation route, but must still record every turn segment.

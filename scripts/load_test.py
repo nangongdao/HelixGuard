@@ -68,7 +68,7 @@ class RequestResult:
     success: bool
     rate_limited: bool = False
     error: str | None = None
-    conversation_id: str | None = None
+    review_case_id: str | None = None
     job_id: str | None = None
 
 
@@ -162,7 +162,7 @@ def _result(
     )
 
 
-def create_conversation(
+def create_review_case(
     client: httpx.Client,
     config: LoadTestConfig,
     run_id: str,
@@ -185,7 +185,7 @@ def create_conversation(
         result = _result("create_conversation", response.status_code, duration)
         if result.success:
             try:
-                result.conversation_id = str(response.json().get("id") or "")
+                result.review_case_id = str(response.json().get("id") or "")
             except ValueError:
                 pass
         return result
@@ -194,12 +194,12 @@ def create_conversation(
 
 
 def send_message(
-    client: httpx.Client, config: LoadTestConfig, tenant_id: str, conversation_id: str
+    client: httpx.Client, config: LoadTestConfig, tenant_id: str, review_case_id: str
 ) -> RequestResult:
     start = time.monotonic()
     try:
         response = client.post(
-            f"{config.base_url}/api/review-cases/{conversation_id}/messages",
+            f"{config.base_url}/api/review-cases/{review_case_id}/messages",
             headers=_headers(config, tenant_id),
             json={"content": f"Load test message {uuid4().hex[:8]}"},
             timeout=30,
@@ -211,13 +211,13 @@ def send_message(
 
 
 def enqueue_turn_job(
-    client: httpx.Client, config: LoadTestConfig, tenant_id: str, conversation_id: str
+    client: httpx.Client, config: LoadTestConfig, tenant_id: str, review_case_id: str
 ) -> RequestResult:
     """Submit an asynchronous turn job, returning its id on success."""
     start = time.monotonic()
     try:
         response = client.post(
-            f"{config.base_url}/api/review-cases/{conversation_id}/turn-jobs",
+            f"{config.base_url}/api/review-cases/{review_case_id}/turn-jobs",
             headers=_headers(config, tenant_id),
             json={"content": f"Load test job {uuid4().hex[:8]}"},
             timeout=30,
@@ -290,14 +290,14 @@ def run_load_test(config: LoadTestConfig) -> LoadTestReport:
                     time.sleep(0.1)
                     continue
 
-                create_result = create_conversation(
+                create_result = create_review_case(
                     client, worker_config, run_id, counter, tenant_id
                 )
                 report.record(create_result)
-                if create_result.success and create_result.conversation_id:
-                    conversation_id: str = create_result.conversation_id
+                if create_result.success and create_result.review_case_id:
+                    review_case_id: str = create_result.review_case_id
                     if config.poll_turn_jobs:
-                        job = enqueue_turn_job(client, worker_config, tenant_id, conversation_id)
+                        job = enqueue_turn_job(client, worker_config, tenant_id, review_case_id)
                         report.record(job)
                         if job.success and job.job_id:
                             report.record(
@@ -306,11 +306,11 @@ def run_load_test(config: LoadTestConfig) -> LoadTestReport:
                         else:
                             # Queue endpoint unavailable; fall back to a synchronous turn.
                             report.record(
-                                send_message(client, worker_config, tenant_id, conversation_id)
+                                send_message(client, worker_config, tenant_id, review_case_id)
                             )
                     else:
                         report.record(
-                            send_message(client, worker_config, tenant_id, conversation_id)
+                            send_message(client, worker_config, tenant_id, review_case_id)
                         )
                 counter += 1
 

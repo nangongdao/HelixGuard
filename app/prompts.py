@@ -517,21 +517,21 @@ class PromptRegistry:
         )
 
     @staticmethod
-    def canary_bucket(conversation_id: str) -> float:
+    def canary_bucket(review_case_id: str) -> float:
         """Map a conversation id to a stable [0, 1) bucket.
 
         Deterministic across processes and restarts, so the same conversation
         always lands on the same prompt channel -- the property the canary
         routing contract depends on (Phase 19.2).
         """
-        digest = hashlib.sha256(conversation_id.encode("utf-8")).digest()
+        digest = hashlib.sha256(review_case_id.encode("utf-8")).digest()
         return int.from_bytes(digest[:8], "big") / (2**64)
 
     def resolve_prompt(
         self,
         tenant_id: str | None,
         name: str,
-        conversation_id: str,
+        review_case_id: str,
         canary_ratio: float,
     ) -> tuple[PromptVersion | None, str]:
         """Resolve the prompt version a turn should use.
@@ -539,7 +539,7 @@ class PromptRegistry:
         Tenant-scoped versions take precedence over global (tenant_id=NULL)
         ones for both active and canary, so a tenant can override a global
         prompt without touching it. When a canary exists and ``canary_ratio``
-        is positive, conversations hashed below the ratio are routed to canary
+        is positive, review_cases hashed below the ratio are routed to canary
         and the rest use active. Returns ``(version, channel)`` where channel
         is ``"canary"``, ``"active"``, or ``"default"`` -- the last means no
         version is registered and the caller must fall back to the built-in
@@ -554,7 +554,7 @@ class PromptRegistry:
                 canary = self.get_canary_prompt(None, name)
 
         if canary is not None and canary_ratio > 0:
-            if self.canary_bucket(conversation_id) < canary_ratio:
+            if self.canary_bucket(review_case_id) < canary_ratio:
                 return canary, "canary"
         if active is not None:
             return active, "active"

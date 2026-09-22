@@ -158,13 +158,13 @@ class Drill:
     def seed_two_tenants(self) -> None:
         now = _utc_now()
         conv_sql = (
-            "INSERT INTO conversations (id, tenant_id, customer_name, channel, status,"
+            "INSERT INTO review_cases (id, tenant_id, submitter_name, channel, status,"
             " priority, labels_json, message_count, needs_response, version,"
             " created_at, updated_at)"
             " VALUES (%s, %s, %s, %s, %s, 'normal', '[]', 0, 0, 1, %s, %s)"
         )
         msg_sql = (
-            "INSERT INTO messages (id, tenant_id, conversation_id, role, author,"
+            "INSERT INTO messages (id, tenant_id, review_case_id, role, author,"
             " content, created_at) VALUES (%s, %s, %s, %s, %s, %s, %s)"
         )
         rows = [
@@ -225,7 +225,7 @@ class Drill:
 
     def check_no_context_fail_closed(self) -> None:
         msg_sql = (
-            "INSERT INTO messages (id, tenant_id, conversation_id, role, author,"
+            "INSERT INTO messages (id, tenant_id, review_case_id, role, author,"
             " content, created_at) VALUES (%s, %s, %s, %s, %s, %s, %s)"
         )
         with self._app_session() as conn, conn.cursor() as cur:

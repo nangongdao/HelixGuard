@@ -7,7 +7,7 @@ window to the deep rows, selection still works, and no console/page errors
 surface.
 
 Server is expected to already run on HELIX_BASE_URL backed by a throwaway
-SQLite database; the script seeds N=230 conversations up front and paginates
+SQLite database; the script seeds N=230 review_cases up front and paginates
 the UI until the queue count reports them all.
 
 Run:
@@ -49,8 +49,8 @@ def api_post(path: str, body: dict) -> int:
         return error.code
 
 
-def count_conversations() -> int:
-    """Total open conversations by walking X-Next-Cursor pages."""
+def count_review_cases() -> int:
+    """Total open review_cases by walking X-Next-Cursor pages."""
     total = 0
     cursor: str | None = None
     while True:
@@ -69,7 +69,7 @@ def count_conversations() -> int:
                 return total
 
 
-def queue_last_conversation_id() -> str:
+def queue_last_review_case_id() -> str:
     """Id of the queue's final (oldest-open) row, per the API sort order.
 
     Queried via API rather than hard-coded: the shared scratch DB accumulates
@@ -90,17 +90,17 @@ def queue_last_conversation_id() -> str:
             cursor = response.headers.get("X-Next-Cursor")
             if not cursor or response.headers.get("X-Has-More") != "true":
                 break
-    assert last_page, "queue returned no conversations"
+    assert last_page, "queue returned no review_cases"
     return str(last_page[-1]["id"])
 
 
-def seed_conversations() -> int:
+def seed_review_cases() -> int:
     """Top the queue up to SEED_COUNT total rows; return the target count.
 
     Idempotent: keeps the scratch DB reusable across reruns instead of
     stacking extra rows each time.
     """
-    existing = count_conversations()
+    existing = count_review_cases()
     if existing >= SEED_COUNT:
         return existing
     needed = SEED_COUNT - existing
@@ -146,7 +146,7 @@ def main() -> None:
             return
         failed_requests.append(f"{request.method} {request.url} {failure}")
 
-    target = seed_conversations()
+    target = seed_review_cases()
     assert target > VIRTUAL_THRESHOLD, (
         f"need more than {VIRTUAL_THRESHOLD} rows for virtual mode (have {target})"
     )
@@ -229,7 +229,7 @@ def main() -> None:
         )
         # 断言滚动到底后窗口包含队列真实末行(经 API 取,兼容共享 DB 上更老
         # 的测试审核单占据底部)——而不是写死 vq-slot-0001。
-        last_id = queue_last_conversation_id()
+        last_id = queue_last_review_case_id()
         assert last_id in bottom_band_ids, (
             f"deep-most row {last_id} not rendered after scrolling to bottom "
             f"(window has {len(bottom_band_ids)} ids)"

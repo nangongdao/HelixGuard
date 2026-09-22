@@ -185,42 +185,42 @@ class MultilingualAppTests(unittest.TestCase):
         self.client.close()
         self._tmp.cleanup()
 
-    def _open_conversation(self, name: str = "S") -> str:
+    def _open_review_case(self, name: str = "S") -> str:
         conv = self.client.post(
             "/api/review-cases", json={"customer_name": name}, headers=self.admin
         ).json()
         return conv["id"]
 
-    def _send(self, conversation_id: str, content: str, key: str) -> dict[str, Any]:
+    def _send(self, review_case_id: str, content: str, key: str) -> dict[str, Any]:
         response = self.client.post(
-            f"/api/review-cases/{conversation_id}/messages",
+            f"/api/review-cases/{review_case_id}/messages",
             json={"content": content},
             headers={**self.admin, "Idempotency-Key": key},
         )
         self.assertEqual(response.status_code, 200, response.text)
         return response.json()
 
-    def test_customer_message_language_detected_and_persisted(self) -> None:
-        conversation_id = self._open_conversation()
-        turn = self._send(conversation_id, "Hello, can you help me?", "multi-key-1")
+    def test_submitter_message_language_detected_and_persisted(self) -> None:
+        review_case_id = self._open_review_case()
+        turn = self._send(review_case_id, "Hello, can you help me?", "multi-key-1")
         self.assertEqual(turn["conversation"]["language"], "en")
         self.assertEqual(turn["customer_message"]["metadata"]["language"], "en")
         self.assertEqual(turn["customer_message"]["metadata"]["language_source"], "unconfigured")
 
     def test_chinese_message_stays_zh(self) -> None:
-        conversation_id = self._open_conversation()
-        turn = self._send(conversation_id, "你好，我的订单什么时候发货？", "multi-key-2")
+        review_case_id = self._open_review_case()
+        turn = self._send(review_case_id, "你好，我的订单什么时候发货？", "multi-key-2")
         self.assertEqual(turn["conversation"]["language"], "zh")
         # Same-language replies are not translated.
         assistant = turn["assistant_message"]
         self.assertEqual(assistant["metadata"].get("translated"), False)
         self.assertEqual(assistant["metadata"].get("translation_source"), "none")
 
-    def test_reply_translated_to_customer_language(self) -> None:
+    def test_reply_translated_to_submitter_language(self) -> None:
         provider = FakeModelProvider(translation="How may I help you today?")
         self.services.orchestrator.languages = LanguageService(provider, "zh")
-        conversation_id = self._open_conversation()
-        turn = self._send(conversation_id, "Hello there", "multi-key-3")
+        review_case_id = self._open_review_case()
+        turn = self._send(review_case_id, "Hello there", "multi-key-3")
         assistant = turn["assistant_message"]
         self.assertEqual(assistant["content"], "How may I help you today?")
         self.assertTrue(assistant["metadata"]["translated"])
@@ -233,8 +233,8 @@ class MultilingualAppTests(unittest.TestCase):
     def test_translation_failure_never_blocks_turn(self) -> None:
         provider = FakeModelProvider(fail=True)
         self.services.orchestrator.languages = LanguageService(provider, "zh")
-        conversation_id = self._open_conversation()
-        turn = self._send(conversation_id, "Hello there", "multi-key-4")
+        review_case_id = self._open_review_case()
+        turn = self._send(review_case_id, "Hello there", "multi-key-4")
         assistant = turn["assistant_message"]
         self.assertEqual(assistant["metadata"]["language"], "en")
         self.assertFalse(assistant["metadata"]["translated"])
@@ -244,8 +244,8 @@ class MultilingualAppTests(unittest.TestCase):
     def test_translation_audit_emitted(self) -> None:
         provider = FakeModelProvider(translation="How may I help you today?")
         self.services.orchestrator.languages = LanguageService(provider, "zh")
-        conversation_id = self._open_conversation()
-        self._send(conversation_id, "Hello there", "multi-key-5")
+        review_case_id = self._open_review_case()
+        self._send(review_case_id, "Hello there", "multi-key-5")
         with self.services.database.connect() as conn:
             row = conn.execute(
                 "SELECT payload_json FROM audit_events WHERE event_type = 'reply.translated'"
@@ -264,15 +264,15 @@ class MultilingualAppTests(unittest.TestCase):
         # output (zh) is what surfaces as detected_language.
         provider = FakeModelProvider(detect="zh", translation="How may I help you today?")
         self.services.orchestrator.languages = LanguageService(provider, "zh")
-        conversation_id = self._open_conversation()
+        review_case_id = self._open_review_case()
         response = self.client.patch(
-            f"/api/review-cases/{conversation_id}/language",
+            f"/api/review-cases/{review_case_id}/language",
             json={"language": "en"},
             headers=self.admin,
         )
         self.assertEqual(response.status_code, 200, response.text)
         self.assertEqual(response.json()["language"], "en")
-        turn = self._send(conversation_id, "你好", "multi-key-override")
+        turn = self._send(review_case_id, "你好", "multi-key-override")
         assistant = turn["assistant_message"]
         # The override wins for both the badge and the reply translation
         # target; detection is still recorded separately for observability.
@@ -287,31 +287,31 @@ class MultilingualAppTests(unittest.TestCase):
     def test_manual_language_override_is_sticky_across_messages(self) -> None:
         # A follow-up message does not let auto-detection overwrite the
         # operator's pinned value.
-        conversation_id = self._open_conversation()
+        review_case_id = self._open_review_case()
         self.client.patch(
-            f"/api/review-cases/{conversation_id}/language",
+            f"/api/review-cases/{review_case_id}/language",
             json={"language": "ja"},
             headers=self.admin,
         )
-        self._send(conversation_id, "你好", "multi-key-sticky-1")
-        turn = self._send(conversation_id, "你好世界", "multi-key-sticky-2")
+        self._send(review_case_id, "你好", "multi-key-sticky-1")
+        turn = self._send(review_case_id, "你好世界", "multi-key-sticky-2")
         self.assertEqual(turn["conversation"]["language"], "ja")
 
     def test_manual_language_override_clear_restores_auto_detection(self) -> None:
         # Clearing the override (language=null) lets the next customer message
         # re-detect and persist the detected language.
-        conversation_id = self._open_conversation()
+        review_case_id = self._open_review_case()
         self.client.patch(
-            f"/api/review-cases/{conversation_id}/language",
+            f"/api/review-cases/{review_case_id}/language",
             json={"language": "en"},
             headers=self.admin,
         )
         self.client.patch(
-            f"/api/review-cases/{conversation_id}/language",
+            f"/api/review-cases/{review_case_id}/language",
             json={"language": None},
             headers=self.admin,
         )
-        turn = self._send(conversation_id, "你好世界", "multi-key-clear")
+        turn = self._send(review_case_id, "你好世界", "multi-key-clear")
         # Detection picks zh now that no override is set.
         self.assertEqual(turn["conversation"]["language"], "zh")
         self.assertEqual(turn["customer_message"]["metadata"]["language"], "zh")
@@ -379,21 +379,23 @@ class KnowledgeLanguageTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200, response.text)
         self.assertEqual(response.json()["language"], "en")
 
-    def test_search_prefers_customer_language(self) -> None:
+    def test_search_prefers_submitter_language(self) -> None:
         self._create_article("中文退换货", ["refund"], "zh")
         self._create_article("Refund policy", ["refund"], "en")
         database = self.services.database
-        zh_hits = database.search_knowledge("demo", "refund", limit=3, language="zh")
+        zh_hits = database.search_policy_articles("demo", "refund", limit=3, language="zh")
         self.assertTrue(zh_hits)
         self.assertEqual(zh_hits[0]["language"], "zh")
-        en_hits = database.search_knowledge("demo", "refund", limit=3, language="en")
+        en_hits = database.search_policy_articles("demo", "refund", limit=3, language="en")
         self.assertTrue(en_hits)
         self.assertEqual(en_hits[0]["language"], "en")
 
     def test_language_agnostic_article_matches_any_language(self) -> None:
         self._create_article("通用政策", ["refund"], None)
         self._create_article("Refund policy", ["refund"], "en")
-        hits = self.services.database.search_knowledge("demo", "refund", limit=3, language="zh")
+        hits = self.services.database.search_policy_articles(
+            "demo", "refund", limit=3, language="zh"
+        )
         self.assertTrue(hits)
         # The language-agnostic article is preferred over the English one for
         # a Chinese customer (same preference bucket as a zh article).

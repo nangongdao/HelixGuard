@@ -1,4 +1,4 @@
-"""Database conversations mixin (Phase 27.1, extracted from app/database.py)."""
+"""Database review_cases mixin (Phase 27.1, extracted from app/database.py)."""
 
 from __future__ import annotations
 
@@ -10,21 +10,22 @@ from typing import Any
 from uuid import uuid4
 
 from app.db._util import (
+    to_wire_row,
     utc_after,
     utc_after_seconds,
     utc_now,
 )
-from app.domain import DEFAULT_PENDING_TASK_TTL_MINUTES, ConversationStatus
-from app.labels import normalize_conversation_labels
+from app.domain import DEFAULT_PENDING_TASK_TTL_MINUTES, ReviewCaseStatus
+from app.labels import normalize_review_case_labels
 
 
-class DatabaseConversationsMixin:
+class DatabaseReviewCasesMixin:
     def _conversation_from_row(
         self, row: sqlite3.Row | dict[str, Any] | None
     ) -> dict[str, Any] | None:
         if row is None:
             return None
-        item = dict(row)
+        item = to_wire_row(row)
         item["labels"] = json.loads(item.pop("labels_json", "[]") or "[]")
         now = utc_now()
         item["claim_active"] = bool(
@@ -38,17 +39,17 @@ class DatabaseConversationsMixin:
             item["claim_expires_at"] = None
         return item
 
-    def create_conversation(
+    def create_review_case(
         self,
         tenant_id: str,
-        customer_name: str,
-        customer_ref: str | None,
+        submitter_name: str,
+        submitter_ref: str | None,
         channel: str,
         actor: str,
         sla_minutes: int,
         connection: Any | None = None,
     ) -> dict[str, Any]:
-        conversation_id = f"conv_{uuid4().hex[:12]}"
+        review_case_id = f"conv_{uuid4().hex[:12]}"
         now = utc_now()
         # Backlog: SLA policy engine — resolve the first-response/resolve
         # deadline from tenant/priority/channel policy instead of the caller's
@@ -62,77 +63,77 @@ class DatabaseConversationsMixin:
         # right after commit.
         if connection is not None:
             connection.execute(
-                """INSERT INTO conversations
-                (id, tenant_id, customer_name, customer_ref, channel, status, priority,
+                """INSERT INTO review_cases
+                (id, tenant_id, submitter_name, submitter_ref, channel, status, priority,
                  sla_due_at, created_at, updated_at)
                 VALUES (?, ?, ?, ?, ?, ?, 'normal', ?, ?, ?)""",
                 (
-                    conversation_id,
+                    review_case_id,
                     tenant_id,
-                    customer_name,
-                    customer_ref,
+                    submitter_name,
+                    submitter_ref,
                     channel,
-                    ConversationStatus.OPEN,
+                    ReviewCaseStatus.OPEN,
                     utc_after(effective_sla),
                     now,
                     now,
                 ),
             )
             return {
-                "id": conversation_id,
+                "id": review_case_id,
                 "tenant_id": tenant_id,
-                "customer_name": customer_name,
-                "customer_ref": customer_ref,
+                "customer_name": submitter_name,
+                "customer_ref": submitter_ref,
                 "channel": channel,
-                "status": ConversationStatus.OPEN,
+                "status": ReviewCaseStatus.OPEN,
                 "priority": "normal",
                 "created_at": now,
                 "updated_at": now,
             }
         with self.connect() as own_connection:
             own_connection.execute(
-                """INSERT INTO conversations
-                (id, tenant_id, customer_name, customer_ref, channel, status, priority,
+                """INSERT INTO review_cases
+                (id, tenant_id, submitter_name, submitter_ref, channel, status, priority,
                  sla_due_at, created_at, updated_at)
                 VALUES (?, ?, ?, ?, ?, ?, 'normal', ?, ?, ?)""",
                 (
-                    conversation_id,
+                    review_case_id,
                     tenant_id,
-                    customer_name,
-                    customer_ref,
+                    submitter_name,
+                    submitter_ref,
                     channel,
-                    ConversationStatus.OPEN,
+                    ReviewCaseStatus.OPEN,
                     utc_after(effective_sla),
                     now,
                     now,
                 ),
             )
         self._invalidate_dashboard(tenant_id)
-        self.increment_tenant_usage_conversations(tenant_id, utc_now()[:10])
+        self.increment_tenant_usage_review_cases(tenant_id, utc_now()[:10])
         self.audit(
             tenant_id,
-            conversation_id,
+            review_case_id,
             actor,
             "conversation.created",
-            {"channel": channel, "customer_verified": bool(customer_ref)},
+            {"channel": channel, "customer_verified": bool(submitter_ref)},
         )
-        return self.get_conversation(tenant_id, conversation_id) or {}
+        return self.get_review_case(tenant_id, review_case_id) or {}
 
-    def get_conversation(self, tenant_id: str, conversation_id: str) -> dict[str, Any] | None:
+    def get_review_case(self, tenant_id: str, review_case_id: str) -> dict[str, Any] | None:
         with self.connect() as connection:
             row = connection.execute(
-                "SELECT * FROM conversations WHERE tenant_id = ? AND id = ?",
-                (tenant_id, conversation_id),
+                "SELECT * FROM review_cases WHERE tenant_id = ? AND id = ?",
+                (tenant_id, review_case_id),
             ).fetchone()
         if row is None:
             # ROADMAP 18.3: read-path transparent merge — a conversation that
             # has been moved to the archive tier is still resolvable by id, so
             # existing detail links keep working after archiving.
-            return self.get_archived_conversation(tenant_id, conversation_id)
+            return self.get_archived_review_case(tenant_id, review_case_id)
         return self._conversation_from_row(row)
 
     def set_conversation_language(
-        self, tenant_id: str, conversation_id: str, language: str | None
+        self, tenant_id: str, review_case_id: str, language: str | None
     ) -> None:
         """Record the conversation language (or clear it back to auto).
 
@@ -147,10 +148,10 @@ class DatabaseConversationsMixin:
         """
         with self.connect() as connection:
             cursor = connection.execute(
-                """UPDATE conversations SET language = ?
+                """UPDATE review_cases SET language = ?
                 WHERE tenant_id = ? AND id = ?
                   AND (language IS NULL OR ? IS NULL OR language <> ?)""",
-                (language, tenant_id, conversation_id, language, language),
+                (language, tenant_id, review_case_id, language, language),
             )
             if cursor.rowcount == 1:
                 self._invalidate_dashboard(tenant_id)
@@ -158,10 +159,10 @@ class DatabaseConversationsMixin:
     def set_routing(
         self,
         tenant_id: str,
-        conversation_id: str,
-        status: ConversationStatus,
-        intent: str,
-        assigned_agent: str,
+        review_case_id: str,
+        status: ReviewCaseStatus,
+        risk_category: str,
+        assigned_reviewer: str,
         priority: str,
         handoff_reason: str | None,
         confidence: float,
@@ -170,16 +171,16 @@ class DatabaseConversationsMixin:
         now = utc_now()
         with self.connect() as connection:
             cursor = connection.execute(
-                """UPDATE conversations
-                SET status = ?, intent = ?, assigned_agent = ?, priority = ?,
+                """UPDATE review_cases
+                SET status = ?, risk_category = ?, assigned_reviewer = ?, priority = ?,
                     handoff_reason = ?, last_confidence = ?,
                     sla_due_at = CASE WHEN ? = 'waiting_human' THEN ? ELSE sla_due_at END,
                     updated_at = ?, version = version + 1
                 WHERE tenant_id = ? AND id = ? AND status = 'open'""",
                 (
                     status,
-                    intent,
-                    assigned_agent,
+                    risk_category,
+                    assigned_reviewer,
                     priority,
                     handoff_reason,
                     confidence,
@@ -187,7 +188,7 @@ class DatabaseConversationsMixin:
                     utc_after(sla_minutes),
                     now,
                     tenant_id,
-                    conversation_id,
+                    review_case_id,
                 ),
             )
         updated = cursor.rowcount == 1
@@ -195,13 +196,13 @@ class DatabaseConversationsMixin:
             self._invalidate_dashboard(tenant_id)
         return updated
 
-    def transition_conversation(
+    def transition_review_case(
         self,
         tenant_id: str,
-        conversation_id: str,
-        expected_statuses: Sequence[ConversationStatus | str],
-        new_status: ConversationStatus,
-        assigned_agent: str | None = None,
+        review_case_id: str,
+        expected_statuses: Sequence[ReviewCaseStatus | str],
+        new_status: ReviewCaseStatus,
+        assigned_reviewer: str | None = None,
         clear_handoff: bool = False,
         clear_assignment: bool = False,
         clear_claim: bool = False,
@@ -211,47 +212,47 @@ class DatabaseConversationsMixin:
         if not statuses:
             raise ValueError("expected_statuses cannot be empty")
         placeholders = ", ".join("?" for _ in statuses)
-        resolved_at = utc_now() if new_status == ConversationStatus.RESOLVED else None
+        decided_at = utc_now() if new_status == ReviewCaseStatus.RESOLVED else None
         sla_due_at = utc_after(sla_minutes) if sla_minutes is not None else None
-        clear_claim_flag = clear_claim or new_status == ConversationStatus.RESOLVED
+        clear_claim_flag = clear_claim or new_status == ReviewCaseStatus.RESOLVED
         with self.connect() as connection:
             cursor = connection.execute(
-                f"""UPDATE conversations
+                f"""UPDATE review_cases
                 SET status = ?,
-                    assigned_agent = CASE WHEN ? THEN NULL
-                                          ELSE COALESCE(?, assigned_agent) END,
+                    assigned_reviewer = CASE WHEN ? THEN NULL
+                                          ELSE COALESCE(?, assigned_reviewer) END,
                     handoff_reason = CASE WHEN ? THEN NULL ELSE handoff_reason END,
                     claimed_by = CASE WHEN ? THEN NULL ELSE claimed_by END,
                     claimed_at = CASE WHEN ? THEN NULL ELSE claimed_at END,
                     claim_expires_at = CASE WHEN ? THEN NULL ELSE claim_expires_at END,
                     sla_due_at = COALESCE(?, sla_due_at),
-                    resolved_at = ?, updated_at = ?, version = version + 1
+                    decided_at = ?, updated_at = ?, version = version + 1
                 WHERE tenant_id = ? AND id = ? AND status IN ({placeholders})""",
                 (
                     new_status,
                     int(clear_assignment),
-                    assigned_agent,
+                    assigned_reviewer,
                     int(clear_handoff),
                     int(clear_claim_flag),
                     int(clear_claim_flag),
                     int(clear_claim_flag),
                     sla_due_at,
-                    resolved_at,
+                    decided_at,
                     utc_now(),
                     tenant_id,
-                    conversation_id,
+                    review_case_id,
                     *statuses,
                 ),
             )
         if cursor.rowcount != 1:
             return None
         self._invalidate_dashboard(tenant_id)
-        return self.get_conversation(tenant_id, conversation_id)
+        return self.get_review_case(tenant_id, review_case_id)
 
-    def claim_conversation(
+    def claim_review_case(
         self,
         tenant_id: str,
-        conversation_id: str,
+        review_case_id: str,
         actor_id: str,
         claim_seconds: int,
         *,
@@ -263,12 +264,12 @@ class DatabaseConversationsMixin:
         expires_at = utc_after_seconds(claim_seconds)
         with self.connect() as connection:
             current = connection.execute(
-                "SELECT * FROM conversations WHERE tenant_id = ? AND id = ?",
-                (tenant_id, conversation_id),
+                "SELECT * FROM review_cases WHERE tenant_id = ? AND id = ?",
+                (tenant_id, review_case_id),
             ).fetchone()
             if current is None:
                 return None
-            if current["status"] == ConversationStatus.RESOLVED:
+            if current["status"] == ReviewCaseStatus.RESOLVED:
                 return None
             active_claim = (
                 current["claimed_by"]
@@ -279,14 +280,14 @@ class DatabaseConversationsMixin:
                 return None
             if active_claim and current["claimed_by"] == actor_id:
                 cursor = connection.execute(
-                    """UPDATE conversations
+                    """UPDATE review_cases
                     SET claimed_at = ?, claim_expires_at = ?, updated_at = ?, version = version + 1
                     WHERE tenant_id = ? AND id = ?""",
-                    (now, expires_at, now, tenant_id, conversation_id),
+                    (now, expires_at, now, tenant_id, review_case_id),
                 )
             else:
                 cursor = connection.execute(
-                    """UPDATE conversations
+                    """UPDATE review_cases
                     SET claimed_by = ?, claimed_at = ?, claim_expires_at = ?,
                         updated_at = ?, version = version + 1
                     WHERE tenant_id = ? AND id = ?
@@ -301,7 +302,7 @@ class DatabaseConversationsMixin:
                         expires_at,
                         now,
                         tenant_id,
-                        conversation_id,
+                        review_case_id,
                         now,
                         actor_id,
                         int(force),
@@ -310,16 +311,16 @@ class DatabaseConversationsMixin:
             if cursor.rowcount != 1:
                 return None
             updated = connection.execute(
-                "SELECT * FROM conversations WHERE tenant_id = ? AND id = ?",
-                (tenant_id, conversation_id),
+                "SELECT * FROM review_cases WHERE tenant_id = ? AND id = ?",
+                (tenant_id, review_case_id),
             ).fetchone()
         self._invalidate_dashboard(tenant_id)
         return self._conversation_from_row(updated)
 
-    def assign_conversation(
+    def assign_review_case(
         self,
         tenant_id: str,
-        conversation_id: str,
+        review_case_id: str,
         assignee_id: str,
         claim_seconds: int,
         *,
@@ -332,10 +333,10 @@ class DatabaseConversationsMixin:
         expires_at = utc_after_seconds(claim_seconds)
         with self.connect() as connection:
             current = connection.execute(
-                "SELECT * FROM conversations WHERE tenant_id = ? AND id = ?",
-                (tenant_id, conversation_id),
+                "SELECT * FROM review_cases WHERE tenant_id = ? AND id = ?",
+                (tenant_id, review_case_id),
             ).fetchone()
-            if current is None or current["status"] == ConversationStatus.RESOLVED:
+            if current is None or current["status"] == ReviewCaseStatus.RESOLVED:
                 return None
             active_claim = (
                 current["claimed_by"]
@@ -349,8 +350,8 @@ class DatabaseConversationsMixin:
             ):
                 return None
             cursor = connection.execute(
-                """UPDATE conversations
-                SET assigned_agent = ?, claimed_by = ?, claimed_at = ?, claim_expires_at = ?,
+                """UPDATE review_cases
+                SET assigned_reviewer = ?, claimed_by = ?, claimed_at = ?, claim_expires_at = ?,
                     status = CASE
                         WHEN status IN ('open', 'waiting_human') THEN 'human_active'
                         ELSE status
@@ -364,24 +365,24 @@ class DatabaseConversationsMixin:
                     expires_at,
                     now,
                     tenant_id,
-                    conversation_id,
+                    review_case_id,
                 ),
             )
             if cursor.rowcount != 1:
                 return None
         self._invalidate_dashboard(tenant_id)
-        return self.get_conversation(tenant_id, conversation_id)
+        return self.get_review_case(tenant_id, review_case_id)
 
-    def bulk_claim_conversations(
+    def bulk_claim_review_cases(
         self,
         tenant_id: str,
-        conversation_ids: Sequence[str],
+        review_case_ids: Sequence[str],
         actor_id: str,
         claim_seconds: int,
         *,
         force: bool = False,
     ) -> tuple[list[str], int]:
-        ids = list(dict.fromkeys(conversation_ids))
+        ids = list(dict.fromkeys(review_case_ids))
         if not ids:
             return [], 0
         if claim_seconds < 30:
@@ -391,14 +392,14 @@ class DatabaseConversationsMixin:
         placeholders = ", ".join("?" for _ in ids)
         with self.connect() as connection:
             rows = connection.execute(
-                f"""SELECT id, status, claimed_by, claim_expires_at FROM conversations
+                f"""SELECT id, status, claimed_by, claim_expires_at FROM review_cases
                 WHERE tenant_id = ? AND id IN ({placeholders})""",
                 (tenant_id, *ids),
             ).fetchall()
             matched = len(rows)
             claimable: list[str] = []
             for row in rows:
-                if row["status"] == ConversationStatus.RESOLVED:
+                if row["status"] == ReviewCaseStatus.RESOLVED:
                     continue
                 active_claim = (
                     row["claimed_by"] and row["claim_expires_at"] and row["claim_expires_at"] > now
@@ -409,7 +410,7 @@ class DatabaseConversationsMixin:
             if claimable:
                 claim_placeholders = ", ".join("?" for _ in claimable)
                 connection.execute(
-                    f"""UPDATE conversations
+                    f"""UPDATE review_cases
                     SET claimed_by = ?, claimed_at = ?, claim_expires_at = ?,
                         updated_at = ?, version = version + 1
                     WHERE tenant_id = ? AND id IN ({claim_placeholders})
@@ -423,19 +424,19 @@ class DatabaseConversationsMixin:
     def bulk_release_claims(
         self,
         tenant_id: str,
-        conversation_ids: Sequence[str],
+        review_case_ids: Sequence[str],
         actor_id: str,
         *,
         force: bool = False,
     ) -> tuple[list[str], int]:
-        ids = list(dict.fromkeys(conversation_ids))
+        ids = list(dict.fromkeys(review_case_ids))
         if not ids:
             return [], 0
         now = utc_now()
         placeholders = ", ".join("?" for _ in ids)
         with self.connect() as connection:
             rows = connection.execute(
-                f"""SELECT id, claimed_by, claim_expires_at FROM conversations
+                f"""SELECT id, claimed_by, claim_expires_at FROM review_cases
                 WHERE tenant_id = ? AND id IN ({placeholders})""",
                 (tenant_id, *ids),
             ).fetchall()
@@ -453,7 +454,7 @@ class DatabaseConversationsMixin:
             if releasable:
                 release_placeholders = ", ".join("?" for _ in releasable)
                 connection.execute(
-                    f"""UPDATE conversations
+                    f"""UPDATE review_cases
                     SET claimed_by = NULL, claimed_at = NULL, claim_expires_at = NULL,
                         updated_at = ?, version = version + 1
                     WHERE tenant_id = ? AND id IN ({release_placeholders})""",
@@ -463,10 +464,10 @@ class DatabaseConversationsMixin:
             self._invalidate_dashboard(tenant_id)
         return releasable, matched
 
-    def release_conversation_claim(
+    def release_review_case_claim(
         self,
         tenant_id: str,
-        conversation_id: str,
+        review_case_id: str,
         actor_id: str,
         *,
         force: bool = False,
@@ -474,8 +475,8 @@ class DatabaseConversationsMixin:
         now = utc_now()
         with self.connect() as connection:
             current = connection.execute(
-                "SELECT * FROM conversations WHERE tenant_id = ? AND id = ?",
-                (tenant_id, conversation_id),
+                "SELECT * FROM review_cases WHERE tenant_id = ? AND id = ?",
+                (tenant_id, review_case_id),
             ).fetchone()
             if current is None:
                 return None
@@ -491,17 +492,17 @@ class DatabaseConversationsMixin:
             if current["claimed_by"] != actor_id and not force:
                 return None
             cursor = connection.execute(
-                """UPDATE conversations
+                """UPDATE review_cases
                 SET claimed_by = NULL, claimed_at = NULL, claim_expires_at = NULL,
                     updated_at = ?, version = version + 1
                 WHERE tenant_id = ? AND id = ?""",
-                (now, tenant_id, conversation_id),
+                (now, tenant_id, review_case_id),
             )
             if cursor.rowcount != 1:
                 return None
             updated = connection.execute(
-                "SELECT * FROM conversations WHERE tenant_id = ? AND id = ?",
-                (tenant_id, conversation_id),
+                "SELECT * FROM review_cases WHERE tenant_id = ? AND id = ?",
+                (tenant_id, review_case_id),
             ).fetchone()
         self._invalidate_dashboard(tenant_id)
         return self._conversation_from_row(updated)
@@ -509,7 +510,7 @@ class DatabaseConversationsMixin:
     def update_priority(
         self,
         tenant_id: str,
-        conversation_id: str,
+        review_case_id: str,
         priority: str,
         sla_minutes: int | None = None,
     ) -> dict[str, Any] | None:
@@ -518,7 +519,7 @@ class DatabaseConversationsMixin:
         tightened_due_at = utc_after(sla_minutes) if sla_minutes is not None else None
         with self.connect() as connection:
             cursor = connection.execute(
-                """UPDATE conversations
+                """UPDATE review_cases
                 SET priority = ?,
                     sla_due_at = CASE
                         WHEN ? IS NOT NULL AND status != 'resolved'
@@ -533,27 +534,27 @@ class DatabaseConversationsMixin:
                     tightened_due_at,
                     utc_now(),
                     tenant_id,
-                    conversation_id,
+                    review_case_id,
                 ),
             )
         if cursor.rowcount != 1:
             return None
         self._invalidate_dashboard(tenant_id)
-        return self.get_conversation(tenant_id, conversation_id)
+        return self.get_review_case(tenant_id, review_case_id)
 
-    def replace_conversation_labels(
+    def replace_review_case_labels(
         self,
         tenant_id: str,
-        conversation_id: str,
+        review_case_id: str,
         labels: Sequence[str],
         actor_id: str,
     ) -> tuple[dict[str, Any] | None, bool]:
-        normalized = normalize_conversation_labels(labels)
+        normalized = normalize_review_case_labels(labels)
         now = utc_now()
         with self.connect() as connection:
             current = connection.execute(
-                "SELECT * FROM conversations WHERE tenant_id = ? AND id = ?",
-                (tenant_id, conversation_id),
+                "SELECT * FROM review_cases WHERE tenant_id = ? AND id = ?",
+                (tenant_id, review_case_id),
             ).fetchone()
             if current is None:
                 return None, False
@@ -561,31 +562,31 @@ class DatabaseConversationsMixin:
             if existing == normalized:
                 return dict(current), False
             connection.execute(
-                "DELETE FROM conversation_labels WHERE tenant_id = ? AND conversation_id = ?",
-                (tenant_id, conversation_id),
+                "DELETE FROM review_case_labels WHERE tenant_id = ? AND review_case_id = ?",
+                (tenant_id, review_case_id),
             )
             connection.executemany(
-                """INSERT INTO conversation_labels
-                (tenant_id, conversation_id, label, created_by, created_at)
+                """INSERT INTO review_case_labels
+                (tenant_id, review_case_id, label, created_by, created_at)
                 VALUES (?, ?, ?, ?, ?)""",
-                [(tenant_id, conversation_id, label, actor_id, now) for label in normalized],
+                [(tenant_id, review_case_id, label, actor_id, now) for label in normalized],
             )
             connection.execute(
-                """UPDATE conversations SET labels_json = ?, version = version + 1
+                """UPDATE review_cases SET labels_json = ?, version = version + 1
                 WHERE tenant_id = ? AND id = ?""",
-                (json.dumps(normalized, ensure_ascii=False), tenant_id, conversation_id),
+                (json.dumps(normalized, ensure_ascii=False), tenant_id, review_case_id),
             )
             updated = connection.execute(
-                "SELECT * FROM conversations WHERE tenant_id = ? AND id = ?",
-                (tenant_id, conversation_id),
+                "SELECT * FROM review_cases WHERE tenant_id = ? AND id = ?",
+                (tenant_id, review_case_id),
             ).fetchone()
-        return (dict(updated) if updated else None), True
+        return (to_wire_row(updated) if updated else None), True
 
-    def list_conversation_labels(self, tenant_id: str) -> list[dict[str, Any]]:
+    def list_review_case_labels(self, tenant_id: str) -> list[dict[str, Any]]:
         with self.connect() as connection:
             rows = connection.execute(
                 """SELECT label, COUNT(*) AS conversation_count
-                FROM conversation_labels WHERE tenant_id = ?
+                FROM review_case_labels WHERE tenant_id = ?
                 GROUP BY label ORDER BY conversation_count DESC, label""",
                 (tenant_id,),
             ).fetchall()
@@ -645,13 +646,13 @@ class DatabaseConversationsMixin:
     def bulk_update_priority(
         self,
         tenant_id: str,
-        conversation_ids: Sequence[str],
+        review_case_ids: Sequence[str],
         priority: str,
         sla_minutes: int | None = None,
     ) -> tuple[list[dict[str, str]], int]:
         if priority not in {"normal", "high"}:
             raise ValueError("Unsupported conversation priority")
-        ids = list(dict.fromkeys(conversation_ids))
+        ids = list(dict.fromkeys(review_case_ids))
         if not ids:
             return [], 0
         placeholders = ", ".join("?" for _ in ids)
@@ -659,7 +660,7 @@ class DatabaseConversationsMixin:
         now = utc_now()
         with self.connect() as connection:
             rows = connection.execute(
-                f"""SELECT id, priority FROM conversations
+                f"""SELECT id, priority FROM review_cases
                 WHERE tenant_id = ? AND id IN ({placeholders})""",
                 (tenant_id, *ids),
             ).fetchall()
@@ -672,7 +673,7 @@ class DatabaseConversationsMixin:
             if changed_ids:
                 changed_placeholders = ", ".join("?" for _ in changed_ids)
                 connection.execute(
-                    f"""UPDATE conversations
+                    f"""UPDATE review_cases
                     SET priority = ?,
                         sla_due_at = CASE
                             WHEN ? IS NOT NULL AND status != 'resolved'
@@ -697,16 +698,16 @@ class DatabaseConversationsMixin:
     def bulk_modify_labels(
         self,
         tenant_id: str,
-        conversation_ids: Sequence[str],
+        review_case_ids: Sequence[str],
         labels: Sequence[str],
         actor_id: str,
         *,
         add: bool,
     ) -> tuple[list[str], int]:
-        normalized = normalize_conversation_labels(labels)
+        normalized = normalize_review_case_labels(labels)
         if not normalized:
             raise ValueError("labels cannot be empty")
-        ids = list(dict.fromkeys(conversation_ids))
+        ids = list(dict.fromkeys(review_case_ids))
         if not ids:
             return [], 0
         placeholders = ", ".join("?" for _ in ids)
@@ -714,47 +715,44 @@ class DatabaseConversationsMixin:
         changed: list[str] = []
         with self.connect() as connection:
             rows = connection.execute(
-                f"""SELECT id, labels_json FROM conversations
+                f"""SELECT id, labels_json FROM review_cases
                 WHERE tenant_id = ? AND id IN ({placeholders})""",
                 (tenant_id, *ids),
             ).fetchall()
             for row in rows:
-                conversation_id = str(row["id"])
-                current = normalize_conversation_labels(json.loads(row["labels_json"] or "[]"))
+                review_case_id = str(row["id"])
+                current = normalize_review_case_labels(json.loads(row["labels_json"] or "[]"))
                 if add:
-                    target = normalize_conversation_labels([*current, *normalized])
+                    target = normalize_review_case_labels([*current, *normalized])
                 else:
                     target = [label for label in current if label not in normalized]
                 if target == current:
                     continue
                 if add:
                     connection.executemany(
-                        """INSERT OR IGNORE INTO conversation_labels
-                        (tenant_id, conversation_id, label, created_by, created_at)
+                        """INSERT OR IGNORE INTO review_case_labels
+                        (tenant_id, review_case_id, label, created_by, created_at)
                         VALUES (?, ?, ?, ?, ?)""",
-                        [
-                            (tenant_id, conversation_id, label, actor_id, now)
-                            for label in normalized
-                        ],
+                        [(tenant_id, review_case_id, label, actor_id, now) for label in normalized],
                     )
                 else:
                     label_placeholders = ", ".join("?" for _ in normalized)
                     connection.execute(
-                        f"""DELETE FROM conversation_labels
-                        WHERE tenant_id = ? AND conversation_id = ?
+                        f"""DELETE FROM review_case_labels
+                        WHERE tenant_id = ? AND review_case_id = ?
                           AND label IN ({label_placeholders})""",
-                        (tenant_id, conversation_id, *normalized),
+                        (tenant_id, review_case_id, *normalized),
                     )
                 connection.execute(
-                    """UPDATE conversations SET labels_json = ?, version = version + 1
+                    """UPDATE review_cases SET labels_json = ?, version = version + 1
                     WHERE tenant_id = ? AND id = ?""",
                     (
                         json.dumps(target, ensure_ascii=False),
                         tenant_id,
-                        conversation_id,
+                        review_case_id,
                     ),
                 )
-                changed.append(conversation_id)
+                changed.append(review_case_id)
         return changed, len(rows)
 
     # -----------------------------------------------------------------------
@@ -764,7 +762,7 @@ class DatabaseConversationsMixin:
     def upsert_conversation_summary(
         self,
         tenant_id: str,
-        conversation_id: str,
+        review_case_id: str,
         kind: str,
         content: str,
         source: str = "rule",
@@ -773,60 +771,60 @@ class DatabaseConversationsMixin:
         now = utc_now()
         with self.connect() as connection:
             connection.execute(
-                """INSERT INTO conversation_summaries
-                (tenant_id, conversation_id, kind, content, source, created_at, updated_at)
+                """INSERT INTO review_case_summaries
+                (tenant_id, review_case_id, kind, content, source, created_at, updated_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(tenant_id, conversation_id, kind) DO UPDATE SET
+                ON CONFLICT(tenant_id, review_case_id, kind) DO UPDATE SET
                     content = excluded.content,
                     source = excluded.source,
                     updated_at = excluded.updated_at""",
-                (tenant_id, conversation_id, kind, content, source, now, now),
+                (tenant_id, review_case_id, kind, content, source, now, now),
             )
             row = connection.execute(
-                "SELECT * FROM conversation_summaries "
-                "WHERE tenant_id = ? AND conversation_id = ? AND kind = ?",
-                (tenant_id, conversation_id, kind),
+                "SELECT * FROM review_case_summaries "
+                "WHERE tenant_id = ? AND review_case_id = ? AND kind = ?",
+                (tenant_id, review_case_id, kind),
             ).fetchone()
-        return dict(row) if row else {}
+        return to_wire_row(row) if row else {}
 
     def get_conversation_summary(
-        self, tenant_id: str, conversation_id: str, kind: str
+        self, tenant_id: str, review_case_id: str, kind: str
     ) -> dict[str, Any] | None:
         """Return one stored summary kind, or None."""
         with self.connect() as connection:
             row = connection.execute(
-                "SELECT * FROM conversation_summaries "
-                "WHERE tenant_id = ? AND conversation_id = ? AND kind = ?",
-                (tenant_id, conversation_id, kind),
+                "SELECT * FROM review_case_summaries "
+                "WHERE tenant_id = ? AND review_case_id = ? AND kind = ?",
+                (tenant_id, review_case_id, kind),
             ).fetchone()
-        return dict(row) if row else None
+        return to_wire_row(row) if row else None
 
-    def list_conversation_summaries(
-        self, tenant_id: str, conversation_id: str
+    def list_review_case_summaries(
+        self, tenant_id: str, review_case_id: str
     ) -> list[dict[str, Any]]:
         """Return all stored summaries for a conversation (any kind)."""
         with self.connect() as connection:
             rows = connection.execute(
-                "SELECT * FROM conversation_summaries "
-                "WHERE tenant_id = ? AND conversation_id = ? ORDER BY kind",
-                (tenant_id, conversation_id),
+                "SELECT * FROM review_case_summaries "
+                "WHERE tenant_id = ? AND review_case_id = ? ORDER BY kind",
+                (tenant_id, review_case_id),
             ).fetchall()
-        return [dict(row) for row in rows]
+        return [to_wire_row(row) for row in rows]
 
     def bump_pending_task(
         self,
         tenant_id: str,
-        conversation_id: str,
+        review_case_id: str,
         *,
         kind: str,
         slot: str,
-        intent: str,
+        risk_category: str,
         ttl_minutes: int = DEFAULT_PENDING_TASK_TTL_MINUTES,
     ) -> dict[str, Any]:
         """Upsert the conversation's single pending task, advancing rounds.
 
         ROADMAP H03: a clarification turn records the task automation waits
-        on -- the slot the customer was asked for, the original intent, and
+        on -- the slot the customer was asked for, the original risk_category, and
         the round counter (one per clarification sent, so the execution stage
         can escalate instead of asking forever). One active task per
         conversation: a second clarify bumps the same row, and the expiry is
@@ -835,36 +833,36 @@ class DatabaseConversationsMixin:
         now = utc_now()
         with self.connect() as connection:
             connection.execute(
-                """INSERT INTO conversation_pending_tasks
-                (tenant_id, conversation_id, kind, slot, intent, rounds,
+                """INSERT INTO review_case_pending_tasks
+                (tenant_id, review_case_id, kind, slot, risk_category, rounds,
                  created_at, updated_at, expires_at)
                 VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?)
-                ON CONFLICT(tenant_id, conversation_id) DO UPDATE SET
+                ON CONFLICT(tenant_id, review_case_id) DO UPDATE SET
                     kind = excluded.kind,
                     slot = excluded.slot,
-                    intent = excluded.intent,
-                    rounds = conversation_pending_tasks.rounds + 1,
+                    risk_category = excluded.risk_category,
+                    rounds = review_case_pending_tasks.rounds + 1,
                     updated_at = excluded.updated_at,
                     expires_at = excluded.expires_at""",
                 (
                     tenant_id,
-                    conversation_id,
+                    review_case_id,
                     kind,
                     slot,
-                    intent,
+                    risk_category,
                     now,
                     now,
                     utc_after(ttl_minutes),
                 ),
             )
             row = connection.execute(
-                "SELECT * FROM conversation_pending_tasks "
-                "WHERE tenant_id = ? AND conversation_id = ?",
-                (tenant_id, conversation_id),
+                "SELECT * FROM review_case_pending_tasks "
+                "WHERE tenant_id = ? AND review_case_id = ?",
+                (tenant_id, review_case_id),
             ).fetchone()
-        return dict(row) if row else {}
+        return to_wire_row(row) if row else {}
 
-    def get_pending_task(self, tenant_id: str, conversation_id: str) -> dict[str, Any] | None:
+    def get_pending_task(self, tenant_id: str, review_case_id: str) -> dict[str, Any] | None:
         """Return the active pending task, or None (lapsed tasks are dropped).
 
         Expiry is enforced on read: a task past ``expires_at`` no longer
@@ -873,27 +871,26 @@ class DatabaseConversationsMixin:
         """
         with self.connect() as connection:
             row = connection.execute(
-                "SELECT * FROM conversation_pending_tasks "
-                "WHERE tenant_id = ? AND conversation_id = ?",
-                (tenant_id, conversation_id),
+                "SELECT * FROM review_case_pending_tasks "
+                "WHERE tenant_id = ? AND review_case_id = ?",
+                (tenant_id, review_case_id),
             ).fetchone()
             if row is None:
                 return None
             if dict(row)["expires_at"] <= utc_now():
                 connection.execute(
-                    "DELETE FROM conversation_pending_tasks "
-                    "WHERE tenant_id = ? AND conversation_id = ?",
-                    (tenant_id, conversation_id),
+                    "DELETE FROM review_case_pending_tasks "
+                    "WHERE tenant_id = ? AND review_case_id = ?",
+                    (tenant_id, review_case_id),
                 )
                 return None
-        return dict(row)
+        return to_wire_row(row)
 
-    def clear_pending_task(self, tenant_id: str, conversation_id: str) -> bool:
+    def clear_pending_task(self, tenant_id: str, review_case_id: str) -> bool:
         """Drop the pending task; True when a row existed (H03 cancel paths)."""
         with self.connect() as connection:
             cursor = connection.execute(
-                "DELETE FROM conversation_pending_tasks "
-                "WHERE tenant_id = ? AND conversation_id = ?",
-                (tenant_id, conversation_id),
+                "DELETE FROM review_case_pending_tasks WHERE tenant_id = ? AND review_case_id = ?",
+                (tenant_id, review_case_id),
             )
         return cursor.rowcount > 0

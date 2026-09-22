@@ -29,13 +29,13 @@ from app.quality import (
     decode_quality_cursor,
     encode_quality_cursor,
     estimate_tokens,
-    normalize_intent,
+    normalize_risk_category,
     normalize_prompt_version,
 )
 
 ADMIN_KEY = "phase21-admin-key-001"
 VIEWER_KEY = "phase21-viewer-key-001"
-OPERATOR_KEY = "phase21-op-key-0000001"
+REVIEWER_KEY = "phase21-op-key-0000001"
 OTHER_ADMIN_KEY = "phase21-other-admin-001"
 
 
@@ -43,7 +43,7 @@ def _principals() -> dict[str, dict[str, str]]:
     return {
         ADMIN_KEY: {"tenant_id": "demo", "actor_id": "admin.user", "role": "admin"},
         VIEWER_KEY: {"tenant_id": "demo", "actor_id": "viewer.user", "role": "viewer"},
-        OPERATOR_KEY: {
+        REVIEWER_KEY: {
             "tenant_id": "demo",
             "actor_id": "operator.user",
             "role": "operator",
@@ -105,7 +105,7 @@ class QualityServiceTests(unittest.TestCase):
 
     def _seed_turn_bucket(self) -> None:
         """Create one conversation + assistant message so feedback can attach."""
-        conv = self.db.create_conversation("demo", "C", "CUST-1001", "web", "actor", 120)
+        conv = self.db.create_review_case("demo", "C", "CUST-1001", "web", "actor", 120)
         self.db.add_message(
             "demo",
             conv["id"],
@@ -121,11 +121,11 @@ class QualityServiceTests(unittest.TestCase):
                 ("demo",),
             ).fetchone()
         self.message_id = row["id"]
-        self.conversation_id = conv["id"]
+        self.review_case_id = conv["id"]
         self.db.record_feedback("demo", conv["id"], self.message_id, "admin.user", 1, None)
         self.service.record_turn(
             "demo",
-            intent="order_status",
+            risk_category="order_status",
             prompt_version="v1",
             escalated=False,
             latency_ms=120,
@@ -138,7 +138,7 @@ class QualityServiceTests(unittest.TestCase):
         self._seed_turn_bucket()
         self.service.record_turn(
             "demo",
-            intent="order_status",
+            risk_category="order_status",
             prompt_version="v1",
             escalated=True,
             latency_ms=80,
@@ -158,7 +158,7 @@ class QualityServiceTests(unittest.TestCase):
     def test_record_turn_normalizes_missing_dimensions(self) -> None:
         self.service.record_turn(
             "demo",
-            intent=None,
+            risk_category=None,
             prompt_version=None,
             escalated=False,
             latency_ms=10,
@@ -180,7 +180,7 @@ class QualityServiceTests(unittest.TestCase):
             actor="admin.user",
             new_rating=-1,
             previous_rating=1,
-            intent="order_status",
+            risk_category="order_status",
             prompt_version="v1",
             date_str="2026-01-02",
         )
@@ -193,7 +193,7 @@ class QualityServiceTests(unittest.TestCase):
             actor="admin.user",
             new_rating=1,
             previous_rating=-1,
-            intent="order_status",
+            risk_category="order_status",
             prompt_version="v1",
             date_str="2026-01-02",
         )
@@ -207,10 +207,10 @@ class QualityServiceTests(unittest.TestCase):
 
     def test_list_buckets_keyset_pagination(self) -> None:
         # Two distinct buckets on the same day.
-        for intent, version in (("order_status", "v1"), ("order_status", "v2")):
+        for risk_category, version in (("order_status", "v1"), ("order_status", "v2")):
             self.service.record_turn(
                 "demo",
-                intent=intent,
+                risk_category=risk_category,
                 prompt_version=version,
                 escalated=False,
                 latency_ms=10,
@@ -229,7 +229,7 @@ class QualityServiceTests(unittest.TestCase):
     def test_list_buckets_filters(self) -> None:
         self.service.record_turn(
             "demo",
-            intent="order_status",
+            risk_category="order_status",
             prompt_version="v1",
             escalated=False,
             latency_ms=1,
@@ -239,7 +239,7 @@ class QualityServiceTests(unittest.TestCase):
         )
         self.service.record_turn(
             "demo",
-            intent="policy_question",
+            risk_category="policy_question",
             prompt_version="v1",
             escalated=False,
             latency_ms=1,
@@ -247,7 +247,7 @@ class QualityServiceTests(unittest.TestCase):
             estimated_tokens=1,
             date_str="2026-01-03",
         )
-        only_order = self.service.list_buckets("demo", intent="order_status")
+        only_order = self.service.list_buckets("demo", risk_category="order_status")
         self.assertEqual(len(only_order), 1)
         self.assertEqual(only_order[0]["intent"], "order_status")
         ranged = self.service.list_buckets("demo", since="2026-01-03")
@@ -283,10 +283,10 @@ class QualityHelperTests(unittest.TestCase):
         self.assertGreater(estimate_tokens("hello world"), 0)
 
     def test_normalize(self) -> None:
-        self.assertEqual(normalize_intent(None), "unknown")
+        self.assertEqual(normalize_risk_category(None), "unknown")
         self.assertEqual(normalize_prompt_version(""), "default")
         long = "x" * 200
-        self.assertEqual(len(normalize_intent(long)), 80)
+        self.assertEqual(len(normalize_risk_category(long)), 80)
 
 
 # ---------------------------------------------------------------------------
@@ -302,7 +302,7 @@ class QualityApiTests(unittest.TestCase):
         self.services = cast(Any, self.client.app).state.services
         self.admin = {"X-API-Key": ADMIN_KEY, "X-Tenant-Id": "demo"}
         self.viewer = {"X-API-Key": VIEWER_KEY, "X-Tenant-Id": "demo"}
-        self.operator = {"X-API-Key": OPERATOR_KEY, "X-Tenant-Id": "demo"}
+        self.reviewer = {"X-API-Key": REVIEWER_KEY, "X-Tenant-Id": "demo"}
 
     def tearDown(self) -> None:
         # Close the DB pool explicitly (Windows holds file handles
@@ -311,9 +311,9 @@ class QualityApiTests(unittest.TestCase):
         self.client.close()
         self._tmp.cleanup()
 
-    def test_operator_forbidden(self) -> None:
+    def test_reviewer_forbidden(self) -> None:
         # operator role lacks metrics:read
-        r = self.client.get("/api/supervisor/quality", headers=self.operator)
+        r = self.client.get("/api/supervisor/quality", headers=self.reviewer)
         self.assertEqual(r.status_code, 403)
 
     def test_viewer_can_list_empty(self) -> None:
@@ -380,7 +380,7 @@ class QualityApiTests(unittest.TestCase):
         bucket = self.client.get("/api/supervisor/quality", headers=self.viewer).json()[0]
         self.assertEqual(bucket["negative_feedback_count"], 0)
 
-    def test_knowledge_gaps_viewer_ok_operator_forbidden(self) -> None:
+    def test_knowledge_gaps_viewer_ok_reviewer_forbidden(self) -> None:
         turn = _send_message(self.client, self.admin, "帮我查一下来源", idx=0)
         aid = turn["assistant_message"]["id"]
         cid = turn["conversation"]["id"]
@@ -393,7 +393,7 @@ class QualityApiTests(unittest.TestCase):
         self.assertEqual(gaps.status_code, 200)
         self.assertEqual(len(gaps.json()), 1)
         self.assertEqual(gaps.json()[0]["message_id"], aid)
-        forbidden = self.client.get("/api/supervisor/policy-gaps", headers=self.operator)
+        forbidden = self.client.get("/api/supervisor/policy-gaps", headers=self.reviewer)
         self.assertEqual(forbidden.status_code, 403)
 
     def test_tenant_isolation(self) -> None:
@@ -418,7 +418,7 @@ class KnowledgeLifecycleApiTests(unittest.TestCase):
         self.client = TestClient(create_app(_settings(self.db_path)))
         self.services = cast(Any, self.client.app).state.services
         self.admin = {"X-API-Key": ADMIN_KEY, "X-Tenant-Id": "demo"}
-        self.operator = {"X-API-Key": OPERATOR_KEY, "X-Tenant-Id": "demo"}
+        self.reviewer = {"X-API-Key": REVIEWER_KEY, "X-Tenant-Id": "demo"}
 
     def tearDown(self) -> None:
         self.services.database.close()
@@ -433,8 +433,8 @@ class KnowledgeLifecycleApiTests(unittest.TestCase):
         "source_url": "https://example.com/source",
     }
 
-    def test_operator_cannot_create_draft(self) -> None:
-        r = self.client.post("/api/policy/drafts", json=self._DRAFT, headers=self.operator)
+    def test_reviewer_cannot_create_draft(self) -> None:
+        r = self.client.post("/api/policy/drafts", json=self._DRAFT, headers=self.reviewer)
         self.assertEqual(r.status_code, 403)
 
     def test_only_writers_can_list_inactive_articles(self) -> None:
@@ -444,9 +444,9 @@ class KnowledgeLifecycleApiTests(unittest.TestCase):
         self.assertEqual(complete.status_code, 200, complete.text)
         self.assertIn(draft["id"], [article["id"] for article in complete.json()])
 
-        forbidden = self.client.get("/api/policy?include_inactive=true", headers=self.operator)
+        forbidden = self.client.get("/api/policy?include_inactive=true", headers=self.reviewer)
         self.assertEqual(forbidden.status_code, 403, forbidden.text)
-        published_only = self.client.get("/api/policy", headers=self.operator)
+        published_only = self.client.get("/api/policy", headers=self.reviewer)
         self.assertEqual(published_only.status_code, 200, published_only.text)
         self.assertNotIn(draft["id"], [article["id"] for article in published_only.json()])
 
@@ -579,7 +579,7 @@ class KnowledgeLifecycleDbTests(unittest.TestCase):
         now = utc_now()
         with self.db.connect() as conn:
             conn.execute(
-                """INSERT INTO knowledge_articles
+                """INSERT INTO policy_articles
                 (id, tenant_id, title, content, tags, category, source_url,
                  active, version, updated_at)
                 VALUES ('kb_legacy', 'demo', 'Legacy', 'body content here',
@@ -587,7 +587,7 @@ class KnowledgeLifecycleDbTests(unittest.TestCase):
                 (now,),
             )
             conn.commit()
-        results = self.db.search_knowledge("demo", "shipping")
+        results = self.db.search_policy_articles("demo", "shipping")
         self.assertTrue(any(r["id"] == "kb_legacy" for r in results))
 
     def test_draft_not_searchable_until_published(self) -> None:
@@ -605,13 +605,17 @@ class KnowledgeLifecycleDbTests(unittest.TestCase):
         # seeds a ``kb-severity`` article on initialize, so we assert the
         # draft is absent rather than that the result set is empty.)
         self.assertFalse(
-            any(r["id"] == article["id"] for r in self.db.search_knowledge("demo", "severity"))
+            any(
+                r["id"] == article["id"] for r in self.db.search_policy_articles("demo", "severity")
+            )
         )
-        self.assertFalse(any(r["id"] == article["id"] for r in self.db.list_knowledge("demo")))
+        self.assertFalse(
+            any(r["id"] == article["id"] for r in self.db.list_policy_articles("demo"))
+        )
         published = self.db.review_knowledge("demo", article["id"], "publish", "admin")
         assert published is not None
         self.assertEqual(published["status"], "published")
-        self.assertIn(article["id"], [r["id"] for r in self.db.list_knowledge("demo")])
+        self.assertIn(article["id"], [r["id"] for r in self.db.list_policy_articles("demo")])
 
     def test_publish_retired_rejected(self) -> None:
         article = self.db.create_knowledge_draft(
@@ -645,10 +649,10 @@ class QualityGateOrderNoNumberTests(unittest.TestCase):
     stays open (golden case ``order-no-number-clarification``). The strict
     evidence rule below is *not* relaxed for results that do not speak the
     outcome contract (legacy constructions, ``None``) nor for marked answers:
-    a final answer still needs its ``orders.lookup`` record.
+    a final answer still needs its ``source_lookups.lookup`` record.
     """
 
-    def test_order_response_without_orders_lookup_is_flagged(self) -> None:
+    def test_order_response_without_source_lookups_lookup_is_flagged(self) -> None:
         from app.agents import AgentName, AgentResult, QualityAgent
 
         result = AgentResult(

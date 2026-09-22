@@ -222,7 +222,7 @@ class AuxiliaryTransportBudgetTests(BudgetFixture):
 
     def test_summaries_reserve_when_the_limit_is_set(self) -> None:
         self._set_budget(5)
-        conv = self.db.create_conversation(TENANT, "Summarised", None, "web", "admin", 120)
+        conv = self.db.create_review_case(TENANT, "Summarised", None, "web", "admin", 120)
         self.db.add_message(TENANT, conv["id"], "customer", "customer", "需要帮助", None, None)
         service = SummaryService(self.db, FakeModelProvider(), model_gate=self._gate())
         row = service.generate(TENANT, conv["id"], "context")
@@ -231,9 +231,9 @@ class AuxiliaryTransportBudgetTests(BudgetFixture):
 
     def test_copilot_suggest_refusal_falls_back_to_canned(self) -> None:
         self._set_budget(1)
-        conv = self.db.create_conversation(TENANT, "Copilot", None, "web", "admin", 120)
+        conv = self.db.create_review_case(TENANT, "Copilot", None, "web", "admin", 120)
         self.db.add_message(TENANT, conv["id"], "customer", "customer", "需要帮助", None, None)
-        self.db.create_canned_response(
+        self.db.create_canned_verdict(
             TENANT,
             title="问候",
             body="您好，很高兴为您服务。",
@@ -269,7 +269,7 @@ class TriageTurnBudgetTests(BudgetFixture):
         orchestrator = ConversationOrchestrator(self.db, self._settings(), None)
         orchestrator.data_plane_config = DataPlaneConfig(self.db, SECRET)
         orchestrator.triage = TriageAgent(provider, model_gate=orchestrator.model_gate)
-        conv = self.db.create_conversation(TENANT, "Budget Turn", None, "web", "admin", 120)
+        conv = self.db.create_review_case(TENANT, "Budget Turn", None, "web", "admin", 120)
         response = orchestrator.handle_customer_message(TENANT, conv["id"], message, "admin", key)
         return response
 

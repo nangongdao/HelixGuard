@@ -97,8 +97,8 @@ P2 只迁移"映射表里列出的词"。P2b 处理的是**没有对应词可映
 
 | 保留项 | 理由 | 归属 |
 | --- | --- | --- |
-| `ORD-` / `CUST-` 记录标识符前缀 | 它们是**记录主键的字面值**，且与 `orders.customer_ref` 列名绑定；列名迁移在 P4。提前改前缀会造成「字面值是 `SRC-`、列名还是 `customer_ref`」的不一致，并把改动面从 3 个文件推到 40+ 个测试夹具 | P4 |
-| `Northstar Retail` / `Northstar Care` 租户与品牌名 | 属**演示数据**而非产品定位（租户可以是任何公司）。改名牵动 `visual_gate.py` / `readme_screenshots.py` / `ui_accessibility.py` 三个脚本与 7 张截图重捕获，而视觉基线重锚在 P5 本就要做一次——合并处理避免重复重锚 | P5 |
+| `ORD-` / `CUST-` 记录标识符前缀 | 它们是**记录主键的字面值**，且与 `orders.customer_ref` 列名绑定；列名迁移在 P4。提前改前缀会造成「字面值是 `SRC-`、列名还是 `customer_ref`」的不一致，并把改动面从 3 个文件推到 40+ 个测试夹具 | **P4 已落地，前缀仍保留**：P4 只改了列名（`orders→source_lookups`、`customer_ref→submitter_ref`），**没有**改 `ORD-`/`CUST-` 字面值——wire 契约要求响应里的记录标识符保持旧形态，故这一项转为**长期保留**（与 §4 同类） |
+| `Northstar Retail` / `Northstar Care` 租户与品牌名 | 属**演示数据**而非产品定位（租户可以是任何公司）。改名牵动 `visual_gate.py` / `readme_screenshots.py` / `ui_accessibility.py` 三个脚本与 7 张截图重捕获，而视觉基线重锚在 P5 本就要做一次——合并处理避免重复重锚 | **P5 已落地，品牌名仍保留**：P5 实测 P4/P5 无 UI 变更、视觉基线 0.00% diff 故无需重锚，重锚的「顺带」前提已消失；单独改品牌名要付 3 脚本 + 7 截图的成本而无迁移收益，故转为**长期保留** |
 | 前端渲染夹具的输入数据（`tests/frontend/*.js`、`frontend/src/islands/*.test.jsx`）中作为组件输入的旧域词 | 它们是前端渲染夹具的**输入**，不引用被测后端常量；改与不改都不影响断言语义 | 不改 |
 | 只作为**不透明载荷**穿过被测代码的字符串（如 `service.translate("退款已批准。", "en")` 的翻译样例、假上游响应体里从不被回读的字段） | 既不参与路由也不参与断言，改与不改都不影响断言语义，却会扩大 diff | 不改 |
 
@@ -176,12 +176,23 @@ T9 在映射表里写作「`知识库` → `策略库`」—— **一个现成�
 | P2b 内容夹具层 | 种子知识库正文、预置结论正文、提交端演示对话、来源查询工具状态串（`运输中`/`已出库`）、`golden/set.json` + `golden/adversarial.json`、耦合测试夹具与演示脚本（见 §3.2 边界判定） | **已完成**（2.25.0） |
 | P2c 文案层补漏 | `知识` 族的**构词**残留（P2 只迁了映射表列出的 `知识库`）：产品面 16 文件、断言、评测集描述、活跃文档、`commands.js` 检索别名、`desktop/` 注释；见 §3.4 | **已完成**（2.27.0） |
 | P3 模块与路由 | 领域模块改名、API 路径改名、openapi 快照、SDK 同步 | **P3a 已完成**（2.26.0，T4 / T6–T9 / T12 / T13 共 24 路径）；**P3b 已完成**（2.28.0，T5 `conversation` → `review_case`：模块、28 操作路径面、24 组弃用条目与 12 个月窗口；顺带修复 P3a 漏改的 `/api/conversations/{id}/messages/{message_id}/knowledge-draft` 尾段） |
-| P4 数据层 | `core_schema.py` + v01–v48 一致改写、`_detect_legacy_version` | 待办 |
-| P5 收口 | 测试函数/文件名、视觉基线重锚、遗留 `.bak` 清理、README 迁移横幅移除 | 待办 |
+| P4 数据层 | `core_schema.py` + v01–v48 一致改写、`_detect_legacy_version` | **已完成**（2.29.0）：表名 T5/T6/T7/T9/T12/T13/T14 与列名 T1–T4/T10/T11/T14 全量改写，迁移文件名同步改写且**链长仍为 48**（无新增 v49）；wire 契约经 `app/db/_util.py` 的 `to_wire_row()` 在响应组装点还原，见 §7 |
+| P5 收口 | 测试函数/文件名、视觉基线重锚、遗留 `.bak` 清理、README 迁移横幅移除 | **已完成**（2.29.0，与 P4 同批次）：测试函数/文件名按 T1–T14 改名、`app/database.py.bak` 删除（`app/main.py.bak` 按 R6 保留）、README 迁移横幅移除；视觉基线**无需重锚**（P4/P5 无 UI 变更，`visual_gate` 四面 0.00% diff） |
 
 **P2b 为何单列**：P2 执行时的取证表明，「订单查询」不是展示文案而是**真功能**——`app/agents.py` 有订单意图分类器（关键词元组含 `订单/物流/快递/到哪`）与 `ORD-*` 查询链路，`app/db/tenancy.py` 有客服 FAQ 种子正文，而 `golden/set.json` 的断言包含 `in_content: ["运输中"]`、`["已出库"]` 这类**由种子数据决定的中文子串**，CI 又有 `evaluate.py --min-pass-rate 1.0` 与 23/23 对抗门禁。三者在语义上是一个整体：只改文案会导致「UI 说审核单、分类器仍按订单匹配、评测集仍断言运输中」。因此把它们合并为一个独立阶段，一次改完、一次验证。
 
 **T5 建议作为最后一步单独收口**：它独占全部改动量的约 70%，但增量简历价值最低（`conversation` / `messages` 是通用软件词汇）。T1–T4、T6–T14 落地后，仓库已不再"一眼是客服"。
+
+### 5.1 P4/P5 完成后的两处**未收口面**（已登记，非遗漏）
+
+P4/P5（2.29.0）按计划把「数据库对象 + 测试/基线」迁完，但下面两处**明确不在该批次范围**内，且经实测确认仍是旧域命名——它们**不是遗漏，是已登记的后续项**：
+
+| 面 | 实测状态（2.29.0 时点） | 为何未纳入 P5 |
+| --- | --- | --- |
+| DOM id / class / 模块名 | `app/static/index.html` 仍有 `#knowledgeSearch` / `.knowledge-article`；`frontend/src/islands/*` 同名残留；`i18n.js` 的 **键** `misc.internal_knowledge` 未改（§3.4 已把**值**迁为「内部策略」） | 改 DOM 标识符会牵动 `visual_gate` / `frontend_gate` / `readme_screenshots` / `ui_accessibility` 四个脚本与视觉基线，属**独立重锚批次**的成本，与「测试/基线收口」不是一回事 |
+| `docs/api/reference.md` | 文档化 141 处 vs 快照 181 路径 / 215 操作，**既存漂移先于域迁移**（P3a 时点为 107 vs 133） | 该文件由 `scripts/api_docs.py` 从快照生成，漂移与域迁移**正交**；在本批次重生成会把 3000+ 行无关 diff 混进域迁移提交里，破坏「一次迁移一个理由」的审阅边界 |
+
+这两项与 §4「明确不动的标识符」性质不同：§4 是**判定为不改**，本节是**判定为改、但排在域迁移之后**。
 
 **P2 的两条方法学教训**（后续阶段直接复用）：
 
@@ -201,3 +212,40 @@ T9 在映射表里写作「`知识库` → `策略库`」—— **一个现成�
 **边界说明（P2 确立）**：`docs/adr/*.md` 与内部评估/分析报告（`GATE_B_EVALUATION.md`、`REACT_ISLAND_PERF_ANALYSIS.md`、`runbooks/M0_HARDENING_ACCEPTANCE.md`）**随迁移更新术语**，但结论、数字、日期与状态一律不动。区分标准是**对外发布**与否：`CHANGELOG` 与 `RELEASE_*` 是绑定版本号的对外档案，改写会让外部读者看到的既有事实与仓库不一致；ADR 与内部报告是工程工作文档，术语规范化属于正常维护。
 
 `docs/DOMAIN.md` 与 `docs/DOMAIN_MIGRATION_PLAN.md` **自身必须排除在任何批量替换之外**：它们以「客户 → 提交方」这种**旧词→新词**形式书写，被替换会把映射表两侧改成同一个词，摧毁唯一的事实来源。
+
+## 7. wire 契约：P4 之后「改名在源、别名在边界」
+
+P4 把数据库**表名与列名**迁到新域词之后，仓库里同时存在**两套命名**：DB 层用新名，API 层用旧名。这不是过渡态残留，而是 `docs/API_POLICY.md`「响应体只增不改」的**必要代价**——HTTP 路径、响应体键、请求模型字段、SDK 方法签名一律保持旧键名，否则所有现存调用方立即破坏。
+
+### 7.1 机制
+
+`app/db/_util.py` 定义映射表 `_COLUMN_TO_WIRE` 与还原函数 `to_wire_row()`，在**响应组装点**把 DB 新列名还原为 wire 旧键名：
+
+| DB 列（新） | wire 键（旧） | 词表 |
+| --- | --- | --- |
+| `submitter_name` | `customer_name` | T1 |
+| `submitter_ref` | `customer_ref` | T2 |
+| `risk_category` | `intent` | T10 |
+| `assigned_reviewer` | `assigned_agent` | T4 |
+| `decided_at` | `resolved_at` | T11 |
+| `appeal_id` | `ticket_id` | T6 |
+| `review_case_id` | `conversation_id` | T5 |
+| `source_review_case_id` | `source_conversation_id` | T5 |
+
+对应地，**表名不参与 wire 契约**：`review_cases` / `appeals` / `qa_spot_checks` 等新表名不出现在任何 HTTP 响应里，故无需别名。
+
+### 7.2 判据：一个出口是不是「wire 面」
+
+`to_wire_row` 的漏应用与误应用**都不产生静态错误**，唯一的判据是**该出口的字节有没有离开进程**：
+
+| 面 | 判定 | 依据 |
+| --- | --- | --- |
+| HTTP 响应组装点、webhook 载荷、SDK 可见字段 | **是 wire 面** → 必须 `to_wire_row` | 有外部消费者 |
+| `app/retention.py:38-49` 的 `PII_FIELDS` | **是 wire 名** → 导出前必须先还原 | 它是**脱敏器的输入契约**，按 wire 名登记；裸 DB 行嵌入导出 JSON 会因列名已改而**漏脱敏**（安全缺陷，非风格问题） |
+| `app/retention.py:232` 的审计归档文档 | **不是 wire 面** → 不还原 | `app/audit_chain.py:111-125` 的 `required_fields` 依赖 `conversation_id`，内部序列化协议自洽 |
+| `app/routers/system.py` 的 `_REPLICATED_SYNTHETIC` / `_REPLICATED_COLUMNS` | **不是 wire 面** → 用新列名 | 跨区复制是 `region_replication.py` 的 cell-to-cell 内部协议，逐字节转发源行，无外部消费者 |
+| `app/routers/attachments.py` 的 Form/Query 参数、`app/routers/admin.py:634` 的查询参数 | **是 wire 名** → 保持 `conversation_id` / `customer_ref` | URL 契约，改名会让现存调用 422 |
+
+### 7.3 遗留的守护缺口（R8④，未实施）
+
+上述判据**不在任何现有守护的射程内**：漏应用表现为「客户端静默取不到值」、误应用表现为「内部协议被改坏」，两者都不会让测试变红。建议补一条**契约常量断言**——`PII_FIELDS` 这类按 wire 名登记的常量，其键名必须等于 `_COLUMN_TO_WIRE` 的**像集**与「未改名原样列名」之并集的子集。本版未实施，登记于此。

@@ -21,10 +21,10 @@ def migration_23(connection: sqlite3.Connection) -> None:
     ).fetchone()
     if row is None:
         # Legacy databases that predate the baseline messages table (only
-        # tenants/conversations) skip every messages-touching migration; this
+        # tenants/review_cases) skip every messages-touching migration; this
         # index is likewise a no-op for them.
         return
     connection.execute(
         """CREATE INDEX IF NOT EXISTS idx_messages_page_seq
-        ON messages(tenant_id, conversation_id, created_at ASC, seq ASC)"""
+        ON messages(tenant_id, review_case_id, created_at ASC, seq ASC)"""
     )

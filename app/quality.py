@@ -27,7 +27,7 @@ def estimate_tokens(text: str) -> int:
     return max(1, (len(text) + 3) // 4)
 
 
-def normalize_intent(value: str | None) -> str:
+def normalize_risk_category(value: str | None) -> str:
     cleaned = (value or "").strip()[:80]
     return cleaned or "unknown"
 
@@ -37,22 +37,22 @@ def normalize_prompt_version(value: str | None) -> str:
     return cleaned or "default"
 
 
-def encode_quality_cursor(date: str, intent: str, prompt_version: str) -> str:
-    return _encode_cursor_payload({"v": 1, "d": date, "i": intent, "p": prompt_version})
+def encode_quality_cursor(date: str, risk_category: str, prompt_version: str) -> str:
+    return _encode_cursor_payload({"v": 1, "d": date, "i": risk_category, "p": prompt_version})
 
 
 def decode_quality_cursor(value: str) -> tuple[str, str, str]:
     payload = _decode_cursor_payload(value, label="quality cursor")
     date = payload.get("d")
-    intent = payload.get("i")
+    risk_category = payload.get("i")
     prompt_version = payload.get("p")
     if payload.get("v") != 1 or not isinstance(date, str) or not date.startswith("20"):
         raise InvalidCursorError("Invalid quality cursor")
-    if not isinstance(intent, str) or not intent or len(intent) > 80:
+    if not isinstance(risk_category, str) or not risk_category or len(risk_category) > 80:
         raise InvalidCursorError("Invalid quality cursor")
     if not isinstance(prompt_version, str) or not prompt_version or len(prompt_version) > 80:
         raise InvalidCursorError("Invalid quality cursor")
-    return date, intent, prompt_version
+    return date, risk_category, prompt_version
 
 
 @dataclass(frozen=True)
@@ -72,7 +72,7 @@ class QualityService:
         self,
         tenant_id: str,
         *,
-        intent: str | None,
+        risk_category: str | None,
         prompt_version: str | None,
         escalated: bool,
         latency_ms: int,
@@ -81,7 +81,7 @@ class QualityService:
         date_str: str | None = None,
     ) -> None:
         day = date_str or utc_now()[:10]
-        intent_key = normalize_intent(intent)
+        risk_category_key = normalize_risk_category(risk_category)
         version_key = normalize_prompt_version(prompt_version)
         escalation = 1 if escalated else 0
         sample = 1 if first_response_seconds is not None else 0
@@ -92,12 +92,12 @@ class QualityService:
             connection.execute(
                 """
                 INSERT INTO quality_daily (
-                    tenant_id, date, intent, prompt_version,
+                    tenant_id, date, risk_category, prompt_version,
                     turn_count, escalation_count, negative_feedback_count,
                     first_response_sum_seconds, first_response_samples,
                     latency_sum_ms, estimated_tokens
                 ) VALUES (?, ?, ?, ?, 1, ?, 0, ?, ?, ?, ?)
-                ON CONFLICT(tenant_id, date, intent, prompt_version) DO UPDATE SET
+                ON CONFLICT(tenant_id, date, risk_category, prompt_version) DO UPDATE SET
                     turn_count = turn_count + 1,
                     escalation_count = escalation_count + excluded.escalation_count,
                     first_response_sum_seconds = first_response_sum_seconds
@@ -110,7 +110,7 @@ class QualityService:
                 (
                     tenant_id,
                     day,
-                    intent_key,
+                    risk_category_key,
                     version_key,
                     escalation,
                     first_sum,
@@ -124,7 +124,7 @@ class QualityService:
         self,
         tenant_id: str,
         *,
-        intent: str | None,
+        risk_category: str | None,
         prompt_version: str | None,
         date_str: str | None = None,
         delta: int = 1,
@@ -132,7 +132,7 @@ class QualityService:
         if delta == 0:
             return
         day = date_str or utc_now()[:10]
-        intent_key = normalize_intent(intent)
+        risk_category_key = normalize_risk_category(risk_category)
         version_key = normalize_prompt_version(prompt_version)
         with self.database.connect() as connection:
             if delta < 0:
@@ -142,24 +142,24 @@ class QualityService:
                     """UPDATE quality_daily
                     SET negative_feedback_count =
                         MAX(0, negative_feedback_count + ?)
-                    WHERE tenant_id = ? AND date = ? AND intent = ?
+                    WHERE tenant_id = ? AND date = ? AND risk_category = ?
                       AND prompt_version = ?""",
-                    (delta, tenant_id, day, intent_key, version_key),
+                    (delta, tenant_id, day, risk_category_key, version_key),
                 )
                 return
             connection.execute(
                 """
                 INSERT INTO quality_daily (
-                    tenant_id, date, intent, prompt_version,
+                    tenant_id, date, risk_category, prompt_version,
                     turn_count, escalation_count, negative_feedback_count,
                     first_response_sum_seconds, first_response_samples,
                     latency_sum_ms, estimated_tokens
                 ) VALUES (?, ?, ?, ?, 0, 0, ?, 0, 0, 0, 0)
-                ON CONFLICT(tenant_id, date, intent, prompt_version) DO UPDATE SET
+                ON CONFLICT(tenant_id, date, risk_category, prompt_version) DO UPDATE SET
                     negative_feedback_count =
                         negative_feedback_count + excluded.negative_feedback_count
                 """,
-                (tenant_id, day, intent_key, version_key, delta),
+                (tenant_id, day, risk_category_key, version_key, delta),
             )
 
     def apply_feedback_rating(
@@ -170,7 +170,7 @@ class QualityService:
         actor: str,
         new_rating: int,
         previous_rating: int | None,
-        intent: str | None,
+        risk_category: str | None,
         prompt_version: str | None,
         date_str: str | None,
     ) -> None:
@@ -184,7 +184,7 @@ class QualityService:
         if new_rating == -1 and previous_rating != -1:
             self.record_negative_feedback(
                 tenant_id,
-                intent=intent,
+                risk_category=risk_category,
                 prompt_version=prompt_version,
                 date_str=date_str,
                 delta=1,
@@ -192,7 +192,7 @@ class QualityService:
         elif new_rating == 1 and previous_rating == -1:
             self.record_negative_feedback(
                 tenant_id,
-                intent=intent,
+                risk_category=risk_category,
                 prompt_version=prompt_version,
                 date_str=date_str,
                 delta=-1,
@@ -214,7 +214,7 @@ class QualityService:
         *,
         since: str | None = None,
         until: str | None = None,
-        intent: str | None = None,
+        risk_category: str | None = None,
         prompt_version: str | None = None,
         cursor: tuple[str, str, str] | None = None,
         limit: int | None = None,
@@ -230,24 +230,32 @@ class QualityService:
         if until_date is not None:
             clauses.append("date <= ?")
             values.append(until_date)
-        if intent:
-            clauses.append("intent = ?")
-            values.append(normalize_intent(intent))
+        if risk_category:
+            clauses.append("risk_category = ?")
+            values.append(normalize_risk_category(risk_category))
         if prompt_version:
             clauses.append("prompt_version = ?")
             values.append(normalize_prompt_version(prompt_version))
         if cursor is not None:
-            cursor_date, cursor_intent, cursor_version = cursor
+            cursor_date, cursor_risk_category, cursor_version = cursor
             clauses.append(
-                "(date < ? OR (date = ? AND (intent > ? OR (intent = ? AND prompt_version > ?))))"
+                "(date < ? OR (date = ? AND (risk_category > ? OR (risk_category = ? AND prompt_version > ?))))"
             )
-            values.extend([cursor_date, cursor_date, cursor_intent, cursor_intent, cursor_version])
+            values.extend(
+                [
+                    cursor_date,
+                    cursor_date,
+                    cursor_risk_category,
+                    cursor_risk_category,
+                    cursor_version,
+                ]
+            )
         query = (
-            "SELECT date, intent, prompt_version, turn_count, escalation_count, "
+            "SELECT date, risk_category, prompt_version, turn_count, escalation_count, "
             "negative_feedback_count, first_response_sum_seconds, "
             "first_response_samples, latency_sum_ms, estimated_tokens "
             f"FROM quality_daily WHERE {' AND '.join(clauses)} "
-            "ORDER BY date DESC, intent ASC, prompt_version ASC LIMIT ?"
+            "ORDER BY date DESC, risk_category ASC, prompt_version ASC LIMIT ?"
         )
         values.append(page_size)
         with self.database.connect() as connection:
@@ -264,7 +272,7 @@ def _shape_bucket(row: Any) -> dict[str, Any]:
     latency_sum = int(row["latency_sum_ms"] or 0)
     return {
         "date": row["date"],
-        "intent": row["intent"],
+        "intent": row["risk_category"],
         "prompt_version": row["prompt_version"],
         "turn_count": turn_count,
         "escalation_count": escalation_count,
@@ -291,6 +299,6 @@ __all__ = [
     "decode_quality_cursor",
     "encode_quality_cursor",
     "estimate_tokens",
-    "normalize_intent",
+    "normalize_risk_category",
     "normalize_prompt_version",
 ]

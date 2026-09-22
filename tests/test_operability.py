@@ -23,13 +23,13 @@ from app.config import Settings
 from app.main import APP_VERSION, create_app
 
 ADMIN_KEY = "ops-admin-key-0001"
-OPERATOR_KEY = "ops-op-key-000001"
+REVIEWER_KEY = "ops-op-key-000001"
 
 
 def _settings(db_path: Path) -> Settings:
     principals = {
         ADMIN_KEY: {"tenant_id": "demo", "actor_id": "admin", "role": "admin"},
-        OPERATOR_KEY: {"tenant_id": "demo", "actor_id": "op", "role": "operator"},
+        REVIEWER_KEY: {"tenant_id": "demo", "actor_id": "op", "role": "operator"},
     }
     return Settings(
         database_path=db_path,
@@ -49,7 +49,7 @@ class DiagnosticsTests(unittest.TestCase):
         self.client = TestClient(create_app(_settings(self.db_path)))
         self.services = cast(Any, self.client.app).state.services
         self.admin = {"X-API-Key": ADMIN_KEY, "X-Tenant-Id": "demo"}
-        self.operator = {"X-API-Key": OPERATOR_KEY, "X-Tenant-Id": "demo"}
+        self.reviewer = {"X-API-Key": REVIEWER_KEY, "X-Tenant-Id": "demo"}
 
     def tearDown(self) -> None:
         self.services.database.close()
@@ -57,7 +57,7 @@ class DiagnosticsTests(unittest.TestCase):
         self._tmp.cleanup()
 
     def test_diagnostics_requires_admin(self) -> None:
-        response = self.client.get("/api/admin/diagnostics", headers=self.operator)
+        response = self.client.get("/api/admin/diagnostics", headers=self.reviewer)
         self.assertEqual(response.status_code, 403)
 
     def test_diagnostics_bundle_shape(self) -> None:

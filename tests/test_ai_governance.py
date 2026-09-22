@@ -153,7 +153,7 @@ class TurnGovernanceGateTests(unittest.TestCase):
             self.db, Settings(database_path=self.db_path, auth_mode="demo")
         )
         orchestrator.data_plane_config = self.dp
-        conv = self.db.create_conversation("acme", "C", None, "web", "admin", 120)
+        conv = self.db.create_review_case("acme", "C", None, "web", "admin", 120)
         orchestrator.handle_customer_message(
             "acme", conv["id"], "违规内容怎么分级？", "admin", "idem-gov-1"
         )
@@ -168,7 +168,7 @@ class TurnGovernanceGateTests(unittest.TestCase):
         orchestrator = ConversationOrchestrator(
             self.db, Settings(database_path=self.db_path, auth_mode="demo")
         )
-        conv = self.db.create_conversation("acme", "C2", None, "web", "admin", 120)
+        conv = self.db.create_review_case("acme", "C2", None, "web", "admin", 120)
         orchestrator.handle_customer_message(
             "acme", conv["id"], "违规内容怎么分级？", "admin", "idem-gov-2"
         )
@@ -194,7 +194,7 @@ class TurnGovernanceGateTests(unittest.TestCase):
             self.db, Settings(database_path=self.db_path, auth_mode="demo")
         )
         orchestrator.data_plane_config = dp
-        conv = self.db.create_conversation("acme", "C3", None, "web", "admin", 120)
+        conv = self.db.create_review_case("acme", "C3", None, "web", "admin", 120)
         orchestrator.handle_customer_message(
             "acme", conv["id"], "违规内容怎么分级？", "admin", "idem-gov-3"
         )
@@ -205,7 +205,7 @@ class TurnGovernanceGateTests(unittest.TestCase):
 class CapabilityTokenTests(unittest.TestCase):
     SECRET_BYTES = b"capability-token-secret-0123456789abcdef"
 
-    def _grant(self, tool: str = "orders.lookup", digest: str = "", ttl: int = 300) -> dict:
+    def _grant(self, tool: str = "source_lookups.lookup", digest: str = "", ttl: int = 300) -> dict:
         return issue_capability_token(
             secret=self.SECRET_BYTES,
             tool=tool,
@@ -217,16 +217,24 @@ class CapabilityTokenTests(unittest.TestCase):
 
     def test_valid_grant_verifies(self) -> None:
         body = verify_capability_token(
-            self.SECRET_BYTES, self._grant(), tool="orders.lookup", tenant_id="acme", now=1_100.0
+            self.SECRET_BYTES,
+            self._grant(),
+            tool="source_lookups.lookup",
+            tenant_id="acme",
+            now=1_100.0,
         )
-        self.assertEqual(body["tool"], "orders.lookup")
+        self.assertEqual(body["tool"], "source_lookups.lookup")
 
     def test_tampered_signature_rejected(self) -> None:
         grant = self._grant()
         grant["signature"] = "0" * len(grant["signature"])
         with self.assertRaises(CapabilityError):
             verify_capability_token(
-                self.SECRET_BYTES, grant, tool="orders.lookup", tenant_id="acme", now=1_100.0
+                self.SECRET_BYTES,
+                grant,
+                tool="source_lookups.lookup",
+                tenant_id="acme",
+                now=1_100.0,
             )
 
     def test_expired_grant_rejected(self) -> None:
@@ -234,7 +242,7 @@ class CapabilityTokenTests(unittest.TestCase):
             verify_capability_token(
                 self.SECRET_BYTES,
                 self._grant(ttl=10),
-                tool="orders.lookup",
+                tool="source_lookups.lookup",
                 tenant_id="acme",
                 now=2_000.0,
             )
@@ -247,7 +255,11 @@ class CapabilityTokenTests(unittest.TestCase):
             )
         with self.assertRaises(CapabilityError):
             verify_capability_token(
-                self.SECRET_BYTES, grant, tool="orders.lookup", tenant_id="other", now=1_100.0
+                self.SECRET_BYTES,
+                grant,
+                tool="source_lookups.lookup",
+                tenant_id="other",
+                now=1_100.0,
             )
 
     def test_schema_digest_pinning_invalidates_outstanding_tokens(self) -> None:
@@ -256,7 +268,7 @@ class CapabilityTokenTests(unittest.TestCase):
             verify_capability_token(
                 self.SECRET_BYTES,
                 old,
-                tool="orders.lookup",
+                tool="source_lookups.lookup",
                 tenant_id="acme",
                 schema_digest="bbbbbbbbbbbbbbbb",
                 now=1_100.0,
@@ -265,12 +277,12 @@ class CapabilityTokenTests(unittest.TestCase):
     def test_validate_arguments_shape_checks(self) -> None:
         schema = {
             "type": "object",
-            "required": ["order_id"],
-            "properties": {"order_id": {"type": "string"}, "count": {"type": "integer"}},
+            "required": ["source_record_id"],
+            "properties": {"source_record_id": {"type": "string"}, "count": {"type": "integer"}},
         }
-        self.assertEqual(validate_arguments(schema, {"order_id": "ORD-1"}), [])
+        self.assertEqual(validate_arguments(schema, {"source_record_id": "ORD-1"}), [])
         problems = validate_arguments(schema, {"count": "not-an-int"})
-        self.assertTrue(any("order_id" in p for p in problems), problems)
+        self.assertTrue(any("source_record_id" in p for p in problems), problems)
         self.assertTrue(any("count" in p for p in problems), problems)
 
     def test_validate_arguments_length_bounds(self) -> None:
@@ -322,8 +334,8 @@ class GatewayGovernanceTests(unittest.TestCase):
                     side_effect="high_risk",
                     parameter_schema={
                         "type": "object",
-                        "required": ["order_id"],
-                        "properties": {"order_id": {"type": "string"}},
+                        "required": ["source_record_id"],
+                        "properties": {"source_record_id": {"type": "string"}},
                     },
                 )
             },
@@ -340,7 +352,7 @@ class GatewayGovernanceTests(unittest.TestCase):
         from app.tools import ToolGovernanceDenied
 
         with self.assertRaises(ToolGovernanceDenied) as caught:
-            gateway.enforce_governance("orders.lookup", "acme", {"customer_ref": 123})
+            gateway.enforce_governance("source_lookups.lookup", "acme", {"customer_ref": 123})
         self.assertEqual(caught.exception.reason, "schema")
 
     def test_high_risk_without_approval_fail_closed(self) -> None:
@@ -348,7 +360,7 @@ class GatewayGovernanceTests(unittest.TestCase):
 
         gateway = self._gateway(governance_service=None)
         with self.assertRaises(ToolGovernanceDenied) as caught:
-            gateway.enforce_governance("refund.order", "acme", {"order_id": "ORD-1"})
+            gateway.enforce_governance("refund.order", "acme", {"source_record_id": "ORD-1"})
         self.assertEqual(caught.exception.reason, "approval_required")
 
     def test_high_risk_with_pending_approval_still_refused(self) -> None:
@@ -363,7 +375,7 @@ class GatewayGovernanceTests(unittest.TestCase):
         from app.tools import ToolGovernanceDenied
 
         with self.assertRaises(ToolGovernanceDenied) as caught:
-            gateway.enforce_governance("refund.order", "acme", {"order_id": "ORD-1"})
+            gateway.enforce_governance("refund.order", "acme", {"source_record_id": "ORD-1"})
         self.assertEqual(caught.exception.reason, "approval_required")
 
 
@@ -440,7 +452,7 @@ class EvalRegistryTests(unittest.TestCase):
     def test_unreviewed_feedback_never_enters_dataset(self) -> None:
         staged = self.service.ingest_online_feedback(
             tenant_id="acme",
-            conversation_id=None,
+            review_case_id=None,
             source="csat",
             payload={
                 "text": "the reply was wrong",
@@ -501,7 +513,7 @@ class DriftMonitorTests(unittest.TestCase):
         for i in range(10):
             self.quality.record_turn(
                 "acme",
-                intent="support",
+                risk_category="support",
                 prompt_version="v1.1",
                 escalated=i < 8,
                 latency_ms=50,
@@ -535,7 +547,7 @@ class DriftMonitorTests(unittest.TestCase):
     def test_small_sample_does_not_fire_rate_signals(self) -> None:
         self.quality.record_turn(
             "acme",
-            intent="support",
+            risk_category="support",
             prompt_version="v1",
             escalated=True,
             latency_ms=50,
@@ -627,7 +639,7 @@ class DriftCostCitationSignalTests(unittest.TestCase):
         )
 
     def _seed_cited_messages(self, article_id: str, count: int) -> None:
-        conv = self.db.create_conversation("acme", "C", None, "web", "admin", 120)
+        conv = self.db.create_review_case("acme", "C", None, "web", "admin", 120)
         for _ in range(count):
             self.db.add_message(
                 "acme",
@@ -723,7 +735,7 @@ class DriftCostCitationSignalTests(unittest.TestCase):
         self.assertEqual(monitor.collect_signals("acme"), [])
 
     def test_stale_citation_breach_stops_canary(self) -> None:
-        article = self.db.create_knowledge(
+        article = self.db.create_policy_article(
             "acme", "退换货政策", "七天内可退", ["政策"], "general", ""
         )
         self._seed_cited_messages(article["id"], 10)
@@ -744,7 +756,7 @@ class DriftCostCitationSignalTests(unittest.TestCase):
         self.assertEqual(reports[0].stopped_canaries, [{"name": "triage_prompt", "version": "1.1"}])
 
     def test_fresh_citations_stay_silent(self) -> None:
-        article = self.db.create_knowledge(
+        article = self.db.create_policy_article(
             "acme", "退换货政策", "七天内可退", ["政策"], "general", ""
         )
         self._seed_cited_messages(article["id"], 10)
@@ -759,12 +771,12 @@ class DriftCostCitationSignalTests(unittest.TestCase):
         self.assertEqual(monitor.collect_signals("acme"), [])
 
     def test_citation_rate_partial_breach_and_ceiling(self) -> None:
-        article = self.db.create_knowledge(
+        article = self.db.create_policy_article(
             "acme", "退换货政策", "七天内可退", ["政策"], "general", ""
         )
-        stale = self.db.create_knowledge("acme", "旧政策", "已下线", ["政策"], "general", "")
+        stale = self.db.create_policy_article("acme", "旧政策", "已下线", ["政策"], "general", "")
         self.db.review_knowledge("acme", stale["id"], "retire", "admin")
-        conv = self.db.create_conversation("acme", "C", None, "web", "admin", 120)
+        conv = self.db.create_review_case("acme", "C", None, "web", "admin", 120)
         for i in range(10):
             cited = stale["id"] if i < 3 else article["id"]
             self.db.add_message(
@@ -797,7 +809,7 @@ class DriftCostCitationSignalTests(unittest.TestCase):
 
     def test_citation_sample_floor_stays_silent(self) -> None:
         self.db.ensure_tenant("tiny")
-        conv = self.db.create_conversation("tiny", "C", None, "web", "admin", 120)
+        conv = self.db.create_review_case("tiny", "C", None, "web", "admin", 120)
         for _ in range(3):
             self.db.add_message(
                 "tiny",
@@ -818,7 +830,7 @@ class DriftCostCitationSignalTests(unittest.TestCase):
         self.assertEqual(monitor.collect_signals("tiny"), [])
 
     def test_citation_signal_disabled(self) -> None:
-        article = self.db.create_knowledge(
+        article = self.db.create_policy_article(
             "acme", "退换货政策", "七天内可退", ["政策"], "general", ""
         )
         self._seed_cited_messages(article["id"], 10)

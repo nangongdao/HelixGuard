@@ -1,6 +1,6 @@
 """ROADMAP 18.5 PostgreSQL dense-message search fast-path tests.
 
-The production path is PostgreSQL-only, but its SQL is intentionally shared
+The production path is PostgreSQL-only, but its SQL is risk_categoryionally shared
 SQL.  These tests execute it against SQLite with message FTS disabled, then
 compare it with the existing aggregate fallback.  Live PostgreSQL tests pin
 the supporting native indexes separately in ``tests.test_postgres``.
@@ -21,7 +21,7 @@ from scripts.pagination_load_test import (
 )
 
 
-class ConversationSearchWindowTests(unittest.TestCase):
+class ReviewCaseSearchWindowTests(unittest.TestCase):
     TENANT = "window-tenant"
     OTHER_TENANT = "window-other"
 
@@ -31,10 +31,10 @@ class ConversationSearchWindowTests(unittest.TestCase):
         self.database.initialize()
         self.database.ensure_tenant(self.TENANT)
         self.database.ensure_tenant(self.OTHER_TENANT)
-        self.conversation_ids: list[str] = []
+        self.review_case_ids: list[str] = []
 
         for index in range(8):
-            conversation = self.database.create_conversation(
+            review_case = self.database.create_review_case(
                 self.TENANT,
                 f"Window Customer {index}",
                 f"WINDOW-{index}",
@@ -42,22 +42,22 @@ class ConversationSearchWindowTests(unittest.TestCase):
                 "admin",
                 120,
             )
-            self.conversation_ids.append(str(conversation["id"]))
+            self.review_case_ids.append(str(review_case["id"]))
             suffix = " sparse-only" if index < 2 else ""
             self.database.add_message(
                 self.TENANT,
-                str(conversation["id"]),
+                str(review_case["id"]),
                 "customer",
                 "Customer",
                 f"dense-message {index}{suffix}",
             )
             with self.database.connect() as connection:
                 connection.execute(
-                    "UPDATE conversations SET updated_at = ? WHERE tenant_id = ? AND id = ?",
-                    (f"2026-08-18T00:00:{index:02d}+00:00", self.TENANT, conversation["id"]),
+                    "UPDATE review_cases SET updated_at = ? WHERE tenant_id = ? AND id = ?",
+                    (f"2026-08-18T00:00:{index:02d}+00:00", self.TENANT, review_case["id"]),
                 )
 
-        other = self.database.create_conversation(
+        other = self.database.create_review_case(
             self.OTHER_TENANT, "Other Customer", "OTHER-1", "web", "admin", 120
         )
         self.database.add_message(
@@ -80,19 +80,19 @@ class ConversationSearchWindowTests(unittest.TestCase):
         self.database.backend = backend
         return [
             str(row["id"])
-            for row in self.database.list_conversations(self.TENANT, sort="updated", **kwargs)
+            for row in self.database.list_review_cases(self.TENANT, sort="updated", **kwargs)
         ]
 
     def _run_fast_path(self, **kwargs: Any) -> tuple[list[str], list[Any]]:
         captured: list[Any] = []
-        original = self.database._query_conversations_windowed
+        original = self.database._query_review_cases_windowed
 
         def capture(*args: Any, **inner_kwargs: Any) -> Any:
             result = original(*args, **inner_kwargs)
             captured.append(result)
             return result
 
-        with patch.object(self.database, "_query_conversations_windowed", side_effect=capture):
+        with patch.object(self.database, "_query_review_cases_windowed", side_effect=capture):
             ids = self._ids("postgresql", **kwargs)
         return ids, captured
 
@@ -111,11 +111,11 @@ class ConversationSearchWindowTests(unittest.TestCase):
         actual, captured = self._run_fast_path(search="sparse-only", limit=2)
 
         self.assertEqual(actual, expected)
-        self.assertEqual(set(actual), set(self.conversation_ids[:2]))
+        self.assertEqual(set(actual), set(self.review_case_ids[:2]))
         self.assertEqual(captured, [None])
 
     def test_updated_cursor_page_matches_aggregate_query(self) -> None:
-        first = self.database.list_conversations(
+        first = self.database.list_review_cases(
             self.TENANT, search="dense-message", sort="updated", limit=2
         )
         last = first[-1]
@@ -140,7 +140,7 @@ class ConversationSearchWindowTests(unittest.TestCase):
     def test_capacity_probe_requires_a_message_only_marker(self) -> None:
         self.database.add_message(
             self.TENANT,
-            self.conversation_ids[0],
+            self.review_case_ids[0],
             "customer",
             "Customer",
             SELECTIVE_MESSAGE_SEARCH_TERM,
@@ -149,8 +149,8 @@ class ConversationSearchWindowTests(unittest.TestCase):
 
         with self.database.connect() as connection:
             connection.execute(
-                "UPDATE conversations SET customer_name = ? WHERE tenant_id = ? AND id = ?",
-                (SELECTIVE_MESSAGE_SEARCH_TERM, self.TENANT, self.conversation_ids[0]),
+                "UPDATE review_cases SET submitter_name = ? WHERE tenant_id = ? AND id = ?",
+                (SELECTIVE_MESSAGE_SEARCH_TERM, self.TENANT, self.review_case_ids[0]),
             )
         with self.assertRaisesRegex(RuntimeError, "zero conversation-field hits"):
             validate_message_search_probe(self.database, self.TENANT)

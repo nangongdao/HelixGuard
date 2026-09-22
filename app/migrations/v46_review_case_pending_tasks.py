@@ -4,8 +4,8 @@ One durable row per conversation for the task automation is waiting to
 continue -- the source-lookup clarify flow ("查来源 → 请提供来源记录号 → ORD-…"):
 
 - ``kind``       -- the task vocabulary (today: ``order_clarification``);
-- ``slot``       -- the missing piece the customer was asked for (``order_id``);
-- ``intent``     -- the original triage intent the task continues;
+- ``slot``       -- the missing piece the customer was asked for (``source_record_id``);
+- ``risk_category``     -- the original triage risk_category the task continues;
 - ``rounds``     -- how many clarifications were already sent, so the
   execution stage can escalate instead of asking forever;
 - ``expires_at`` -- staleness bound; a lapsed task is lazily dropped on read.
@@ -24,21 +24,21 @@ from app.migrations import migration
 def migrate(connection: sqlite3.Connection) -> None:
     connection.execute(
         """
-        CREATE TABLE IF NOT EXISTS conversation_pending_tasks (
+        CREATE TABLE IF NOT EXISTS review_case_pending_tasks (
             tenant_id TEXT NOT NULL REFERENCES tenants(id),
-            conversation_id TEXT NOT NULL,
+            review_case_id TEXT NOT NULL,
             kind TEXT NOT NULL,
             slot TEXT NOT NULL,
-            intent TEXT NOT NULL DEFAULT '',
+            risk_category TEXT NOT NULL DEFAULT '',
             rounds INTEGER NOT NULL DEFAULT 0,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL,
             expires_at TEXT NOT NULL,
-            PRIMARY KEY (tenant_id, conversation_id)
+            PRIMARY KEY (tenant_id, review_case_id)
         )
         """
     )
     connection.execute(
         "CREATE INDEX IF NOT EXISTS idx_pending_tasks_expiry "
-        "ON conversation_pending_tasks(expires_at)"
+        "ON review_case_pending_tasks(expires_at)"
     )

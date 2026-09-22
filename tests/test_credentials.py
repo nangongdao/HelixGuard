@@ -38,14 +38,14 @@ from app.db._util import utc_after_seconds, utc_now
 from app.main import create_app
 
 ADMIN_KEY = "creds-admin-key-001"
-OPERATOR_KEY = "creds-op-key-001"
+REVIEWER_KEY = "creds-op-key-001"
 SECONDARY_TENANT_KEY = "creds-tenant-b-key-001"
 
 
 def _settings(db_path: Path, **overrides: Any) -> Settings:
     principals = {
         ADMIN_KEY: {"tenant_id": "demo", "actor_id": "admin.user", "role": "admin"},
-        OPERATOR_KEY: {"tenant_id": "demo", "actor_id": "op.user", "role": "operator"},
+        REVIEWER_KEY: {"tenant_id": "demo", "actor_id": "op.user", "role": "operator"},
         SECONDARY_TENANT_KEY: {
             "tenant_id": "tenant-b",
             "actor_id": "op.b",
@@ -86,7 +86,7 @@ class CredentialRegistryUnitTests(unittest.TestCase):
             tenant_id="demo",
             raw_json=json.dumps(
                 {
-                    OPERATOR_KEY: {"tenant_id": "demo", "actor_id": "o", "role": "operator"},
+                    REVIEWER_KEY: {"tenant_id": "demo", "actor_id": "o", "role": "operator"},
                     SECONDARY_TENANT_KEY: {
                         "tenant_id": "tenant-b",
                         "actor_id": "b",
@@ -98,21 +98,21 @@ class CredentialRegistryUnitTests(unittest.TestCase):
         )
         self.assertEqual(count, 2)
         # Deterministic id matches the historical credential_id exposed via /api/me.
-        expected = key_ref_for(OPERATOR_KEY)[:12]
+        expected = key_ref_for(REVIEWER_KEY)[:12]
         row = self.store.get(expected)
         self.assertIsNotNone(row)
         assert row is not None
         self.assertEqual(row["status"], CredentialStatus.ACTIVE.value)
         # Full fingerprint stored, never the secret.
-        self.assertEqual(row["key_ref"], key_ref_for(OPERATOR_KEY))
-        self.assertNotIn(OPERATOR_KEY, json.dumps(row))
+        self.assertEqual(row["key_ref"], key_ref_for(REVIEWER_KEY))
+        self.assertNotIn(REVIEWER_KEY, json.dumps(row))
         # Per-credential tenant honoured.
         other = self.store.get(key_ref_for(SECONDARY_TENANT_KEY)[:12])
         assert other is not None
         self.assertEqual(other["tenant_id"], "tenant-b")
 
     def test_re_seed_is_idempotent(self) -> None:
-        raw = json.dumps({OPERATOR_KEY: {"tenant_id": "demo", "actor_id": "o", "role": "operator"}})
+        raw = json.dumps({REVIEWER_KEY: {"tenant_id": "demo", "actor_id": "o", "role": "operator"}})
         for _ in range(3):
             register_configured_from_json(
                 store=self.store,
@@ -318,7 +318,7 @@ class CredentialRegistryIntegrationTests(unittest.TestCase):
         self.client = TestClient(create_app(_settings(self.db_path)))
         self.services = cast(Any, self.client.app).state.services
         self.admin = {"X-API-Key": ADMIN_KEY, "X-Tenant-Id": "demo"}
-        self.operator = {"X-API-Key": OPERATOR_KEY, "X-Tenant-Id": "demo"}
+        self.reviewer = {"X-API-Key": REVIEWER_KEY, "X-Tenant-Id": "demo"}
 
     def tearDown(self) -> None:
         self.services.database.close()
@@ -341,10 +341,10 @@ class CredentialRegistryIntegrationTests(unittest.TestCase):
             create_app(_settings(self.db_path, api_keys_json=json.dumps(principals)))
         )
         self.services = cast(Any, self.client.app).state.services
-        return {"X-API-Key": OPERATOR_KEY, "X-Tenant-Id": "demo"}
+        return {"X-API-Key": REVIEWER_KEY, "X-Tenant-Id": "demo"}
 
     def test_cross_instance_revocation_is_immediate(self) -> None:
-        credential = self.client.get("/api/me", headers=self.operator).json()["credential_id"]
+        credential = self.client.get("/api/me", headers=self.reviewer).json()["credential_id"]
         self.assertEqual(
             self.client.post(
                 f"/api/admin/keys/{credential}/revoke", headers=self.admin
@@ -358,16 +358,16 @@ class CredentialRegistryIntegrationTests(unittest.TestCase):
         """The authenticator reads the persisted registry per request — a state
         change made by another writer (e.g. a lifecycle worker, or a second
         instance) is effective immediately."""
-        credential = self.client.get("/api/me", headers=self.operator).json()["credential_id"]
+        credential = self.client.get("/api/me", headers=self.reviewer).json()["credential_id"]
         # Another instance retires then revokes the credential directly.
         self.services.credential_lifecycle.rotate(credential, now=utc_now(), by="admin")
         self.services.credential_lifecycle.revoke(credential, now=utc_now(), by="admin")
         self.assertEqual(
-            self.client.get("/api/review-cases", headers=self.operator).status_code, 401
+            self.client.get("/api/review-cases", headers=self.reviewer).status_code, 401
         )
 
     def test_expired_row_blocks_new_instance(self) -> None:
-        credential = self.client.get("/api/me", headers=self.operator).json()["credential_id"]
+        credential = self.client.get("/api/me", headers=self.reviewer).json()["credential_id"]
         row = self.services.credential_store.get(credential)
         assert row is not None
         with self.services.database.connect() as conn:
@@ -412,7 +412,7 @@ class CredentialRegistryIntegrationTests(unittest.TestCase):
         """Backward-path: a key revoked through the legacy table (old instance)
         is still refused by a registry-aware peer because list_revoked_api_keys
         still feeds the in-memory set."""
-        credential = self.client.get("/api/me", headers=self.operator).json()["credential_id"]
+        credential = self.client.get("/api/me", headers=self.reviewer).json()["credential_id"]
         self.services.database.revoke_api_key(credential, "admin.user")
         headers = self._fresh_instance_headers()
         self.assertEqual(self.client.get("/api/review-cases", headers=headers).status_code, 401)

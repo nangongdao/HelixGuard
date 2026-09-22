@@ -266,9 +266,11 @@ class ResilientOrderConnector:
         self.config = config or registry.config
         self.connector_name = connector_name
 
-    def lookup_order(self, tenant_id: str, customer_ref: str | None, order_id: str) -> OrderLookup:
+    def lookup_order(
+        self, tenant_id: str, submitter_ref: str | None, source_record_id: str
+    ) -> OrderLookup:
         return _resilient_call(
-            lambda: self.inner.lookup_order(tenant_id, customer_ref, order_id),
+            lambda: self.inner.lookup_order(tenant_id, submitter_ref, source_record_id),
             self.registry,
             tenant_id,
             self.connector_name,
@@ -355,9 +357,9 @@ class ResilientCRMConnector:
         self.config = config or registry.config
         self.connector_name = connector_name
 
-    def resolve_customer(self, tenant_id: str, customer_ref: str) -> CustomerLookup:
+    def resolve_customer(self, tenant_id: str, submitter_ref: str) -> CustomerLookup:
         return _resilient_call(
-            lambda: self.inner.resolve_customer(tenant_id, customer_ref),
+            lambda: self.inner.resolve_customer(tenant_id, submitter_ref),
             self.registry,
             tenant_id,
             self.connector_name,

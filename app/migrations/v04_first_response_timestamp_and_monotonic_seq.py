@@ -9,7 +9,7 @@ from app.migrations import _create_seq_trigger_if_table_exists, _ensure_column, 
 
 @migration(4, "first response timestamp and monotonic seq")
 def migration_4(connection: sqlite3.Connection) -> None:
-    _ensure_column(connection, "conversations", "first_response_at", "TEXT")
+    _ensure_column(connection, "review_cases", "first_response_at", "TEXT")
     _ensure_column(connection, "messages", "seq", "INTEGER NOT NULL DEFAULT 0")
     _ensure_column(connection, "audit_events", "seq", "INTEGER NOT NULL DEFAULT 0")
     # Backfill only when the table exists (legacy fixtures may be partial).

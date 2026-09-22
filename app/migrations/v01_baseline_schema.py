@@ -16,15 +16,15 @@ def migration_1(connection: sqlite3.Connection) -> None:
             name TEXT NOT NULL,
             created_at TEXT NOT NULL
         );
-        CREATE TABLE IF NOT EXISTS conversations (
+        CREATE TABLE IF NOT EXISTS review_cases (
             id TEXT PRIMARY KEY,
             tenant_id TEXT NOT NULL REFERENCES tenants(id),
-            customer_name TEXT NOT NULL,
-            customer_ref TEXT,
+            submitter_name TEXT NOT NULL,
+            submitter_ref TEXT,
             channel TEXT NOT NULL,
             status TEXT NOT NULL,
-            intent TEXT,
-            assigned_agent TEXT,
+            risk_category TEXT,
+            assigned_reviewer TEXT,
             priority TEXT NOT NULL DEFAULT 'normal',
             handoff_reason TEXT,
             sla_due_at TEXT,
@@ -42,14 +42,14 @@ def migration_1(connection: sqlite3.Connection) -> None:
             first_response_at TEXT,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL,
-            resolved_at TEXT
+            decided_at TEXT
         );
-        CREATE INDEX IF NOT EXISTS idx_conversations_tenant_updated
-            ON conversations(tenant_id, updated_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_review_cases_tenant_updated
+            ON review_cases(tenant_id, updated_at DESC);
         CREATE TABLE IF NOT EXISTS messages (
             id TEXT PRIMARY KEY,
             tenant_id TEXT NOT NULL REFERENCES tenants(id),
-            conversation_id TEXT NOT NULL REFERENCES conversations(id),
+            review_case_id TEXT NOT NULL REFERENCES review_cases(id),
             turn_id TEXT,
             role TEXT NOT NULL,
             author TEXT NOT NULL,
@@ -59,18 +59,18 @@ def migration_1(connection: sqlite3.Connection) -> None:
             seq INTEGER NOT NULL DEFAULT 0
         );
         CREATE INDEX IF NOT EXISTS idx_messages_conversation
-            ON messages(tenant_id, conversation_id, created_at);
-        CREATE TABLE IF NOT EXISTS conversation_labels (
+            ON messages(tenant_id, review_case_id, created_at);
+        CREATE TABLE IF NOT EXISTS review_case_labels (
             tenant_id TEXT NOT NULL REFERENCES tenants(id),
-            conversation_id TEXT NOT NULL REFERENCES conversations(id),
+            review_case_id TEXT NOT NULL REFERENCES review_cases(id),
             label TEXT NOT NULL,
             created_by TEXT NOT NULL,
             created_at TEXT NOT NULL,
-            PRIMARY KEY (tenant_id, conversation_id, label)
+            PRIMARY KEY (tenant_id, review_case_id, label)
         );
-        CREATE INDEX IF NOT EXISTS idx_conversation_labels_lookup
-            ON conversation_labels(tenant_id, label, conversation_id);
-        CREATE TABLE IF NOT EXISTS knowledge_articles (
+        CREATE INDEX IF NOT EXISTS idx_review_case_labels_lookup
+            ON review_case_labels(tenant_id, label, review_case_id);
+        CREATE TABLE IF NOT EXISTS policy_articles (
             id TEXT PRIMARY KEY,
             tenant_id TEXT NOT NULL REFERENCES tenants(id),
             title TEXT NOT NULL,
@@ -82,13 +82,13 @@ def migration_1(connection: sqlite3.Connection) -> None:
             version INTEGER NOT NULL DEFAULT 1,
             updated_at TEXT NOT NULL
         );
-        CREATE INDEX IF NOT EXISTS idx_knowledge_tenant_active
-            ON knowledge_articles(tenant_id, active, updated_at DESC);
-        CREATE TABLE IF NOT EXISTS orders (
+        CREATE INDEX IF NOT EXISTS idx_policy_tenant_active
+            ON policy_articles(tenant_id, active, updated_at DESC);
+        CREATE TABLE IF NOT EXISTS source_lookups (
             id TEXT NOT NULL,
             tenant_id TEXT NOT NULL REFERENCES tenants(id),
-            customer_ref TEXT,
-            customer_name TEXT NOT NULL,
+            submitter_ref TEXT,
+            submitter_name TEXT NOT NULL,
             status TEXT NOT NULL,
             amount TEXT NOT NULL,
             eta TEXT,
@@ -98,7 +98,7 @@ def migration_1(connection: sqlite3.Connection) -> None:
         CREATE TABLE IF NOT EXISTS audit_events (
             id TEXT PRIMARY KEY,
             tenant_id TEXT NOT NULL REFERENCES tenants(id),
-            conversation_id TEXT,
+            review_case_id TEXT,
             request_id TEXT,
             actor TEXT NOT NULL,
             event_type TEXT NOT NULL,
@@ -107,22 +107,22 @@ def migration_1(connection: sqlite3.Connection) -> None:
             seq INTEGER NOT NULL DEFAULT 0
         );
         CREATE INDEX IF NOT EXISTS idx_audit_conversation
-            ON audit_events(tenant_id, conversation_id, created_at);
+            ON audit_events(tenant_id, review_case_id, created_at);
         CREATE TABLE IF NOT EXISTS turn_requests (
             tenant_id TEXT NOT NULL REFERENCES tenants(id),
-            conversation_id TEXT NOT NULL REFERENCES conversations(id),
+            review_case_id TEXT NOT NULL REFERENCES review_cases(id),
             idempotency_key TEXT NOT NULL,
             status TEXT NOT NULL,
             response_json TEXT,
             error_code TEXT,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL,
-            PRIMARY KEY (tenant_id, conversation_id, idempotency_key)
+            PRIMARY KEY (tenant_id, review_case_id, idempotency_key)
         );
         CREATE TABLE IF NOT EXISTS turn_jobs (
             id TEXT PRIMARY KEY,
             tenant_id TEXT NOT NULL REFERENCES tenants(id),
-            conversation_id TEXT NOT NULL REFERENCES conversations(id),
+            review_case_id TEXT NOT NULL REFERENCES review_cases(id),
             idempotency_key TEXT NOT NULL,
             actor_id TEXT NOT NULL,
             content TEXT NOT NULL,
@@ -137,7 +137,7 @@ def migration_1(connection: sqlite3.Connection) -> None:
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL,
             completed_at TEXT,
-            UNIQUE (tenant_id, conversation_id, idempotency_key)
+            UNIQUE (tenant_id, review_case_id, idempotency_key)
         );
         CREATE INDEX IF NOT EXISTS idx_turn_jobs_dispatch
             ON turn_jobs(status, available_at, created_at);
@@ -146,7 +146,7 @@ def migration_1(connection: sqlite3.Connection) -> None:
         CREATE TABLE IF NOT EXISTS feedback (
             id TEXT PRIMARY KEY,
             tenant_id TEXT NOT NULL REFERENCES tenants(id),
-            conversation_id TEXT NOT NULL REFERENCES conversations(id),
+            review_case_id TEXT NOT NULL REFERENCES review_cases(id),
             message_id TEXT NOT NULL REFERENCES messages(id),
             actor TEXT NOT NULL,
             rating INTEGER NOT NULL CHECK (rating IN (-1, 1)),
@@ -155,7 +155,7 @@ def migration_1(connection: sqlite3.Connection) -> None:
             updated_at TEXT NOT NULL,
             UNIQUE (tenant_id, message_id, actor)
         );
-        CREATE TABLE IF NOT EXISTS canned_responses (
+        CREATE TABLE IF NOT EXISTS canned_verdicts (
             id TEXT PRIMARY KEY,
             tenant_id TEXT NOT NULL REFERENCES tenants(id),
             title TEXT NOT NULL,
@@ -169,10 +169,10 @@ def migration_1(connection: sqlite3.Connection) -> None:
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
         );
-        CREATE INDEX IF NOT EXISTS idx_canned_responses_tenant
-            ON canned_responses(tenant_id, active, updated_at DESC);
-        CREATE UNIQUE INDEX IF NOT EXISTS idx_canned_responses_shortcut
-            ON canned_responses(tenant_id, shortcut)
+        CREATE INDEX IF NOT EXISTS idx_canned_verdict_verdicts_tenant
+            ON canned_verdicts(tenant_id, active, updated_at DESC);
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_canned_verdict_verdicts_shortcut
+            ON canned_verdicts(tenant_id, shortcut)
             WHERE shortcut IS NOT NULL AND active = 1;
         CREATE TABLE IF NOT EXISTS saved_views (
             id TEXT PRIMARY KEY,
@@ -196,7 +196,7 @@ def migration_1(connection: sqlite3.Connection) -> None:
         CREATE TABLE IF NOT EXISTS data_subject_requests (
             id TEXT PRIMARY KEY,
             tenant_id TEXT NOT NULL REFERENCES tenants(id),
-            customer_ref TEXT NOT NULL,
+            submitter_ref TEXT NOT NULL,
             request_type TEXT NOT NULL,
             status TEXT NOT NULL DEFAULT 'pending',
             requested_by TEXT NOT NULL,

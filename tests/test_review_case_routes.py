@@ -26,13 +26,13 @@ from app.config import Settings
 from app.main import create_app
 
 ADMIN_KEY = "test-admin-key-001"
-OPERATOR_KEY = "test-op-key-001"
+REVIEWER_KEY = "test-op-key-001"
 
 
 def _settings(db_path: Path) -> Settings:
     principals = {
         ADMIN_KEY: {"tenant_id": "demo", "actor_id": "admin", "role": "admin"},
-        OPERATOR_KEY: {"tenant_id": "demo", "actor_id": "operator", "role": "operator"},
+        REVIEWER_KEY: {"tenant_id": "demo", "actor_id": "operator", "role": "operator"},
     }
     return Settings(
         database_path=db_path,
@@ -43,7 +43,7 @@ def _settings(db_path: Path) -> Settings:
     )
 
 
-class ConversationListValidationTests(unittest.TestCase):
+class ReviewCaseListValidationTests(unittest.TestCase):
     """查询参数验证（lines 112-133）"""
 
     def setUp(self) -> None:
@@ -51,7 +51,7 @@ class ConversationListValidationTests(unittest.TestCase):
         self.db_path = Path(self._tmp.name) / "conv.db"
         self.client = TestClient(create_app(_settings(self.db_path)))
         self.services = cast(Any, self.client.app).state.services
-        self.headers = {"X-API-Key": OPERATOR_KEY, "X-Tenant-Id": "demo"}
+        self.headers = {"X-API-Key": REVIEWER_KEY, "X-Tenant-Id": "demo"}
 
     def tearDown(self) -> None:
         self.services.database.close()
@@ -107,7 +107,7 @@ class ConversationListValidationTests(unittest.TestCase):
         self.assertIn("cursor sort does not match", response.text)
 
     def test_invalid_label_returns_400(self) -> None:
-        # line 131-133: normalize_conversation_labels 可能抛出 ValueError
+        # line 131-133: normalize_review_case_labels 可能抛出 ValueError
         # 使用超长标签（>32字符）触发验证错误
         response = self.client.get("/api/review-cases?label=" + "x" * 33, headers=self.headers)
         # Pydantic 验证失败返回 422，业务逻辑 ValueError 返回 400
@@ -122,7 +122,7 @@ class SavedViewTests(unittest.TestCase):
         self.db_path = Path(self._tmp.name) / "views.db"
         self.client = TestClient(create_app(_settings(self.db_path)))
         self.services = cast(Any, self.client.app).state.services
-        self.headers = {"X-API-Key": OPERATOR_KEY, "X-Tenant-Id": "demo"}
+        self.headers = {"X-API-Key": REVIEWER_KEY, "X-Tenant-Id": "demo"}
 
     def tearDown(self) -> None:
         self.services.database.close()
@@ -191,7 +191,7 @@ class SavedViewTests(unittest.TestCase):
         self.assertEqual(response.status_code, 404)
 
 
-class ConversationLabelsTests(unittest.TestCase):
+class ReviewCaseLabelsTests(unittest.TestCase):
     """审核单标签 API（line 271-278）"""
 
     def setUp(self) -> None:
@@ -199,17 +199,17 @@ class ConversationLabelsTests(unittest.TestCase):
         self.db_path = Path(self._tmp.name) / "labels.db"
         self.client = TestClient(create_app(_settings(self.db_path)))
         self.services = cast(Any, self.client.app).state.services
-        self.headers = {"X-API-Key": OPERATOR_KEY, "X-Tenant-Id": "demo"}
+        self.headers = {"X-API-Key": REVIEWER_KEY, "X-Tenant-Id": "demo"}
 
     def tearDown(self) -> None:
         self.services.database.close()
         self.client.close()
         self._tmp.cleanup()
 
-    def test_list_conversation_labels(self) -> None:
+    def test_list_review_case_labels(self) -> None:
         # line 271-278
         # 创建一个审核单并通过 API 打标签以产生标签
-        conv = self.services.database.create_conversation(
+        conv = self.services.database.create_review_case(
             "demo", "Customer", "CUST-1", "web", "operator", 120
         )
         # 通过 API 设置标签
@@ -237,7 +237,7 @@ class BulkActionsTests(unittest.TestCase):
         self.client = TestClient(create_app(_settings(self.db_path)))
         self.services = cast(Any, self.client.app).state.services
         self.admin = {"X-API-Key": ADMIN_KEY, "X-Tenant-Id": "demo"}
-        self.operator = {"X-API-Key": OPERATOR_KEY, "X-Tenant-Id": "demo"}
+        self.reviewer = {"X-API-Key": REVIEWER_KEY, "X-Tenant-Id": "demo"}
 
     def tearDown(self) -> None:
         self.services.database.close()
@@ -246,10 +246,10 @@ class BulkActionsTests(unittest.TestCase):
 
     def test_bulk_action_set_priority(self) -> None:
         # line 284-301
-        conv1 = self.services.database.create_conversation(
+        conv1 = self.services.database.create_review_case(
             "demo", "C1", "CUST-1", "web", "admin", 120
         )
-        conv2 = self.services.database.create_conversation(
+        conv2 = self.services.database.create_review_case(
             "demo", "C2", "CUST-2", "web", "admin", 120
         )
 
@@ -261,7 +261,7 @@ class BulkActionsTests(unittest.TestCase):
                 "priority": "high",
                 "labels": [],
             },
-            headers=self.operator,
+            headers=self.reviewer,
         )
         self.assertEqual(response.status_code, 200)
         body = response.json()
@@ -273,12 +273,12 @@ class BulkActionsTests(unittest.TestCase):
         response = self.client.post(
             "/api/review-cases/bulk-actions",
             json={"conversation_ids": [], "action": "invalid_action"},
-            headers=self.operator,
+            headers=self.reviewer,
         )
         self.assertEqual(response.status_code, 422)
 
 
-class ConversationLifecycleTests(unittest.TestCase):
+class ReviewCaseLifecycleTests(unittest.TestCase):
     """审核单生命周期操作（lines 477-787）"""
 
     def setUp(self) -> None:
@@ -286,16 +286,16 @@ class ConversationLifecycleTests(unittest.TestCase):
         self.db_path = Path(self._tmp.name) / "lifecycle.db"
         self.client = TestClient(create_app(_settings(self.db_path)))
         self.services = cast(Any, self.client.app).state.services
-        self.headers = {"X-API-Key": OPERATOR_KEY, "X-Tenant-Id": "demo"}
+        self.headers = {"X-API-Key": REVIEWER_KEY, "X-Tenant-Id": "demo"}
 
     def tearDown(self) -> None:
         self.services.database.close()
         self.client.close()
         self._tmp.cleanup()
 
-    def test_claim_conversation(self) -> None:
+    def test_claim_review_case(self) -> None:
         # line 477-489
-        conv = self.services.database.create_conversation(
+        conv = self.services.database.create_review_case(
             "demo", "Customer", "CUST-1", "web", "admin", 120
         )
         response = self.client.post(f"/api/review-cases/{conv['id']}/claim", headers=self.headers)
@@ -303,9 +303,9 @@ class ConversationLifecycleTests(unittest.TestCase):
         body = response.json()
         self.assertEqual(body["claimed_by"], "operator")
 
-    def test_release_conversation(self) -> None:
+    def test_release_review_case(self) -> None:
         # line 491-503
-        conv = self.services.database.create_conversation(
+        conv = self.services.database.create_review_case(
             "demo", "Customer", "CUST-1", "web", "operator", 120
         )
         # 先 claim 审核单
@@ -316,9 +316,9 @@ class ConversationLifecycleTests(unittest.TestCase):
         body = response.json()
         self.assertIsNone(body["claimed_by"])
 
-    def test_assign_conversation(self) -> None:
+    def test_assign_review_case(self) -> None:
         # line 505-519
-        conv = self.services.database.create_conversation(
+        conv = self.services.database.create_review_case(
             "demo", "Customer", "CUST-1", "web", "operator", 120
         )
         # 确保 assigned_to 不为空字符串
@@ -335,9 +335,9 @@ class ConversationLifecycleTests(unittest.TestCase):
             # 如果失败，至少验证返回了错误响应
             self.assertIn(response.status_code, [200, 422])
 
-    def test_accept_conversation(self) -> None:
+    def test_accept_review_case(self) -> None:
         # line 703-714
-        conv = self.services.database.create_conversation(
+        conv = self.services.database.create_review_case(
             "demo", "Customer", "CUST-1", "web", "operator", 120
         )
         # 通过 orchestrator 设置状态为 waiting_human
@@ -357,9 +357,9 @@ class ConversationLifecycleTests(unittest.TestCase):
             # 至少验证端点可达
             self.assertIn(response.status_code, [200, 422, 409])
 
-    def test_resolve_conversation(self) -> None:
+    def test_resolve_review_case(self) -> None:
         # line 767-778
-        conv = self.services.database.create_conversation(
+        conv = self.services.database.create_review_case(
             "demo", "Customer", "CUST-1", "web", "operator", 120
         )
         response = self.client.post(f"/api/review-cases/{conv['id']}/resolve", headers=self.headers)
@@ -367,9 +367,9 @@ class ConversationLifecycleTests(unittest.TestCase):
         body = response.json()
         self.assertEqual(body["status"], "resolved")
 
-    def test_reopen_conversation(self) -> None:
+    def test_reopen_review_case(self) -> None:
         # line 780-787
-        conv = self.services.database.create_conversation(
+        conv = self.services.database.create_review_case(
             "demo", "Customer", "CUST-1", "web", "operator", 120
         )
         # 先 resolve 审核单
@@ -389,16 +389,16 @@ class MessagePaginationTests(unittest.TestCase):
         self.db_path = Path(self._tmp.name) / "messages.db"
         self.client = TestClient(create_app(_settings(self.db_path)))
         self.services = cast(Any, self.client.app).state.services
-        self.headers = {"X-API-Key": OPERATOR_KEY, "X-Tenant-Id": "demo"}
+        self.headers = {"X-API-Key": REVIEWER_KEY, "X-Tenant-Id": "demo"}
 
     def tearDown(self) -> None:
         self.services.database.close()
         self.client.close()
         self._tmp.cleanup()
 
-    def test_list_messages_for_conversation(self) -> None:
+    def test_list_messages_for_review_case(self) -> None:
         # line 446-475
-        conv = self.services.database.create_conversation(
+        conv = self.services.database.create_review_case(
             "demo", "Customer", "CUST-M-1", "web", "operator", 120
         )
         # 通过 API 添加消息
@@ -415,7 +415,7 @@ class MessagePaginationTests(unittest.TestCase):
 
     def test_list_messages_pagination_headers(self) -> None:
         # line 464-474: 分页响应头
-        conv = self.services.database.create_conversation(
+        conv = self.services.database.create_review_case(
             "demo", "Customer", "CUST-M-2", "web", "operator", 120
         )
         self.client.post(

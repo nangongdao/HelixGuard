@@ -20,88 +20,88 @@ from typing import Any
 _ENDPOINT_META: dict[str, tuple[str, list[str], str]] = {
     "GET /api/me": ("Current user profile", ["auth"], "any authenticated key"),
     "GET /api/review-cases": (
-        "List conversations",
-        ["conversations"],
+        "List review_cases",
+        ["review_cases"],
         "conversation:read",
     ),
     "POST /api/review-cases": (
         "Create a conversation",
-        ["conversations"],
+        ["review_cases"],
         "conversation:write",
     ),
     "GET /api/review-cases/{review_case_id}": (
         "Conversation detail with messages, audit events, and summaries",
-        ["conversations"],
+        ["review_cases"],
         "conversation:read",
     ),
     "PATCH /api/review-cases/{review_case_id}": (
         "Update conversation priority",
-        ["conversations"],
+        ["review_cases"],
         "operator:act",
     ),
     "PUT /api/review-cases/{review_case_id}/labels": (
         "Replace conversation labels",
-        ["conversations"],
+        ["review_cases"],
         "operator:act",
     ),
     "POST /api/review-cases/bulk-actions": (
         "Bulk priority/label/claim actions",
-        ["conversations"],
+        ["review_cases"],
         "operator:act",
     ),
     "GET /api/review-case-labels": (
         "Label catalog with counts",
-        ["conversations"],
+        ["review_cases"],
         "conversation:read",
     ),
     "GET /api/review-cases/{review_case_id}/messages": (
         "List conversation messages",
-        ["conversations"],
+        ["review_cases"],
         "conversation:read",
     ),
     "POST /api/review-cases/{review_case_id}/messages": (
         "Send a customer turn (idempotent)",
-        ["conversations"],
+        ["review_cases"],
         "conversation:write",
     ),
     "POST /api/review-cases/{review_case_id}/claim": (
         "Claim a conversation",
-        ["conversations"],
+        ["review_cases"],
         "operator:act",
     ),
     "POST /api/review-cases/{review_case_id}/release": (
         "Release a claim",
-        ["conversations"],
+        ["review_cases"],
         "operator:act",
     ),
     "POST /api/review-cases/{review_case_id}/assign": (
         "Assign to an operator",
-        ["conversations"],
+        ["review_cases"],
         "operator:act",
     ),
     "POST /api/review-cases/{review_case_id}/accept": (
         "Accept a conversation into human_active",
-        ["conversations"],
+        ["review_cases"],
         "operator:act",
     ),
     "POST /api/review-cases/{review_case_id}/resolve": (
         "Resolve a conversation",
-        ["conversations"],
+        ["review_cases"],
         "operator:act",
     ),
     "POST /api/review-cases/{review_case_id}/reopen": (
         "Reopen a resolved conversation",
-        ["conversations"],
+        ["review_cases"],
         "operator:act",
     ),
     "POST /api/review-cases/{review_case_id}/operator-messages": (
         "Send an operator reply",
-        ["conversations"],
+        ["review_cases"],
         "operator:act",
     ),
     "POST /api/review-cases/{review_case_id}/notes": (
         "Add an internal note (supports @mention colleagues and reply threads)",
-        ["conversations"],
+        ["review_cases"],
         "operator:act",
     ),
     "GET /api/admin/qa-spot-check-summary": (
@@ -116,12 +116,12 @@ _ENDPOINT_META: dict[str, tuple[str, list[str], str]] = {
     ),
     "PATCH /api/review-cases/{review_case_id}/language": (
         "Set (or clear, with null) the manual language override for a conversation",
-        ["conversations"],
+        ["review_cases"],
         "conversation:write",
     ),
     "POST /api/review-cases/{review_case_id}/messages/{message_id}/translate": (
         "Translate one customer message; without a provider the original text is echoed",
-        ["conversations"],
+        ["review_cases"],
         "conversation:write",
     ),
     "GET /api/mentions": (
@@ -146,7 +146,7 @@ _ENDPOINT_META: dict[str, tuple[str, list[str], str]] = {
     ),
     "POST /api/review-cases/{review_case_id}/feedback": (
         "Rate an assistant message",
-        ["conversations"],
+        ["review_cases"],
         "conversation:read",
     ),
     "POST /api/review-cases/{review_case_id}/turn-jobs": (
@@ -275,7 +275,7 @@ _ENDPOINT_META: dict[str, tuple[str, list[str], str]] = {
         "admin:manage",
     ),
     "GET /api/supervisor/quality": (
-        "Quality buckets by day/intent/prompt_version",
+        "Quality buckets by day/risk_category/prompt_version",
         ["quality"],
         "metrics:read",
     ),
@@ -500,7 +500,7 @@ _ENDPOINT_META: dict[str, tuple[str, list[str], str]] = {
         "admin:manage",
     ),
     "POST /api/admin/routing-rules": (
-        "Create a routing rule (intent/label/channel -> group)",
+        "Create a routing rule (risk_category/label/channel -> group)",
         ["admin"],
         "admin:manage",
     ),
@@ -575,12 +575,12 @@ _ENDPOINT_META: dict[str, tuple[str, list[str], str]] = {
         "operator:act",
     ),
     "GET /api/appeals": (
-        "List tickets (filter by status or customer reference)",
+        "List appeals (filter by status or customer reference)",
         ["appeals"],
         "conversation:read",
     ),
     "GET /api/appeals/{appeal_id}": (
-        "Ticket detail with linked conversations",
+        "Ticket detail with linked review_cases",
         ["appeals"],
         "conversation:read",
     ),

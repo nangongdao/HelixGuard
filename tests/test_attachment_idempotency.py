@@ -79,7 +79,7 @@ class AttachmentIdempotencyTests(unittest.TestCase):
 
     # ------------------------------------------------------------- helpers
 
-    def _open_conversation(self) -> str:
+    def _open_review_case(self) -> str:
         conv = self.client.post(
             "/api/review-cases", json={"customer_name": "S"}, headers=self.admin
         ).json()
@@ -88,7 +88,7 @@ class AttachmentIdempotencyTests(unittest.TestCase):
 
     def _upload(
         self,
-        conversation_id: str,
+        review_case_id: str,
         *,
         filename: str = "a.png",
         payload: bytes = PNG,
@@ -102,53 +102,53 @@ class AttachmentIdempotencyTests(unittest.TestCase):
         return self.client.post(
             "/api/attachments",
             files={"file": (filename, payload, content_type)},
-            data={"conversation_id": conversation_id},
+            data={"conversation_id": review_case_id},
             headers=merged,
         )
 
-    def _stored(self, conversation_id: str) -> list[dict[str, Any]]:
-        return self.services.attachments.list_for_conversation("demo", conversation_id)
+    def _stored(self, review_case_id: str) -> list[dict[str, Any]]:
+        return self.services.attachments.list_for_conversation("demo", review_case_id)
 
-    def _audit_events(self, conversation_id: str, event_type: str) -> list[dict[str, Any]]:
+    def _audit_events(self, review_case_id: str, event_type: str) -> list[dict[str, Any]]:
         return [
             row
-            for row in self.services.database.list_audit("demo", conversation_id)
+            for row in self.services.database.list_audit("demo", review_case_id)
             if row["event_type"] == event_type
         ]
 
     # ------------------------------------------------------------ replays
 
     def test_replay_returns_the_original_attachment_and_stores_one(self) -> None:
-        conversation_id = self._open_conversation()
-        first = self._upload(conversation_id)
+        review_case_id = self._open_review_case()
+        first = self._upload(review_case_id)
         self.assertEqual(first.status_code, 201, first.text)
         self.assertNotIn("X-Idempotent-Replay", first.headers)
 
-        retry = self._upload(conversation_id)
+        retry = self._upload(review_case_id)
         self.assertEqual(retry.status_code, 201, retry.text)
         self.assertEqual(retry.headers.get("X-Idempotent-Replay"), "true")
         self.assertEqual(retry.json()["id"], first.json()["id"])
-        self.assertEqual(len(self._stored(conversation_id)), 1)
+        self.assertEqual(len(self._stored(review_case_id)), 1)
 
     def test_replay_neither_audits_nor_charges_the_quota_twice(self) -> None:
-        conversation_id = self._open_conversation()
-        first = self._upload(conversation_id)
-        self._upload(conversation_id)
+        review_case_id = self._open_review_case()
+        first = self._upload(review_case_id)
+        self._upload(review_case_id)
 
-        self.assertEqual(len(self._audit_events(conversation_id, "attachment.uploaded")), 1)
+        self.assertEqual(len(self._audit_events(review_case_id, "attachment.uploaded")), 1)
         self.assertEqual(self.services.attachments.quota_used("demo"), len(PNG))
         self.assertEqual(first.json()["size_bytes"], len(PNG))
 
     def test_replay_survives_a_process_restart(self) -> None:
-        conversation_id = self._open_conversation()
-        first = self._upload(conversation_id)
+        review_case_id = self._open_review_case()
+        first = self._upload(review_case_id)
         self.services.database.close()
 
         from app.database import Database
 
         reopened = Database(self.db_path)
         try:
-            stored = reopened.get_attachment_by_operator_key("demo", conversation_id, KEY)
+            stored = reopened.get_attachment_by_operator_key("demo", review_case_id, KEY)
             self.assertIsNotNone(stored)
             assert stored is not None
             self.assertEqual(stored["id"], first.json()["id"])
@@ -157,42 +157,42 @@ class AttachmentIdempotencyTests(unittest.TestCase):
 
     def test_retry_after_a_lost_response_returns_the_same_attachment(self) -> None:
         """The failure shape: the server stored the bytes, the client never saw it."""
-        conversation_id = self._open_conversation()
-        committed = self._upload(conversation_id)
-        lost = self._upload(conversation_id)
+        review_case_id = self._open_review_case()
+        committed = self._upload(review_case_id)
+        lost = self._upload(review_case_id)
         self.assertEqual(lost.json()["id"], committed.json()["id"])
-        self.assertEqual(len(self._stored(conversation_id)), 1)
+        self.assertEqual(len(self._stored(review_case_id)), 1)
 
     # ----------------------------------------------------------- conflicts
 
     def test_same_key_with_different_bytes_is_a_conflict(self) -> None:
-        conversation_id = self._open_conversation()
-        original = self._upload(conversation_id)
-        conflict = self._upload(conversation_id, payload=PNG + b"\x01")
+        review_case_id = self._open_review_case()
+        original = self._upload(review_case_id)
+        conflict = self._upload(review_case_id, payload=PNG + b"\x01")
 
         self.assertEqual(conflict.status_code, 409, conflict.text)
-        self.assertEqual(len(self._stored(conversation_id)), 1)
+        self.assertEqual(len(self._stored(review_case_id)), 1)
         self.assertEqual(
             self.services.attachments.get("demo", original.json()["id"])["size_bytes"], len(PNG)
         )
 
     def test_same_key_with_a_different_filename_is_a_conflict(self) -> None:
-        conversation_id = self._open_conversation()
-        self._upload(conversation_id, filename="a.png")
-        conflict = self._upload(conversation_id, filename="b.png")
+        review_case_id = self._open_review_case()
+        self._upload(review_case_id, filename="a.png")
+        conflict = self._upload(review_case_id, filename="b.png")
         self.assertEqual(conflict.status_code, 409, conflict.text)
-        self.assertEqual(len(self._stored(conversation_id)), 1)
+        self.assertEqual(len(self._stored(review_case_id)), 1)
 
-    def test_same_key_from_another_operator_is_a_conflict(self) -> None:
-        conversation_id = self._open_conversation()
-        self._upload(conversation_id)
-        conflict = self._upload(conversation_id, headers=self.other)
+    def test_same_key_from_another_reviewer_is_a_conflict(self) -> None:
+        review_case_id = self._open_review_case()
+        self._upload(review_case_id)
+        conflict = self._upload(review_case_id, headers=self.other)
         self.assertEqual(conflict.status_code, 409, conflict.text)
-        self.assertEqual(len(self._stored(conversation_id)), 1)
+        self.assertEqual(len(self._stored(review_case_id)), 1)
 
-    def test_a_key_is_scoped_to_its_conversation(self) -> None:
-        first_conversation = self._open_conversation()
-        second_conversation = self._open_conversation()
+    def test_a_key_is_scoped_to_its_review_case(self) -> None:
+        first_conversation = self._open_review_case()
+        second_conversation = self._open_review_case()
         original = self._upload(first_conversation)
 
         other = self._upload(second_conversation)
@@ -203,13 +203,13 @@ class AttachmentIdempotencyTests(unittest.TestCase):
         self.assertEqual(len(self._stored(second_conversation)), 1)
 
     def test_a_key_is_scoped_to_its_tenant(self) -> None:
-        conversation_id = self._open_conversation()
-        original = self._upload(conversation_id)
+        review_case_id = self._open_review_case()
+        original = self._upload(review_case_id)
         self.services.database.ensure_tenant("other", "Other")
         with self.services.database.connect() as connection:
             connection.execute(
-                """INSERT INTO conversations
-                (id, tenant_id, customer_name, channel, status, priority, created_at, updated_at)
+                """INSERT INTO review_cases
+                (id, tenant_id, submitter_name, channel, status, priority, created_at, updated_at)
                 VALUES ('conv_other_att', 'other', 'T', 'web', 'open', 'normal', ?, ?)""",
                 ("2026-01-01T00:00:00+00:00", "2026-01-01T00:00:00+00:00"),
             )
@@ -219,7 +219,7 @@ class AttachmentIdempotencyTests(unittest.TestCase):
             "other", "conv_other_att", "admin", "a.png", "image/png", PNG, idempotency_key=KEY
         )
         self.assertNotEqual(foreign["id"], original.json()["id"])
-        self.assertEqual(len(self._stored(conversation_id)), 1)
+        self.assertEqual(len(self._stored(review_case_id)), 1)
         self.assertEqual(
             len(self.services.attachments.list_for_conversation("other", "conv_other_att")), 1
         )
@@ -227,51 +227,51 @@ class AttachmentIdempotencyTests(unittest.TestCase):
     # ------------------------------------------------- backward compatibility
 
     def test_without_a_key_every_upload_is_its_own_attachment(self) -> None:
-        conversation_id = self._open_conversation()
-        self._upload(conversation_id, key=None)
-        self._upload(conversation_id, key=None)
-        self.assertEqual(len(self._stored(conversation_id)), 2)
+        review_case_id = self._open_review_case()
+        self._upload(review_case_id, key=None)
+        self._upload(review_case_id, key=None)
+        self.assertEqual(len(self._stored(review_case_id)), 2)
 
     def test_a_new_key_stores_a_second_attachment(self) -> None:
-        conversation_id = self._open_conversation()
-        first = self._upload(conversation_id)
-        second = self._upload(conversation_id, key="up-another-key")
+        review_case_id = self._open_review_case()
+        first = self._upload(review_case_id)
+        second = self._upload(review_case_id, key="up-another-key")
         self.assertEqual(second.status_code, 201, second.text)
         self.assertNotIn("X-Idempotent-Replay", second.headers)
         self.assertNotEqual(second.json()["id"], first.json()["id"])
-        self.assertEqual(len(self._stored(conversation_id)), 2)
+        self.assertEqual(len(self._stored(review_case_id)), 2)
 
     def test_a_rejected_upload_leaves_no_receipt_for_the_retry(self) -> None:
-        conversation_id = self._open_conversation()
+        review_case_id = self._open_review_case()
         rejected = self._upload(
-            conversation_id,
+            review_case_id,
             filename="a.exe",
             payload=b"MZ\x00",
             content_type="application/octet-stream",
         )
         self.assertEqual(rejected.status_code, 415, rejected.text)
-        self.assertEqual(len(self._stored(conversation_id)), 0)
+        self.assertEqual(len(self._stored(review_case_id)), 0)
 
-        accepted = self._upload(conversation_id)
+        accepted = self._upload(review_case_id)
         self.assertEqual(accepted.status_code, 201, accepted.text)
         self.assertNotIn("X-Idempotent-Replay", accepted.headers)
-        self.assertEqual(len(self._stored(conversation_id)), 1)
+        self.assertEqual(len(self._stored(review_case_id)), 1)
 
     def test_an_overlong_key_is_rejected(self) -> None:
-        conversation_id = self._open_conversation()
-        response = self._upload(conversation_id, key="k" * 129)
+        review_case_id = self._open_review_case()
+        response = self._upload(review_case_id, key="k" * 129)
         self.assertEqual(response.status_code, 422, response.text)
-        self.assertEqual(len(self._stored(conversation_id)), 0)
+        self.assertEqual(len(self._stored(review_case_id)), 0)
 
     # ------------------------------------------------------------ projection
 
     def test_the_receipt_column_never_reaches_the_api(self) -> None:
-        conversation_id = self._open_conversation()
-        created = self._upload(conversation_id)
+        review_case_id = self._open_review_case()
+        created = self._upload(review_case_id)
         self.assertNotIn("operator_idempotency_key", created.json())
 
         listed = self.client.get(
-            "/api/attachments", params={"conversation_id": conversation_id}, headers=self.admin
+            "/api/attachments", params={"conversation_id": review_case_id}, headers=self.admin
         )
         self.assertEqual(listed.status_code, 200, listed.text)
         for item in listed.json():

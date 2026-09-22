@@ -85,7 +85,7 @@ class SdkEndToEndTests(unittest.TestCase):
     def test_full_conversation_flow(self) -> None:
         me = self.client.me()
         self.assertEqual(me["role"], "admin")
-        conv = self.client.create_conversation("SDK User", customer_ref="CUST-1001")
+        conv = self.client.create_review_case("SDK User", submitter_ref="CUST-1001")
         self.assertEqual(conv["status"], "open")
         turn = self.client.send_message(conv["id"], "ORD-10482 到哪了", idempotency_key="sdk-e2e-1")
         self.assertEqual(turn["conversation"]["status"], "open")
@@ -97,7 +97,7 @@ class SdkEndToEndTests(unittest.TestCase):
 
     def test_not_found_maps_to_problem_details(self) -> None:
         with self.assertRaises(HelixNotFoundError) as ctx:
-            self.client.get_conversation("conv-nope")
+            self.client.get_review_case("conv-nope")
         self.assertEqual(ctx.exception.code, "not_found")
         self.assertIsNotNone(ctx.exception.request_id)
         self.assertEqual(ctx.exception.instance, "/api/review-cases/conv-nope")
@@ -109,7 +109,7 @@ class SdkEndToEndTests(unittest.TestCase):
         clarification, so the conversation stays ``open`` instead of
         escalating to a human (the pre-H03 expectation).
         """
-        conv = self.client.create_conversation("Golden", customer_ref="CUST-1001")
+        conv = self.client.create_review_case("Golden", submitter_ref="CUST-1001")
         turn = self.client.send_message(
             conv["id"], "帮我查一下来源", idempotency_key="sdk-golden-1"
         )
@@ -121,7 +121,7 @@ class SdkEndToEndTests(unittest.TestCase):
         quota = self.client.provision_tenant("sdkco", "SDK Co", conversation_quota=50)
         self.assertEqual(quota["tenant_id"], "sdkco")
         self.assertEqual(quota["conversation_quota"], 50)
-        # Tenant admins are intentionally scoped to their own tenant. Use the
+        # Tenant admins are risk_categoryionally scoped to their own tenant. Use the
         # newly provisioned tenant's credential for its member lifecycle.
         with HelixClient(
             base_url="http://testserver",
@@ -139,7 +139,7 @@ class SdkEndToEndTests(unittest.TestCase):
             self.assertEqual(deactivated["status"], "deactivated")
 
     def test_usage_export_through_sdk(self) -> None:
-        conv = self.client.create_conversation("Usage")
+        conv = self.client.create_review_case("Usage")
         self.client.send_message(conv["id"], "ORD-10482 到哪了", idempotency_key="sdk-usage-1")
         rows = self.client.export_tenant_usage()
         self.assertEqual(len(rows), 1)
@@ -151,22 +151,24 @@ class SdkEndToEndTests(unittest.TestCase):
         from app.portal_token import sign_token
 
         token = sign_token(
-            secret=self.settings.widget_secret, tenant_id="demo", customer_ref="CUST-1"
+            secret=self.settings.widget_secret, tenant_id="demo", submitter_ref="CUST-1"
         )
-        session = self.client.widget_create_session(widget_token=token, customer_name="Widget User")
-        conversation_id = session["conversation"]["id"]
+        session = self.client.widget_create_session(
+            widget_token=token, submitter_name="Widget User"
+        )
+        review_case_id = session["conversation"]["id"]
         session_token = session["widget_token"]
         self.assertEqual(session["conversation"]["channel"], "web_chat")
         first = self.client.widget_send_message(
             widget_token=session_token,
-            conversation_id=conversation_id,
+            review_case_id=review_case_id,
             content="ORD-10482 到哪了",
             channel_message_id="sdk-ch-1",
         )
         self.assertFalse(first["idempotent_replay"])
         replay = self.client.widget_send_message(
             widget_token=session_token,
-            conversation_id=conversation_id,
+            review_case_id=review_case_id,
             content="ORD-10482 到哪了",
             channel_message_id="sdk-ch-1",
         )
@@ -187,51 +189,49 @@ class SdkEndToEndTests(unittest.TestCase):
 
     def test_cross_version_shadow_read_fields_are_identical(self) -> None:
         """Same resource through v1 and v2: core fields byte-identical."""
-        created = self.client.create_conversation("Matrix User", customer_ref="CUST-MATRIX")
-        conversation_id = created["id"]
-        v1_view = self.client.get_conversation(conversation_id)
+        created = self.client.create_review_case("Matrix User", submitter_ref="CUST-MATRIX")
+        review_case_id = created["id"]
+        v1_view = self.client.get_review_case(review_case_id)
         if "conversation" in v1_view:  # detail endpoint nests the resource
             v1_view = v1_view["conversation"]
-        v2_view = self.client.get_conversation_v2(conversation_id)
+        v2_view = self.client.get_review_case_v2(review_case_id)
         for field in self.SHADOW_READ_FIELDS:
             self.assertEqual(v1_view[field], v2_view[field], field)
         # The listing agrees with the single-resource reads, both versions.
-        v1_row = next(
-            row for row in self.client.list_conversations() if row["id"] == conversation_id
-        )
-        page = self.client.list_conversations_v2(limit=200)
-        v2_rows = [row for row in page.data if row["id"] == conversation_id]
+        v1_row = next(row for row in self.client.list_review_cases() if row["id"] == review_case_id)
+        page = self.client.list_review_cases_v2(limit=200)
+        v2_rows = [row for row in page.data if row["id"] == review_case_id]
         self.assertEqual(len(v2_rows), 1)
         for field in self.SHADOW_READ_FIELDS:
             self.assertEqual(v1_row[field], v2_rows[0][field], field)
         self.assertEqual(page.api_version, "2.0")
 
     def test_v2_cursor_pagination_is_complete_and_stable(self) -> None:
-        """Seven conversations at limit=3 walk every item exactly once."""
+        """Seven review_cases at limit=3 walk every item exactly once."""
         for i in range(7):
-            self.client.create_conversation(f"Pager {i}")
-        seen = [row["id"] for row in self.client.iter_conversations_v2(limit=3)]
+            self.client.create_review_case(f"Pager {i}")
+        seen = [row["id"] for row in self.client.iter_review_cases_v2(limit=3)]
         self.assertEqual(len(seen), len(set(seen)), "cursor pages must not repeat")
         # Every v1-visible conversation appears in the v2 iteration too.
-        v1_ids = {row["id"] for row in self.client.list_conversations()}
+        v1_ids = {row["id"] for row in self.client.list_review_cases()}
         self.assertEqual(set(seen), v1_ids)
 
     def test_v2_create_replay_returns_original_resource(self) -> None:
         """Idempotency-Key replay: same id, X-Idempotent-Replay flagged."""
-        first = self.client.create_conversation_v2("Idem User", idempotency_key="sdk-v2-idem-1")
+        first = self.client.create_review_case_v2("Idem User", idempotency_key="sdk-v2-idem-1")
         self.assertFalse(first["_idempotent_replay"])
-        second = self.client.create_conversation_v2("Idem User", idempotency_key="sdk-v2-idem-1")
+        second = self.client.create_review_case_v2("Idem User", idempotency_key="sdk-v2-idem-1")
         self.assertTrue(second["_idempotent_replay"])
         self.assertEqual(first["id"], second["id"])
         # Exactly one conversation was created for the key.
         matches = [
-            row for row in self.client.iter_conversations_v2(limit=200) if row["id"] == first["id"]
+            row for row in self.client.iter_review_cases_v2(limit=200) if row["id"] == first["id"]
         ]
         self.assertEqual(len(matches), 1)
 
     def test_v2_messages_keyset_covers_full_history(self) -> None:
         """Message cursor pagination (created_at + seq) never skips a turn."""
-        conv = self.client.create_conversation("History User")
+        conv = self.client.create_review_case("History User")
         turns = [
             self.client.send_message(conv["id"], f"问 {i}", idempotency_key=f"sdk-hist-{i}")
             for i in range(3)

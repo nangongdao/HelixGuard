@@ -1,6 +1,6 @@
 """ROADMAP 18.3 cold-tier reverse-lookup cost probe (archived search).
 
-The queue-search fast path (``_query_conversations_windowed``), the FTS mirror,
+The queue-search fast path (``_query_review_cases_windowed``), the FTS mirror,
 the pg_trgm index and the ``updated``-sort conversation index all cover the HOT
 tables only; ``archived=True`` deliberately walks the LIKE/CTE fallback over
 the ``*_archive`` tables (their FTS mirror is evicted to bound volume).  This
@@ -53,7 +53,7 @@ from scripts.pagination_load_test import (
 )
 
 # 42.3 REL-002: fixed cold-data tiers. The tier names are relative to the
-# §18.5 hot baseline (2k conversations / 20k messages): the archive tier is
+# §18.5 hot baseline (2k review_cases / 20k messages): the archive tier is
 # seeded at 10× / 100× that volume so capacity numbers stay comparable
 # across runs and backends.
 ARCHIVE_TIERS = {
@@ -62,9 +62,9 @@ ARCHIVE_TIERS = {
 }
 
 _ARCHIVE_TABLES = (
-    "conversations_archive",
+    "review_cases_archive",
     "messages_archive",
-    "conversation_labels_archive",
+    "review_case_labels_archive",
     "feedback_archive",
 )
 
@@ -119,34 +119,34 @@ def archive_all(database: Database, tenant_id: str) -> None:
     now = utc_now()
     with database.connect() as connection:
         connection.execute(
-            """INSERT INTO conversations_archive
-            (id, tenant_id, customer_name, customer_ref, channel, status, intent,
-             assigned_agent, priority, handoff_reason, sla_due_at, last_confidence,
+            """INSERT INTO review_cases_archive
+            (id, tenant_id, submitter_name, submitter_ref, channel, status, risk_category,
+             assigned_reviewer, priority, handoff_reason, sla_due_at, last_confidence,
              version, preview, message_count, last_message_at, labels_json,
              claimed_by, claimed_at, claim_expires_at, needs_response, waiting_since,
-             first_response_at, created_at, updated_at, resolved_at, archived_at)
-            SELECT id, tenant_id, customer_name, customer_ref, channel, status, intent,
-                   assigned_agent, priority, handoff_reason, sla_due_at, last_confidence,
+             first_response_at, created_at, updated_at, decided_at, archived_at)
+            SELECT id, tenant_id, submitter_name, submitter_ref, channel, status, risk_category,
+                   assigned_reviewer, priority, handoff_reason, sla_due_at, last_confidence,
                    version, preview, message_count, last_message_at, labels_json,
                    claimed_by, claimed_at, claim_expires_at, needs_response, waiting_since,
-                   first_response_at, created_at, updated_at, resolved_at, ?
-            FROM conversations WHERE tenant_id = ?""",
+                   first_response_at, created_at, updated_at, decided_at, ?
+            FROM review_cases WHERE tenant_id = ?""",
             (now, tenant_id),
         )
         connection.execute(
             """INSERT INTO messages_archive
-            (id, tenant_id, conversation_id, turn_id, role, author, content,
+            (id, tenant_id, review_case_id, turn_id, role, author, content,
              metadata_json, created_at, seq, channel_message_id, reply_to)
-            SELECT id, tenant_id, conversation_id, turn_id, role, author, content,
+            SELECT id, tenant_id, review_case_id, turn_id, role, author, content,
                    metadata_json, created_at, seq, channel_message_id, reply_to
             FROM messages WHERE tenant_id = ?""",
             (tenant_id,),
         )
         connection.execute(
-            """INSERT INTO conversation_labels_archive
-            (tenant_id, conversation_id, label, created_by, created_at)
-            SELECT tenant_id, conversation_id, label, created_by, created_at
-            FROM conversation_labels WHERE tenant_id = ?""",
+            """INSERT INTO review_case_labels_archive
+            (tenant_id, review_case_id, label, created_by, created_at)
+            SELECT tenant_id, review_case_id, label, created_by, created_at
+            FROM review_case_labels WHERE tenant_id = ?""",
             (tenant_id,),
         )
 
@@ -162,9 +162,9 @@ def validate_archive_search_probe(database: Database, tenant_id: str) -> int:
     needle = f"%{SELECTIVE_MESSAGE_SEARCH_TERM}%"
     with database.connect() as connection:
         conversation_row = connection.execute(
-            """SELECT COUNT(*) AS total FROM conversations_archive
+            """SELECT COUNT(*) AS total FROM review_cases_archive
             WHERE tenant_id = ? AND (
-                customer_name LIKE ? OR id LIKE ? OR customer_ref LIKE ?
+                submitter_name LIKE ? OR id LIKE ? OR submitter_ref LIKE ?
             )""",
             (tenant_id, needle, needle, needle),
         ).fetchone()
@@ -191,7 +191,7 @@ def run_benchmarks(
     results.append(
         measure(
             "queue.archive.list.page0",
-            lambda: database.list_conversations(
+            lambda: database.list_review_cases(
                 tenant_id, sort="priority", limit=page_size, archived=True
             ),
             rounds=rounds,
@@ -201,7 +201,7 @@ def run_benchmarks(
     results.append(
         measure(
             "queue.archive.search.worst",
-            lambda: database.list_conversations(
+            lambda: database.list_review_cases(
                 tenant_id,
                 search=DENSE_MESSAGE_SEARCH_TERM,
                 sort="updated",
@@ -216,7 +216,7 @@ def run_benchmarks(
     results.append(
         measure(
             "queue.archive.search.selective",
-            lambda: database.list_conversations(
+            lambda: database.list_review_cases(
                 tenant_id,
                 search=SELECTIVE_MESSAGE_SEARCH_TERM,
                 sort="updated",
@@ -283,8 +283,8 @@ def main() -> int:
         }[scale_name]
         tier_name = scale_name
     print(
-        f"seeding {scale.conversations:,} conversations / "
-        f"{scale.conversations * scale.messages_per_conversation:,} messages "
+        f"seeding {scale.review_cases:,} review_cases / "
+        f"{scale.review_cases * scale.messages_per_conversation:,} messages "
         f"({tier_name}) ..."
     )
 
@@ -323,13 +323,13 @@ def main() -> int:
         for name, fn in (
             (
                 "queue.archive.list.page0",
-                lambda: database.list_conversations(
+                lambda: database.list_review_cases(
                     tenant_id, sort="priority", limit=args.page_size, archived=True
                 ),
             ),
             (
                 "queue.archive.search.worst",
-                lambda: database.list_conversations(
+                lambda: database.list_review_cases(
                     tenant_id,
                     search=DENSE_MESSAGE_SEARCH_TERM,
                     sort="updated",
@@ -339,7 +339,7 @@ def main() -> int:
             ),
             (
                 "queue.archive.search.selective",
-                lambda: database.list_conversations(
+                lambda: database.list_review_cases(
                     tenant_id,
                     search=SELECTIVE_MESSAGE_SEARCH_TERM,
                     sort="updated",
@@ -357,8 +357,8 @@ def main() -> int:
             footprint = archive_table_bytes(database)
             report = {
                 "tier": tier_name,
-                "conversations": scale.conversations,
-                "messages": scale.conversations * scale.messages_per_conversation,
+                "review_cases": scale.review_cases,
+                "messages": scale.review_cases * scale.messages_per_conversation,
                 "page_size": args.page_size,
                 "rounds": args.rounds,
                 "benchmarks": {stats.name: stats.report() for stats in results},

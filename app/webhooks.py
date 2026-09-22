@@ -320,7 +320,7 @@ class WebhookService:
     def check_sla_breaches(self) -> int:
         """Emit ``conversation.sla_breached`` for every overdue conversation.
 
-        Idempotent: the event id is ``sla_breach:{conversation_id}``, so the
+        Idempotent: the event id is ``sla_breach:{review_case_id}``, so the
         ``(endpoint_id, event_id)`` unique constraint turns repeated scans
         into no-ops once an endpoint has a delivery for that conversation.
         Returns the number of deliveries newly enqueued.
@@ -328,8 +328,8 @@ class WebhookService:
         now = utc_now()
         with self.database.connect() as conn:
             rows = conn.execute(
-                "SELECT id, tenant_id, customer_name, status, priority, sla_due_at "
-                "FROM conversations "
+                "SELECT id, tenant_id, submitter_name, status, priority, sla_due_at "
+                "FROM review_cases "
                 "WHERE status != 'resolved' AND sla_due_at IS NOT NULL AND sla_due_at < ?",
                 (now,),
             ).fetchall()
@@ -337,7 +337,7 @@ class WebhookService:
         for row in rows:
             payload = {
                 "conversation_id": row["id"],
-                "customer_name": row["customer_name"],
+                "customer_name": row["submitter_name"],
                 "status": row["status"],
                 "priority": row["priority"],
                 "sla_due_at": row["sla_due_at"],
@@ -355,9 +355,9 @@ class WebhookService:
         return emitted
 
     def check_sla_impending(self, *, window_minutes: int = 5) -> int:
-        """Emit ``conversation.sla_impending`` for conversations due soon.
+        """Emit ``conversation.sla_impending`` for review_cases due soon.
 
-        Pre-breach warning (backlog): fires for conversations whose
+        Pre-breach warning (backlog): fires for review_cases whose
         ``sla_due_at`` is within ``window_minutes`` in the future but not yet
         passed. Idempotent per (conversation, due) via the event id, so the
         warning is sent once per SLA window.
@@ -367,8 +367,8 @@ class WebhookService:
         now_text = now.isoformat(timespec="microseconds")
         with self.database.connect() as conn:
             rows = conn.execute(
-                "SELECT id, tenant_id, customer_name, status, priority, sla_due_at "
-                "FROM conversations "
+                "SELECT id, tenant_id, submitter_name, status, priority, sla_due_at "
+                "FROM review_cases "
                 "WHERE status != 'resolved' AND sla_due_at IS NOT NULL "
                 "AND sla_due_at > ? AND sla_due_at <= ?",
                 (now_text, horizon),
@@ -377,7 +377,7 @@ class WebhookService:
         for row in rows:
             payload = {
                 "conversation_id": row["id"],
-                "customer_name": row["customer_name"],
+                "customer_name": row["submitter_name"],
                 "status": row["status"],
                 "priority": row["priority"],
                 "sla_due_at": row["sla_due_at"],

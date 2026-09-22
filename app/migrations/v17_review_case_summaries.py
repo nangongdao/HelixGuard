@@ -11,17 +11,17 @@ from app.migrations import migration
 def migration_17(connection: sqlite3.Connection) -> None:
     connection.executescript(
         """
-        CREATE TABLE IF NOT EXISTS conversation_summaries (
+        CREATE TABLE IF NOT EXISTS review_case_summaries (
             tenant_id TEXT NOT NULL,
-            conversation_id TEXT NOT NULL,
+            review_case_id TEXT NOT NULL,
             kind TEXT NOT NULL,
             content TEXT NOT NULL,
             source TEXT NOT NULL DEFAULT 'rule',
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL,
-            PRIMARY KEY (tenant_id, conversation_id, kind)
+            PRIMARY KEY (tenant_id, review_case_id, kind)
         );
-        CREATE INDEX IF NOT EXISTS idx_conversation_summaries_lookup
-            ON conversation_summaries(tenant_id, conversation_id);
+        CREATE INDEX IF NOT EXISTS idx_review_case_summaries_lookup
+            ON review_case_summaries(tenant_id, review_case_id);
         """
     )

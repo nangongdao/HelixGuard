@@ -46,15 +46,22 @@ def build_router(deps: RouteDeps) -> APIRouter:
     # whitelist below is intersected with the live table's columns at apply
     # time, and NOT NULL columns without defaults are synthesised so an
     # upsert can never fail on a constraint.
-    _REPLICATED_TABLES = {"conversations", "messages", "audit_events", "knowledge_articles"}
+    _REPLICATED_TABLES = {"review_cases", "messages", "audit_events", "policy_articles"}
     _REPLICATED_COLUMNS = {
-        "conversations": {"customer_name", "status", "preview", "channel", "intent", "priority"},
+        "review_cases": {
+            "submitter_name",
+            "status",
+            "preview",
+            "channel",
+            "risk_category",
+            "priority",
+        },
         "messages": {"content", "role", "channel_message_id", "kind", "seq"},
         "audit_events": {"event_type", "payload_json", "actor_id"},
-        "knowledge_articles": {"title", "body", "status"},
+        "policy_articles": {"title", "body", "status"},
     }
     _REPLICATED_SYNTHETIC = {
-        "conversations": {"channel": "replicated", "status": "open", "customer_name": "Replicated"},
+        "review_cases": {"channel": "replicated", "status": "open", "submitter_name": "Replicated"},
         "messages": {"role": "assistant", "content": ""},
         "audit_events": {"event_type": "replicated", "payload_json": "{}", "actor_id": "system"},
     }
@@ -118,7 +125,7 @@ def build_router(deps: RouteDeps) -> APIRouter:
                 # overwrite a target row.  The whitelist deliberately omits
                 # derived/summary columns (message_count, version, SLA
                 # timestamps) so the ingress cannot fight the target's own
-                # maintenance triggers — that intent was defeated as long as a
+                # maintenance triggers — that risk_category was defeated as long as a
                 # whole-row replace ran on conflict.
                 replicated: dict[str, Any] = {
                     col: incoming.get(col) for col in allowed if col in incoming

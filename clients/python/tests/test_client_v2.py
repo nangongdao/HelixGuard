@@ -34,7 +34,7 @@ def _envelope(
     return httpx.Response(200, json={"data": data, "next_cursor": next_cursor}, headers=headers)
 
 
-def test_list_conversations_v2_parses_envelope_and_version_header() -> None:
+def test_list_review_cases_v2_parses_envelope_and_version_header() -> None:
     call_log: list[httpx.Request] = []
 
     def handle(request: httpx.Request) -> httpx.Response:
@@ -42,7 +42,7 @@ def test_list_conversations_v2_parses_envelope_and_version_header() -> None:
         return _envelope([{"id": "conv-1", "status": "open"}], next_cursor="CUR-2")
 
     with _client(httpx.MockTransport(handle)) as client:
-        page = client.list_conversations_v2(limit=10)
+        page = client.list_review_cases_v2(limit=10)
     assert isinstance(page, ConversationPage)
     assert [item["id"] for item in page.data] == ["conv-1"]
     assert page.next_cursor == "CUR-2"
@@ -54,7 +54,7 @@ def test_list_conversations_v2_parses_envelope_and_version_header() -> None:
     assert request.url.params["limit"] == "10"
 
 
-def test_list_conversations_v2_passes_cursor_and_filters() -> None:
+def test_list_review_cases_v2_passes_cursor_and_filters() -> None:
     call_log: list[httpx.Request] = []
 
     def handle(request: httpx.Request) -> httpx.Response:
@@ -62,14 +62,14 @@ def test_list_conversations_v2_passes_cursor_and_filters() -> None:
         return _envelope([])
 
     with _client(httpx.MockTransport(handle)) as client:
-        client.list_conversations_v2(cursor="CUR-1", sort="priority", status="open")
+        client.list_review_cases_v2(cursor="CUR-1", sort="priority", status="open")
     params = call_log[0].url.params
     assert params["cursor"] == "CUR-1"
     assert params["sort"] == "priority"
     assert params["status"] == "open"
 
 
-def test_iter_conversations_v2_walks_all_pages_without_duplicates() -> None:
+def test_iter_review_cases_v2_walks_all_pages_without_duplicates() -> None:
     pages: dict[str | None, list[dict]] = {
         None: [{"id": f"conv-{i}"} for i in range(3)],
         "CUR-1": [{"id": f"conv-{i}"} for i in range(3, 5)],
@@ -82,22 +82,22 @@ def test_iter_conversations_v2_walks_all_pages_without_duplicates() -> None:
         return _envelope(pages[cursor])
 
     with _client(httpx.MockTransport(handle)) as client:
-        seen = [item["id"] for item in client.iter_conversations_v2(limit=3)]
+        seen = [item["id"] for item in client.iter_review_cases_v2(limit=3)]
     assert seen == ["conv-0", "conv-1", "conv-2", "conv-3", "conv-4"]
 
 
-def test_iter_conversations_v2_stops_when_next_cursor_missing() -> None:
+def test_iter_review_cases_v2_stops_when_next_cursor_missing() -> None:
     def handle(request: httpx.Request) -> httpx.Response:
         body = {"data": [{"id": "only"}]}
         # Server omits next_cursor entirely — the iterator must still stop.
         return httpx.Response(200, json=body, headers={"X-API-Version": "2.0"})
 
     with _client(httpx.MockTransport(handle)) as client:
-        seen = list(client.iter_conversations_v2())
+        seen = list(client.iter_review_cases_v2())
     assert seen == [{"id": "only"}]
 
 
-def test_iter_conversations_v2_bails_out_on_non_terminating_cursor() -> None:
+def test_iter_review_cases_v2_bails_out_on_non_terminating_cursor() -> None:
     calls = 0
 
     def handle(request: httpx.Request) -> httpx.Response:
@@ -106,7 +106,7 @@ def test_iter_conversations_v2_bails_out_on_non_terminating_cursor() -> None:
         return _envelope([{"id": str(calls)}], next_cursor=f"CUR-{calls}")
 
     with _client(httpx.MockTransport(handle)) as client:
-        iterator = client.iter_conversations_v2(limit=1)
+        iterator = client.iter_review_cases_v2(limit=1)
         first = next(iterator)
         assert first == {"id": "1"}
         # Exhausting the generator surfaces the loop guard, not a hang.
@@ -114,7 +114,7 @@ def test_iter_conversations_v2_bails_out_on_non_terminating_cursor() -> None:
             list(iterator)
 
 
-def test_create_conversation_v2_sends_idempotency_key() -> None:
+def test_create_review_case_v2_sends_idempotency_key() -> None:
     call_log: list[httpx.Request] = []
 
     def handle(request: httpx.Request) -> httpx.Response:
@@ -126,7 +126,7 @@ def test_create_conversation_v2_sends_idempotency_key() -> None:
         )
 
     with _client(httpx.MockTransport(handle)) as client:
-        result = client.create_conversation_v2("Ada", idempotency_key="idem-v2-1")
+        result = client.create_review_case_v2("Ada", idempotency_key="idem-v2-1")
     assert result["_idempotent_replay"] is False
     request = call_log[0]
     assert request.url.path == "/api/v2/review-cases"
@@ -134,7 +134,7 @@ def test_create_conversation_v2_sends_idempotency_key() -> None:
     assert json.loads(request.content)["customer_name"] == "Ada"
 
 
-def test_create_conversation_v2_detects_replay_flag() -> None:
+def test_create_review_case_v2_detects_replay_flag() -> None:
     def handle(request: httpx.Request) -> httpx.Response:
         return httpx.Response(
             201,
@@ -143,7 +143,7 @@ def test_create_conversation_v2_detects_replay_flag() -> None:
         )
 
     with _client(httpx.MockTransport(handle)) as client:
-        result = client.create_conversation_v2("Ada", idempotency_key="idem-v2-2")
+        result = client.create_review_case_v2("Ada", idempotency_key="idem-v2-2")
     assert result["_idempotent_replay"] is True
 
 
@@ -164,7 +164,7 @@ def test_v2_errors_map_to_problem_details_subclasses() -> None:
         _client(httpx.MockTransport(handle)) as client,
         pytest.raises(HelixNotFoundError) as exc_info,
     ):
-        client.get_conversation_v2("conv-nope")
+        client.get_review_case_v2("conv-nope")
     assert exc_info.value.request_id == "req_v2"
 
 

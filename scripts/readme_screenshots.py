@@ -46,12 +46,12 @@ def wait_for_operator(page: Page) -> None:
     expect(page.locator("#conversationList")).to_have_attribute("aria-busy", "false")
 
 
-def open_new_conversation(page: Page, name: str, customer_ref: str = "") -> None:
+def open_new_conversation(page: Page, name: str, submitter_ref: str = "") -> None:
     page.get_by_role("button", name="新建").click()
     expect(page.get_by_role("heading", name="新建审核单")).to_be_visible()
     page.get_by_label("提交方名称").fill(name)
-    if customer_ref:
-        page.get_by_label("提交方标识 可选").fill(customer_ref)
+    if submitter_ref:
+        page.get_by_label("提交方标识 可选").fill(submitter_ref)
     with page.expect_response(
         lambda r: r.url.endswith("/api/review-cases") and r.request.method == "POST"
     ):
@@ -77,7 +77,7 @@ def capture_desktop_shell(context, name_hint: str) -> None:
     DOM, so it needs its own capture rather than being represented by the
     web screenshots above.
 
-    The conversations created earlier are server state, so the islands load
+    The review_cases created earlier are server state, so the islands load
     real rows through the normal API — nothing is seeded client-side here.
     """
     page = context.new_page()
@@ -100,7 +100,7 @@ def widget_url() -> str:
     token = sign_token(
         secret=WIDGET_SECRET,
         tenant_id="demo",
-        customer_ref=f"VIS-{uuid4().hex[:8]}",
+        submitter_ref=f"VIS-{uuid4().hex[:8]}",
         ttl_seconds=1800,
     )
     return f"{BASE_URL}/widget?brand=Northstar+Care&accent=teal&locale=zh#token={token}"

@@ -32,7 +32,7 @@ DOMAINS: dict[str, list[str]] = {
     ],
     "core_schema": [
         "initialize",
-        "_initialize_knowledge_fts",
+        "_initialize_policy_fts",
         "_initialize_message_fts",
         "_ensure_column",
     ],
@@ -41,7 +41,7 @@ DOMAINS: dict[str, list[str]] = {
         "set_tenant_model_policy",
         "get_tenant_model_policy",
         "increment_tenant_usage",
-        "increment_tenant_usage_conversations",
+        "increment_tenant_usage_review_cases",
         "increment_tenant_usage_messages",
         "list_tenant_usage",
         "get_tenant_daily_usage",
@@ -58,20 +58,20 @@ DOMAINS: dict[str, list[str]] = {
         "deactivate_member",
         "record_member_login",
     ],
-    "conversations": [
+    "review_cases": [
         "_conversation_from_row",
-        "create_conversation",
-        "get_conversation",
+        "create_review_case",
+        "get_review_case",
         "set_routing",
-        "transition_conversation",
-        "claim_conversation",
-        "assign_conversation",
-        "bulk_claim_conversations",
+        "transition_review_case",
+        "claim_review_case",
+        "assign_review_case",
+        "bulk_claim_review_cases",
         "bulk_release_claims",
-        "release_conversation_claim",
+        "release_review_case_claim",
         "update_priority",
-        "replace_conversation_labels",
-        "list_conversation_labels",
+        "replace_review_case_labels",
+        "list_review_case_labels",
         "list_saved_views",
         "create_saved_view",
         "delete_saved_view",
@@ -79,10 +79,10 @@ DOMAINS: dict[str, list[str]] = {
         "bulk_update_priority",
         "bulk_modify_labels",
     ],
-    "conversations_query": [
-        "list_conversations",
+    "review_cases_query": [
+        "list_review_cases",
         "conversation_watermark",
-        "_query_conversations",
+        "_query_review_cases",
     ],
     "messages": [
         "add_message",
@@ -111,21 +111,21 @@ DOMAINS: dict[str, list[str]] = {
         "turn_job_stats",
     ],
     "knowledge": [
-        "search_knowledge",
+        "search_policy_articles",
         "_decorate_knowledge_matches",
         "_fallback_search_knowledge",
-        "list_knowledge",
-        "create_knowledge",
-        "update_knowledge",
+        "list_policy_articles",
+        "create_policy_article",
+        "update_policy_article",
         "create_knowledge_draft",
         "review_knowledge",
         "list_knowledge_gaps",
         "get_order_for_customer",
         "get_customer_profile",
-        "list_canned_responses",
+        "list_canned_verdicts",
         "get_canned_response",
-        "create_canned_response",
-        "update_canned_response",
+        "create_canned_verdict",
+        "update_canned_verdict",
         "record_canned_response_usage",
         "_canned_response_row",
     ],
@@ -244,10 +244,10 @@ def write_mixins(mixins: dict[str, str]) -> None:
                 "    utc_now,\n"
                 ")\n"
             )
-        elif domain in {"conversations", "conversations_query"}:
+        elif domain in {"review_cases", "review_cases_query"}:
             imports = (
                 common
-                + "from app.domain import ConversationStatus\nfrom app.labels import normalize_conversation_labels\n"
+                + "from app.domain import ReviewCaseStatus\nfrom app.labels import normalize_review_case_labels\n"
             )
         elif domain == "core_schema":
             imports = (
@@ -261,17 +261,17 @@ def write_mixins(mixins: dict[str, str]) -> None:
                 "    utc_after_seconds,\n"
                 "    utc_now,\n"
                 ")\n"
-                "from app.domain import ConversationStatus\n"
+                "from app.domain import ReviewCaseStatus\n"
             )
         elif domain == "audit":
             imports = (
                 common
                 + "from app.context import current_request_id\n"
-                + "from app.domain import ConversationStatus\n"
+                + "from app.domain import ReviewCaseStatus\n"
                 + "from app.security import sanitize_for_audit\n"
             )
         else:
-            imports = common + "from app.domain import ConversationStatus\n"
+            imports = common + "from app.domain import ReviewCaseStatus\n"
         header = (
             f'"""Database {domain} mixin (Phase 27.1, extracted from app/database.py)."""\n\n'
             + imports

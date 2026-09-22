@@ -170,7 +170,7 @@ def test_event_schema_immutability():
         schema.version = 2
 
 
-def test_helix_conversation_created_registered():
+def test_helix_review_case_created_registered():
     """The shipped helix.conversation.created event is registered."""
     schema = latest_event_schema("helix.conversation.created")
     assert schema.name == "helix.conversation.created"

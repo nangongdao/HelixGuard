@@ -4,7 +4,7 @@ These protocols define the contracts that the current SQLite ``Database``
 class implicitly satisfies.  Future PostgreSQL or other backends implement
 the same protocols, enabling a clean swap without touching the service layer.
 
-The protocols are intentionally split by domain to keep each focused and
+The protocols are risk_categoryionally split by domain to keep each focused and
 under 200 lines, following the small-file principle.
 """
 
@@ -21,20 +21,20 @@ class TenantRepository(Protocol):
 
 @runtime_checkable
 class ConversationRepository(Protocol):
-    def create_conversation(
+    def create_review_case(
         self,
         tenant_id: str,
-        conversation_id: str,
-        customer_name: str,
-        customer_ref: str | None,
+        review_case_id: str,
+        submitter_name: str,
+        submitter_ref: str | None,
         channel: str,
         priority: str,
         sla_due_at: str | None,
     ) -> dict[str, Any]: ...
 
-    def get_conversation(self, tenant_id: str, conversation_id: str) -> dict[str, Any] | None: ...
+    def get_review_case(self, tenant_id: str, review_case_id: str) -> dict[str, Any] | None: ...
 
-    def list_conversations(
+    def list_review_cases(
         self,
         tenant_id: str,
         *,
@@ -54,10 +54,10 @@ class ConversationRepository(Protocol):
         cursor: str | None = None,
     ) -> tuple[list[dict[str, Any]], str | None]: ...
 
-    def transition_conversation(
+    def transition_review_case(
         self,
         tenant_id: str,
-        conversation_id: str,
+        review_case_id: str,
         target: str,
         actor: str,
         expected_version: int | None = None,
@@ -66,43 +66,43 @@ class ConversationRepository(Protocol):
     def update_priority(
         self,
         tenant_id: str,
-        conversation_id: str,
+        review_case_id: str,
         priority: str,
         actor: str,
     ) -> dict[str, Any]: ...
 
-    def claim_conversation(
+    def claim_review_case(
         self,
         tenant_id: str,
-        conversation_id: str,
+        review_case_id: str,
         actor: str,
         ttl_seconds: int,
     ) -> dict[str, Any]: ...
 
-    def release_conversation_claim(
+    def release_review_case_claim(
         self,
         tenant_id: str,
-        conversation_id: str,
+        review_case_id: str,
         actor: str,
     ) -> dict[str, Any]: ...
 
-    def assign_conversation(
+    def assign_review_case(
         self,
         tenant_id: str,
-        conversation_id: str,
+        review_case_id: str,
         assignee_id: str,
         actor: str,
     ) -> dict[str, Any]: ...
 
-    def replace_conversation_labels(
+    def replace_review_case_labels(
         self,
         tenant_id: str,
-        conversation_id: str,
+        review_case_id: str,
         labels: list[str],
         actor: str,
     ) -> dict[str, Any]: ...
 
-    def list_conversation_labels(self, tenant_id: str) -> list[dict[str, Any]]: ...
+    def list_review_case_labels(self, tenant_id: str) -> list[dict[str, Any]]: ...
 
 
 @runtime_checkable
@@ -110,7 +110,7 @@ class MessageRepository(Protocol):
     def add_message(
         self,
         tenant_id: str,
-        conversation_id: str,
+        review_case_id: str,
         message_id: str,
         role: str,
         author: str,
@@ -122,7 +122,7 @@ class MessageRepository(Protocol):
     def list_messages(
         self,
         tenant_id: str,
-        conversation_id: str,
+        review_case_id: str,
         *,
         limit: int = 50,
         before_cursor: str | None = None,
@@ -134,11 +134,11 @@ class MessageRepository(Protocol):
 
 @runtime_checkable
 class KnowledgeRepository(Protocol):
-    def search_knowledge(
+    def search_policy_articles(
         self, tenant_id: str, query: str, limit: int = 3
     ) -> list[dict[str, Any]]: ...
 
-    def list_knowledge(
+    def list_policy_articles(
         self,
         tenant_id: str,
         *,
@@ -146,7 +146,7 @@ class KnowledgeRepository(Protocol):
         limit: int = 100,
     ) -> list[dict[str, Any]]: ...
 
-    def create_knowledge(
+    def create_policy_article(
         self,
         tenant_id: str,
         article_id: str,
@@ -158,7 +158,7 @@ class KnowledgeRepository(Protocol):
         actor: str,
     ) -> dict[str, Any]: ...
 
-    def update_knowledge(
+    def update_policy_article(
         self,
         tenant_id: str,
         article_id: str,
@@ -177,7 +177,7 @@ class TurnJobRepository(Protocol):
         self,
         tenant_id: str,
         job_id: str,
-        conversation_id: str,
+        review_case_id: str,
         idempotency_key: str,
         actor_id: str,
         content: str,
@@ -190,7 +190,7 @@ class TurnJobRepository(Protocol):
     def list_turn_jobs(
         self,
         tenant_id: str,
-        conversation_id: str | None = None,
+        review_case_id: str | None = None,
         *,
         status: str | None = None,
         limit: int = 50,
@@ -223,7 +223,7 @@ class AuditRepository(Protocol):
     def audit(
         self,
         tenant_id: str,
-        conversation_id: str | None,
+        review_case_id: str | None,
         request_id: str | None,
         actor: str,
         event_type: str,
@@ -232,14 +232,14 @@ class AuditRepository(Protocol):
 
     def audit_many(self, events: list[dict[str, Any]]) -> int: ...
 
-    def list_audit(self, tenant_id: str, conversation_id: str) -> list[dict[str, Any]]: ...
+    def list_audit(self, tenant_id: str, review_case_id: str) -> list[dict[str, Any]]: ...
 
     def export_audit_events(
         self,
         tenant_id: str,
         *,
         event_type: str | None = None,
-        conversation_id: str | None = None,
+        review_case_id: str | None = None,
         actor: str | None = None,
         start: str | None = None,
         end: str | None = None,
@@ -258,7 +258,7 @@ class FeedbackRepository(Protocol):
     def record_feedback(
         self,
         tenant_id: str,
-        conversation_id: str,
+        review_case_id: str,
         message_id: str,
         actor: str,
         rating: int,
@@ -281,13 +281,13 @@ class RetentionRepository(Protocol):
     def create_data_subject_request(
         self,
         tenant_id: str,
-        customer_ref: str,
+        submitter_ref: str,
         request_type: str,
         requested_by: str,
     ) -> dict[str, Any]: ...
 
     def execute_data_subject_deletion(
-        self, tenant_id: str, customer_ref: str
+        self, tenant_id: str, submitter_ref: str
     ) -> dict[str, int]: ...
 
-    def execute_data_subject_export(self, tenant_id: str, customer_ref: str) -> dict[str, Any]: ...
+    def execute_data_subject_export(self, tenant_id: str, submitter_ref: str) -> dict[str, Any]: ...

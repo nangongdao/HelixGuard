@@ -34,9 +34,15 @@ def wait_for_cdp(deadline_s: float = 90.0) -> list[dict]:
     deadline = time.time() + deadline_s
     while time.time() < deadline:
         try:
-            with urllib.request.urlopen(f"http://127.0.0.1:{DEBUG_PORT}/json/list", timeout=2) as res:
+            with urllib.request.urlopen(
+                f"http://127.0.0.1:{DEBUG_PORT}/json/list", timeout=2
+            ) as res:
                 targets = json.loads(res.read().decode("utf-8"))
-            pages = [t for t in targets if t.get("type") == "page" and "127.0.0.1" in (t.get("url") or "")]
+            pages = [
+                t
+                for t in targets
+                if t.get("type") == "page" and "127.0.0.1" in (t.get("url") or "")
+            ]
             if pages:
                 return targets
         except Exception:
@@ -89,12 +95,18 @@ def main() -> int:
             checks["version_rendered"] = page.evaluate(
                 "() => document.querySelector('#desktopVersionReact')?.textContent"
             )
-            checks["port_matches_sidecar_origin"] = page.evaluate(
-                "() => document.querySelector('#desktopBackendPortReact')?.textContent"
-            ) == f"127.0.0.1:{origin.split(':')[1]}"
-            checks["mode_rendered"] = page.evaluate(
-                "() => document.querySelector('#desktopBackendModeReact')?.textContent"
-            ) == "桌面 sidecar"
+            checks["port_matches_sidecar_origin"] = (
+                page.evaluate(
+                    "() => document.querySelector('#desktopBackendPortReact')?.textContent"
+                )
+                == f"127.0.0.1:{origin.split(':')[1]}"
+            )
+            checks["mode_rendered"] = (
+                page.evaluate(
+                    "() => document.querySelector('#desktopBackendModeReact')?.textContent"
+                )
+                == "桌面 sidecar"
+            )
             checks["env_note_hidden"] = page.evaluate(
                 "() => document.querySelector('#desktopEnvNoteReact')?.hidden === true"
             )

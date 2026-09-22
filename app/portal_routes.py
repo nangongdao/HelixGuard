@@ -94,20 +94,20 @@ def _fresh_token(
     settings: Settings,
     tenant_id: str,
     review_case_id: str,
-    customer_ref: str | None = None,
+    submitter_ref: str | None = None,
 ) -> str:
     return sign_token(
         secret=settings.widget_secret,
         tenant_id=tenant_id,
-        customer_ref=customer_ref,
-        conversation_id=review_case_id,
+        submitter_ref=submitter_ref,
+        review_case_id=review_case_id,
         ttl_seconds=3600,
     )
 
 
 def _ensure_session_token(token: WidgetToken, review_case_id: str) -> None:
-    """Require the fresh token issued for this exact widget session."""
-    if token.conversation_id != review_case_id:
+    """Require the fresh token issued for this exact portal session."""
+    if token.review_case_id != review_case_id:
         # Keep the response indistinguishable from an unknown conversation.
         raise HTTPException(status_code=404, detail="Conversation not found")
 
@@ -130,10 +130,10 @@ def create_widget_session(
     database: Database = services.database
     _ensure_tenant(token, database)
     customer_name = payload.customer_name or "Widget Visitor"
-    conversation = database.create_conversation(
+    conversation = database.create_review_case(
         token.tenant_id,
         customer_name,
-        token.customer_ref,
+        token.submitter_ref,
         payload.channel,
         actor="widget",
         sla_minutes=services.settings.normal_sla_minutes,
@@ -142,7 +142,7 @@ def create_widget_session(
         services.settings,
         token.tenant_id,
         str(conversation["id"]),
-        token.customer_ref,
+        token.submitter_ref,
     )
     return WidgetSessionOut(
         conversation=ConversationOut(**conversation),
@@ -178,7 +178,7 @@ def send_widget_message(
     orchestrator: ConversationOrchestrator = services.orchestrator
     _ensure_tenant(token, database)
     _ensure_session_token(token, review_case_id)
-    conversation = database.get_conversation(token.tenant_id, review_case_id)
+    conversation = database.get_review_case(token.tenant_id, review_case_id)
     if not conversation:
         raise HTTPException(status_code=404, detail="Conversation not found")
     # Channel-level idempotency: a channel_message_id already recorded for
@@ -194,7 +194,7 @@ def send_widget_message(
             if cached is not None:
                 cached["idempotent_replay"] = True
                 return TurnResponse(**cached).model_dump(mode="json")
-    actor = token.customer_ref or "widget"
+    actor = token.submitter_ref or "widget"
     key = f"widget-{review_case_id}-{actor}-{payload.channel_message_id or ''}"
     if async_mode:
         overload = backpressure_reason(database, services.settings, token.tenant_id)
@@ -283,7 +283,7 @@ def list_widget_messages(
     database: Database = services.database
     _ensure_tenant(token, database)
     _ensure_session_token(token, review_case_id)
-    conversation = database.get_conversation(token.tenant_id, review_case_id)
+    conversation = database.get_review_case(token.tenant_id, review_case_id)
     if not conversation:
         raise HTTPException(status_code=404, detail="Conversation not found")
     conversation_status = str(conversation["status"])

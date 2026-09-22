@@ -57,7 +57,7 @@ def _settings(db_path: Path, **overrides: Any) -> Settings:
     return Settings(**defaults)
 
 
-class OperatorMessageIdempotencyTests(unittest.TestCase):
+class ReviewerMessageIdempotencyTests(unittest.TestCase):
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
         self.db_path = Path(self._tmp.name) / "idem.db"
@@ -73,7 +73,7 @@ class OperatorMessageIdempotencyTests(unittest.TestCase):
 
     # ------------------------------------------------------------- helpers
 
-    def _open_conversation(self) -> str:
+    def _open_review_case(self) -> str:
         conv = self.client.post(
             "/api/review-cases", json={"customer_name": "S"}, headers=self.admin
         ).json()
@@ -82,7 +82,7 @@ class OperatorMessageIdempotencyTests(unittest.TestCase):
 
     def _reply(
         self,
-        conversation_id: str,
+        review_case_id: str,
         content: str = "已为您加急处理",
         *,
         key: str | None = KEY,
@@ -96,29 +96,29 @@ class OperatorMessageIdempotencyTests(unittest.TestCase):
         if attachment_ids:
             body["attachment_ids"] = attachment_ids
         return self.client.post(
-            f"/api/review-cases/{conversation_id}/operator-messages",
+            f"/api/review-cases/{review_case_id}/operator-messages",
             json=body,
             headers=merged,
         )
 
-    def _messages(self, conversation_id: str) -> list[dict[str, Any]]:
-        return self.services.database.list_messages("demo", conversation_id)
+    def _messages(self, review_case_id: str) -> list[dict[str, Any]]:
+        return self.services.database.list_messages("demo", review_case_id)
 
-    def _operator_messages(self, conversation_id: str) -> list[dict[str, Any]]:
-        return [m for m in self._messages(conversation_id) if m["role"] == "operator"]
+    def _reviewer_messages(self, review_case_id: str) -> list[dict[str, Any]]:
+        return [m for m in self._messages(review_case_id) if m["role"] == "operator"]
 
-    def _audit_events(self, conversation_id: str, event_type: str) -> list[dict[str, Any]]:
+    def _audit_events(self, review_case_id: str, event_type: str) -> list[dict[str, Any]]:
         return [
             row
-            for row in self.services.database.list_audit("demo", conversation_id)
+            for row in self.services.database.list_audit("demo", review_case_id)
             if row["event_type"] == event_type
         ]
 
-    def _upload(self, conversation_id: str, filename: str = "a.png"):
+    def _upload(self, review_case_id: str, filename: str = "a.png"):
         response = self.client.post(
             "/api/attachments",
             files={"file": (filename, b"\x89PNG\r\n\x1a\n" + b"\x00" * 12, "image/png")},
-            data={"conversation_id": conversation_id},
+            data={"conversation_id": review_case_id},
             headers=self.admin,
         )
         self.assertEqual(response.status_code, 201, response.text)
@@ -127,38 +127,38 @@ class OperatorMessageIdempotencyTests(unittest.TestCase):
     # ------------------------------------------------------------ replays
 
     def test_replay_returns_the_original_message_and_creates_no_second(self) -> None:
-        conversation_id = self._open_conversation()
-        first = self._reply(conversation_id)
+        review_case_id = self._open_review_case()
+        first = self._reply(review_case_id)
         self.assertEqual(first.status_code, 200, first.text)
         self.assertNotIn("X-Idempotent-Replay", first.headers)
 
-        retry = self._reply(conversation_id)
+        retry = self._reply(review_case_id)
         self.assertEqual(retry.status_code, 200, retry.text)
         self.assertEqual(retry.headers.get("X-Idempotent-Replay"), "true")
         self.assertEqual(retry.json()["id"], first.json()["id"])
 
-        self.assertEqual(len(self._operator_messages(conversation_id)), 1)
+        self.assertEqual(len(self._reviewer_messages(review_case_id)), 1)
 
     def test_replay_neither_audits_nor_hands_off_a_second_time(self) -> None:
-        conversation_id = self._open_conversation()
-        self._reply(conversation_id)
-        self._reply(conversation_id)
+        review_case_id = self._open_review_case()
+        self._reply(review_case_id)
+        self._reply(review_case_id)
 
-        self.assertEqual(len(self._audit_events(conversation_id, "operator.replied")), 1)
+        self.assertEqual(len(self._audit_events(review_case_id, "operator.replied")), 1)
         # The handoff side effect (takeover on the first send) must not run
         # again for the replayed attempt.
-        self.assertEqual(len(self._audit_events(conversation_id, "conversation.human_accepted")), 1)
+        self.assertEqual(len(self._audit_events(review_case_id, "conversation.human_accepted")), 1)
 
     def test_replay_survives_a_process_restart(self) -> None:
-        conversation_id = self._open_conversation()
-        first = self._reply(conversation_id)
+        review_case_id = self._open_review_case()
+        first = self._reply(review_case_id)
         self.services.database.close()
 
         from app.database import Database
 
         reopened = Database(self.db_path)
         try:
-            stored = reopened.get_message_by_operator_key("demo", conversation_id, KEY)
+            stored = reopened.get_message_by_operator_key("demo", review_case_id, KEY)
             self.assertIsNotNone(stored)
             assert stored is not None
             self.assertEqual(stored["id"], first.json()["id"])
@@ -167,46 +167,46 @@ class OperatorMessageIdempotencyTests(unittest.TestCase):
 
     def test_retry_after_a_lost_response_returns_the_same_message(self) -> None:
         """The failure shape: the server committed, the client never saw it."""
-        conversation_id = self._open_conversation()
-        committed = self._reply(conversation_id)
+        review_case_id = self._open_review_case()
+        committed = self._reply(review_case_id)
         # The client only learns of the outcome on the retry.
-        lost = self._reply(conversation_id)
+        lost = self._reply(review_case_id)
         self.assertEqual(lost.json()["id"], committed.json()["id"])
-        self.assertEqual(len(self._operator_messages(conversation_id)), 1)
+        self.assertEqual(len(self._reviewer_messages(review_case_id)), 1)
 
     # ----------------------------------------------------------- conflicts
 
     def test_same_key_with_edited_content_is_a_conflict(self) -> None:
-        conversation_id = self._open_conversation()
-        original = self._reply(conversation_id, "第一版")
-        conflict = self._reply(conversation_id, "改过的第二版")
+        review_case_id = self._open_review_case()
+        original = self._reply(review_case_id, "第一版")
+        conflict = self._reply(review_case_id, "改过的第二版")
 
         self.assertEqual(conflict.status_code, 409, conflict.text)
-        self.assertEqual(len(self._operator_messages(conversation_id)), 1)
+        self.assertEqual(len(self._reviewer_messages(review_case_id)), 1)
         self.assertEqual(
-            self.services.database.get_message("demo", conversation_id, original.json()["id"])[
+            self.services.database.get_message("demo", review_case_id, original.json()["id"])[
                 "content"
             ],
             "第一版",
         )
 
     def test_same_key_with_a_different_attachment_set_is_a_conflict(self) -> None:
-        conversation_id = self._open_conversation()
-        attachment = self._upload(conversation_id)
-        self._reply(conversation_id, "带附件", attachment_ids=[attachment["id"]])
-        conflict = self._reply(conversation_id, "带附件")
+        review_case_id = self._open_review_case()
+        attachment = self._upload(review_case_id)
+        self._reply(review_case_id, "带附件", attachment_ids=[attachment["id"]])
+        conflict = self._reply(review_case_id, "带附件")
         self.assertEqual(conflict.status_code, 409, conflict.text)
 
-    def test_same_key_from_another_operator_is_a_conflict(self) -> None:
-        conversation_id = self._open_conversation()
-        self._reply(conversation_id)
-        conflict = self._reply(conversation_id, headers=self.other)
+    def test_same_key_from_another_reviewer_is_a_conflict(self) -> None:
+        review_case_id = self._open_review_case()
+        self._reply(review_case_id)
+        conflict = self._reply(review_case_id, headers=self.other)
         self.assertEqual(conflict.status_code, 409, conflict.text)
-        self.assertEqual(len(self._operator_messages(conversation_id)), 1)
+        self.assertEqual(len(self._reviewer_messages(review_case_id)), 1)
 
-    def test_a_key_is_scoped_to_its_conversation(self) -> None:
-        first_conversation = self._open_conversation()
-        second_conversation = self._open_conversation()
+    def test_a_key_is_scoped_to_its_review_case(self) -> None:
+        first_conversation = self._open_review_case()
+        second_conversation = self._open_review_case()
         original = self._reply(first_conversation)
 
         # The same string in another conversation is a different request and
@@ -215,17 +215,17 @@ class OperatorMessageIdempotencyTests(unittest.TestCase):
         self.assertEqual(other.status_code, 200, other.text)
         self.assertNotEqual(other.json()["id"], original.json()["id"])
         self.assertNotIn("X-Idempotent-Replay", other.headers)
-        self.assertEqual(len(self._operator_messages(first_conversation)), 1)
-        self.assertEqual(len(self._operator_messages(second_conversation)), 1)
+        self.assertEqual(len(self._reviewer_messages(first_conversation)), 1)
+        self.assertEqual(len(self._reviewer_messages(second_conversation)), 1)
 
     def test_a_key_is_scoped_to_its_tenant(self) -> None:
-        conversation_id = self._open_conversation()
-        first = self._reply(conversation_id)
+        review_case_id = self._open_review_case()
+        first = self._reply(review_case_id)
         self.services.database.ensure_tenant("other", "Other")
         with self.services.database.connect() as connection:
             connection.execute(
-                """INSERT INTO conversations
-                (id, tenant_id, customer_name, channel, status, priority, created_at, updated_at)
+                """INSERT INTO review_cases
+                (id, tenant_id, submitter_name, channel, status, priority, created_at, updated_at)
                 VALUES ('conv_other', 'other', 'T', 'web', 'open', 'normal', ?, ?)""",
                 ("2026-01-01T00:00:00+00:00", "2026-01-01T00:00:00+00:00"),
             )
@@ -239,39 +239,39 @@ class OperatorMessageIdempotencyTests(unittest.TestCase):
             },
         )
         self.assertNotEqual(foreign.status_code, 200)
-        self.assertEqual(len(self._operator_messages(conversation_id)), 1)
+        self.assertEqual(len(self._reviewer_messages(review_case_id)), 1)
 
     # ------------------------------------------------- backward compatibility
 
     def test_without_a_key_every_post_is_its_own_message(self) -> None:
-        conversation_id = self._open_conversation()
-        self._reply(conversation_id, "第一条", key=None)
-        self._reply(conversation_id, "第二条", key=None)
-        self.assertEqual(len(self._operator_messages(conversation_id)), 2)
+        review_case_id = self._open_review_case()
+        self._reply(review_case_id, "第一条", key=None)
+        self._reply(review_case_id, "第二条", key=None)
+        self.assertEqual(len(self._reviewer_messages(review_case_id)), 2)
 
     def test_blank_content_is_still_rejected(self) -> None:
-        conversation_id = self._open_conversation()
+        review_case_id = self._open_review_case()
         response = self.client.post(
-            f"/api/review-cases/{conversation_id}/operator-messages",
+            f"/api/review-cases/{review_case_id}/operator-messages",
             json={"content": "   "},
             headers={**self.admin, "Idempotency-Key": KEY},
         )
         self.assertEqual(response.status_code, 422, response.text)
-        self.assertEqual(len(self._operator_messages(conversation_id)), 0)
+        self.assertEqual(len(self._reviewer_messages(review_case_id)), 0)
 
     def test_an_overlong_key_is_rejected(self) -> None:
-        conversation_id = self._open_conversation()
-        response = self._reply(conversation_id, key="k" * 129)
+        review_case_id = self._open_review_case()
+        response = self._reply(review_case_id, key="k" * 129)
         self.assertEqual(response.status_code, 422, response.text)
-        self.assertEqual(len(self._operator_messages(conversation_id)), 0)
+        self.assertEqual(len(self._reviewer_messages(review_case_id)), 0)
 
     def test_a_new_key_creates_a_second_message(self) -> None:
-        conversation_id = self._open_conversation()
-        self._reply(conversation_id, "第一条")
-        second = self._reply(conversation_id, "第一条", key="ui-another-key")
+        review_case_id = self._open_review_case()
+        self._reply(review_case_id, "第一条")
+        second = self._reply(review_case_id, "第一条", key="ui-another-key")
         self.assertEqual(second.status_code, 200, second.text)
         self.assertNotIn("X-Idempotent-Replay", second.headers)
-        self.assertEqual(len(self._operator_messages(conversation_id)), 2)
+        self.assertEqual(len(self._reviewer_messages(review_case_id)), 2)
 
 
 if __name__ == "__main__":

@@ -160,7 +160,7 @@ def widget_url() -> str:
     token = sign_token(
         secret=WIDGET_SECRET,
         tenant_id="demo",
-        customer_ref=f"VIS-{uuid4().hex[:8]}",
+        submitter_ref=f"VIS-{uuid4().hex[:8]}",
         ttl_seconds=1800,
     )
     return f"{BASE_URL}/widget?brand=Northstar+Care&accent=teal&locale=zh#token={token}"
@@ -179,7 +179,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--update",
         action="store_true",
-        help="rewrite every baseline from this run's captures (intentional re-baseline)",
+        help="rewrite every baseline from this run's captures (risk_categoryional re-baseline)",
     )
     args = parser.parse_args(argv)
     update = args.update

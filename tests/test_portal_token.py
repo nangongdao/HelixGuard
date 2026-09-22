@@ -17,40 +17,40 @@ def test_sign_and_verify_minimal_token():
     token = sign_token(secret=secret, tenant_id="tenant-123", now=1000)
     result = verify_token(secret=secret, token=token, now=1000)
     assert result.tenant_id == "tenant-123"
-    assert result.customer_ref is None
-    assert result.conversation_id is None
+    assert result.submitter_ref is None
+    assert result.review_case_id is None
     assert result.iat == 1000
     assert result.exp == 1000 + 3600
 
 
-def test_sign_and_verify_with_customer_ref():
-    """Sign and verify token with customer_ref."""
+def test_sign_and_verify_with_submitter_ref():
+    """Sign and verify token with submitter_ref."""
     secret = "test-secret"
     token = sign_token(
         secret=secret,
         tenant_id="tenant-123",
-        customer_ref="customer-456",
+        submitter_ref="customer-456",
         now=1000,
     )
     result = verify_token(secret=secret, token=token, now=1000)
     assert result.tenant_id == "tenant-123"
-    assert result.customer_ref == "customer-456"
-    assert result.conversation_id is None
+    assert result.submitter_ref == "customer-456"
+    assert result.review_case_id is None
 
 
-def test_sign_and_verify_with_conversation_id():
-    """Sign and verify token with conversation_id."""
+def test_sign_and_verify_with_review_case_id():
+    """Sign and verify token with review_case_id."""
     secret = "test-secret"
     token = sign_token(
         secret=secret,
         tenant_id="tenant-123",
-        conversation_id="conv-789",
+        review_case_id="conv-789",
         now=1000,
     )
     result = verify_token(secret=secret, token=token, now=1000)
     assert result.tenant_id == "tenant-123"
-    assert result.customer_ref is None
-    assert result.conversation_id == "conv-789"
+    assert result.submitter_ref is None
+    assert result.review_case_id == "conv-789"
 
 
 def test_sign_and_verify_all_fields():
@@ -59,15 +59,15 @@ def test_sign_and_verify_all_fields():
     token = sign_token(
         secret=secret,
         tenant_id="tenant-123",
-        customer_ref="customer-456",
-        conversation_id="conv-789",
+        submitter_ref="customer-456",
+        review_case_id="conv-789",
         ttl_seconds=7200,
         now=1000,
     )
     result = verify_token(secret=secret, token=token, now=1000)
     assert result.tenant_id == "tenant-123"
-    assert result.customer_ref == "customer-456"
-    assert result.conversation_id == "conv-789"
+    assert result.submitter_ref == "customer-456"
+    assert result.review_case_id == "conv-789"
     assert result.iat == 1000
     assert result.exp == 1000 + 7200
 

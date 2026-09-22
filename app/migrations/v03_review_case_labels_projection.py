@@ -9,4 +9,4 @@ from app.migrations import _ensure_column, migration
 
 @migration(3, "conversation labels projection")
 def migration_3(connection: sqlite3.Connection) -> None:
-    _ensure_column(connection, "conversations", "labels_json", "TEXT NOT NULL DEFAULT '[]'")
+    _ensure_column(connection, "review_cases", "labels_json", "TEXT NOT NULL DEFAULT '[]'")

@@ -26,14 +26,14 @@ from app.reports import ReportService
 from app.webhooks import EVENT_REPORT_GENERATED
 
 ADMIN_KEY = "reports-admin-key-001"
-OPERATOR_KEY = "reports-operator-key-01"
+REVIEWER_KEY = "reports-operator-key-01"
 ACME_ADMIN_KEY = "reports-acme-admin-key-1"
 
 
 def _settings(db_path: Path) -> Settings:
     principals = {
         ADMIN_KEY: {"tenant_id": "demo", "actor_id": "admin", "role": "admin"},
-        OPERATOR_KEY: {"tenant_id": "demo", "actor_id": "op", "role": "operator"},
+        REVIEWER_KEY: {"tenant_id": "demo", "actor_id": "op", "role": "operator"},
         ACME_ADMIN_KEY: {"tenant_id": "acme", "actor_id": "acme-admin", "role": "admin"},
     }
     return Settings(
@@ -54,16 +54,16 @@ class ReportAppTests(unittest.TestCase):
         self.services = cast(Any, self.client.app).state.services
         self.reports: ReportService = self.services.reports
         self.admin = {"X-API-Key": ADMIN_KEY, "X-Tenant-Id": "demo"}
-        self.operator = {"X-API-Key": OPERATOR_KEY, "X-Tenant-Id": "demo"}
+        self.reviewer = {"X-API-Key": REVIEWER_KEY, "X-Tenant-Id": "demo"}
 
     def tearDown(self) -> None:
         self.services.database.close()
         self.client.close()
         self._tmp.cleanup()
 
-    def _send_turn(self, conversation_id: str, content: str, key: str) -> None:
+    def _send_turn(self, review_case_id: str, content: str, key: str) -> None:
         response = self.client.post(
-            f"/api/review-cases/{conversation_id}/messages",
+            f"/api/review-cases/{review_case_id}/messages",
             json={"content": content},
             headers={**self.admin, "Idempotency-Key": key},
         )
@@ -159,7 +159,7 @@ class ReportAppTests(unittest.TestCase):
                 "schedule": "daily",
                 "webhook_endpoint_id": endpoint_id,
             },
-            headers=self.operator,
+            headers=self.reviewer,
         )
         self.assertEqual(response.status_code, 403, response.text)
 

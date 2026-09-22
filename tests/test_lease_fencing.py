@@ -51,7 +51,7 @@ class LeaseFencingTests(unittest.TestCase):
         self.database = Database(self.db_path)
         self.database.initialize()
         self.database.ensure_tenant("demo")
-        self.conv = self.database.create_conversation(
+        self.conv = self.database.create_review_case(
             "demo", "Fencing C", None, "web", "admin", 120
         )["id"]
         self.queue = SQLiteTaskQueue(self.database)

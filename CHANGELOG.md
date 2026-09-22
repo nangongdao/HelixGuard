@@ -2,6 +2,77 @@
 
 所有版本遵循[语义化版本](https://semver.org)。API 变更遵循 `docs/API_POLICY.md`(响应体只增不改、弃用需 `Deprecation`/`Sunset` 头 + 至少一个次版本过渡、每次变更记录于此)。
 
+## 2.29.0 — 域迁移 P4+P5：数据层与测试/基线 (2026-09-22)
+
+**破坏性变更**：本版按 [`docs/DOMAIN_MIGRATION_PLAN.md`](docs/DOMAIN_MIGRATION_PLAN.md) §3 的**一致改写（consistently rewrite）**策略，把**数据库表名、列名与迁移链本身**迁到审核域，并同步改名测试函数/文件名与清理残留。**迁移历史被改写（仍在 v01–v48 内，不新增 v49），已部署实例无法平滑升级，必须重建库**（R2 的代价，本项目无生产部署故可接受）。`docs/API_POLICY.md` 的 wire 契约**不变**：HTTP 路径、响应体键、请求模型字段一律保持旧键名，数据层改名通过新增的 `to_wire_row()` 在响应组装点还原。
+
+### 数据层改名（P4）
+
+| 对象 | 旧 | 新 |
+| --- | --- | --- |
+| 表（T5） | `conversations` | `review_cases` |
+| 表（T6） | `tickets` | `appeals` |
+| 表（T7） | `csat_ratings` | `qa_spot_checks` |
+| 表（T9） | `knowledge_articles` | `policy_articles` |
+| 表（T12） | `canned_responses` | `canned_verdicts` |
+| 表（T13） | `agent_groups` | `reviewer_groups` |
+| 表（T14） | `orders` | `source_lookups` |
+| 列（T1/T2） | `customer_name` / `customer_ref` | `submitter_name` / `submitter_ref` |
+| 列（T3） | `operator_idempotency_key` | `reviewer_idempotency_key` |
+| 列（T4） | `assigned_agent` | `assigned_reviewer` |
+| 列（T10） | `intent` | `risk_category` |
+| 列（T11） | `resolved_at` | `decided_at` |
+
+**为什么整条链一起改**（而非新增一个 RENAME 迁移）：`app/bootstrap.py:123` → `app/db/core_schema.py:538` 让 `initialize()` 与迁移链跑在**同一连接**里，且 `initialize()` 每次启动都以 `CREATE TABLE IF NOT EXISTS conversations` 形式重建旧表名。基线改新名而迁移链建旧名则 v49 RENAME 撞表；两者都不改则每次启动重建空 `conversations` 与新表并存成脏数据。故**基线 + v01–v48 + 迁移文件名**必须同改，`check_expand_additivity` 仍通过（每步在自身口径下仍是超集，链长仍为 48）。
+
+### wire 契约保护：`to_wire_row()`
+
+数据层全面改用新列名后，响应组装点会把新列名还原为 API 旧键名。`app/db/_util.py` 新增：
+
+```python
+_COLUMN_TO_WIRE = {
+    "submitter_name": "customer_name",
+    "submitter_ref": "customer_ref",
+    "risk_category": "intent",
+    "assigned_reviewer": "assigned_agent",
+    "decided_at": "resolved_at",
+    "appeal_id": "ticket_id",
+    "review_case_id": "conversation_id",
+    "source_review_case_id": "source_conversation_id",
+}
+```
+
+该映射在 `app/db/` 各 mixin、`app/privacy.py`、`app/retention.py`、`app/webhooks.py`、`app/quality.py`、`app/ai_governance.py`、`app/attachments.py` 等**所有 dict-row 出口**逐点应用（`artifacts/apply_wire_alias.py`，带出现次数断言的机械改写）。刻意**不**应用的三类：① 内部序列化（`app/retention.py:232` 的审计归档文档必须带 `conversation_id`，`app/audit_chain.py:111-125` 的 `required_fields` 依赖它）；② 无重命名列的直通查询；③ 跨区复制载荷（见下）。
+
+### 三处「不是 wire 面」的判定
+
+- **跨区复制是内部协议，不是公共 API**：`app/routers/system.py` 的 `_REPLICATED_SYNTHETIC`/`_REPLICATED_COLUMNS` 用**活了的新列名**（`submitter_name` 等），因为 `region_replication.py` 的 `_push_entry` 是逐字节转发源行——cell-to-cell 协议无外部消费者，改名属内部一致。
+- **隐私出口的 PII 字段表按 wire 名登记**：`app/retention.py:38-49` 的 `PII_FIELDS`（`customer_name`、`customer_ref`、`author`、`actor`、`claimed_by`、`assigned_agent`、`content`、`preview`）是**脱敏器的输入契约**。导出 JSON 若直接嵌入裸 DB 行，`redact_pii` 会因列名已改而**漏脱敏**——故 `execute_data_subject_export`（766-823）的 source_lookups / review_cases / messages / feedback 四个行列表全部先过 `to_wire_row` 再嵌入。
+- **Form/Query 参数属 wire 名**：`app/routers/attachments.py` 的 `conversation_id` 是 URL 契约，改名会让所有现存调用 422，故回退；`app/routers/admin.py:634` 的 `privacy_deletion_proof` 查询参数同理（`customer_ref`）。
+
+### 测试与基线（P5）
+
+- **测试函数/文件名**按 T1–T14 统一改名（`test_conversation_routes.py` → `test_review_case_routes.py` 等），由 `artifacts/p5_rename_tests.py` 完成词边界替换。**改名漏网：脚本的负向后顾 `(?<![\\w.])` 把点号排除在外**，于是 `self.<legacy>` 形态的属性访问（方法定义改了名而**调用点未改**）成批漏网。`artifacts/p5_fix_attr_calls.py` 按 AST 收集 `self.<attr>` 引用并二次替换，修 **251 行**。残留一例（`_conversation_with_canned_reply` —— 因含 `canned_reply` 被脚本的 SKIP 子串规则豁免，定义未改而调用点被改）由全量测试 2 例红定位修复。**这是 `docs/DOMAIN_MIGRATION_PLAN.md` R8③「哨兵护不住属性访问」的第二次复发**，P3b 的教训没有沉淀成通用检查。
+- **`app/database.py.bak` 删除**（按 R6：全仓无引用，仅本计划与 CHANGELOG 提及），守护豁免同步移除；`app/main.py.bak` **保留**（`scripts/rebuild_main.py:23`/`scripts/split_main.py:20` 的输入，`tests/test_script_guards.py:62` 断言其存在）。
+- **README 域迁移横幅移除**，`<code>v2.28.0</code>` → `v2.29.0`。
+
+### 验证
+
+- 全量 `pytest tests`：**仅 2 例红，且为既存本机环境噪声**——`tests/test_telemetry_otel_branches.py::test_configure_logs_nothing_when_otel_absent` 与（并发时）`tests/test_telemetry_edge.py::test_debug_log_emitted_at_span_end`。根因是本机用户级 site-packages 装了真 `opentelemetry`，`app/telemetry.py` 的守护导入合法成功，而测试的「otel 缺失」模拟只弹 mock 模块键、盖不住真装；已用 `git stash push -- app/telemetry.py` 复现同样失败印证**非本版回归**（`app/telemetry.py` 对本版零 diff），CI 全绿。覆盖率 `coverage report` **TOTAL 89%**（> 85 门）。
+- `ruff 0.9.9 format --check` 399 文件全过、`check --select E4,E7,E9,F` 全过；`pyright app` **0 errors**。
+- `openapi_snapshot.py --dump` 随版本号重生成，全等断言 15 例全绿。
+- 迁移门禁：`migration_gate.py` 48 迁移 / 16 phased / 无问题；`verify_migration_registry.py` 48 连续链；`migration_drill.py` legacy v0 → 48（应用 47，跳过 1）通过；`tests/test_migrations.py` 等四组迁移测试全绿。
+- 评测：`evaluate.py` **27/27**、`evaluate_adversarial.py` **24/24**。
+- `frontend_gate.py` 400 tests 通过；`visual_gate.py` 全图 0.00% diff（P5 无 UI 变更，基线不动）；`performance_gate.py` 通过。
+- 供应链：`scan_secrets`、`check_workflows`、`license_gate`（36 运行时依赖）、`vuln_review`（无到期例外）、`threat_model_gate`、`pip check`、`generate_sbom`（29 组件）、`release_manifest --build/--verify`、`tauri_config_gate --allow-empty-pubkey`、`node --check app/static/app.js` 全过。
+- `clients/python` SDK **28/28** 通过（该套件不在 CI 门禁内，本版主动复跑；须以 `PYTHONPATH=clients/python/src` 运行——本机 `helix-client` 1.2.0 是 `E:\agent1` 另一工作树的 editable 安装，直接 `pytest` 会测到陈旧副本）。
+
+### 未覆盖（有意为之）
+
+- **`app/main.py.bak` 保留**（R6，见上）。
+- **`docs/api/reference.md` 未重生成**，其既存漂移（落后 spec 26 个端点）仍是独立事项（P3a 登记）。
+- **CI 门禁中的 `pip_audit` 两端点**（`pip_audit .` / `-r requirements.lock`）本机因 npmmirror 式网络出口未跑；`vuln_review.py` 的例外覆盖检查已过，实质门禁由 CI 承担。
+
 ## 2.28.0 — 域迁移 P3b：审核单（T5）模块与 API 路径迁移 (2026-09-21)
 
 本版把 T5 `conversation → review_case` 的**模块名与 API 路径层**迁到审核域：`app/routers/conversations.py` → `review_cases.py`（git mv），`/api/conversations`、`/api/v2/conversations`、`/api/conversation-labels` 三族路径全量改名 `/api/review-cases` 等，**24 组路径 / 28 个操作**按 `docs/API_POLICY.md` §2 走完整弃用过渡——旧路径经 `legacy_route` 双挂载继续服务，窗口 **2026-09-21 → 2027-09-21**（12 个月），每个旧路径响应带 `Deprecation`/`Sunset` 头 + `Link: rel="successor-version"`，OpenAPI 标 `deprecated: true` 并附迁移注记。顺带修复 **P3a 漏改**：`/api/conversations/{id}/messages/{message_id}/knowledge-draft` 的尾段未随 T9 改名，本版随 T5 一并迁为 `policy-draft` 并注册弃用条目。

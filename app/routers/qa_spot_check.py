@@ -155,17 +155,17 @@ def _reflow_into_feedback(request: Request, survey: dict[str, Any], rating: int)
 
     Skipped silently when the conversation has no assistant message to attach
     the rating to, so a survey on a never-answered conversation does not break
-    the resolution path.
+    the verdict path.
     """
     services = get_services(request)
     database = services.database
     try:
-        conversation = database.get_conversation(survey["tenant_id"], survey["conversation_id"])
+        conversation = database.get_review_case(survey["tenant_id"], survey["conversation_id"])
         if not conversation:
             return
         with database.connect() as conn:
             row = conn.execute(
-                "SELECT id FROM messages WHERE tenant_id=? AND conversation_id=? "
+                "SELECT id FROM messages WHERE tenant_id=? AND review_case_id=? "
                 "AND role='assistant' ORDER BY created_at DESC, seq DESC LIMIT 1",
                 (survey["tenant_id"], survey["conversation_id"]),
             ).fetchone()

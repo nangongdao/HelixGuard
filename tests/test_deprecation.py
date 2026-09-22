@@ -157,7 +157,7 @@ class OpenApiDeprecationTests(unittest.TestCase):
     def test_enrich_marks_operation_with_migration_note(self) -> None:
         paths: dict[str, Any] = {
             "/api/conversations": {
-                "get": {"description": "List conversations."},
+                "get": {"description": "List review_cases."},
             }
         }
         with patch("app.deprecation._DEPRECATIONS", (_SAMPLE,)):
@@ -231,8 +231,8 @@ class MiddlewareHeaderTests(unittest.TestCase):
                 json={"customer_name": "Deprecation Probe"},
                 headers=_auth(app),
             )
-            conversation_id = created.json()["id"]
-            detail = client.get(f"/api/conversations/{conversation_id}", headers=_auth(app))
+            review_case_id = created.json()["id"]
+            detail = client.get(f"/api/conversations/{review_case_id}", headers=_auth(app))
             self.assertEqual(detail.status_code, 200, detail.text)
             self.assertIn(DEPRECATION_HEADER, detail.headers)
         app.state.services.database.close()

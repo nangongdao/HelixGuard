@@ -15,7 +15,7 @@ from app.config import Settings
 from app.main import create_app
 
 
-class WidgetClientTests(unittest.TestCase):
+class PortalClientTests(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
         self.db_path = Path(self.tmp.name) / "widget-client.db"
@@ -33,7 +33,7 @@ class WidgetClientTests(unittest.TestCase):
         )
         return TestClient(create_app(settings))
 
-    def test_widget_shell_allows_only_configured_ancestors(self) -> None:
+    def test_portal_shell_allows_only_configured_ancestors(self) -> None:
         with self._client(("'self'", "https://help.example")) as client:
             response = client.get("/widget")
             self.assertEqual(response.status_code, 200)
@@ -48,7 +48,7 @@ class WidgetClientTests(unittest.TestCase):
             self.assertEqual(operator.headers["x-frame-options"], "DENY")
             self.assertIn("frame-ancestors 'none'", operator.headers["content-security-policy"])
 
-    def test_widget_frame_ancestor_validation_rejects_non_origin(self) -> None:
+    def test_portal_frame_ancestor_validation_rejects_non_origin(self) -> None:
         with self.assertRaises(ValueError):
             Settings(widget_frame_ancestors=()).validate()
         with self.assertRaises(ValueError):
@@ -76,7 +76,7 @@ class WidgetClientTests(unittest.TestCase):
             settings = Settings.from_env()
         self.assertEqual(settings.widget_frame_ancestors, ("'self'", "https://help.example"))
 
-    def test_widget_shell_is_cache_revalidated(self) -> None:
+    def test_portal_shell_is_cache_revalidated(self) -> None:
         with self._client() as client:
             response = client.get("/widget")
             self.assertEqual(response.headers["cache-control"], "no-cache")

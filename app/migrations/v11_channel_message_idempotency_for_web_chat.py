@@ -22,7 +22,7 @@ def migration_11(connection: sqlite3.Connection) -> None:
         connection.execute(
             """
             CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_channel_dedup
-            ON messages(tenant_id, conversation_id, channel_message_id)
+            ON messages(tenant_id, review_case_id, channel_message_id)
             WHERE channel_message_id IS NOT NULL
             """
         )

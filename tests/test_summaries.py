@@ -67,7 +67,7 @@ class SummaryTests(unittest.TestCase):
         self.client.close()
         self._tmp.cleanup()
 
-    def _open_conversation(self, name: str = "S") -> str:
+    def _open_review_case(self, name: str = "S") -> str:
         conv = self.client.post(
             "/api/review-cases", json={"customer_name": name}, headers=self.admin
         ).json()
@@ -78,19 +78,19 @@ class SummaryTests(unittest.TestCase):
         )
         return conv["id"]
 
-    def _summaries(self, conversation_id: str) -> list[dict[str, Any]]:
-        detail = self.client.get(f"/api/review-cases/{conversation_id}", headers=self.admin).json()
+    def _summaries(self, review_case_id: str) -> list[dict[str, Any]]:
+        detail = self.client.get(f"/api/review-cases/{review_case_id}", headers=self.admin).json()
         return detail.get("summaries", [])
 
     # ---------------------------------------------------------------- handoff
 
     def test_handoff_generates_context_summary(self) -> None:
-        conversation_id = self._open_conversation("ctx")
+        review_case_id = self._open_review_case("ctx")
         response = self.client.post(
-            f"/api/review-cases/{conversation_id}/accept", headers=self.admin
+            f"/api/review-cases/{review_case_id}/accept", headers=self.admin
         )
         self.assertEqual(response.status_code, 200, response.text)
-        summaries = self._summaries(conversation_id)
+        summaries = self._summaries(review_case_id)
         context = [s for s in summaries if s["kind"] == "context"]
         self.assertEqual(len(context), 1)
         self.assertEqual(context[0]["source"], "unconfigured")
@@ -98,22 +98,22 @@ class SummaryTests(unittest.TestCase):
         self.assertIn("提交方 ctx", context[0]["content"])
 
     def test_detail_surfaces_summary_field(self) -> None:
-        conversation_id = self._open_conversation("ctx2")
-        self.client.post(f"/api/review-cases/{conversation_id}/accept", headers=self.admin)
-        detail = self.client.get(f"/api/review-cases/{conversation_id}", headers=self.admin).json()
+        review_case_id = self._open_review_case("ctx2")
+        self.client.post(f"/api/review-cases/{review_case_id}/accept", headers=self.admin)
+        detail = self.client.get(f"/api/review-cases/{review_case_id}", headers=self.admin).json()
         self.assertIn("summaries", detail)
         self.assertIsInstance(detail["summaries"], list)
 
-    def test_new_conversation_has_no_summary(self) -> None:
-        conversation_id = self._open_conversation("none")
-        self.assertEqual(self._summaries(conversation_id), [])
+    def test_new_review_case_has_no_summary(self) -> None:
+        review_case_id = self._open_review_case("none")
+        self.assertEqual(self._summaries(review_case_id), [])
 
     # ---------------------------------------------------------------- resolve
 
     def test_resolve_drafts_disposition_summary(self) -> None:
-        conversation_id = self._open_conversation("disp")
-        self.client.post(f"/api/review-cases/{conversation_id}/resolve", headers=self.admin)
-        summaries = self._summaries(conversation_id)
+        review_case_id = self._open_review_case("disp")
+        self.client.post(f"/api/review-cases/{review_case_id}/resolve", headers=self.admin)
+        summaries = self._summaries(review_case_id)
         disposition = [s for s in summaries if s["kind"] == "disposition"]
         self.assertEqual(len(disposition), 1)
         self.assertEqual(disposition[0]["source"], "unconfigured")
@@ -122,12 +122,12 @@ class SummaryTests(unittest.TestCase):
     def test_summary_generated_once_after_reopen(self) -> None:
         """Disposition is for a resolved conversation; after reopen+re-resolve
         the existing draft must not be regenerated or clobbered."""
-        conversation_id = self._open_conversation("once")
-        self.client.post(f"/api/review-cases/{conversation_id}/resolve", headers=self.admin)
-        first = self._summaries(conversation_id)
-        self.client.post(f"/api/review-cases/{conversation_id}/reopen", headers=self.admin)
-        self.client.post(f"/api/review-cases/{conversation_id}/resolve", headers=self.admin)
-        second = self._summaries(conversation_id)
+        review_case_id = self._open_review_case("once")
+        self.client.post(f"/api/review-cases/{review_case_id}/resolve", headers=self.admin)
+        first = self._summaries(review_case_id)
+        self.client.post(f"/api/review-cases/{review_case_id}/reopen", headers=self.admin)
+        self.client.post(f"/api/review-cases/{review_case_id}/resolve", headers=self.admin)
+        second = self._summaries(review_case_id)
         self.assertEqual(
             [s["content"] for s in first if s["kind"] == "disposition"],
             [s["content"] for s in second if s["kind"] == "disposition"],
@@ -138,8 +138,8 @@ class SummaryTests(unittest.TestCase):
     def test_model_provider_used_when_available(self) -> None:
         provider = FakeModelProvider("模型产出的处置草稿。")
         service = SummaryService(self.services.database, provider)
-        conversation_id = self._open_conversation("model")
-        row = service.generate("demo", conversation_id, "context")
+        review_case_id = self._open_review_case("model")
+        row = service.generate("demo", review_case_id, "context")
         self.assertEqual(row["source"], "model")
         self.assertIn("模型产出的处置草稿", row["content"])
         self.assertEqual(len(provider.calls), 1)
@@ -147,8 +147,8 @@ class SummaryTests(unittest.TestCase):
     def test_model_failure_falls_back_to_rule(self) -> None:
         provider = FakeModelProvider(fail=True)
         service = SummaryService(self.services.database, provider)
-        conversation_id = self._open_conversation("fail")
-        row = service.generate("demo", conversation_id, "context")
+        review_case_id = self._open_review_case("fail")
+        row = service.generate("demo", review_case_id, "context")
         self.assertEqual(row["source"], "failed")
         self.assertIn("ORD-10482", row["content"])
 
@@ -158,8 +158,8 @@ class SummaryTests(unittest.TestCase):
                 return "not json at all"
 
         service = SummaryService(self.services.database, BadProvider())
-        conversation_id = self._open_conversation("badjson")
-        row = service.generate("demo", conversation_id, "context")
+        review_case_id = self._open_review_case("badjson")
+        row = service.generate("demo", review_case_id, "context")
         self.assertEqual(row["source"], "failed")
 
     def test_empty_model_summary_falls_back_to_rule(self) -> None:
@@ -168,38 +168,38 @@ class SummaryTests(unittest.TestCase):
                 return json.dumps({"summary": "   "})
 
         service = SummaryService(self.services.database, EmptyProvider())
-        conversation_id = self._open_conversation("empty")
-        row = service.generate("demo", conversation_id, "context")
+        review_case_id = self._open_review_case("empty")
+        row = service.generate("demo", review_case_id, "context")
         self.assertEqual(row["source"], "failed")
 
     def test_internal_notes_never_leak_into_summary(self) -> None:
-        conversation_id = self._open_conversation("notes")
+        review_case_id = self._open_review_case("notes")
         self.client.post(
-            f"/api/review-cases/{conversation_id}/notes",
+            f"/api/review-cases/{review_case_id}/notes",
             json={"content": "内部讨论：提交方可能要求退款，先别答应"},
             headers=self.admin,
         )
         with self.services.database.connect() as conn:
             role = conn.execute(
-                "SELECT role FROM messages WHERE conversation_id = ? ORDER BY seq DESC LIMIT 1",
-                (conversation_id,),
+                "SELECT role FROM messages WHERE review_case_id = ? ORDER BY seq DESC LIMIT 1",
+                (review_case_id,),
             ).fetchone()["role"]
         self.assertEqual(role, "internal_note")
-        self.client.post(f"/api/review-cases/{conversation_id}/accept", headers=self.admin)
-        context = [s for s in self._summaries(conversation_id) if s["kind"] == "context"]
+        self.client.post(f"/api/review-cases/{review_case_id}/accept", headers=self.admin)
+        context = [s for s in self._summaries(review_case_id) if s["kind"] == "context"]
         self.assertNotIn("先别答应", context[0]["content"])
 
     def test_handoff_failure_never_blocks_acceptance(self) -> None:
         """A recording bug in summary generation must not break the accept
         lifecycle path (best-effort is the contract)."""
-        conversation_id = self._open_conversation("robust")
+        review_case_id = self._open_review_case("robust")
         original = self.services.orchestrator.summaries.generate
         self.services.orchestrator.summaries.generate = lambda *a, **k: (_ for _ in ()).throw(
             RuntimeError("boom")
         )
         try:
             response = self.client.post(
-                f"/api/review-cases/{conversation_id}/accept", headers=self.admin
+                f"/api/review-cases/{review_case_id}/accept", headers=self.admin
             )
         finally:
             self.services.orchestrator.summaries.generate = original

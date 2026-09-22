@@ -11,9 +11,9 @@ message stream can render chips. Voice-to-text and ClamAV are out of scope
 for this slice — the scanner is the interface to swap in later.
 
 ROADMAP H02 (2.19.0): an upload may carry an ``Idempotency-Key``; the receipt
-is stored on the row (``operator_idempotency_key``, partial unique per tenant
+is stored on the row (``reviewer_idempotency_key``, partial unique per tenant
 and conversation) so a retry after a lost response resolves to the bytes that
-were already stored instead of storing them twice. Receipt *resolution* lives
+were already stored instead of storing them twice. Receipt *verdict* lives
 in the router, mirroring the operator send receipt (v47).
 """
 
@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from app.db._util import utc_now
+from app.db._util import to_wire_row, utc_now
 
 logger = logging.getLogger("helix")
 
@@ -241,15 +241,15 @@ class AttachmentService:
     def upload(
         self,
         tenant_id: str,
-        conversation_id: str,
+        review_case_id: str,
         actor_id: str,
         filename: str,
         content_type: str,
         data: bytes,
         idempotency_key: str | None = None,
     ) -> dict[str, Any]:
-        conversation = self.database.get_conversation(tenant_id, conversation_id)
-        if conversation is None:
+        review_case = self.database.get_review_case(tenant_id, review_case_id)
+        if review_case is None:
             raise LookupError("Conversation not found")
         filename = sanitize_filename(filename)
         if not content_type or content_type not in ALLOWED_CONTENT_TYPES:
@@ -298,14 +298,14 @@ class AttachmentService:
             with self.database.connect() as connection:
                 connection.execute(
                     """INSERT INTO attachments
-                    (id, tenant_id, conversation_id, message_id, filename, content_type,
+                    (id, tenant_id, review_case_id, message_id, filename, content_type,
                      size_bytes, storage_key, uploader, status, scanned, verdict, created_at,
-                     sha256, operator_idempotency_key)
+                     sha256, reviewer_idempotency_key)
                     VALUES (?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (
                         attachment_id,
                         tenant_id,
-                        conversation_id,
+                        review_case_id,
                         filename,
                         content_type,
                         len(data),
@@ -329,7 +329,7 @@ class AttachmentService:
             raise
         self.database.audit(
             tenant_id,
-            conversation_id,
+            review_case_id,
             actor_id,
             "attachment.uploaded",
             {
@@ -443,16 +443,16 @@ class AttachmentService:
                 "SELECT * FROM attachments WHERE tenant_id = ? AND id = ?",
                 (tenant_id, attachment_id),
             ).fetchone()
-        return dict(row) if row else None
+        return to_wire_row(row) if row else None
 
-    def list_for_conversation(self, tenant_id: str, conversation_id: str) -> list[dict[str, Any]]:
+    def list_for_conversation(self, tenant_id: str, review_case_id: str) -> list[dict[str, Any]]:
         with self.database.connect() as connection:
             rows = connection.execute(
-                "SELECT * FROM attachments WHERE tenant_id = ? AND conversation_id = ? "
+                "SELECT * FROM attachments WHERE tenant_id = ? AND review_case_id = ? "
                 "AND status = 'stored' ORDER BY created_at DESC",
-                (tenant_id, conversation_id),
+                (tenant_id, review_case_id),
             ).fetchall()
-        return [dict(row) for row in rows]
+        return [to_wire_row(row) for row in rows]
 
     def download(self, tenant_id: str, attachment_id: str) -> tuple[Path, str, str] | None:
         attachment = self.get(tenant_id, attachment_id)
@@ -527,7 +527,7 @@ class AttachmentService:
     # --------------------------------------------------------- message linking
 
     def validate_for_message(
-        self, tenant_id: str, conversation_id: str, attachment_ids: list[str]
+        self, tenant_id: str, review_case_id: str, attachment_ids: list[str]
     ) -> list[str]:
         """Return the ids that belong to this tenant+conversation and are
         stored; raise when any requested id is missing or foreign."""
@@ -537,9 +537,9 @@ class AttachmentService:
         with self.database.connect() as connection:
             rows = connection.execute(
                 f"""SELECT id FROM attachments
-                WHERE tenant_id = ? AND conversation_id = ? AND status = 'stored'
+                WHERE tenant_id = ? AND review_case_id = ? AND status = 'stored'
                   AND id IN ({placeholders})""",
-                (tenant_id, conversation_id, *attachment_ids),
+                (tenant_id, review_case_id, *attachment_ids),
             ).fetchall()
         found = {row["id"] for row in rows}
         missing = [aid for aid in attachment_ids if aid not in found]

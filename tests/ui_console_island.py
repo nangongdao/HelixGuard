@@ -24,13 +24,13 @@ BASE_URL = os.getenv("HELIX_BASE_URL", "http://127.0.0.1:8765").rstrip("/")
 ARTIFACTS = Path(__file__).resolve().parents[1] / "artifacts"
 
 
-def open_new_conversation(page: Page, name: str, customer_ref: str = "") -> None:
+def open_new_conversation(page: Page, name: str, submitter_ref: str = "") -> None:
     dialog = page.locator("#conversationDialogReactIsland")
     page.get_by_role("button", name="新建").click()
     expect(dialog.get_by_role("heading", name="新建审核单")).to_be_visible()
     dialog.get_by_label("提交方名称").fill(name)
-    if customer_ref:
-        dialog.get_by_label("提交方标识 可选").fill(customer_ref)
+    if submitter_ref:
+        dialog.get_by_label("提交方标识 可选").fill(submitter_ref)
     with page.expect_response(
         lambda response: (
             response.url.endswith("/api/review-cases") and response.request.method == "POST"

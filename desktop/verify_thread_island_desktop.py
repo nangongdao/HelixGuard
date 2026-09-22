@@ -37,9 +37,15 @@ def wait_for_cdp(deadline_s: float = 90.0) -> list[dict]:
     deadline = time.time() + deadline_s
     while time.time() < deadline:
         try:
-            with urllib.request.urlopen(f"http://127.0.0.1:{DEBUG_PORT}/json/list", timeout=2) as res:
+            with urllib.request.urlopen(
+                f"http://127.0.0.1:{DEBUG_PORT}/json/list", timeout=2
+            ) as res:
                 targets = json.loads(res.read().decode("utf-8"))
-            pages = [t for t in targets if t.get("type") == "page" and "127.0.0.1" in (t.get("url") or "")]
+            pages = [
+                t
+                for t in targets
+                if t.get("type") == "page" and "127.0.0.1" in (t.get("url") or "")
+            ]
             if pages:
                 return targets
         except Exception:
@@ -97,7 +103,7 @@ def main() -> int:
                         return { ok: res.ok, status: res.status, data: res.ok ? await res.json() : null };
                     };
                     const conv = await post('/api/review-cases', {
-                        customer_name: '线程岛验证 ' + Math.random().toString(36).slice(2, 8),
+                        submitter_name: '线程岛验证 ' + Math.random().toString(36).slice(2, 8),
                     });
                     if (!conv.ok) return { error: 'conversation ' + conv.status };
                     const turn = await post('/api/review-cases/' + conv.data.id + '/messages', {
@@ -105,11 +111,11 @@ def main() -> int:
                     });
                     if (!turn.ok) return { error: 'turn ' + turn.status };
                     const empty = await post('/api/review-cases', {
-                        customer_name: '线程岛空线 ' + Math.random().toString(36).slice(2, 8),
+                        submitter_name: '线程岛空线 ' + Math.random().toString(36).slice(2, 8),
                     });
                     if (!empty.ok) return { error: 'empty conversation ' + empty.status };
                     const long = await post('/api/review-cases', {
-                        customer_name: '线程岛长线 ' + Math.random().toString(36).slice(2, 8),
+                        submitter_name: '线程岛长线 ' + Math.random().toString(36).slice(2, 8),
                     });
                     if (!long.ok) return { error: 'long conversation ' + long.status };
                     for (let i = 0; i < messageCount; i += 1) {
@@ -133,9 +139,15 @@ def main() -> int:
 
             # Select the seeded conversation from the queue island.
             page.locator("#refreshList").click()
-            page.wait_for_selector("#queueReactIsland .conversation-item", state="visible", timeout=30000)
-            page.locator(f"#queueReactIsland .conversation-item[data-id='{seeded['conversationId']}']").click()
-            page.wait_for_selector("#threadReactIsland .message-row", state="attached", timeout=15000)
+            page.wait_for_selector(
+                "#queueReactIsland .conversation-item", state="visible", timeout=30000
+            )
+            page.locator(
+                f"#queueReactIsland .conversation-item[data-id='{seeded['conversationId']}']"
+            ).click()
+            page.wait_for_selector(
+                "#threadReactIsland .message-row", state="attached", timeout=15000
+            )
             checks["island_thread_rows"] = page.evaluate(
                 "() => document.querySelectorAll('#threadReactIsland .message-row').length"
             )
@@ -154,7 +166,9 @@ def main() -> int:
             )
 
             # Empty conversation → island empty state (legacy copy).
-            page.locator(f"#queueReactIsland .conversation-item[data-id='{seeded['emptyId']}']").click()
+            page.locator(
+                f"#queueReactIsland .conversation-item[data-id='{seeded['emptyId']}']"
+            ).click()
             page.wait_for_function(
                 "() => document.querySelector('#threadReactIsland')?.textContent.includes('等待第一条待审内容')",
                 timeout=15000,
@@ -162,8 +176,12 @@ def main() -> int:
             checks["island_empty_state"] = True
 
             # Back to the data conversation for interaction journeys.
-            page.locator(f"#queueReactIsland .conversation-item[data-id='{seeded['conversationId']}']").click()
-            page.wait_for_selector("#threadReactIsland .message-row", state="attached", timeout=15000)
+            page.locator(
+                f"#queueReactIsland .conversation-item[data-id='{seeded['conversationId']}']"
+            ).click()
+            page.wait_for_selector(
+                "#threadReactIsland .message-row", state="attached", timeout=15000
+            )
 
             # ── Feedback: island click → legacy bridge → real POST ──
             with page.expect_response(
@@ -199,7 +217,9 @@ def main() -> int:
             rows_before = page.evaluate(
                 "() => document.querySelectorAll('#threadReactIsland .message-row').length"
             )
-            page.locator("#composerReactIsland .customer-composer textarea").fill("线程岛补发一条消息")
+            page.locator("#composerReactIsland .customer-composer textarea").fill(
+                "线程岛补发一条消息"
+            )
             page.locator("#composerReactIsland button[aria-label='发送待审内容']").click()
             page.wait_for_function(
                 "(before) => document.querySelectorAll('#threadReactIsland .message-row').length > before",
@@ -209,7 +229,9 @@ def main() -> int:
             checks["composer_send_grew_thread"] = True
 
             # ── Upward pagination: island affordance → legacy keyset bridge ──
-            page.locator(f"#queueReactIsland .conversation-item[data-id='{seeded['longId']}']").click()
+            page.locator(
+                f"#queueReactIsland .conversation-item[data-id='{seeded['longId']}']"
+            ).click()
             page.wait_for_function(
                 "() => document.querySelectorAll('#threadReactIsland .message-row').length >= 100",
                 timeout=20000,

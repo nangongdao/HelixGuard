@@ -91,7 +91,7 @@ MODEL_CALL_PURPOSES = frozenset(
 # refusal, upstream failure, and the permitted deterministic path -- to stay
 # distinguishable in the records the callers write, and a typo must not invent
 # a fifth outcome. These tokens are persisted (customer/assistant message
-# metadata, ``conversation_summaries.source``, the copilot response contract),
+# metadata, ``review_case_summaries.source``, the copilot response contract),
 # so they are a data contract: add, do not rename.
 OUTCOME_MODEL = "model"
 """The transport answered with usable output."""

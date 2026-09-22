@@ -63,12 +63,12 @@ class BannedStatementSourceGuardTests(unittest.TestCase):
 
     def test_the_guard_keeps_its_teeth(self) -> None:
         self.assertIsNotNone(
-            _INSERT_OR_REPLACE_INTO.search("INSERT OR REPLACE INTO conversations (id) VALUES (?)")
+            _INSERT_OR_REPLACE_INTO.search("INSERT OR REPLACE INTO review_cases (id) VALUES (?)")
         )
         # The portable spelling must not trip the guard.
         self.assertIsNone(
             _INSERT_OR_REPLACE_INTO.search(
-                "INSERT INTO conversations (id) VALUES (?) "
+                "INSERT INTO review_cases (id) VALUES (?) "
                 "ON CONFLICT(id) DO UPDATE SET preview = excluded.preview"
             )
         )
@@ -95,7 +95,7 @@ class BannedStatementSourceGuardTests(unittest.TestCase):
 class InsertOrReplaceRejectionTests(unittest.TestCase):
     """The dialect layer must fail loudly, not emit invalid PostgreSQL."""
 
-    SQL = "INSERT OR REPLACE INTO conversations (id, tenant_id) VALUES (?, ?)"
+    SQL = "INSERT OR REPLACE INTO review_cases (id, tenant_id) VALUES (?, ?)"
 
     def test_translate_reports_a_reject_directive(self) -> None:
         sql, directive = translate(self.SQL, True)
@@ -107,7 +107,7 @@ class InsertOrReplaceRejectionTests(unittest.TestCase):
 
     def test_insert_or_ignore_is_still_translated(self) -> None:
         """The reject must not swallow the neighbouring, translatable form."""
-        sql, directive = translate("INSERT OR IGNORE INTO conversations (id) VALUES (?)", True)
+        sql, directive = translate("INSERT OR IGNORE INTO review_cases (id) VALUES (?)", True)
         self.assertIsNone(directive)
         self.assertIn("ON CONFLICT DO NOTHING", sql)
 

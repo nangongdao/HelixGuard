@@ -194,7 +194,7 @@ class KnowledgeDraftToolTests(unittest.TestCase):
         self.assertEqual(body["status"], "draft")
         with self.services.database.connect() as conn:
             row = conn.execute(
-                "SELECT status FROM knowledge_articles WHERE id = ?", (body["article_id"],)
+                "SELECT status FROM policy_articles WHERE id = ?", (body["article_id"],)
             ).fetchone()
             audits = conn.execute(
                 "SELECT COUNT(*) AS n FROM audit_events WHERE tenant_id='demo' "

@@ -29,7 +29,7 @@ from dataclasses import dataclass
 from typing import Any
 from uuid import uuid4
 
-from app.db._util import utc_now
+from app.db._util import to_wire_row, utc_now
 from app.redaction import redact_sensitive
 
 logger = logging.getLogger(__name__)
@@ -344,7 +344,7 @@ class AiGovernanceService:
         self,
         *,
         tenant_id: str,
-        conversation_id: str | None,
+        review_case_id: str | None,
         source: str,
         payload: dict[str, Any],
     ) -> dict[str, Any]:
@@ -360,13 +360,13 @@ class AiGovernanceService:
         with self.database.connect() as connection:
             connection.execute(
                 """INSERT INTO ai_online_feedback
-                (id, tenant_id, conversation_id, source, redacted_json,
+                (id, tenant_id, review_case_id, source, redacted_json,
                  review_status, created_at)
                 VALUES (?, ?, ?, ?, ?, 'pending_review', ?)""",
                 (
                     feedback_id,
                     tenant_id,
-                    conversation_id,
+                    review_case_id,
                     source,
                     json.dumps(redacted, ensure_ascii=False),
                     now,
@@ -387,7 +387,7 @@ class AiGovernanceService:
                 ORDER BY created_at LIMIT ?""",
                 (tenant_id, max(1, limit)),
             ).fetchall()
-        return [dict(row) for row in rows]
+        return [to_wire_row(row) for row in rows]
 
     def list_feedback(
         self,
@@ -409,7 +409,7 @@ class AiGovernanceService:
                 "ORDER BY created_at DESC, id DESC LIMIT ?",
                 (*values, limit),
             ).fetchall()
-        return [dict(row) for row in rows]
+        return [to_wire_row(row) for row in rows]
 
     def list_eval_runs(
         self,

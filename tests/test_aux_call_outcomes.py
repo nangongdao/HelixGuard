@@ -16,7 +16,7 @@ rather than absorbed into the normal deterministic mode.
 
 These tests pin the recorded outcome of every governed auxiliary surface, the
 end-to-end record the turn writes, and the telemetry that keeps a failure
-counted. The outcomes are persisted (message metadata, ``conversation_summaries
+counted. The outcomes are persisted (message metadata, ``review_case_summaries
 .source``, the copilot response contract), so the word list is closed and the
 tokens are not free to be renamed.
 """
@@ -239,8 +239,8 @@ class LanguageTranslateOutcomeTests(OutcomeFixture):
 
 
 class SummaryOutcomeTests(OutcomeFixture):
-    def _conversation(self) -> str:
-        conv = self.db.create_conversation(TENANT, "Summary", None, "web", "admin", 120)
+    def _review_case(self) -> str:
+        conv = self.db.create_review_case(TENANT, "Summary", None, "web", "admin", 120)
         self.db.add_message(
             TENANT,
             conv["id"],
@@ -255,32 +255,32 @@ class SummaryOutcomeTests(OutcomeFixture):
     def test_model_answer_is_recorded_as_model(self) -> None:
         provider = ScriptedProvider()
         service = SummaryService(self.db, provider, model_gate=self._gate())
-        row = service.generate(TENANT, self._conversation(), "context")
+        row = service.generate(TENANT, self._review_case(), "context")
         self.assertEqual(row["source"], OUTCOME_MODEL)
 
     def test_refusal_is_recorded_as_denied(self) -> None:
         self._deny_provider()
         provider = ScriptedProvider()
         service = SummaryService(self.db, provider, model_gate=self._gate())
-        row = service.generate(TENANT, self._conversation(), "context")
+        row = service.generate(TENANT, self._review_case(), "context")
         self.assertEqual(row["source"], OUTCOME_DENIED)
         self.assertEqual(provider.calls, [])
 
     def test_transport_failure_is_recorded_as_failed(self) -> None:
         provider = ScriptedProvider(fail=True)
         service = SummaryService(self.db, provider, model_gate=self._gate())
-        row = service.generate(TENANT, self._conversation(), "context")
+        row = service.generate(TENANT, self._review_case(), "context")
         self.assertEqual(row["source"], OUTCOME_FAILED)
 
     def test_absent_provider_is_recorded_as_unconfigured(self) -> None:
         service = SummaryService(self.db, None, model_gate=self._gate())
-        row = service.generate(TENANT, self._conversation(), "context")
+        row = service.generate(TENANT, self._review_case(), "context")
         self.assertEqual(row["source"], OUTCOME_UNCONFIGURED)
 
 
 class CopilotOutcomeTests(OutcomeFixture):
-    def _conversation_with_canned_reply(self) -> str:
-        conv = self.db.create_conversation(TENANT, "Copilot", None, "web", "admin", 120)
+    def _review_case_with_canned_reply(self) -> str:
+        conv = self.db.create_review_case(TENANT, "Copilot", None, "web", "admin", 120)
         self.db.add_message(
             TENANT,
             conv["id"],
@@ -290,7 +290,7 @@ class CopilotOutcomeTests(OutcomeFixture):
             {"source_actor": "admin"},
             "turn-1",
         )
-        self.db.create_canned_response(
+        self.db.create_canned_verdict(
             TENANT,
             title="Order status",
             body="正在为您查询订单状态。",
@@ -301,7 +301,7 @@ class CopilotOutcomeTests(OutcomeFixture):
         return conv["id"]
 
     def test_refusal_is_recorded_on_every_suggestion(self) -> None:
-        conv_id = self._conversation_with_canned_reply()
+        conv_id = self._review_case_with_canned_reply()
         self._deny_provider()
         provider = ScriptedProvider()
         service = CopilotService(self.db, provider, model_gate=self._gate())
@@ -311,7 +311,7 @@ class CopilotOutcomeTests(OutcomeFixture):
         self.assertEqual(provider.calls, [])
 
     def test_transport_failure_is_recorded_on_every_suggestion(self) -> None:
-        conv_id = self._conversation_with_canned_reply()
+        conv_id = self._review_case_with_canned_reply()
         provider = ScriptedProvider(fail=True)
         service = CopilotService(self.db, provider, model_gate=self._gate())
         suggestions = service.suggest_reply(TENANT, conv_id)
@@ -356,12 +356,12 @@ class TurnOutcomeRecordTests(OutcomeFixture):
         )
         return orchestrator
 
-    def _metadata(self, conversation_id: str, role: str) -> dict:
+    def _metadata(self, review_case_id: str, role: str) -> dict:
         with self.db.connect() as conn:
             row = conn.execute(
                 "SELECT metadata_json FROM messages WHERE tenant_id = ? "
-                "AND conversation_id = ? AND role = ? ORDER BY seq LIMIT 1",
-                (TENANT, conversation_id, role),
+                "AND review_case_id = ? AND role = ? ORDER BY seq LIMIT 1",
+                (TENANT, review_case_id, role),
             ).fetchone()
         return json.loads(row["metadata_json"]) if row else {}
 
@@ -369,7 +369,7 @@ class TurnOutcomeRecordTests(OutcomeFixture):
         self._deny_provider()
         provider = ScriptedProvider(detect="en", translation="How may I help you today?")
         orchestrator = self._turn_with_language_provider(provider)
-        conv = self.db.create_conversation(TENANT, "Refused Turn", None, "web", "admin", 120)
+        conv = self.db.create_review_case(TENANT, "Refused Turn", None, "web", "admin", 120)
         orchestrator.handle_customer_message(
             TENANT, conv["id"], "Hello there", "admin", "idem-outcome-1"
         )
@@ -389,7 +389,7 @@ class TurnOutcomeRecordTests(OutcomeFixture):
     def test_failed_turn_records_the_failure_end_to_end(self) -> None:
         provider = ScriptedProvider(fail=True)
         orchestrator = self._turn_with_language_provider(provider)
-        conv = self.db.create_conversation(TENANT, "Failed Turn", None, "web", "admin", 120)
+        conv = self.db.create_review_case(TENANT, "Failed Turn", None, "web", "admin", 120)
         orchestrator.handle_customer_message(
             TENANT, conv["id"], "Hello there", "admin", "idem-outcome-2"
         )

@@ -361,7 +361,7 @@ def build_router(deps: RouteDeps) -> APIRouter:
         audit_high_risk(
             database,
             tenant_id=tenant_id,
-            conversation_id=None,
+            review_case_id=None,
             actor=principal.actor_id,
             event_type="member.invited",
             payload={
@@ -417,7 +417,7 @@ def build_router(deps: RouteDeps) -> APIRouter:
         audit_high_risk(
             database,
             tenant_id=tenant_id,
-            conversation_id=None,
+            review_case_id=None,
             actor=principal.actor_id,
             event_type="member.role_updated",
             payload={
@@ -456,7 +456,7 @@ def build_router(deps: RouteDeps) -> APIRouter:
         audit_high_risk(
             database,
             tenant_id=tenant_id,
-            conversation_id=None,
+            review_case_id=None,
             actor=principal.actor_id,
             event_type="member.deactivated",
             payload={"member_id": actor_id},
@@ -677,7 +677,7 @@ def build_router(deps: RouteDeps) -> APIRouter:
         audit_high_risk(
             database,
             tenant_id=principal.tenant_id,
-            conversation_id=None,
+            review_case_id=None,
             actor=principal.actor_id,
             event_type="webhook.registered",
             payload={"endpoint_id": endpoint["id"], "url": payload.url, "events": payload.events},
@@ -707,7 +707,7 @@ def build_router(deps: RouteDeps) -> APIRouter:
         audit_high_risk(
             database,
             tenant_id=principal.tenant_id,
-            conversation_id=None,
+            review_case_id=None,
             actor=principal.actor_id,
             event_type="webhook.deleted",
             payload={"endpoint_id": endpoint_id},
@@ -758,7 +758,7 @@ def build_router(deps: RouteDeps) -> APIRouter:
         audit_high_risk(
             database,
             tenant_id=principal.tenant_id,
-            conversation_id=None,
+            review_case_id=None,
             actor=principal.actor_id,
             event_type="api_key.revoked",
             payload={"credential_id": credential_id},
@@ -772,10 +772,12 @@ def build_router(deps: RouteDeps) -> APIRouter:
     @legacy_route(
         router, "/api/admin/agent-groups", methods=["GET"], response_model=list[AgentGroupOut]
     )
-    def list_agent_groups(
+    def list_reviewer_groups(
         principal: Annotated[Principal, Depends(require_permission("admin:manage"))],
     ) -> list[AgentGroupOut]:
-        return [AgentGroupOut(**group) for group in database.list_agent_groups(principal.tenant_id)]
+        return [
+            AgentGroupOut(**group) for group in database.list_reviewer_groups(principal.tenant_id)
+        ]
 
     @router.post("/api/admin/reviewer-groups", response_model=AgentGroupOut, status_code=201)
     @legacy_route(
@@ -785,11 +787,11 @@ def build_router(deps: RouteDeps) -> APIRouter:
         response_model=AgentGroupOut,
         status_code=201,
     )
-    def create_agent_group(
+    def create_reviewer_group(
         payload: AgentGroupCreateRequest,
         principal: Annotated[Principal, Depends(require_permission("admin:manage"))],
     ) -> AgentGroupOut:
-        group = database.create_agent_group(
+        group = database.create_reviewer_group(
             principal.tenant_id, payload.name, payload.skills, payload.capacity
         )
         database.audit(
@@ -803,11 +805,11 @@ def build_router(deps: RouteDeps) -> APIRouter:
 
     @router.delete("/api/admin/reviewer-groups/{group_id}", status_code=204)
     @legacy_route(router, "/api/admin/agent-groups/{group_id}", methods=["DELETE"], status_code=204)
-    def delete_agent_group(
+    def delete_reviewer_group(
         group_id: str,
         principal: Annotated[Principal, Depends(require_permission("admin:manage"))],
     ) -> None:
-        if not database.delete_agent_group(principal.tenant_id, group_id):
+        if not database.delete_reviewer_group(principal.tenant_id, group_id):
             raise HTTPException(status_code=404, detail="Agent group not found")
 
     @router.post(
@@ -876,7 +878,7 @@ def build_router(deps: RouteDeps) -> APIRouter:
         try:
             rule = database.create_routing_rule(
                 principal.tenant_id,
-                intent=payload.intent,
+                risk_category=payload.intent,
                 label=payload.label,
                 channel=payload.channel,
                 group_id=payload.group_id,
@@ -942,7 +944,7 @@ def build_router(deps: RouteDeps) -> APIRouter:
         audit_high_risk(
             database,
             tenant_id=tenant_id,
-            conversation_id=None,
+            review_case_id=None,
             actor=principal.actor_id,
             event_type="sla_policy.set",
             payload={"policy_id": policy["id"], "priority": policy["priority"]},
@@ -1032,7 +1034,7 @@ def build_router(deps: RouteDeps) -> APIRouter:
         audit_high_risk(
             database,
             tenant_id=principal.tenant_id,
-            conversation_id=None,
+            review_case_id=None,
             actor=principal.actor_id,
             event_type="api_key.issued",
             payload={"credential_id": credential_id, "type": "api_key"},

@@ -3,7 +3,7 @@
 The hot-path audit found ``list_messages`` paginating by (created_at, seq)
 while the pre-existing ``idx_messages_page`` index ended at ``id`` (a UUID),
 forcing a temp B-tree sort on every page ("RIGHT PART OF ORDER BY"). M23 adds
-``idx_messages_page_seq (tenant_id, conversation_id, created_at ASC, seq ASC)``
+``idx_messages_page_seq (tenant_id, review_case_id, created_at ASC, seq ASC)``
 so pagination runs straight off the index, forward and backward.
 """
 
@@ -22,7 +22,7 @@ class PaginationSeqIndexTests(unittest.TestCase):
         self.database = Database(Path(self._tmp.name) / "paging.db")
         self.database.initialize()
         self.database.ensure_tenant("demo")
-        self.conversation = self.database.create_conversation(
+        self.review_case = self.database.create_review_case(
             "demo", "Customer", None, "web", "admin", 120
         )
 
@@ -39,13 +39,13 @@ class PaginationSeqIndexTests(unittest.TestCase):
 
     def test_forward_paging_plan_uses_index_without_temp_sort(self) -> None:
         self.database.add_message(
-            "demo", self.conversation["id"], "customer", "Customer", "hello", {}, None
+            "demo", self.review_case["id"], "customer", "Customer", "hello", {}, None
         )
         with self.database.connect() as connection:
             plan = connection.execute(
                 "EXPLAIN QUERY PLAN SELECT * FROM messages WHERE tenant_id = ? "
-                "AND conversation_id = ? ORDER BY created_at ASC, seq ASC LIMIT 50",
-                ("demo", self.conversation["id"]),
+                "AND review_case_id = ? ORDER BY created_at ASC, seq ASC LIMIT 50",
+                ("demo", self.review_case["id"]),
             ).fetchall()
         details = " ".join(row["detail"] for row in plan)
         self.assertIn("idx_messages_page_seq", details)
@@ -56,11 +56,11 @@ class PaginationSeqIndexTests(unittest.TestCase):
         with self.database.connect() as connection:
             plan = connection.execute(
                 "EXPLAIN QUERY PLAN SELECT * FROM messages WHERE tenant_id = ? "
-                "AND conversation_id = ? AND (created_at < ? OR (created_at = ? AND seq < ?)) "
+                "AND review_case_id = ? AND (created_at < ? OR (created_at = ? AND seq < ?)) "
                 "ORDER BY created_at DESC, seq DESC LIMIT 50",
                 (
                     "demo",
-                    self.conversation["id"],
+                    self.review_case["id"],
                     "2026-08-16T00:00:00+00:00",
                     "2026-08-16T00:00:00+00:00",
                     1,

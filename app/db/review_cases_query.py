@@ -1,4 +1,4 @@
-"""Database conversations_query mixin (Phase 27.1, extracted from app/database.py)."""
+"""Database review_cases_query mixin (Phase 27.1, extracted from app/database.py)."""
 
 from __future__ import annotations
 
@@ -9,18 +9,19 @@ from typing import Any
 
 from app.db._util import (
     knowledge_search_terms,
+    to_wire_row,
     utc_now,
 )
 
-# PostgreSQL queue-search fast path: how many newest conversations to probe for
+# PostgreSQL queue-search fast path: how many newest review_cases to probe for
 # the message term before giving up to the aggregated CTE.  The window is a
 # hard bound so a pathological full-match term costs at most one ordered index
-# scan plus ``window`` per-conversation probes (see ``_query_conversations``).
+# scan plus ``window`` per-conversation probes (see ``_query_review_cases``).
 _PG_SEARCH_WINDOW = 1024
 
 
-class DatabaseConversationsQueryMixin:
-    def list_conversations(
+class DatabaseReviewCasesQueryMixin:
+    def list_review_cases(
         self,
         tenant_id: str,
         status: str | None = None,
@@ -49,11 +50,11 @@ class DatabaseConversationsQueryMixin:
         # to bound its volume, so an archive search falls back to LIKE and FTS
         # is only ever attempted against the hot table.
         use_fts = bool(not archived and search and search_terms and self._message_fts_enabled)
-        table = "conversations_archive" if archived else "conversations"
+        table = "review_cases_archive" if archived else "review_cases"
         inbox_messages_table = "messages_archive" if archived else "messages"
-        label_table = "conversation_labels_archive" if archived else "conversation_labels"
+        label_table = "review_case_labels_archive" if archived else "review_case_labels"
         try:
-            rows = self._query_conversations(
+            rows = self._query_review_cases(
                 tenant_id,
                 status=status,
                 search=search,
@@ -81,7 +82,7 @@ class DatabaseConversationsQueryMixin:
                 raise
             with self._pool_lock:
                 self._message_fts_fallbacks += 1
-            rows = self._query_conversations(
+            rows = self._query_review_cases(
                 tenant_id,
                 status=status,
                 search=search,
@@ -100,9 +101,9 @@ class DatabaseConversationsQueryMixin:
                 cursor=cursor,
                 search_terms=search_terms,
                 use_fts=False,
-                table="conversations",
+                table="review_cases",
                 inbox_messages_table="messages",
-                label_table="conversation_labels",
+                label_table="review_case_labels",
             )
         else:
             if search:
@@ -111,12 +112,12 @@ class DatabaseConversationsQueryMixin:
                         self._message_fts_queries += 1
                     else:
                         self._message_fts_fallbacks += 1
-        return [dict(row) for row in rows]
+        return [to_wire_row(row) for row in rows]
 
     def conversation_watermark(self, tenant_id: str) -> str:
         with self.connect() as connection:
             row = connection.execute(
-                "SELECT COALESCE(MAX(updated_at), '') AS watermark FROM conversations WHERE tenant_id = ?",
+                "SELECT COALESCE(MAX(updated_at), '') AS watermark FROM review_cases WHERE tenant_id = ?",
                 (tenant_id,),
             ).fetchone()
         return str(row["watermark"] if row else "")
@@ -145,7 +146,7 @@ class DatabaseConversationsQueryMixin:
         Returns ``(clauses, query_values)`` where the first clause is always
         ``c.tenant_id = ?`` with the tenant as the first bound value.  The
         message-search predicate is composed separately so the PostgreSQL
-        windowed fast path can probe the newest conversations and the
+        windowed fast path can probe the newest review_cases and the
         aggregated CTE fallback can run over the whole tenant.
         """
         clauses = ["c.tenant_id = ?"]
@@ -160,11 +161,11 @@ class DatabaseConversationsQueryMixin:
             clauses.append("c.channel = ?")
             query_values.append(channel)
         if assigned_to:
-            clauses.append("c.assigned_agent = ?")
+            clauses.append("c.assigned_reviewer = ?")
             query_values.append(assigned_to)
         if unassigned:
             clauses.append(
-                "(c.assigned_agent IS NULL OR c.assigned_agent IN "
+                "(c.assigned_reviewer IS NULL OR c.assigned_reviewer IN "
                 "('knowledge', 'order', 'escalation', 'policy', 'triage', 'quality'))"
             )
         if claimed_by:
@@ -191,12 +192,12 @@ class DatabaseConversationsQueryMixin:
         if label:
             clauses.append(
                 f"EXISTS (SELECT 1 FROM {label_table} cl "
-                "WHERE cl.tenant_id = c.tenant_id AND cl.conversation_id = c.id "
+                "WHERE cl.tenant_id = c.tenant_id AND cl.review_case_id = c.id "
                 "AND cl.label = ?)"
             )
             query_values.append(label.casefold())
         if cursor:
-            cursor_sort, priority_rank, sort_key, updated_at, conversation_id = cursor
+            cursor_sort, priority_rank, sort_key, updated_at, review_case_id = cursor
             if cursor_sort != sort:
                 raise ValueError("cursor sort does not match requested sort")
             if sort == "priority":
@@ -212,7 +213,7 @@ class DatabaseConversationsQueryMixin:
                         updated_at,
                         priority_rank,
                         updated_at,
-                        conversation_id,
+                        review_case_id,
                     ]
                 )
             elif sort == "waiting":
@@ -222,7 +223,7 @@ class DatabaseConversationsQueryMixin:
                     f"OR ({wait_expr} = ? AND c.updated_at = ? AND c.id < ?))"
                 )
                 query_values.extend(
-                    [sort_key, sort_key, updated_at, sort_key, updated_at, conversation_id]
+                    [sort_key, sort_key, updated_at, sort_key, updated_at, review_case_id]
                 )
             elif sort == "sla":
                 sla_expr = "COALESCE(c.sla_due_at, '9999-12-31T00:00:00+00:00')"
@@ -231,14 +232,14 @@ class DatabaseConversationsQueryMixin:
                     f"OR ({sla_expr} = ? AND c.updated_at = ? AND c.id < ?))"
                 )
                 query_values.extend(
-                    [sort_key, sort_key, updated_at, sort_key, updated_at, conversation_id]
+                    [sort_key, sort_key, updated_at, sort_key, updated_at, review_case_id]
                 )
             else:
                 clauses.append("(c.updated_at < ? OR (c.updated_at = ? AND c.id < ?))")
-                query_values.extend([updated_at, updated_at, conversation_id])
+                query_values.extend([updated_at, updated_at, review_case_id])
         return clauses, query_values
 
-    def _query_conversations_windowed(
+    def _query_review_cases_windowed(
         self,
         now: str,
         tenant_id: str,
@@ -254,8 +255,8 @@ class DatabaseConversationsQueryMixin:
         so for a term matching most messages it falls back to a generic plan
         that aggregates the whole message table (CAPACITY 3.2: 627-809ms).
         This shape removes the planner from the decision: it first pulls the
-        newest ``offset + limit`` conversations through the ordered index
-        ``idx_conversations_tenant_updated_id`` (a sub-ms scan — no estimate
+        newest ``offset + limit`` review_cases through the ordered index
+        ``idx_review_cases_tenant_updated_id`` (a sub-ms scan — no estimate
         involved), then applies the search predicate with a per-conversation
         probe served by ``idx_messages_page_seq``.  A term matching most
         messages satisfies the page inside the window and the query returns
@@ -273,9 +274,9 @@ class DatabaseConversationsQueryMixin:
         """
         needle = f"%{search}%"
         search_clause = (
-            "(c.customer_name LIKE ? OR c.id LIKE ? OR c.customer_ref LIKE ? OR EXISTS ("
+            "(c.submitter_name LIKE ? OR c.id LIKE ? OR c.submitter_ref LIKE ? OR EXISTS ("
             "SELECT 1 FROM messages m WHERE m.tenant_id = c.tenant_id "
-            "AND m.conversation_id = c.id AND m.content LIKE ?))"
+            "AND m.review_case_id = c.id AND m.content LIKE ?))"
         )
         window_k = offset + limit
         inner_where = " AND ".join(base_clauses)
@@ -285,10 +286,10 @@ class DatabaseConversationsQueryMixin:
                  AND c.sla_due_at < ? THEN 1 ELSE 0 END AS sla_breached,
             CASE WHEN c.claimed_by IS NOT NULL AND c.claim_expires_at IS NOT NULL
                  AND c.claim_expires_at > ? THEN 1 ELSE 0 END AS claim_active
-            FROM conversations c
+            FROM review_cases c
             WHERE c.tenant_id = ? AND {search_clause}
               AND c.id IN (
-                SELECT id FROM conversations c WHERE {inner_where}
+                SELECT id FROM review_cases c WHERE {inner_where}
                 ORDER BY updated_at DESC, id DESC LIMIT ?
               )
             ORDER BY c.updated_at DESC, c.id DESC LIMIT ? OFFSET ?"""
@@ -302,7 +303,7 @@ class DatabaseConversationsQueryMixin:
             return rows
         return None
 
-    def _query_conversations(
+    def _query_review_cases(
         self,
         tenant_id: str,
         *,
@@ -323,9 +324,9 @@ class DatabaseConversationsQueryMixin:
         cursor: tuple[str, int | None, str | None, str, str] | None,
         search_terms: Sequence[str],
         use_fts: bool,
-        table: str = "conversations",
+        table: str = "review_cases",
         inbox_messages_table: str = "messages",
-        label_table: str = "conversation_labels",
+        label_table: str = "review_case_labels",
     ) -> list[sqlite3.Row]:
         now = utc_now()
         base_clauses, base_values = self._conversation_filter_clauses(
@@ -346,12 +347,12 @@ class DatabaseConversationsQueryMixin:
             label_table=label_table,
         )
         # PostgreSQL queue-search fast path: for the indexed ``updated`` sort
-        # (the §18.5 acceptance probe), probe the newest conversations instead
+        # (the §18.5 acceptance probe), probe the newest review_cases instead
         # of aggregating the message table, so a term matching most messages
-        # converges under the 500ms line (see ``_query_conversations_windowed``).
+        # converges under the 500ms line (see ``_query_review_cases_windowed``).
         # Rare terms fall through to the CTE, where the pg_trgm GIN index is
         # fast.  Deep offsets stay on the CTE: the window would have to cover
-        # the whole page anyway.  ``table == "conversations"`` makes the
+        # the whole page anyway.  ``table == "review_cases"`` makes the
         # non-archived invariant explicit (the windowed SQL only ever touches
         # the hot tables; archive searches always take the CTE/LIKE path).
         if (
@@ -359,11 +360,11 @@ class DatabaseConversationsQueryMixin:
             and search
             and not use_fts
             and sort == "updated"
-            and table == "conversations"
+            and table == "review_cases"
             and inbox_messages_table == "messages"
             and offset + limit <= _PG_SEARCH_WINDOW
         ):
-            rows = self._query_conversations_windowed(
+            rows = self._query_review_cases_windowed(
                 now,
                 tenant_id,
                 base_clauses,
@@ -381,36 +382,36 @@ class DatabaseConversationsQueryMixin:
         if use_fts:
             match_query = " OR ".join(f'"{term}"' for term in search_terms)
             cte = """WITH message_matches AS (
-                SELECT DISTINCT tenant_id, conversation_id FROM message_fts
+                SELECT DISTINCT tenant_id, review_case_id FROM message_fts
                 WHERE message_fts MATCH ? AND tenant_id = ?
             ) """
             from_clause += " LEFT JOIN message_matches mm ON mm.tenant_id = c.tenant_id "
-            from_clause += "AND mm.conversation_id = c.id"
+            from_clause += "AND mm.review_case_id = c.id"
             values.extend([match_query, tenant_id])
         elif search:
             # PostgreSQL has no FTS mirror (and archive searches are evicted
             # from the hot mirror), so the message predicate has to probe the
             # message table directly.  A per-row EXISTS scan probes every
             # conversation's rows (PG full-tenant: ~2.4s worst case).  Pre-
-            # aggregating the matched conversations into a CTE lets the planner
+            # aggregating the matched review_cases into a CTE lets the planner
             # weight the pg_trgm GIN index on ``messages.content`` (installed by
             # app.pg_compat.install_trgm_search) for the LIKE predicate
             # (CAPACITY 3.2 PG worst ~0.7s, selective ~75ms).
             cte = f"""WITH message_matches AS (
-                SELECT tenant_id, conversation_id FROM {inbox_messages_table}
+                SELECT tenant_id, review_case_id FROM {inbox_messages_table}
                 WHERE tenant_id = ? AND content LIKE ?
-                GROUP BY tenant_id, conversation_id
+                GROUP BY tenant_id, review_case_id
             ) """
             from_clause += " LEFT JOIN message_matches mm ON mm.tenant_id = c.tenant_id "
-            from_clause += "AND mm.conversation_id = c.id"
+            from_clause += "AND mm.review_case_id = c.id"
             values.extend([tenant_id, f"%{search}%"])
         clauses = base_clauses
         query_values = list(base_values)
         if search:
             needle = f"%{search}%"
             clauses.append(
-                "(c.customer_name LIKE ? OR c.id LIKE ? OR c.customer_ref LIKE ? "
-                "OR mm.conversation_id IS NOT NULL)"
+                "(c.submitter_name LIKE ? OR c.id LIKE ? OR c.submitter_ref LIKE ? "
+                "OR mm.review_case_id IS NOT NULL)"
             )
             query_values.extend([needle, needle, needle])
         where = " AND ".join(clauses)

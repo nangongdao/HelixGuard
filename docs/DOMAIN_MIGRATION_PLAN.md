@@ -108,7 +108,9 @@
 | **P3 模块与路由** | `app/csat.py`→`qa_review`、`app/routers/{tickets,conversations,csat}.py` 改名、`app/widget_*.py`→`portal_*`；API 路径改名；重生成 `api/openapi.json`；同步 `clients/python/` | `openapi_snapshot`、`frontend_gate`、SDK 一致性测试 | **中**（见 R1） |
 | ↳ *实际落地* | **P3a 已完成**（2.26.0，T4/T6–T9/T12/T13 24 路径）；**P3b 已完成**（2.28.0，T5：`conversations.py`→`review_cases.py` 模块、28 操作路径面、24 组弃用条目，窗口 2026-09-21→2027-09-21；顺带修复 P3a 漏改的 `knowledge-draft` 尾段）。两条机制教训入 **R8**：占位符与 handler 形参必须成对改名；别名必须镜像主装饰器的 `status_code`/`response_model`/`summary`/`tags` | 全绿 | 中 |
 | **P4 数据层** | §3 的一致改写：`core_schema.py` + v01–v48 + 迁移文件名 + 8 个领域 mixin | `migration_gate`、`verify_migration_registry`、PG/SQLite 等价性 | **高** |
+| ↳ *实际落地* | **P4 已完成**（2.29.0）：`core_schema.py` 与 v01–v48 迁移链按 §3 一致改写（表名 `conversations→review_cases`、`tickets→appeals`、`csat_ratings→qa_spot_checks`、`knowledge_articles→policy_articles`、`canned_responses→canned_verdicts`、`agent_groups→reviewer_groups`、`orders→source_lookups` 等，列名 T1–T4/T10/T11/T14），迁移**文件名一并改写且链长仍为 48**（无新增 v49，`check_expand_additivity` 仍通过：每步在自身口径下仍是超集）；`app/db/` 各领域 mixin 与全部 SQL 语句字面量同步改名；**wire 契约不变** —— 新增 `app/db/_util.py` 的 `to_wire_row()` + `_COLUMN_TO_WIRE` 映射表（`submitter_name→customer_name`、`submitter_ref→customer_ref`、`risk_category→intent`、`assigned_reviewer→assigned_agent`、`decided_at→resolved_at`、`appeal_id→ticket_id`、`review_case_id→conversation_id`、`source_review_case_id→source_conversation_id`），在响应组装点把 DB 新列名还原为 API 旧键名，满足 `docs/API_POLICY.md`「响应体只增不改」。**R2 代价已兑现**：迁移历史被改写，已部署库需重建（本项目无生产部署） | 全绿 | 高 |
 | **P5 测试与基线** | 312 个测试函数、约 40 个测试文件名重命名；性能预算复核；清理 `*.bak`；移除 README 迁移横幅 | 全量 1,963 测试、`performance_gate`、`threat_model_gate`、SBOM | **高**（见 R4）。视觉基线已在 P2 重锚，P5 只在 UI 再变时复锚 |
+| ↳ *实际落地* | **P5 已完成**（2.29.0，与 P4 同批次）：测试函数名与测试文件名按 T1–T14 统一改名（`test_conversation_routes.py`→`test_review_case_routes.py` 等），由 `artifacts/p5_rename_tests.py` + `artifacts/p5_fix_attr_calls.py` 两遍完成（第二遍补 `self.<attr>` 属性访问 —— 第一遍的负向后顾 `(?<![\\w.])` 把点号排除在外，导致方法**定义**改了名而调用点未改，全量红 4 例后定位到 `_conversation_with_canned_reply` 一个漏网；**这是 R8③「哨兵护不住属性访问」的第二次复发**）；`app/database.py.bak` 按 R6 删除并同步移除守护豁免（`app/main.py.bak` 保留）；README 域迁移横幅移除；`performance_gate` 复核通过 | 全绿 | 高 |
 
 执行顺序：P1 → P2 → P2b → P3 → P4 → P5。**P4 与 P5 必须连续在同一批次完成**（改名后测试必红，不能分两次提交）。
 
@@ -143,3 +145,31 @@
 1. 确认或修订 §2 术语契约（含产品名）。
 2. 确认 T5 是否按建议拆为独立末阶段。
 3. 契约冻结后从 P1 开始执行。
+
+---
+
+## 8. 执行结论（P1–P5 全部落地）
+
+| 阶段 | 版本 | 状态 |
+| --- | --- | --- |
+| P1 叙事层 | 2.23.0 | 已完成 |
+| P2 文案层 | 2.23.0/2.24.0 | 已完成（重捕获 7/7 截图，视觉基线随 P2 重锚） |
+| P2b 内容夹具层 | 2.25.0 | 已完成 |
+| P2c 构词补漏 | 2.27.0 | 已完成（R7 处置，27 文件 / 79 处） |
+| P3 模块与路由 | 2.26.0（P3a）/ 2.28.0（P3b） | 已完成（R8 三条机制教训） |
+| P4 数据层 | 2.29.0 | 已完成（一致改写，链长仍 48；wire 契约经 `to_wire_row()` 不变） |
+| P5 测试与基线 | 2.29.0 | 已完成（与 P4 同批次；`database.py.bak` 已清、README 横幅已撤） |
+
+### P4/P5 暴露的两条新机制教训（建议补入 R8）
+
+**R8④ wire 契约与 DB 命名的解耦点必须显式登记。** P4 全面改 DB 名后，「哪些出口是 wire 面、哪些是内部面」成了唯一的正确性判据，而它**不在任何现有守护的射程内**——`to_wire_row` 的漏应用与误应用都不产生静态错误：
+- **漏应用**（该还原没还原）：响应键变新名，客户端静默取不到值；`PII_FIELDS` 是**按 wire 名登记的脱敏契约**，裸 DB 行嵌入导出 JSON 会因列名已改而**漏脱敏**——这是安全缺陷，不是风格问题。
+- **误应用**（不该还原却还原）：审计链的 `required_fields`、跨区复制的逐字节转发会被改坏。
+两者的唯一判据是**该出口有没有外部消费者**。故 P4 的范围界定不是「所有 `dict(row)`」，而是逐点判定「此出口的字节是否离开进程」。建议为 `PII_FIELDS` 类**契约常量**加断言：其键名必须与 `_COLUMN_TO_WIRE` 的像集或原样列名之并集一致。
+
+**R8⑤「点号属性访问」是改名脚本的固定盲区，且已复发三次。** P3b 教训③（`token.conversation_id` 误改）→ P5 第一遍改名脚本的负向后顾 `(?<!\w.)` 把 `self.<attr>` 成批排除（方法定义改了、调用点没改，251 行）→ 残留一例因落在 SKIP 子串规则里而两遍都漏。**根因是判据选错了**：脚本按**行文本**匹配，而改名正确性的判据是**标识符绑定**。可复用做法：改名后用 AST 收集全部 `Attribute` 节点与 `Name` 节点，对每个改过的标识符断言「定义与引用同批变更」，而非依赖正则的哨兵。同理，SKIP 子串规则必须与改名规则**互斥或显式求交**，否则会出现「被 SKIP 的标识符仍被引用端改写」的单边改名。
+
+### 后续可选项（本计划范围外，已登记）
+
+- **R7 的收尾面**：`app/static/index.html`、`frontend/src/islands/*` 的 DOM id / class / 模块名（`#knowledgeSearch`、`knowledgeReactIsland` 等）仍是旧域词；属 P5 的**标识符面**但改动会触发 `visual_gate` / `frontend_gate` 重锚，未纳入本批次。
+- **`docs/api/reference.md` 重生成**：该文件由 `scripts/api_docs.py` 从快照生成，但在 P3a 时**已落后 spec 26 个端点**（107 vs 133）；重生成会夹带 3541/1493 行无关漂移。登记的既存事项，与域迁移解耦后单独处理。

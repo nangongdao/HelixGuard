@@ -130,11 +130,9 @@ class ApiV2ContractTests(unittest.TestCase):
 
     def test_shadow_read_core_fields_match_v1_exactly(self) -> None:
         created = self._create("Shadow Customer")
-        conversation_id = created.json()["id"]
+        review_case_id = created.json()["id"]
         v2_row = created.json()
-        v1_row = self.client.get(
-            f"/api/review-cases/{conversation_id}", headers=self.headers
-        ).json()
+        v1_row = self.client.get(f"/api/review-cases/{review_case_id}", headers=self.headers).json()
         if isinstance(v1_row, dict) and "conversation" in v1_row:
             v1_row = v1_row["conversation"]
         for field in ("id", "status", "priority", "channel", "customer_name", "created_at"):
@@ -151,7 +149,7 @@ class ApiV2ContractTests(unittest.TestCase):
 
         created = self._create("Outbox Customer", idempotency_key="idem-outbox")
         self.assertEqual(created.status_code, 201)
-        conversation_id = created.json()["id"]
+        review_case_id = created.json()["id"]
 
         outbox = DomainEventOutbox(self.services.database)
         delivered: list[dict[str, Any]] = []
@@ -159,7 +157,7 @@ class ApiV2ContractTests(unittest.TestCase):
         # Replaying the drain must not re-deliver (consumer dedup by event_id).
         self.assertEqual(outbox.drain(delivered.append), 0)
         matches = [
-            event for event in delivered if event["payload"]["conversation_id"] == conversation_id
+            event for event in delivered if event["payload"]["conversation_id"] == review_case_id
         ]
         self.assertEqual(len(matches), 1)
         event = matches[0]

@@ -56,7 +56,7 @@ class KnowledgeHit:
 class CustomerProfile:
     """A resolved customer identity."""
 
-    customer_ref: str
+    submitter_ref: str
     name: str
 
 
@@ -82,7 +82,7 @@ class OrderConnector(Protocol):
     """
 
     def lookup_order(
-        self, tenant_id: str, customer_ref: str | None, order_id: str
+        self, tenant_id: str, submitter_ref: str | None, source_record_id: str
     ) -> OrderLookup: ...
 
 
@@ -114,7 +114,7 @@ class KnowledgeConnector(Protocol):
 class CRMConnector(Protocol):
     """Resolves a customer reference to a profile, if one exists."""
 
-    def resolve_customer(self, tenant_id: str, customer_ref: str) -> CustomerLookup: ...
+    def resolve_customer(self, tenant_id: str, submitter_ref: str) -> CustomerLookup: ...
 
 
 class SandboxOrderConnector:
@@ -123,10 +123,12 @@ class SandboxOrderConnector:
     def __init__(self, database: Any) -> None:
         self.database = database
 
-    def lookup_order(self, tenant_id: str, customer_ref: str | None, order_id: str) -> OrderLookup:
-        if not customer_ref:
+    def lookup_order(
+        self, tenant_id: str, submitter_ref: str | None, source_record_id: str
+    ) -> OrderLookup:
+        if not submitter_ref:
             return OrderLookup(ok=False, code="identity_required")
-        order = self.database.get_order_for_customer(tenant_id, customer_ref, order_id)
+        order = self.database.get_order_for_customer(tenant_id, submitter_ref, source_record_id)
         if order is None:
             return OrderLookup(ok=False, code="not_found")
         return OrderLookup(
@@ -177,7 +179,7 @@ class SandboxKnowledgeConnector:
         )
 
     def search(self, tenant_id: str, query: str, *, limit: int = 3) -> list[KnowledgeHit]:
-        rows = self.database.search_knowledge(tenant_id, query, limit=limit)
+        rows = self.database.search_policy_articles(tenant_id, query, limit=limit)
         return [
             KnowledgeHit(
                 article_id=row["id"],
@@ -203,14 +205,14 @@ class SandboxCRMConnector:
     def __init__(self, database: Any) -> None:
         self.database = database
 
-    def resolve_customer(self, tenant_id: str, customer_ref: str) -> CustomerLookup:
-        profile = self.database.get_customer_profile(tenant_id, customer_ref)
+    def resolve_customer(self, tenant_id: str, submitter_ref: str) -> CustomerLookup:
+        profile = self.database.get_customer_profile(tenant_id, submitter_ref)
         if profile is None:
             return CustomerLookup(ok=False, code="not_found")
         return CustomerLookup(
             ok=True,
             code="ok",
             profile=CustomerProfile(
-                customer_ref=profile["customer_ref"], name=profile["customer_name"]
+                submitter_ref=profile["customer_ref"], name=profile["customer_name"]
             ),
         )

@@ -84,7 +84,7 @@ def audit_high_risk(
     database: Any,
     *,
     tenant_id: str,
-    conversation_id: str | None,
+    review_case_id: str | None,
     actor: str,
     event_type: str,
     payload: dict[str, Any],
@@ -107,7 +107,7 @@ def audit_high_risk(
             event_id = database.audit_in_transaction(
                 connection,
                 tenant_id=tenant_id,
-                conversation_id=conversation_id,
+                review_case_id=review_case_id,
                 actor=actor,
                 event_type=event_type,
                 payload=payload,

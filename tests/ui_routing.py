@@ -76,7 +76,7 @@ def main() -> None:
     )
     assert status == 201, f"预建审核组失败: {status} {group}"
     group_id = group["id"]
-    intent = f"退款-{run_id}"
+    risk_category = f"退款-{run_id}"
 
     with sync_playwright() as playwright:
         try:
@@ -136,8 +136,8 @@ def main() -> None:
         expect(page.locator("#slaFirstResponse")).to_have_value("30")
         expect(page.locator("#slaResolve")).to_have_value("720")
 
-        # 添加路由规则(风险类别=${intent}, 优先级 10)→ 列表出现。
-        page.locator("#ruleIntent").fill(intent)
+        # 添加路由规则(风险类别=${risk_category}, 优先级 10)→ 列表出现。
+        page.locator("#ruleIntent").fill(risk_category)
         page.locator("#rulePriority").fill("10")
         with page.expect_response(
             lambda response: (
@@ -149,7 +149,7 @@ def main() -> None:
         assert rule_info.value.ok, rule_info.value.text()
         rule_id = rule_info.value.json()["id"]
         rule_row = page.locator(f".routing-rule-row[data-id='{rule_id}']")
-        expect(rule_row).to_contain_text(f"风险类别 {intent}")
+        expect(rule_row).to_contain_text(f"风险类别 {risk_category}")
         expect(rule_row).to_contain_text("优先级 10")
         page.screenshot(path=ARTIFACTS / "ui-routing-rules.png", full_page=True)
 

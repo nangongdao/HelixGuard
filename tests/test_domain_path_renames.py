@@ -34,7 +34,7 @@ from app.deprecation import (
 )
 from app.main import create_app
 
-# Operations that intentionally stay out of the document: the spot-check
+# Operations that risk_categoryionally stay out of the document: the spot-check
 # landing page renders HTML for a browser and is include_in_schema=False.
 OFF_SCHEMA = {"GET /api/csat/{token}"}
 
@@ -65,7 +65,7 @@ P3A_RETIRED: tuple[str, ...] = (
     "costs/by_agent",
     "knowledge/drafts",
     # retired module paths
-    "routers/tickets",
+    "routers/appeals",
     "routers/knowledge",
     "routers/csat",
     "widget_routes",
@@ -80,11 +80,11 @@ P3B_RETIRED: tuple[str, ...] = (
     "/api/conversations",
     "/api/v2/conversations",
     "/api/conversation-labels",
-    "v2/conversations",
+    "v2/review_cases",
     "conversation-labels",
     # the \/-escaped regex-literal shape the string sweep cannot see
     # (P3a's own lesson, repeated at P3b on five test assertions)
-    "\\/api\\/conversations",
+    "\\/api\\/review_cases",
     "app.routers.conversations",
     "routers/conversations",
 )
@@ -104,8 +104,7 @@ P3A_SWEEP_EXEMPT: frozenset[str] = frozenset(
         "scripts/rebuild_main.py",  # ditto -- regenerates the frozen snapshot
         "tests/test_deprecation.py",  # fixtures drive the registry via retired ops
         "app/main.py.bak",  # frozen 1.3.0 snapshot; rebuild_main.py reads it
-        "app/database.py.bak",
-        "tests/ui_csat.py",  # P5 renames this file and its artifact names
+        "tests/ui_qa_spot_check.py",  # P5 renamed this file and its artifact names
         "tests/test_domain_path_renames.py",  # this guard
     }
 )
@@ -226,8 +225,8 @@ class RegistryCoverageTests(unittest.TestCase):
     def test_path_placeholders_match_declared_path_parameters(self) -> None:
         """Renaming a placeholder means renaming the handler signature too.
 
-        Rewriting ``/api/tickets/{ticket_id}`` to ``/api/appeals/{appeal_id}``
-        without touching the handler demotes ``ticket_id`` from a *path*
+        Rewriting ``/api/tickets/{appeal_id}`` to ``/api/appeals/{appeal_id}``
+        without touching the handler demotes ``appeal_id`` from a *path*
         parameter to a *query* parameter. The URL still matches, so nothing
         raises — every real call just starts returning 422. Renaming the
         placeholder is only safe as a pair.
@@ -289,14 +288,14 @@ class RetiredPathServingTests(unittest.TestCase):
         self.assertEqual(legacy.json(), current.json())
 
     def test_templated_retired_path_resolves_to_the_legacy_operation(self) -> None:
-        conversation_id = self.client.post(
+        review_case_id = self.client.post(
             "/api/conversations",
             json={"customer_name": "Rename probe"},
             headers=self.headers,
         ).json()["id"]
         created = self.client.post(
             "/api/appeals",
-            json={"conversation_id": conversation_id, "subject": "Rename probe"},
+            json={"conversation_id": review_case_id, "subject": "Rename probe"},
             headers=self.headers,
         )
         self.assertEqual(created.status_code, 201, created.text)

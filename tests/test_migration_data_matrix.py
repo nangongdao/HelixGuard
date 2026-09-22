@@ -29,12 +29,12 @@ def _seed_baseline(connection: sqlite3.Connection) -> None:
         (SEED_TENANT, "2026-01-01T00:00:00+00:00"),
     )
     connection.execute(
-        """INSERT INTO conversations
-        (id, tenant_id, customer_name, customer_ref, channel, status, intent,
-         assigned_agent, priority, handoff_reason, sla_due_at, last_confidence,
+        """INSERT INTO review_cases
+        (id, tenant_id, submitter_name, submitter_ref, channel, status, risk_category,
+         assigned_reviewer, priority, handoff_reason, sla_due_at, last_confidence,
          version, preview, message_count, last_message_at, labels_json,
          claimed_by, claimed_at, claim_expires_at, needs_response,
-         waiting_since, first_response_at, created_at, updated_at, resolved_at)
+         waiting_since, first_response_at, created_at, updated_at, decided_at)
         VALUES ('c1', 'demo', 'Alice', 'REF-1', 'web', 'open', 'order',
                 'agent-1', 'high', NULL, '2026-01-02T00:00:00+00:00', 0.97,
                 3, 'preview text', 2, '2026-01-01T01:00:00+00:00', '["a","b"]',
@@ -44,27 +44,27 @@ def _seed_baseline(connection: sqlite3.Connection) -> None:
     )
     connection.execute(
         """INSERT INTO messages
-        (id, tenant_id, conversation_id, turn_id, role, author, content,
+        (id, tenant_id, review_case_id, turn_id, role, author, content,
          metadata_json, created_at, seq)
         VALUES ('m1', 'demo', 'c1', 't1', 'customer', 'Alice',
                 'hello', '{"lang":"zh"}', '2026-01-01T00:00:00+00:00', 1)""",
     )
     connection.execute(
         """INSERT INTO audit_events
-        (id, tenant_id, conversation_id, request_id, actor, event_type,
+        (id, tenant_id, review_case_id, request_id, actor, event_type,
          payload_json, created_at, seq)
         VALUES ('a1', 'demo', 'c1', 'req-1', 'system', 'conversation.created',
                 '{"where":"seed"}', '2026-01-01T00:00:00+00:00', 1)""",
     )
     connection.execute(
         """INSERT INTO turn_requests
-        (tenant_id, conversation_id, idempotency_key, status, response_json,
+        (tenant_id, review_case_id, idempotency_key, status, response_json,
          error_code, created_at, updated_at)
         VALUES ('demo', 'c1', 'idem-1', 'completed', '{"ok":true}', NULL,
                 '2026-01-01T00:00:00+00:00', '2026-01-01T00:00:00+00:00')""",
     )
     connection.execute(
-        """INSERT INTO knowledge_articles
+        """INSERT INTO policy_articles
         (id, tenant_id, title, content, tags, category, source_url,
          active, version, updated_at)
         VALUES ('k1', 'demo', 'Shipping', 'Policy', '["kb"]', 'general',
@@ -182,7 +182,7 @@ class DataPreservationMatrixTests(unittest.TestCase):
         from app.migrations import Migration
 
         def bad_migration(connection: sqlite3.Connection) -> None:
-            connection.execute("UPDATE conversations SET customer_name = 'HACKED' WHERE id = 'c1'")
+            connection.execute("UPDATE review_cases SET submitter_name = 'HACKED' WHERE id = 'c1'")
 
         migrations = all_migrations()
         with tempfile.TemporaryDirectory() as tmp:
@@ -201,7 +201,7 @@ class DataPreservationMatrixTests(unittest.TestCase):
                 after = _select_all_rows(connection)
                 problems = _intersection_match(before, after)
                 self.assertEqual(len(problems), 1)
-                self.assertIn("customer_name changed", problems[0])
+                self.assertIn("submitter_name changed", problems[0])
             finally:
                 connection.close()
 
@@ -244,10 +244,10 @@ class PostgresDataPreservationTests(unittest.TestCase):
             before: dict[str, list[tuple]] = {}
             for table in (
                 "tenants",
-                "conversations",
+                "review_cases",
                 "messages",
                 "audit_events",
-                "knowledge_articles",
+                "policy_articles",
                 "turn_requests",
             ):
                 try:

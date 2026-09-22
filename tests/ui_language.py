@@ -1,6 +1,6 @@
 """Backlog 多语言审核 — 语言切换/翻译动作 浏览器验收。
 
-后端 M19 已具备自动语言检测(``conversations.language`` 由 orchestrator 写入)
+后端 M19 已具备自动语言检测(``review_cases.language`` 由 orchestrator 写入)
 与 ``app/language.py`` 翻译服务,但缺人工操作面。本轮补:
 - 审核单头「语言」下拉:手动覆盖自动检测(PATCH language,选「自动」恢复 null);
 - 每条待审内容的「翻译」工具条:按目标语言 POST translate,渲染结果行。
@@ -55,11 +55,11 @@ def api_get(path: str) -> dict:
         return json.loads(response.read().decode("utf-8"))
 
 
-def select_conversation(page: Page, customer: str) -> None:
+def select_conversation(page: Page, submitter: str) -> None:
     """Click the queue row whose customer name matches (independent of order)."""
-    row = page.locator(".conversation-row", has_text=customer).first
+    row = page.locator(".conversation-row", has_text=submitter).first
     row.click()
-    expect(page.locator("#conversationTitle")).to_contain_text(customer)
+    expect(page.locator("#conversationTitle")).to_contain_text(submitter)
     expect(page.locator("#conversationView")).to_be_visible()
 
 
@@ -81,10 +81,10 @@ def main() -> None:
         failed_requests.append(f"{request.method} {request.url} {failure}")
 
     run_id = uuid4().hex[:6]
-    customer = f"lang-{run_id}"
+    submitter = f"lang-{run_id}"
 
     # 1) 预建审核单 + 两条待审内容 + 探针翻译降级语义。
-    conv = api_post("/api/review-cases", {"customer_name": customer, "channel": "web"})
+    conv = api_post("/api/review-cases", {"customer_name": submitter, "channel": "web"})
     conv_id = conv["id"]
     for index in range(2):
         # Pure CJK (+ digits, which carry no script) so detection is
@@ -146,7 +146,7 @@ def main() -> None:
         )
         page.goto(BASE_URL)
         expect(page.locator("#operatorIdentity")).to_contain_text("demo.admin")
-        select_conversation(page, customer)
+        select_conversation(page, submitter)
 
         # 2) 语言 picker:默认跟随自动检测 → 手动 en → 恢复「自动」。
         picker = page.locator("#conversationLanguageSelect")
@@ -213,7 +213,7 @@ def main() -> None:
         json.dumps(
             {
                 "status": "ok",
-                "customer": customer,
+                "customer": submitter,
                 "conv_id": conv_id,
                 "translate_was_translated": probe["was_translated"],
                 "override": str(ARTIFACTS / "ui-language-override.png"),

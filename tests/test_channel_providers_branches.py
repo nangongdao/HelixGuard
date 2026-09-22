@@ -99,7 +99,7 @@ class ReferenceJsonAdapterTests(unittest.TestCase):
         event = self.adapter.parse(self._event_body())
         self.assertEqual(event.kind, "message")
         self.assertEqual(event.external_message_id, "m1")
-        self.assertEqual(event.customer_name, "Alice")
+        self.assertEqual(event.submitter_name, "Alice")
         self.assertEqual(event.attachments, ())
 
     def test_all_kinds_parse(self) -> None:
@@ -132,7 +132,7 @@ class ReferenceJsonAdapterTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "thread_id"):
             self.adapter.parse(self._event_body(thread_id=""))
 
-    def test_missing_customer_id_raises(self) -> None:
+    def test_missing_submitter_id_raises(self) -> None:
         with self.assertRaisesRegex(ValueError, "customer_id"):
             self.adapter.parse(self._event_body(customer_id=""))
 

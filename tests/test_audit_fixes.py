@@ -137,7 +137,7 @@ class _FakeOrderConnector:
     def __init__(self, behavior: Any) -> None:
         self._behavior = behavior
 
-    def lookup_order(self, tenant_id: str, customer_ref: str | None, order_id: str) -> Any:
+    def lookup_order(self, tenant_id: str, submitter_ref: str | None, source_record_id: str) -> Any:
         from app.connectors import OrderDetails, OrderLookup
 
         try:
@@ -148,7 +148,9 @@ class _FakeOrderConnector:
             return OrderLookup(
                 ok=True,
                 code="ok",
-                order=OrderDetails(id=order_id, status="verified", eta=None, tracking_code=None),
+                order=OrderDetails(
+                    id=source_record_id, status="verified", eta=None, tracking_code=None
+                ),
             )
         raise TransientConnectorError("boom")
 
@@ -205,7 +207,7 @@ class PromptCanaryGuardTests(unittest.TestCase):
 
 class HttpConnectorPayloadTests(unittest.TestCase):
     def test_order_200_empty_payload_is_not_found(self) -> None:
-        config = HttpConnectorConfig(base_url="https://orders.example.com")
+        config = HttpConnectorConfig(base_url="https://source_lookups.example.com")
         connector = HttpOrderConnector(config, transport=lambda *a, **k: (200, {}))
         result = connector.lookup_order("t", "CUST-1", "ORD-1")
         self.assertFalse(result.ok)
@@ -219,7 +221,7 @@ class HttpConnectorPayloadTests(unittest.TestCase):
         self.assertEqual(result.code, "not_found")
 
     def test_order_200_valid_payload_still_ok(self) -> None:
-        config = HttpConnectorConfig(base_url="https://orders.example.com")
+        config = HttpConnectorConfig(base_url="https://source_lookups.example.com")
         connector = HttpOrderConnector(
             config,
             transport=lambda *a, **k: (
@@ -348,10 +350,10 @@ class WebhookAuditTests(unittest.TestCase):
             [EVENT_CONVERSATION_SLA_BREACHED],
             "secret-123",
         )
-        overdue = self.database.create_conversation("tenant-1", "C", None, "web", "admin", 120)
+        overdue = self.database.create_review_case("tenant-1", "C", None, "web", "admin", 120)
         with self.database.connect() as conn:
             conn.execute(
-                "UPDATE conversations SET sla_due_at = '2020-01-01T00:00:00+00:00' WHERE id = ?",
+                "UPDATE review_cases SET sla_due_at = '2020-01-01T00:00:00+00:00' WHERE id = ?",
                 (overdue["id"],),
             )
             conn.commit()
@@ -367,7 +369,7 @@ class WebhookAuditTests(unittest.TestCase):
         orchestrator.reopen("tenant-1", overdue["id"], "admin")
         with self.database.connect() as conn:
             conn.execute(
-                "UPDATE conversations SET sla_due_at = '2021-01-01T00:00:00+00:00' WHERE id = ?",
+                "UPDATE review_cases SET sla_due_at = '2021-01-01T00:00:00+00:00' WHERE id = ?",
                 (overdue["id"],),
             )
             conn.commit()
@@ -423,10 +425,10 @@ class KnowledgeGapsRobustnessTests(unittest.TestCase):
         from app.database import utc_now
 
         now = utc_now()
-        conv = self.database.create_conversation("demo", "C", "CUST-1", "web", "admin", 120)
+        conv = self.database.create_review_case("demo", "C", "CUST-1", "web", "admin", 120)
         with self.database.connect() as conn:
             conn.execute(
-                "INSERT INTO messages (id, tenant_id, conversation_id, role, author, "
+                "INSERT INTO messages (id, tenant_id, review_case_id, role, author, "
                 "content, metadata_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     "msg-gaps-1",
@@ -440,7 +442,7 @@ class KnowledgeGapsRobustnessTests(unittest.TestCase):
                 ),
             )
             conn.execute(
-                "INSERT INTO feedback (id, tenant_id, conversation_id, message_id, "
+                "INSERT INTO feedback (id, tenant_id, review_case_id, message_id, "
                 "actor, rating, reason, created_at, updated_at) "
                 "VALUES ('fb-gaps-1', 'demo', ?, 'msg-gaps-1', 'admin', -1, NULL, ?, ?)",
                 (conv["id"], now, now),
@@ -495,7 +497,7 @@ class AllowedModelsEnforcementTests(unittest.TestCase):
         orchestrator = ConversationOrchestrator(
             self.database, Settings(database_path=self.db_path, auth_mode="demo")
         )
-        conv = self.database.create_conversation("demo", "C", None, "web", "admin", 120)
+        conv = self.database.create_review_case("demo", "C", None, "web", "admin", 120)
         # No model provider configured -> the rules path is used regardless,
         # but the model-denied audit must still be emitted when a prompt with
         # a disallowed model_ref is resolved.
@@ -522,7 +524,7 @@ class AllowedModelsEnforcementTests(unittest.TestCase):
         orchestrator = ConversationOrchestrator(
             self.database, Settings(database_path=self.db_path, auth_mode="demo")
         )
-        conv = self.database.create_conversation("demo", "C", None, "web", "admin", 120)
+        conv = self.database.create_review_case("demo", "C", None, "web", "admin", 120)
         orchestrator.handle_customer_message(
             "demo", conv["id"], "违规内容怎么分级？", "admin", "idem-policy-2"
         )

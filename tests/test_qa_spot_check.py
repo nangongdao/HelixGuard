@@ -1,6 +1,6 @@
 """Backlog: CSAT satisfaction survey.
 
-Covers: resolution issues a one-time survey token exposed on the resolve
+Covers: verdict issues a one-time survey token exposed on the resolve
 response and the ``conversation.resolved`` webhook; the public endpoint
 accepts a rating exactly once (atomically); the browser landing page
 validates the token and renders a form; ratings reflow into feedback;
@@ -37,7 +37,7 @@ def _settings(db_path: Path) -> Settings:
     )
 
 
-class CsatSurveyTests(unittest.TestCase):
+class QaSpotCheckSurveyTests(unittest.TestCase):
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
         self.db_path = Path(self._tmp.name) / "csat.db"
@@ -50,7 +50,7 @@ class CsatSurveyTests(unittest.TestCase):
         self.client.close()
         self._tmp.cleanup()
 
-    def _resolve_conversation(self, name: str = "C") -> tuple[str, str]:
+    def _resolve_review_case(self, name: str = "C") -> tuple[str, str]:
         """Resolve a fresh conversation; returns (id, survey token)."""
         conv = self.client.post(
             "/api/review-cases", json={"customer_name": name}, headers=self.admin
@@ -68,10 +68,10 @@ class CsatSurveyTests(unittest.TestCase):
         return conv["id"], token
 
     def test_resolve_creates_survey_and_one_time_rating(self) -> None:
-        conversation_id, token = self._resolve_conversation("one")
+        review_case_id, token = self._resolve_review_case("one")
         response = self.client.post(f"/api/qa-spot-check/{token}", json={"rating": 5})
         self.assertEqual(response.status_code, 200, response.text)
-        self.assertEqual(response.json()["conversation_id"], conversation_id)
+        self.assertEqual(response.json()["conversation_id"], review_case_id)
         # One-time: second submission is rejected.
         second = self.client.post(f"/api/qa-spot-check/{token}", json={"rating": 1})
         self.assertEqual(second.status_code, 404)
@@ -81,7 +81,7 @@ class CsatSurveyTests(unittest.TestCase):
         self.assertEqual(response.status_code, 404)
 
     def test_rating_reflows_to_feedback(self) -> None:
-        _, token = self._resolve_conversation("reflow")
+        _, token = self._resolve_review_case("reflow")
         self.client.post(f"/api/qa-spot-check/{token}", json={"rating": 5})
         with self.services.database.connect() as conn:
             row = conn.execute(
@@ -111,7 +111,7 @@ class CsatSurveyTests(unittest.TestCase):
         finally:
             webhooks_module.assert_public_webhook_url = original
         self.assertIn(endpoint.status_code, (201, 200), endpoint.text)
-        conversation_id, token = self._resolve_conversation("wh")
+        review_case_id, token = self._resolve_review_case("wh")
         with self.services.database.connect() as conn:
             row = conn.execute(
                 "SELECT payload_json FROM webhook_deliveries "
@@ -121,10 +121,10 @@ class CsatSurveyTests(unittest.TestCase):
         self.assertIsNotNone(row, "resolved webhook delivery should be enqueued")
         payload = json.loads(row["payload_json"])
         self.assertEqual(payload["survey_url"], f"/api/qa-spot-check/{token}")
-        self.assertEqual(payload["conversation_id"], conversation_id)
+        self.assertEqual(payload["conversation_id"], review_case_id)
 
     def test_browser_landing_page_validates_token(self) -> None:
-        _, token = self._resolve_conversation("page")
+        _, token = self._resolve_review_case("page")
         page = self.client.get(f"/api/qa-spot-check/{token}")
         self.assertEqual(page.status_code, 200)
         self.assertIn("请为本次服务评分", page.text)
@@ -137,7 +137,7 @@ class CsatSurveyTests(unittest.TestCase):
         self.assertIn("链接已失效", unknown.text)
 
     def test_browser_form_submission_returns_thank_you(self) -> None:
-        _, token = self._resolve_conversation("form")
+        _, token = self._resolve_review_case("form")
         response = self.client.post(
             f"/api/qa-spot-check/{token}",
             data={"rating": "5"},
@@ -155,7 +155,7 @@ class CsatSurveyTests(unittest.TestCase):
     def test_atomic_submission_single_row(self) -> None:
         """The guarded UPDATE means an already-answered token can never
         re-answer: concurrent-style double submission reflows once."""
-        _, token = self._resolve_conversation("atomic")
+        _, token = self._resolve_review_case("atomic")
         first = self.services.database.submit_csat_rating(token, 5)
         self.assertIsNotNone(first)
         second = self.services.database.submit_csat_rating(token, 1)

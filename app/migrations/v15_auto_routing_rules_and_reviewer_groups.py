@@ -11,7 +11,7 @@ from app.migrations import migration
 def migration_15(connection: sqlite3.Connection) -> None:
     connection.executescript(
         """
-        CREATE TABLE IF NOT EXISTS agent_groups (
+        CREATE TABLE IF NOT EXISTS reviewer_groups (
             id TEXT PRIMARY KEY,
             tenant_id TEXT NOT NULL,
             name TEXT NOT NULL,
@@ -20,11 +20,11 @@ def migration_15(connection: sqlite3.Connection) -> None:
             created_at TEXT NOT NULL,
             UNIQUE (tenant_id, name)
         );
-        CREATE INDEX IF NOT EXISTS idx_agent_groups_tenant
-            ON agent_groups(tenant_id);
+        CREATE INDEX IF NOT EXISTS idx_reviewer_groups_tenant
+            ON reviewer_groups(tenant_id);
 
-        CREATE TABLE IF NOT EXISTS agent_group_members (
-            group_id TEXT NOT NULL REFERENCES agent_groups(id),
+        CREATE TABLE IF NOT EXISTS reviewer_group_members (
+            group_id TEXT NOT NULL REFERENCES reviewer_groups(id),
             tenant_id TEXT NOT NULL,
             actor_id TEXT NOT NULL,
             added_at TEXT NOT NULL,
@@ -34,7 +34,7 @@ def migration_15(connection: sqlite3.Connection) -> None:
         CREATE TABLE IF NOT EXISTS routing_rules (
             id TEXT PRIMARY KEY,
             tenant_id TEXT NOT NULL,
-            intent TEXT,
+            risk_category TEXT,
             label TEXT,
             channel TEXT,
             group_id TEXT NOT NULL,

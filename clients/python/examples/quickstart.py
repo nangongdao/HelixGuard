@@ -1,4 +1,4 @@
-"""End-to-end SDK example: conversation -> turn -> feedback -> knowledge gap."""
+"""End-to-end SDK example: review_case -> turn -> feedback -> policy gap."""
 
 from __future__ import annotations
 
@@ -20,10 +20,10 @@ def main() -> None:
         me = client.me()
         print(f"authenticated as {me['actor_id']} ({me['role']})")
 
-        conv = client.create_conversation(
-            customer_name="Example Customer", customer_ref="CUST-EX-1"
+        conv = client.create_review_case(
+            submitter_name="Example Submitter", submitter_ref="SUB-EX-1"
         )
-        print(f"conversation {conv['id']} -> {conv['status']}")
+        print(f"review_case {conv['id']} -> {conv['status']}")
 
         turn = client.send_message(conv["id"], "ORD-10482 到哪了？", idempotency_key="example-1")
         print(f"assistant: {turn['assistant_message']['content']}")

@@ -187,8 +187,8 @@ class ModelCallGateTests(GateFixture):
 class AuxiliaryCallGovernanceTests(GateFixture):
     """Each auxiliary surface must not reach transport under a denying policy."""
 
-    def _conversation(self, name: str) -> str:
-        conv = self.db.create_conversation(TENANT, name, None, "web", "admin", 120)
+    def _review_case(self, name: str) -> str:
+        conv = self.db.create_review_case(TENANT, name, None, "web", "admin", 120)
         self.db.add_message(
             TENANT,
             conv["id"],
@@ -237,7 +237,7 @@ class AuxiliaryCallGovernanceTests(GateFixture):
     # --------------------------------------------------------------- summaries
 
     def test_summary_uses_model_when_allowed(self) -> None:
-        conv_id = self._conversation("Summary Allowed")
+        conv_id = self._review_case("Summary Allowed")
         provider = FakeModelProvider()
         service = SummaryService(self.db, provider, model_gate=self._gate())
         row = service.generate(TENANT, conv_id, "context")
@@ -245,7 +245,7 @@ class AuxiliaryCallGovernanceTests(GateFixture):
         self.assertEqual(len(provider.calls), 1)
 
     def test_summary_makes_zero_transports_when_denied(self) -> None:
-        conv_id = self._conversation("Summary Denied")
+        conv_id = self._review_case("Summary Denied")
         self._deny_provider()
         provider = FakeModelProvider()
         service = SummaryService(self.db, provider, model_gate=self._gate())
@@ -256,7 +256,7 @@ class AuxiliaryCallGovernanceTests(GateFixture):
     # ----------------------------------------------------------------- copilot
 
     def test_copilot_suggest_uses_model_when_allowed(self) -> None:
-        conv_id = self._conversation("Copilot Allowed")
+        conv_id = self._review_case("Copilot Allowed")
         provider = FakeModelProvider()
         service = CopilotService(self.db, provider, model_gate=self._gate())
         suggestions = service.suggest_reply(TENANT, conv_id)
@@ -264,7 +264,7 @@ class AuxiliaryCallGovernanceTests(GateFixture):
         self.assertEqual(len(provider.calls), 1)
 
     def test_copilot_suggest_makes_zero_transports_when_denied(self) -> None:
-        conv_id = self._conversation("Copilot Denied")
+        conv_id = self._review_case("Copilot Denied")
         self._deny_provider()
         provider = FakeModelProvider()
         service = CopilotService(self.db, provider, model_gate=self._gate())
@@ -298,12 +298,12 @@ class TurnIntakeGovernanceTests(GateFixture):
         orchestrator.data_plane_config = self.dp
         return orchestrator
 
-    def _customer_metadata(self, conversation_id: str) -> dict:
+    def _submitter_metadata(self, review_case_id: str) -> dict:
         with self.db.connect() as conn:
             row = conn.execute(
                 "SELECT metadata_json FROM messages WHERE tenant_id = ? "
-                "AND conversation_id = ? AND role = 'customer' ORDER BY seq LIMIT 1",
-                (TENANT, conversation_id),
+                "AND review_case_id = ? AND role = 'customer' ORDER BY seq LIMIT 1",
+                (TENANT, review_case_id),
             ).fetchone()
         return json.loads(row["metadata_json"]) if row else {}
 
@@ -311,22 +311,22 @@ class TurnIntakeGovernanceTests(GateFixture):
         self._deny_provider()
         provider = FakeModelProvider(detect="ja")
         orchestrator = self._orchestrator(provider)
-        conv = self.db.create_conversation(TENANT, "Intake Denied", None, "web", "admin", 120)
+        conv = self.db.create_review_case(TENANT, "Intake Denied", None, "web", "admin", 120)
         orchestrator.handle_customer_message(
             TENANT, conv["id"], "违规内容怎么分级？", "admin", "idem-intake-1"
         )
         self.assertEqual(provider.calls, [])
-        self.assertEqual(self._customer_metadata(conv["id"])["language_source"], "denied")
+        self.assertEqual(self._submitter_metadata(conv["id"])["language_source"], "denied")
 
     def test_intake_detection_uses_model_when_allowed(self) -> None:
         provider = FakeModelProvider(detect="ja")
         orchestrator = self._orchestrator(provider)
-        conv = self.db.create_conversation(TENANT, "Intake Allowed", None, "web", "admin", 120)
+        conv = self.db.create_review_case(TENANT, "Intake Allowed", None, "web", "admin", 120)
         orchestrator.handle_customer_message(
             TENANT, conv["id"], "违规内容怎么分级？", "admin", "idem-intake-2"
         )
         self.assertTrue(provider.calls)
-        self.assertEqual(self._customer_metadata(conv["id"])["language_source"], "model")
+        self.assertEqual(self._submitter_metadata(conv["id"])["language_source"], "model")
 
 
 class BootstrapWiringTests(unittest.TestCase):

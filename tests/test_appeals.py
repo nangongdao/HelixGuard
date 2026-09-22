@@ -2,15 +2,15 @@
 
 Covers the roadmap acceptance:
 - converting a conversation creates a ticket snapshot (customer identity +
-  latest customer message as description) and sets conversations.ticket_id;
+  latest customer message as description) and sets review_cases.appeal_id;
 - converting again is idempotent (returns the existing ticket);
 - the ticket state machine enforces open -> in_progress/closed,
   in_progress -> closed, closed -> open, with audits and 409 on invalid moves;
 - another conversation can be linked to the ticket for cross-conversation
-  tracking; the detail lists linked conversations (no internal notes);
-- listing filters by status / customer_ref and stays tenant-scoped;
+  tracking; the detail lists linked review_cases (no internal notes);
+- listing filters by status / submitter_ref and stays tenant-scoped;
 - RBAC: writes require operator:act; reads require conversation:read;
-- ConversationOut carries ticket_id (append-only).
+- ConversationOut carries appeal_id (append-only).
 """
 
 from __future__ import annotations
@@ -26,8 +26,8 @@ from fastapi.testclient import TestClient
 from app.config import Settings
 from app.main import create_app
 
-ADMIN_KEY = "tickets-admin-key-001"
-VIEWER_KEY = "tickets-viewer-key-001"
+ADMIN_KEY = "appeals-admin-key-001"
+VIEWER_KEY = "appeals-viewer-key-001"
 
 
 def _settings(db_path: Path) -> Settings:
@@ -45,10 +45,10 @@ def _settings(db_path: Path) -> Settings:
     )
 
 
-class TicketAppTests(unittest.TestCase):
+class AppealAppTests(unittest.TestCase):
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
-        self.db_path = Path(self._tmp.name) / "tickets.db"
+        self.db_path = Path(self._tmp.name) / "appeals.db"
         self.client = TestClient(create_app(_settings(self.db_path)))
         self.services = cast(Any, self.client.app).state.services
         self.admin = {"X-API-Key": ADMIN_KEY, "X-Tenant-Id": "demo"}
@@ -59,26 +59,26 @@ class TicketAppTests(unittest.TestCase):
         self.client.close()
         self._tmp.cleanup()
 
-    def _open_conversation(self, name: str = "S", customer_ref: str | None = None) -> str:
+    def _open_review_case(self, name: str = "S", submitter_ref: str | None = None) -> str:
         conv = self.client.post(
             "/api/review-cases",
-            json={"customer_name": name, "customer_ref": customer_ref},
+            json={"customer_name": name, "customer_ref": submitter_ref},
             headers=self.admin,
         ).json()
         return conv["id"]
 
-    def _send(self, conversation_id: str, content: str, key: str) -> None:
+    def _send(self, review_case_id: str, content: str, key: str) -> None:
         response = self.client.post(
-            f"/api/review-cases/{conversation_id}/messages",
+            f"/api/review-cases/{review_case_id}/messages",
             json={"content": content},
             headers={**self.admin, "Idempotency-Key": key},
         )
         self.assertEqual(response.status_code, 200, response.text)
 
-    def _create_ticket(self, conversation_id: str, subject: str = "发货异常") -> dict[str, Any]:
+    def _create_appeal(self, review_case_id: str, subject: str = "发货异常") -> dict[str, Any]:
         response = self.client.post(
             "/api/appeals",
-            json={"conversation_id": conversation_id, "subject": subject},
+            json={"conversation_id": review_case_id, "subject": subject},
             headers=self.admin,
         )
         self.assertEqual(response.status_code, 201, response.text)
@@ -86,26 +86,26 @@ class TicketAppTests(unittest.TestCase):
 
     # ------------------------------------------------------------- conversion
 
-    def test_convert_snapshot_and_marks_conversation(self) -> None:
-        conversation_id = self._open_conversation("张三", "CUST-1001")
-        self._send(conversation_id, "我的订单 ORD-888 一直没发货", "ticket-key-1")
-        ticket = self._create_ticket(conversation_id, "发货异常")
+    def test_convert_snapshot_and_marks_review_case(self) -> None:
+        review_case_id = self._open_review_case("张三", "CUST-1001")
+        self._send(review_case_id, "我的订单 ORD-888 一直没发货", "ticket-key-1")
+        ticket = self._create_appeal(review_case_id, "发货异常")
         self.assertEqual(ticket["status"], "open")
         self.assertEqual(ticket["customer_name"], "张三")
         self.assertEqual(ticket["customer_ref"], "CUST-1001")
-        self.assertEqual(ticket["source_conversation_id"], conversation_id)
+        self.assertEqual(ticket["source_conversation_id"], review_case_id)
         self.assertIn("ORD-888", ticket["description"])
-        detail = self.client.get(f"/api/review-cases/{conversation_id}", headers=self.admin).json()
+        detail = self.client.get(f"/api/review-cases/{review_case_id}", headers=self.admin).json()
         self.assertEqual(detail["conversation"]["ticket_id"], ticket["id"])
 
     def test_convert_is_idempotent(self) -> None:
-        conversation_id = self._open_conversation()
-        first = self._create_ticket(conversation_id)
-        second = self._create_ticket(conversation_id, "另一个主题")
+        review_case_id = self._open_review_case()
+        first = self._create_appeal(review_case_id)
+        second = self._create_appeal(review_case_id, "另一个主题")
         self.assertEqual(second["id"], first["id"])
         self.assertEqual(second["subject"], first["subject"])
 
-    def test_convert_unknown_conversation_404(self) -> None:
+    def test_convert_unknown_review_case_404(self) -> None:
         response = self.client.post(
             "/api/appeals",
             json={"conversation_id": "conv_nonexistent", "subject": "问题"},
@@ -114,11 +114,11 @@ class TicketAppTests(unittest.TestCase):
         self.assertEqual(response.status_code, 404, response.text)
 
     def test_explicit_description_used(self) -> None:
-        conversation_id = self._open_conversation()
+        review_case_id = self._open_review_case()
         response = self.client.post(
             "/api/appeals",
             json={
-                "conversation_id": conversation_id,
+                "conversation_id": review_case_id,
                 "subject": "备用问题",
                 "description": "自定义描述内容",
             },
@@ -130,8 +130,8 @@ class TicketAppTests(unittest.TestCase):
     # -------------------------------------------------------------- lifecycle
 
     def test_transition_state_machine(self) -> None:
-        conversation_id = self._open_conversation()
-        ticket = self._create_ticket(conversation_id)
+        review_case_id = self._open_review_case()
+        ticket = self._create_appeal(review_case_id)
         response = self.client.post(
             f"/api/appeals/{ticket['id']}/transition",
             json={"status": "in_progress", "reason": "开始处理"},
@@ -154,8 +154,8 @@ class TicketAppTests(unittest.TestCase):
         self.assertEqual(response.json()["status"], "open")
 
     def test_invalid_transition_409(self) -> None:
-        conversation_id = self._open_conversation()
-        ticket = self._create_ticket(conversation_id)
+        review_case_id = self._open_review_case()
+        ticket = self._create_appeal(review_case_id)
         response = self.client.post(
             f"/api/appeals/{ticket['id']}/transition",
             json={"status": "closed"},
@@ -171,8 +171,8 @@ class TicketAppTests(unittest.TestCase):
         self.assertEqual(response.status_code, 409, response.text)
 
     def test_transition_audited(self) -> None:
-        conversation_id = self._open_conversation()
-        ticket = self._create_ticket(conversation_id)
+        review_case_id = self._open_review_case()
+        ticket = self._create_appeal(review_case_id)
         self.client.post(
             f"/api/appeals/{ticket['id']}/transition",
             json={"status": "closed"},
@@ -188,10 +188,10 @@ class TicketAppTests(unittest.TestCase):
 
     # ----------------------------------------------------- cross-conversation
 
-    def test_link_second_conversation(self) -> None:
-        first = self._open_conversation("提交方A", "CUST-2001")
-        second = self._open_conversation("提交方A", "CUST-2001")
-        ticket = self._create_ticket(first)
+    def test_link_second_review_case(self) -> None:
+        first = self._open_review_case("提交方A", "CUST-2001")
+        second = self._open_review_case("提交方A", "CUST-2001")
+        ticket = self._create_appeal(first)
         response = self.client.post(
             f"/api/appeals/{ticket['id']}/link",
             json={"conversation_id": second},
@@ -207,8 +207,8 @@ class TicketAppTests(unittest.TestCase):
         self.assertEqual(detail2["conversation"]["ticket_id"], ticket["id"])
 
     def test_link_unknown_404(self) -> None:
-        conversation_id = self._open_conversation()
-        ticket = self._create_ticket(conversation_id)
+        review_case_id = self._open_review_case()
+        ticket = self._create_appeal(review_case_id)
         response = self.client.post(
             f"/api/appeals/{ticket['id']}/link",
             json={"conversation_id": "conv_nonexistent"},
@@ -216,14 +216,14 @@ class TicketAppTests(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 404, response.text)
 
-    def test_ticket_detail_never_leaks_internal_notes(self) -> None:
-        conversation_id = self._open_conversation()
+    def test_appeal_detail_never_leaks_internal_notes(self) -> None:
+        review_case_id = self._open_review_case()
         self.client.post(
-            f"/api/review-cases/{conversation_id}/notes",
+            f"/api/review-cases/{review_case_id}/notes",
             json={"content": "内部机密：提交方准备投诉到消协"},
             headers=self.admin,
         )
-        ticket = self._create_ticket(conversation_id)
+        ticket = self._create_appeal(review_case_id)
         response = self.client.get(f"/api/appeals/{ticket['id']}", headers=self.admin)
         body = response.text
         self.assertNotIn("内部机密", body)
@@ -231,11 +231,11 @@ class TicketAppTests(unittest.TestCase):
 
     # ---------------------------------------------------------------- listing
 
-    def test_list_filters_by_status_and_customer_ref(self) -> None:
-        c1 = self._open_conversation("A", "CUST-3001")
-        c2 = self._open_conversation("B", "CUST-3002")
-        t1 = self._create_ticket(c1, "问题甲")
-        self._create_ticket(c2, "问题乙")
+    def test_list_filters_by_status_and_submitter_ref(self) -> None:
+        c1 = self._open_review_case("A", "CUST-3001")
+        c2 = self._open_review_case("B", "CUST-3002")
+        t1 = self._create_appeal(c1, "问题甲")
+        self._create_appeal(c2, "问题乙")
         self.client.post(
             f"/api/appeals/{t1['id']}/transition",
             json={"status": "closed"},
@@ -245,13 +245,13 @@ class TicketAppTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200, response.text)
         closed = [t for t in response.json() if t["id"] == t1["id"]]
         self.assertEqual(len(closed), 1)
-        response = self.client.get("/api/appeals?customer_ref=CUST-3001", headers=self.admin)
+        response = self.client.get("/api/appeals?submitter_ref=CUST-3001", headers=self.admin)
         ids = [t["id"] for t in response.json()]
         self.assertIn(t1["id"], ids)
 
-    def test_update_ticket_fields(self) -> None:
-        conversation_id = self._open_conversation()
-        ticket = self._create_ticket(conversation_id)
+    def test_update_appeal_fields(self) -> None:
+        review_case_id = self._open_review_case()
+        ticket = self._create_appeal(review_case_id)
         response = self.client.patch(
             f"/api/appeals/{ticket['id']}",
             json={"assigned_agent": "operator-1", "priority": "high"},
@@ -264,20 +264,20 @@ class TicketAppTests(unittest.TestCase):
     # --------------------------------------------------------------------- RBAC
 
     def test_viewer_denied_writes(self) -> None:
-        conversation_id = self._open_conversation()
+        review_case_id = self._open_review_case()
         calls = [
-            ("POST", "/api/appeals", {"conversation_id": conversation_id, "subject": "x"}),
+            ("POST", "/api/appeals", {"conversation_id": review_case_id, "subject": "x"}),
             ("PATCH", "/api/appeals/tkt_none", {"subject": "x"}),
             ("POST", "/api/appeals/tkt_none/transition", {"status": "closed"}),
-            ("POST", "/api/appeals/tkt_none/link", {"conversation_id": conversation_id}),
+            ("POST", "/api/appeals/tkt_none/link", {"conversation_id": review_case_id}),
         ]
         for method, path, body in calls:
             response = self.client.request(method, path, json=body, headers=self.viewer)
             self.assertEqual(response.status_code, 403, f"{method} {path}: {response.text}")
 
-    def test_viewer_can_read_tickets(self) -> None:
-        conversation_id = self._open_conversation()
-        ticket = self._create_ticket(conversation_id)
+    def test_viewer_can_read_appeals(self) -> None:
+        review_case_id = self._open_review_case()
+        ticket = self._create_appeal(review_case_id)
         response = self.client.get(f"/api/appeals/{ticket['id']}", headers=self.viewer)
         self.assertEqual(response.status_code, 200, response.text)
         self.assertEqual(response.json()["id"], ticket["id"])

@@ -9,7 +9,7 @@ summon a capability it was never granted.
 
 Each tool also declares a **side-effect class**:
 
-- ``readonly``   — no state change; no approval needed (orders.lookup …).
+- ``readonly``   — no state change; no approval needed (source_lookups.lookup …).
 - ``mutating``   — changes business state; needs a registered write tool and
   prior human confirmation (the 41.5 confirmation path).
 - ``high-risk``  — mutating *and* irreversible/externally visible (refund,

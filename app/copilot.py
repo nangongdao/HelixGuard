@@ -118,17 +118,17 @@ class CopilotService:
     def suggest_reply(
         self,
         tenant_id: str,
-        conversation_id: str,
+        review_case_id: str,
         draft: str | None = None,
         limit: int = 3,
     ) -> list[dict[str, Any]]:
         """Return candidate reply drafts (model-first, canned fallback)."""
-        conversation = self.database.get_conversation(tenant_id, conversation_id)
-        if conversation is None:
+        review_case = self.database.get_review_case(tenant_id, review_case_id)
+        if review_case is None:
             raise LookupError("Conversation not found")
         limit = max(1, min(limit, 3))
-        messages = self.database.list_messages(tenant_id, conversation_id, limit=100)
-        language = conversation.get("language")
+        messages = self.database.list_messages(tenant_id, review_case_id, limit=100)
+        language = review_case.get("language")
         outcome = OUTCOME_UNCONFIGURED
         if self.model_provider is not None:
             decision = self._decision(PURPOSE_COPILOT_SUGGEST, tenant_id)
@@ -137,7 +137,7 @@ class CopilotService:
             else:
                 try:
                     suggestions = self._model_suggestions(
-                        conversation, messages, draft, language, tenant_id
+                        review_case, messages, draft, language, tenant_id
                     )
                     if suggestions:
                         return [
@@ -146,7 +146,7 @@ class CopilotService:
                 except Exception:
                     logger.debug(
                         "copilot.suggest_failed",
-                        extra={"tenant_id": tenant_id, "conversation_id": conversation_id},
+                        extra={"tenant_id": tenant_id, "conversation_id": review_case_id},
                     )
                 record_call_failure(PURPOSE_COPILOT_SUGGEST, tenant_id)
                 outcome = OUTCOME_FAILED
@@ -155,14 +155,14 @@ class CopilotService:
         # they are being returned (H04): a refusal, a broken transport or the
         # deployment having no provider are three different facts about the
         # same canned list.
-        canned = self.database.list_canned_responses(tenant_id, search=draft, limit=limit)
+        canned = self.database.list_canned_verdicts(tenant_id, search=draft, limit=limit)
         if not canned and not draft:
-            canned = self.database.list_canned_responses(tenant_id, limit=limit)
+            canned = self.database.list_canned_verdicts(tenant_id, limit=limit)
         return [{"content": item["body"], "source": outcome} for item in canned[:limit]]
 
     def _model_suggestions(
         self,
-        conversation: dict[str, Any],
+        review_case: dict[str, Any],
         messages: list[dict[str, Any]],
         draft: str | None,
         language: str | None,
@@ -171,7 +171,7 @@ class CopilotService:
         assert self.model_provider is not None
         transcript = _truncate(self._render_transcript(messages), _MAX_TRANSCRIPT_CHARS)
         user_prompt = _SUGGEST_USER_PROMPT.format(
-            metadata=json.dumps(self._metadata(conversation), ensure_ascii=False),
+            metadata=json.dumps(self._metadata(review_case), ensure_ascii=False),
             transcript=transcript,
         )
         if draft and draft.strip():
@@ -199,20 +199,20 @@ class CopilotService:
     def recommend_knowledge(
         self,
         tenant_id: str,
-        conversation_id: str,
+        review_case_id: str,
         query: str | None = None,
         limit: int = 3,
     ) -> list[dict[str, Any]]:
         """Return knowledge articles relevant to the conversation."""
-        conversation = self.database.get_conversation(tenant_id, conversation_id)
-        if conversation is None:
+        review_case = self.database.get_review_case(tenant_id, review_case_id)
+        if review_case is None:
             raise LookupError("Conversation not found")
         limit = max(1, min(limit, 3))
-        language = conversation.get("language")
-        search_query = query or self._latest_customer_message(tenant_id, conversation_id) or ""
+        language = review_case.get("language")
+        search_query = query or self._latest_customer_message(tenant_id, review_case_id) or ""
         if not search_query.strip():
             return []
-        articles = self.database.search_knowledge(
+        articles = self.database.search_policy_articles(
             tenant_id, search_query, limit=limit, language=language
         )
         return [
@@ -229,13 +229,13 @@ class CopilotService:
             for item in articles
         ]
 
-    def _latest_customer_message(self, tenant_id: str, conversation_id: str) -> str | None:
+    def _latest_customer_message(self, tenant_id: str, review_case_id: str) -> str | None:
         with self.database.connect() as connection:
             row = connection.execute(
                 """SELECT content FROM messages
-                WHERE tenant_id = ? AND conversation_id = ? AND role = 'customer'
+                WHERE tenant_id = ? AND review_case_id = ? AND role = 'customer'
                 ORDER BY seq DESC, created_at DESC LIMIT 1""",
-                (tenant_id, conversation_id),
+                (tenant_id, review_case_id),
             ).fetchone()
         return str(row["content"]) if row else None
 
@@ -294,14 +294,14 @@ class CopilotService:
             lines.append(f"{role}: {content}")
         return "\n".join(lines)
 
-    def _metadata(self, conversation: dict[str, Any]) -> dict[str, Any]:
+    def _metadata(self, review_case: dict[str, Any]) -> dict[str, Any]:
         return {
-            "customer_name": conversation.get("customer_name"),
-            "channel": conversation.get("channel"),
-            "priority": conversation.get("priority"),
-            "intent": conversation.get("intent"),
-            "status": conversation.get("status"),
-            "language": conversation.get("language"),
+            "customer_name": review_case.get("customer_name"),
+            "channel": review_case.get("channel"),
+            "priority": review_case.get("priority"),
+            "intent": review_case.get("intent"),
+            "status": review_case.get("status"),
+            "language": review_case.get("language"),
         }
 
 

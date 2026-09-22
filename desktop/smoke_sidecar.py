@@ -47,9 +47,7 @@ def main() -> int:
         print(f"FAIL: {exe} not found — build the spec first", file=sys.stderr)
         return 2
 
-    with tempfile.TemporaryDirectory(
-        prefix="helix-smoke-", ignore_cleanup_errors=True
-    ) as tmp:
+    with tempfile.TemporaryDirectory(prefix="helix-smoke-", ignore_cleanup_errors=True) as tmp:
         env = dict(os.environ)
         env["HELIX_PORT"] = "8899"
         env["DATABASE_PATH"] = str(Path(tmp) / "support.db")
@@ -85,7 +83,7 @@ def main() -> int:
                 return 1
             payload = sample.json()
             count = len(payload.get("items", [])) if isinstance(payload, dict) else len(payload)
-            print(f"sample API ok ({count} conversations)")
+            print(f"sample API ok ({count} review_cases)")
 
             static_page = httpx.get("http://127.0.0.1:8899/", timeout=5.0)
             if static_page.status_code != 200 or "operator" not in static_page.text.lower():

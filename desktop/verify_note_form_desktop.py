@@ -36,9 +36,15 @@ def wait_for_cdp(deadline_s: float = 90.0) -> list[dict]:
     deadline = time.time() + deadline_s
     while time.time() < deadline:
         try:
-            with urllib.request.urlopen(f"http://127.0.0.1:{DEBUG_PORT}/json/list", timeout=2) as res:
+            with urllib.request.urlopen(
+                f"http://127.0.0.1:{DEBUG_PORT}/json/list", timeout=2
+            ) as res:
                 targets = json.loads(res.read().decode("utf-8"))
-            pages = [t for t in targets if t.get("type") == "page" and "127.0.0.1" in (t.get("url") or "")]
+            pages = [
+                t
+                for t in targets
+                if t.get("type") == "page" and "127.0.0.1" in (t.get("url") or "")
+            ]
             if pages:
                 return targets
         except Exception:
@@ -97,7 +103,7 @@ def main() -> int:
                     });
                     if (!member.ok && member.status !== 200) return { error: 'member ' + member.status };
                     const conv = await post('/api/review-cases', {
-                        customer_name: '备注岛验证 ' + Math.random().toString(36).slice(2, 8),
+                        submitter_name: '备注岛验证 ' + Math.random().toString(36).slice(2, 8),
                     });
                     if (!conv.ok) return { error: 'conversation ' + conv.status };
                     const turn = await post('/api/review-cases/' + conv.data.id + '/messages', {
@@ -113,8 +119,12 @@ def main() -> int:
                 return 1
 
             page.locator("#refreshList").click()
-            page.wait_for_selector("#queueReactIsland .conversation-item", state="visible", timeout=30000)
-            page.locator(f"#queueReactIsland .conversation-item[data-id='{seeded['conversationId']}']").click()
+            page.wait_for_selector(
+                "#queueReactIsland .conversation-item", state="visible", timeout=30000
+            )
+            page.locator(
+                f"#queueReactIsland .conversation-item[data-id='{seeded['conversationId']}']"
+            ).click()
 
             # Island note form visible; legacy note form stays yielded.
             page.wait_for_function(

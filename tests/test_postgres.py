@@ -27,7 +27,7 @@ import unittest
 from typing import Any
 from unittest.mock import patch
 
-from app.domain import ConversationStatus
+from app.domain import ReviewCaseStatus
 from app.pg_compat import (
     COMPAT_FUNCTIONS,
     install_compatibility,
@@ -73,7 +73,7 @@ class DialectTranslationTests(unittest.TestCase):
         self.assertEqual(sql.upper().count("ON CONFLICT"), 1)
 
     def test_collate_nocase_is_dropped(self) -> None:
-        sql, _ = translate("SELECT * FROM orders WHERE id = ? COLLATE NOCASE", True)
+        sql, _ = translate("SELECT * FROM source_lookups WHERE id = ? COLLATE NOCASE", True)
         self.assertNotIn("COLLATE", sql.upper())
 
     def test_rowid_maps_to_ordering_column(self) -> None:
@@ -104,8 +104,8 @@ class DialectTranslationTests(unittest.TestCase):
         self.assertEqual(translate("PRAGMA journal_mode = WAL")[1], "skip")
 
     def test_pragma_table_info_maps_to_information_schema(self) -> None:
-        sql, directive = translate("PRAGMA table_info(conversations)")
-        self.assertEqual(directive, "table_info:conversations")
+        sql, directive = translate("PRAGMA table_info(review_cases)")
+        self.assertEqual(directive, "table_info:review_cases")
         self.assertIn("information_schema.columns", sql)
 
     def test_sqlite_master_maps_to_catalog_view(self) -> None:
@@ -139,7 +139,7 @@ class DialectTranslationTests(unittest.TestCase):
         sql = (
             "INSERT INTO summaries(tenant_id, cid, kind, content, source, ca, ua) "
             "VALUES (?, ?, ?, ?, ?, ?, ?) "
-            "ON CONFLICT(tenant_id, conversation_id, kind) DO UPDATE SET "
+            "ON CONFLICT(tenant_id, review_case_id, kind) DO UPDATE SET "
             "content = excluded.content, source = excluded.source, updated_at = excluded.updated_at"
         )
         translated, _ = translate(sql, has_params=True)
@@ -148,9 +148,9 @@ class DialectTranslationTests(unittest.TestCase):
 
     def test_upsert_mixed_increment_and_excluded_refs_qualify_only_bare_col(self) -> None:
         sql = (
-            "INSERT INTO quality_metrics(tenant_id, date, intent, pv, turn_count, esc) "
+            "INSERT INTO quality_metrics(tenant_id, date, risk_category, pv, turn_count, esc) "
             "VALUES (?, ?, ?, ?, 1, ?) "
-            "ON CONFLICT(tenant_id, date, intent, prompt_version) DO UPDATE SET "
+            "ON CONFLICT(tenant_id, date, risk_category, prompt_version) DO UPDATE SET "
             "turn_count = turn_count + 1, "
             "escalation_count = escalation_count + excluded.escalation_count"
         )
@@ -408,10 +408,10 @@ class CompatibilityInstallTests(unittest.TestCase):
         raw = FakeConnection()
         install_ordering_columns(raw)
         ddl = "\n".join(raw.statements)
-        self.assertIn("CREATE SEQUENCE IF NOT EXISTS knowledge_articles_seq", ddl)
-        self.assertIn("ALTER TABLE knowledge_articles ADD COLUMN", ddl)
-        self.assertIn("DEFAULT nextval('knowledge_articles_seq')", ddl)
-        self.assertIn("UPDATE knowledge_articles", ddl)
+        self.assertIn("CREATE SEQUENCE IF NOT EXISTS policy_articles_seq", ddl)
+        self.assertIn("ALTER TABLE policy_articles ADD COLUMN", ddl)
+        self.assertIn("DEFAULT nextval('policy_articles_seq')", ddl)
+        self.assertIn("UPDATE policy_articles", ddl)
 
     def test_message_summary_trigger_is_bound(self) -> None:
         """Without it, message_count and preview silently stop updating."""
@@ -433,13 +433,13 @@ class CompatibilityInstallTests(unittest.TestCase):
         self.assertIn("channel_receipts_tenant_guard", ddl)
         self.assertIn("BEFORE INSERT ON channel_webhook_receipts", ddl)
 
-    def test_csat_summary_index_is_partial_and_idempotent(self) -> None:
+    def test_qa_spot_check_summary_index_is_partial_and_idempotent(self) -> None:
         raw = FakeConnection()
         install_csat_summary_index(raw)
         self.assertTrue(raw.committed)
         self.assertEqual(len(raw.statements), 1)
         statement = raw.statements[0]
-        self.assertIn("idx_csat_summary_tenant_responded", statement)
+        self.assertIn("idx_qa_spot_check_summary_tenant_responded", statement)
         self.assertIn("substr(responded_at, 1, 10)", statement)
         self.assertIn("WHERE rating IS NOT NULL", statement)
 
@@ -449,7 +449,7 @@ class CompatibilityInstallTests(unittest.TestCase):
         self.assertTrue(raw.committed)
         self.assertEqual(len(raw.statements), 1)
         statement = raw.statements[0]
-        self.assertIn("idx_conversations_tenant_updated_id", statement)
+        self.assertIn("idx_review_cases_tenant_updated_id", statement)
         self.assertIn("tenant_id, updated_at DESC, id DESC", statement)
 
     def test_failure_rolls_back(self) -> None:
@@ -495,13 +495,13 @@ class PostgresIntegrationTests(unittest.TestCase):
     def tearDownClass(cls) -> None:
         cls.db.close()
 
-    def _conversation(self, name: str = "PG Customer") -> dict:
-        return self.db.create_conversation(self.TENANT, name, "CUST-PG-1", "api", "admin", 120)
+    def _review_case(self, name: str = "PG Customer") -> dict:
+        return self.db.create_review_case(self.TENANT, name, "CUST-PG-1", "api", "admin", 120)
 
-    def test_create_and_get_conversation(self) -> None:
-        conversation = self._conversation()
-        self.assertTrue(conversation["id"].startswith("conv_"))
-        fetched = self.db.get_conversation(self.TENANT, conversation["id"])
+    def test_create_and_get_review_case(self) -> None:
+        review_case = self._review_case()
+        self.assertTrue(review_case["id"].startswith("conv_"))
+        fetched = self.db.get_review_case(self.TENANT, review_case["id"])
         assert fetched is not None
         self.assertEqual(fetched["customer_name"], "PG Customer")
         self.assertEqual(fetched["labels"], [])
@@ -547,7 +547,7 @@ class PostgresIntegrationTests(unittest.TestCase):
         self.assertTrue(report["anomaly"])
 
     def test_formal_channel_mapping_receipt_and_job_id_are_durable(self) -> None:
-        conversation, created = self.db.get_or_create_channel_conversation(
+        review_case, created = self.db.get_or_create_channel_conversation(
             self.TENANT,
             "pg-formal-account",
             "pg-external-thread",
@@ -569,22 +569,22 @@ class PostgresIntegrationTests(unittest.TestCase):
         )
         self.assertTrue(created)
         self.assertFalse(replay_created)
-        self.assertEqual(replayed_conversation["id"], conversation["id"])
+        self.assertEqual(replayed_conversation["id"], review_case["id"])
 
         receipt, receipt_created = self.db.claim_channel_webhook_receipt(
             self.TENANT,
             "pg-formal-account",
             "pg-message-1",
             "pg-external-thread",
-            conversation["id"],
+            review_case["id"],
             "a" * 64,
         )
         self.assertTrue(receipt_created)
-        self.assertEqual(receipt["conversation_id"], conversation["id"])
+        self.assertEqual(receipt["conversation_id"], review_case["id"])
 
         job, job_replayed = self.db.enqueue_turn_job(
             self.TENANT,
-            conversation["id"],
+            review_case["id"],
             "phase38-pg-idempotency",
             "channel:pg-formal-account",
             "PostgreSQL channel message",
@@ -596,32 +596,32 @@ class PostgresIntegrationTests(unittest.TestCase):
 
     def test_timestamps_are_iso_strings_not_datetimes(self) -> None:
         """The API layer serialises these directly, so the type matters."""
-        conversation = self._conversation()
-        self.assertIsInstance(conversation["created_at"], str)
+        review_case = self._review_case()
+        self.assertIsInstance(review_case["created_at"], str)
 
-    def test_message_triggers_maintain_conversation_summary(self) -> None:
+    def test_message_triggers_maintain_review_case_summary(self) -> None:
         """message_count/preview/needs_response are trigger-maintained."""
-        conversation = self._conversation("Trigger Test")
-        self.db.add_message(self.TENANT, conversation["id"], "customer", "C", "hello pg")
+        review_case = self._review_case("Trigger Test")
+        self.db.add_message(self.TENANT, review_case["id"], "customer", "C", "hello pg")
 
-        updated = self.db.get_conversation(self.TENANT, conversation["id"])
+        updated = self.db.get_review_case(self.TENANT, review_case["id"])
         assert updated is not None
         self.assertEqual(updated["message_count"], 1)
         self.assertEqual(updated["preview"], "hello pg")
         self.assertEqual(updated["needs_response"], 1)
 
-        self.db.add_message(self.TENANT, conversation["id"], "assistant", "A", "on it")
-        answered = self.db.get_conversation(self.TENANT, conversation["id"])
+        self.db.add_message(self.TENANT, review_case["id"], "assistant", "A", "on it")
+        answered = self.db.get_review_case(self.TENANT, review_case["id"])
         assert answered is not None
         self.assertEqual(answered["message_count"], 2)
         self.assertEqual(answered["needs_response"], 0)
         self.assertIsNotNone(answered["first_response_at"])
 
     def test_tenant_guard_trigger_rejects_cross_tenant_message(self) -> None:
-        conversation = self._conversation("Guard Test")
+        review_case = self._review_case("Guard Test")
         self.db.ensure_tenant("other-tenant")
         with self.assertRaises(Exception):
-            self.db.add_message("other-tenant", conversation["id"], "customer", "C", "nope")
+            self.db.add_message("other-tenant", review_case["id"], "customer", "C", "nope")
 
     def test_list_messages_order_is_deterministic(self) -> None:
         """Same-microsecond inserts order by the monotonic ``seq`` column.
@@ -631,12 +631,10 @@ class PostgresIntegrationTests(unittest.TestCase):
         compatibility column (filled from a sequence) makes ordering match
         insertion order exactly, as the SQLite backend's native ``rowid`` does.
         """
-        conversation = self._conversation("Ordering")
+        review_case = self._review_case("Ordering")
         for index in range(3):
-            self.db.add_message(
-                self.TENANT, conversation["id"], "customer", "C", f"message {index}"
-            )
-        messages = self.db.list_messages(self.TENANT, conversation["id"])
+            self.db.add_message(self.TENANT, review_case["id"], "customer", "C", f"message {index}")
+        messages = self.db.list_messages(self.TENANT, review_case["id"])
         self.assertEqual(len(messages), 3)
         seqs = [m["seq"] for m in messages]
         self.assertEqual(seqs, sorted(seqs), "seq must be monotonic")
@@ -651,11 +649,11 @@ class PostgresIntegrationTests(unittest.TestCase):
         self.assertTrue(self.db.ping())
 
     def test_set_routing_applies_full_outcome(self) -> None:
-        conversation = self._conversation("Routing")
+        review_case = self._review_case("Routing")
         updated = self.db.set_routing(
             self.TENANT,
-            conversation["id"],
-            ConversationStatus.WAITING_HUMAN,
+            review_case["id"],
+            ReviewCaseStatus.WAITING_HUMAN,
             "refund_request",
             "escalation",
             "high",
@@ -665,7 +663,7 @@ class PostgresIntegrationTests(unittest.TestCase):
         )
         self.assertTrue(updated)
 
-        routed = self.db.get_conversation(self.TENANT, conversation["id"])
+        routed = self.db.get_review_case(self.TENANT, review_case["id"])
         assert routed is not None
         self.assertEqual(routed["status"], "waiting_human")
         self.assertEqual(routed["intent"], "refund_request")
@@ -673,16 +671,16 @@ class PostgresIntegrationTests(unittest.TestCase):
         self.assertEqual(routed["priority"], "high")
         self.assertEqual(routed["handoff_reason"], "policy_flag")
 
-    def test_set_routing_ignores_closed_conversation(self) -> None:
+    def test_set_routing_ignores_closed_review_case(self) -> None:
         """The status guard prevents routing a conversation that moved on."""
-        conversation = self._conversation("Closed Routing")
-        self.db.transition_conversation(
-            self.TENANT, conversation["id"], [ConversationStatus.OPEN], ConversationStatus.RESOLVED
+        review_case = self._review_case("Closed Routing")
+        self.db.transition_review_case(
+            self.TENANT, review_case["id"], [ReviewCaseStatus.OPEN], ReviewCaseStatus.RESOLVED
         )
         updated = self.db.set_routing(
             self.TENANT,
-            conversation["id"],
-            ConversationStatus.WAITING_HUMAN,
+            review_case["id"],
+            ReviewCaseStatus.WAITING_HUMAN,
             "x",
             "a",
             "normal",
@@ -693,21 +691,21 @@ class PostgresIntegrationTests(unittest.TestCase):
         self.assertFalse(updated)
 
     def test_turn_idempotency_replays_completed_response(self) -> None:
-        conversation = self._conversation("Idempotency")
-        status, replay = self.db.claim_turn(self.TENANT, conversation["id"], "key-1", 60)
+        review_case = self._review_case("Idempotency")
+        status, replay = self.db.claim_turn(self.TENANT, review_case["id"], "key-1", 60)
         self.assertEqual(status, "new")
         self.assertIsNone(replay)
 
-        self.db.complete_turn(self.TENANT, conversation["id"], "key-1", {"reply": "done"})
+        self.db.complete_turn(self.TENANT, review_case["id"], "key-1", {"reply": "done"})
 
-        status, replay = self.db.claim_turn(self.TENANT, conversation["id"], "key-1", 60)
+        status, replay = self.db.claim_turn(self.TENANT, review_case["id"], "key-1", 60)
         self.assertEqual(status, "completed")
         self.assertEqual(replay, {"reply": "done"})
 
     def test_enqueue_claim_and_complete_job(self) -> None:
-        conversation = self._conversation("Queue")
+        review_case = self._review_case("Queue")
         job, replayed = self.db.enqueue_turn_job(
-            self.TENANT, conversation["id"], "pg-idem-key", "actor", "content", 3
+            self.TENANT, review_case["id"], "pg-idem-key", "actor", "content", 3
         )
         self.assertFalse(replayed)
         self.assertEqual(job["status"], "queued")
@@ -721,9 +719,9 @@ class PostgresIntegrationTests(unittest.TestCase):
 
     def test_claim_turn_job_by_id(self) -> None:
         """The Redis queue reconciles a specific job against PostgreSQL."""
-        conversation = self._conversation("Claim By Id")
+        review_case = self._review_case("Claim By Id")
         job, _ = self.db.enqueue_turn_job(
-            self.TENANT, conversation["id"], "by-id-key", "actor", "content", 3
+            self.TENANT, review_case["id"], "by-id-key", "actor", "content", 3
         )
         claimed = self.db.claim_turn_job_by_id(job["id"], "redis-worker", 300)
         assert claimed is not None
@@ -736,12 +734,12 @@ class PostgresIntegrationTests(unittest.TestCase):
         self.assertTrue(self.db.complete_turn_job(job["id"], "redis-worker", {"ok": True}, 300))
 
     def test_enqueue_is_idempotent(self) -> None:
-        conversation = self._conversation("Queue Idempotency")
+        review_case = self._review_case("Queue Idempotency")
         first, replayed_first = self.db.enqueue_turn_job(
-            self.TENANT, conversation["id"], "dup-key", "actor", "content", 3
+            self.TENANT, review_case["id"], "dup-key", "actor", "content", 3
         )
         second, replayed_second = self.db.enqueue_turn_job(
-            self.TENANT, conversation["id"], "dup-key", "actor", "content", 3
+            self.TENANT, review_case["id"], "dup-key", "actor", "content", 3
         )
         self.assertFalse(replayed_first)
         self.assertTrue(replayed_second)
@@ -749,8 +747,8 @@ class PostgresIntegrationTests(unittest.TestCase):
 
     def test_no_duplicate_claim_across_workers(self) -> None:
         """The advisory lock must preserve SQLite's BEGIN IMMEDIATE guarantee."""
-        conversation = self._conversation("Claim Race")
-        self.db.enqueue_turn_job(self.TENANT, conversation["id"], "race-key", "actor", "content", 3)
+        review_case = self._review_case("Claim Race")
+        self.db.enqueue_turn_job(self.TENANT, review_case["id"], "race-key", "actor", "content", 3)
         first = self.db.claim_next_turn_job("worker-a", 300)
         second = self.db.claim_next_turn_job("worker-b", 300)
         assert first is not None
@@ -763,7 +761,7 @@ class PostgresIntegrationTests(unittest.TestCase):
         the same behaviour the SQLite backend exhibits when FTS is
         unavailable, so the two remain consistent.
         """
-        self.db.create_knowledge(
+        self.db.create_policy_article(
             self.TENANT,
             "Refund window",
             "Refunds accepted within 30 days",
@@ -771,13 +769,13 @@ class PostgresIntegrationTests(unittest.TestCase):
             "policy",
             "/kb",
         )
-        results = self.db.search_knowledge(self.TENANT, "refund", 3)
+        results = self.db.search_policy_articles(self.TENANT, "refund", 3)
         self.assertTrue(any("Refund" in item["title"] for item in results))
 
     def test_audit_and_dashboard(self) -> None:
-        conversation = self._conversation("Audit")
-        self.db.audit(self.TENANT, conversation["id"], "admin", "pg.test_event", {"key": "value"})
-        events = self.db.list_audit(self.TENANT, conversation["id"])
+        review_case = self._review_case("Audit")
+        self.db.audit(self.TENANT, review_case["id"], "admin", "pg.test_event", {"key": "value"})
+        events = self.db.list_audit(self.TENANT, review_case["id"])
         self.assertTrue(any(event["event_type"] == "pg.test_event" for event in events))
 
         dashboard = self.db.dashboard(self.TENANT)
@@ -843,13 +841,13 @@ class PostgresIntegrationTests(unittest.TestCase):
             with connection.cursor() as cursor:
                 cursor.execute("SET enable_seqscan = off")
                 cursor.execute(
-                    "EXPLAIN SELECT id FROM conversations WHERE tenant_id = %s "
+                    "EXPLAIN SELECT id FROM review_cases WHERE tenant_id = %s "
                     "ORDER BY updated_at DESC, id DESC LIMIT 50",
                     (self.TENANT,),
                 )
                 plan = "\n".join(row[0] for row in cursor.fetchall())
                 cursor.execute("RESET enable_seqscan")
-            self.assertIn("idx_conversations_tenant_updated_id", plan)
+            self.assertIn("idx_review_cases_tenant_updated_id", plan)
         finally:
             connection.close()
 
@@ -869,7 +867,7 @@ class PostgresIntegrationTests(unittest.TestCase):
             with connection.cursor() as cursor:
                 cursor.execute(
                     "SELECT indexdef FROM pg_indexes "
-                    "WHERE indexname = 'idx_conversations_tenant_updated_id'"
+                    "WHERE indexname = 'idx_review_cases_tenant_updated_id'"
                 )
                 row = cursor.fetchone()
                 self.assertIsNotNone(row, "updated-sort index is missing")
@@ -878,7 +876,7 @@ class PostgresIntegrationTests(unittest.TestCase):
         finally:
             connection.close()
 
-    def test_csat_summary_index_installed(self) -> None:
+    def test_qa_spot_check_summary_index_installed(self) -> None:
         """The native post-schema pass mirrors SQLite migration 25."""
         import psycopg2
 
@@ -887,7 +885,7 @@ class PostgresIntegrationTests(unittest.TestCase):
             with connection.cursor() as cursor:
                 cursor.execute(
                     "SELECT indexdef FROM pg_indexes "
-                    "WHERE indexname = 'idx_csat_summary_tenant_responded'"
+                    "WHERE indexname = 'idx_qa_spot_check_summary_tenant_responded'"
                 )
                 row = cursor.fetchone()
                 self.assertIsNotNone(row, "CSAT summary index is missing")
@@ -898,13 +896,13 @@ class PostgresIntegrationTests(unittest.TestCase):
 
     def test_message_search_finds_match_through_trgm_path(self) -> None:
         """A distinctive >=3-char term (index-accelerable) finds the row."""
-        conversation = self._conversation("Trgm Search")
+        review_case = self._review_case("Trgm Search")
         self.db.add_message(
-            self.TENANT, conversation["id"], "customer", "C", "please check the zebranaut order"
+            self.TENANT, review_case["id"], "customer", "C", "please check the zebranaut order"
         )
-        self.db.add_message(self.TENANT, conversation["id"], "assistant", "A", "done reviewing")
-        rows = self.db.list_conversations(self.TENANT, search="zebranaut")
-        self.assertIn(conversation["id"], [row["id"] for row in rows], "search missed the row")
+        self.db.add_message(self.TENANT, review_case["id"], "assistant", "A", "done reviewing")
+        rows = self.db.list_review_cases(self.TENANT, search="zebranaut")
+        self.assertIn(review_case["id"], [row["id"] for row in rows], "search missed the row")
         self.assertFalse(
             self.db._message_fts_enabled,
             "PG must stay on the LIKE fallback (no FTS mirror)",
@@ -913,39 +911,39 @@ class PostgresIntegrationTests(unittest.TestCase):
     def test_updated_sort_search_fast_path(self) -> None:
         """The ``sort="updated"`` windowed fast path engages on live PG.
 
-        Twelve matching conversations fill the ``limit=10`` window, so the fast
-        path serves a complete page from the newest conversations; an offset
+        Twelve matching review_cases fill the ``limit=10`` window, so the fast
+        path serves a complete page from the newest review_cases; an offset
         past the window cap bypasses the window entirely and falls through to
         the aggregated CTE, which on this tiny tenant is empty.  A spy on
-        ``_query_conversations_windowed`` proves the shallow page was actually
+        ``_query_review_cases_windowed`` proves the shallow page was actually
         served by the window (returned non-None) instead of letting the CTE
         fallback satisfy the page assertions.
         """
         for index in range(12):
-            conversation = self._conversation(f"Window Search {index}")
+            review_case = self._review_case(f"Window Search {index}")
             self.db.add_message(
                 self.TENANT,
-                conversation["id"],
+                review_case["id"],
                 "customer",
                 "C",
                 "please check the windowpane order",
             )
         with patch.object(
             self.db,
-            "_query_conversations_windowed",
-            wraps=self.db._query_conversations_windowed,
+            "_query_review_cases_windowed",
+            wraps=self.db._query_review_cases_windowed,
         ) as windowed:
-            fast = self.db.list_conversations(
+            fast = self.db.list_review_cases(
                 self.TENANT, search="windowpane", sort="updated", limit=10, offset=0
             )
             # offset 1024 + limit 10 exceeds the window cap, so the windowed
             # method must not even be called: the gate sends it to the CTE.
-            deep = self.db.list_conversations(
+            deep = self.db.list_review_cases(
                 self.TENANT, search="windowpane", sort="updated", limit=10, offset=1024
             )
-        # Ground truth: the newest ten conversations in the same recency order.
+        # Ground truth: the newest ten review_cases in the same recency order.
         expected = [
-            row["id"] for row in self.db.list_conversations(self.TENANT, sort="updated", limit=10)
+            row["id"] for row in self.db.list_review_cases(self.TENANT, sort="updated", limit=10)
         ]
         self.assertEqual(10, len(fast), "fast path should fill the page")
         self.assertEqual(

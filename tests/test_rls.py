@@ -130,7 +130,7 @@ class RlsSchemaContractTests(unittest.TestCase):
             self.assertIn("tenant_id", tables[table], f"{table} lacks tenant_id")
 
     def test_protected_set_excludes_global_and_token_paths(self) -> None:
-        for table in ("tenants", "sla_policies", "prompt_versions", "csat_surveys"):
+        for table in ("tenants", "sla_policies", "prompt_versions", "qa_spot_checks"):
             self.assertNotIn(table, RLS_TABLES)
 
 
@@ -203,12 +203,12 @@ class VerifyRlsTests(unittest.TestCase):
     def test_verify_reads_catalog_and_guc(self) -> None:
         clause = tenant_filter_clause()
         rows = [
-            FakeRow(relname="conversations", relrowsecurity=1, relforcerowsecurity=0),
+            FakeRow(relname="review_cases", relrowsecurity=1, relforcerowsecurity=0),
             FakeRow(relname="messages", relrowsecurity=1, relforcerowsecurity=0),
         ]
         policy_rows = [
             FakeRow(
-                table_name="conversations",
+                table_name="review_cases",
                 polname=POLICY_NAME,
                 using_expr=f"({clause})",
                 check_expr=f"({clause})",
@@ -228,7 +228,7 @@ class VerifyRlsTests(unittest.TestCase):
         report = verify_rls(connection)
         self.assertEqual(report["current_tenant"], "acme")
         self.assertEqual(report["current_user"], "helix_app")
-        self.assertTrue(report["tables"]["conversations"]["policy_ok"])
+        self.assertTrue(report["tables"]["review_cases"]["policy_ok"])
         self.assertFalse(report["tables"]["messages"]["policy_ok"])
         problems = missing_protection(report)
         self.assertIn("messages: isolation policy missing or stale", problems)

@@ -44,15 +44,15 @@ def build_legacy_snapshot(path: Path) -> None:
             name TEXT NOT NULL,
             created_at TEXT NOT NULL
         );
-        CREATE TABLE conversations (
+        CREATE TABLE review_cases (
             id TEXT PRIMARY KEY,
             tenant_id TEXT NOT NULL REFERENCES tenants(id),
-            customer_name TEXT NOT NULL,
-            customer_ref TEXT,
+            submitter_name TEXT NOT NULL,
+            submitter_ref TEXT,
             channel TEXT NOT NULL,
             status TEXT NOT NULL,
-            intent TEXT,
-            assigned_agent TEXT,
+            risk_category TEXT,
+            assigned_reviewer TEXT,
             priority TEXT NOT NULL DEFAULT 'normal',
             handoff_reason TEXT,
             sla_due_at TEXT,
@@ -60,12 +60,12 @@ def build_legacy_snapshot(path: Path) -> None:
             version INTEGER NOT NULL DEFAULT 1,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL,
-            resolved_at TEXT
+            decided_at TEXT
         );
         CREATE TABLE messages (
             id TEXT PRIMARY KEY,
             tenant_id TEXT NOT NULL REFERENCES tenants(id),
-            conversation_id TEXT NOT NULL REFERENCES conversations(id),
+            review_case_id TEXT NOT NULL REFERENCES review_cases(id),
             turn_id TEXT,
             role TEXT NOT NULL,
             author TEXT NOT NULL,

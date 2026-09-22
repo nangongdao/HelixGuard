@@ -4,7 +4,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from app.labels import normalize_conversation_labels
+from app.labels import normalize_review_case_labels
 from app.language import KNOWN_LANGUAGES
 
 
@@ -113,7 +113,7 @@ class ConversationLabelsRequest(StrictModel):
     @field_validator("labels")
     @classmethod
     def validate_labels(cls, labels: list[str]) -> list[str]:
-        return normalize_conversation_labels(labels)
+        return normalize_review_case_labels(labels)
 
 
 class BulkConversationActionRequest(StrictModel):
@@ -133,7 +133,7 @@ class BulkConversationActionRequest(StrictModel):
     @field_validator("labels")
     @classmethod
     def validate_bulk_labels(cls, labels: list[str]) -> list[str]:
-        return normalize_conversation_labels(labels)
+        return normalize_review_case_labels(labels)
 
     @model_validator(mode="after")
     def validate_action_payload(self) -> BulkConversationActionRequest:
@@ -428,7 +428,7 @@ class SavedQueueViewFilters(StrictModel):
     def validate_saved_view_label(cls, label: str | None) -> str | None:
         if label is None:
             return None
-        return normalize_conversation_labels([label])[0]
+        return normalize_review_case_labels([label])[0]
 
 
 class SavedQueueViewCreateRequest(StrictModel):

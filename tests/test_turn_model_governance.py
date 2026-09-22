@@ -48,7 +48,7 @@ SECRET = "control-plane-signing-secret-0123456789abcdef"
 TENANT = "acme"
 DEFAULT_MODEL = "gpt-4.1-mini"
 
-# A message the deterministic rules route at low confidence (no intent signal),
+# A message the deterministic rules route at low confidence (no risk_category signal),
 # so the triage model path is actually taken when it is permitted.
 NEUTRAL_MESSAGE = "Hello there"
 
@@ -122,7 +122,7 @@ class MainChainGovernanceTests(unittest.TestCase):
         self, provider: ScriptedTriageProvider, *, message: str = NEUTRAL_MESSAGE, key: str
     ) -> tuple[dict, str]:
         orchestrator = self._orchestrator(provider)
-        conv = self.db.create_conversation(TENANT, "Governed Turn", None, "web", "admin", 120)
+        conv = self.db.create_review_case(TENANT, "Governed Turn", None, "web", "admin", 120)
         response = orchestrator.handle_customer_message(TENANT, conv["id"], message, "admin", key)
         return response, conv["id"]
 
@@ -248,7 +248,7 @@ class MainChainGovernanceTests(unittest.TestCase):
         orchestrator = ConversationOrchestrator(self.db, self._settings(), None)
         provider = ScriptedTriageProvider()
         orchestrator.triage = TriageAgent(provider)
-        conv = self.db.create_conversation(TENANT, "No Plane", None, "web", "admin", 120)
+        conv = self.db.create_review_case(TENANT, "No Plane", None, "web", "admin", 120)
         orchestrator.handle_customer_message(TENANT, conv["id"], NEUTRAL_MESSAGE, "admin", "idem-7")
         self.assertTrue(provider.calls)
         self.assertEqual(self._denied_events(), [])

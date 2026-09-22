@@ -8,7 +8,7 @@ Covers the roadmap acceptance:
   query) and are language-aware;
 - tone rewrites return the original text on failure (never block);
 - RBAC: all three copilot endpoints require ``operator:act`` (viewer 403);
-- missing conversations 404.
+- missing review_cases 404.
 """
 
 from __future__ import annotations
@@ -93,22 +93,22 @@ class CopilotAppTests(unittest.TestCase):
         self.client.close()
         self._tmp.cleanup()
 
-    def _open_conversation(self, name: str = "S") -> str:
+    def _open_review_case(self, name: str = "S") -> str:
         conv = self.client.post(
             "/api/review-cases", json={"customer_name": name}, headers=self.admin
         ).json()
         return conv["id"]
 
-    def _send(self, conversation_id: str, content: str, key: str) -> None:
+    def _send(self, review_case_id: str, content: str, key: str) -> None:
         response = self.client.post(
-            f"/api/review-cases/{conversation_id}/messages",
+            f"/api/review-cases/{review_case_id}/messages",
             json={"content": content},
             headers={**self.admin, "Idempotency-Key": key},
         )
         self.assertEqual(response.status_code, 200, response.text)
 
     def _add_canned(self, title: str, body: str) -> None:
-        self.services.database.create_canned_response(
+        self.services.database.create_canned_verdict(
             "demo",
             title=title,
             body=body,
@@ -136,11 +136,11 @@ class CopilotAppTests(unittest.TestCase):
 
     def test_suggest_falls_back_to_canned_without_model(self) -> None:
         self._add_canned("退款政策", "根据当前政策，您可以申请全额退款。")
-        conversation_id = self._open_conversation()
-        self._send(conversation_id, "我想退款", "copilot-key-1")
+        review_case_id = self._open_review_case()
+        self._send(review_case_id, "我想退款", "copilot-key-1")
         response = self.client.post(
             "/api/copilot/suggest",
-            json={"conversation_id": conversation_id},
+            json={"conversation_id": review_case_id},
             headers=self.admin,
         )
         self.assertEqual(response.status_code, 200, response.text)
@@ -152,11 +152,11 @@ class CopilotAppTests(unittest.TestCase):
     def test_suggest_model_first(self) -> None:
         provider = FakeModelProvider(suggestions=["请提供订单号以便核查。"])
         self.copilot.model_provider = provider
-        conversation_id = self._open_conversation()
-        self._send(conversation_id, "订单丢了", "copilot-key-2")
+        review_case_id = self._open_review_case()
+        self._send(review_case_id, "订单丢了", "copilot-key-2")
         response = self.client.post(
             "/api/copilot/suggest",
-            json={"conversation_id": conversation_id},
+            json={"conversation_id": review_case_id},
             headers=self.admin,
         )
         suggestions = response.json()["suggestions"]
@@ -166,11 +166,11 @@ class CopilotAppTests(unittest.TestCase):
     def test_suggest_model_failure_falls_back_to_canned(self) -> None:
         self._add_canned("退款政策", "根据当前政策，您可以申请全额退款。")
         self.copilot.model_provider = FakeModelProvider(fail=True)
-        conversation_id = self._open_conversation()
-        self._send(conversation_id, "我想退款", "copilot-key-3")
+        review_case_id = self._open_review_case()
+        self._send(review_case_id, "我想退款", "copilot-key-3")
         response = self.client.post(
             "/api/copilot/suggest",
-            json={"conversation_id": conversation_id},
+            json={"conversation_id": review_case_id},
             headers=self.admin,
         )
         suggestions = response.json()["suggestions"]
@@ -180,23 +180,23 @@ class CopilotAppTests(unittest.TestCase):
     def test_suggest_never_leaks_internal_notes(self) -> None:
         provider = FakeModelProvider()
         self.copilot.model_provider = provider
-        conversation_id = self._open_conversation()
-        self._send(conversation_id, "你好", "copilot-key-4")
+        review_case_id = self._open_review_case()
+        self._send(review_case_id, "你好", "copilot-key-4")
         self.client.post(
-            f"/api/review-cases/{conversation_id}/notes",
+            f"/api/review-cases/{review_case_id}/notes",
             json={"content": "内部机密：提交方是 VIP，先稳住不要承诺退款"},
             headers=self.admin,
         )
         self.client.post(
             "/api/copilot/suggest",
-            json={"conversation_id": conversation_id},
+            json={"conversation_id": review_case_id},
             headers=self.admin,
         )
         prompt = provider.prompts[-1]
         self.assertNotIn("内部机密", prompt)
         self.assertNotIn("VIP", prompt)
 
-    def test_suggest_unknown_conversation_404(self) -> None:
+    def test_suggest_unknown_review_case_404(self) -> None:
         response = self.client.post(
             "/api/copilot/suggest",
             json={"conversation_id": "conv_nonexistent"},
@@ -206,13 +206,13 @@ class CopilotAppTests(unittest.TestCase):
 
     # --------------------------------------------------------- recommendations
 
-    def test_recommend_knowledge_uses_latest_customer_message(self) -> None:
+    def test_recommend_knowledge_uses_latest_submitter_message(self) -> None:
         self._add_knowledge("退换货政策", ["refund"], "zh")
-        conversation_id = self._open_conversation()
-        self._send(conversation_id, "refund 怎么申请", "copilot-key-5")
+        review_case_id = self._open_review_case()
+        self._send(review_case_id, "refund 怎么申请", "copilot-key-5")
         response = self.client.post(
             "/api/copilot/policy",
-            json={"conversation_id": conversation_id},
+            json={"conversation_id": review_case_id},
             headers=self.admin,
         )
         self.assertEqual(response.status_code, 200, response.text)
@@ -223,35 +223,35 @@ class CopilotAppTests(unittest.TestCase):
 
     def test_recommend_knowledge_query_override(self) -> None:
         self._add_knowledge("发票政策", ["invoice"], "zh")
-        conversation_id = self._open_conversation()
+        review_case_id = self._open_review_case()
         response = self.client.post(
             "/api/copilot/policy",
-            json={"conversation_id": conversation_id, "query": "invoice"},
+            json={"conversation_id": review_case_id, "query": "invoice"},
             headers=self.admin,
         )
         articles = response.json()["articles"]
         self.assertTrue(articles)
         self.assertEqual(articles[0]["title"], "发票政策")
 
-    def test_recommend_knowledge_empty_conversation_returns_empty(self) -> None:
-        conversation_id = self._open_conversation()
+    def test_recommend_knowledge_empty_review_case_returns_empty(self) -> None:
+        review_case_id = self._open_review_case()
         response = self.client.post(
             "/api/copilot/policy",
-            json={"conversation_id": conversation_id},
+            json={"conversation_id": review_case_id},
             headers=self.admin,
         )
         self.assertEqual(response.status_code, 200, response.text)
         self.assertEqual(response.json()["articles"], [])
 
-    def test_recommend_knowledge_prefers_customer_language(self) -> None:
+    def test_recommend_knowledge_prefers_submitter_language(self) -> None:
         self._add_knowledge("中文退换货", ["refund"], "zh")
         self._add_knowledge("Refund policy", ["refund"], "en")
-        conversation_id = self._open_conversation()
+        review_case_id = self._open_review_case()
         # English customer message -> conversation.language = en.
-        self._send(conversation_id, "How do I apply for a refund?", "copilot-key-6")
+        self._send(review_case_id, "How do I apply for a refund?", "copilot-key-6")
         response = self.client.post(
             "/api/copilot/policy",
-            json={"conversation_id": conversation_id, "query": "refund"},
+            json={"conversation_id": review_case_id, "query": "refund"},
             headers=self.admin,
         )
         articles = response.json()["articles"]
@@ -306,10 +306,10 @@ class CopilotAppTests(unittest.TestCase):
     # --------------------------------------------------------------------- RBAC
 
     def test_viewer_denied_all_endpoints(self) -> None:
-        conversation_id = self._open_conversation()
+        review_case_id = self._open_review_case()
         calls = [
-            ("/api/copilot/suggest", {"conversation_id": conversation_id}),
-            ("/api/copilot/policy", {"conversation_id": conversation_id}),
+            ("/api/copilot/suggest", {"conversation_id": review_case_id}),
+            ("/api/copilot/policy", {"conversation_id": review_case_id}),
             ("/api/copilot/rewrite", {"text": "你好", "tone": "friendly"}),
         ]
         for path, body in calls:

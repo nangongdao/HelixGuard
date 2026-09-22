@@ -36,7 +36,7 @@ class KnowledgeSearchCacheTests(unittest.TestCase):
             return self.db._fts_queries
 
     def test_repeated_query_hits_cache_without_rerunning_fts(self) -> None:
-        self.db.create_knowledge(
+        self.db.create_policy_article(
             "demo",
             "Shipping policy",
             "Packages ship within 24 hours",
@@ -44,12 +44,12 @@ class KnowledgeSearchCacheTests(unittest.TestCase):
             "general",
             "https://e.com",
         )
-        first = self.db.search_knowledge("demo", "shipping")
+        first = self.db.search_policy_articles("demo", "shipping")
         self.assertTrue(any("Shipping" in item["title"] for item in first))
         fts_after_first = self._fts_query_count()
         # Same normalized query ("Shipping".casefold().strip() == "shipping")
         # + language + limit → must come from cache, not rerun the FTS MATCH.
-        repeated = self.db.search_knowledge("demo", "  Shipping ")
+        repeated = self.db.search_policy_articles("demo", "  Shipping ")
         self.assertTrue(any("Shipping" in item["title"] for item in repeated))
         cache_stats = self.db.performance_stats()["cache"]["knowledge_search"]
         self.assertGreater(cache_stats["hits"], 0)
@@ -57,7 +57,7 @@ class KnowledgeSearchCacheTests(unittest.TestCase):
         self.assertEqual(self._fts_query_count(), fts_after_first)
 
     def test_knowledge_write_invalidates_search_cache(self) -> None:
-        self.db.create_knowledge(
+        self.db.create_policy_article(
             "demo",
             "Old policy",
             "Old shipping terms apply",
@@ -65,12 +65,12 @@ class KnowledgeSearchCacheTests(unittest.TestCase):
             "general",
             "https://e.com",
         )
-        self.db.search_knowledge("demo", "severity")
-        remains = self.db.search_knowledge("demo", "severity")
+        self.db.search_policy_articles("demo", "severity")
+        remains = self.db.search_policy_articles("demo", "severity")
         self.assertTrue(any(r["id"] == "kb-severity" or "分级" in r["title"] for r in remains))
         before = self.db._knowledge_version("demo")
         # A knowledge write must bump the version so the cached hit is skipped.
-        self.db.create_knowledge(
+        self.db.create_policy_article(
             "demo",
             "New policy",
             "Newer shipping terms now apply",
@@ -79,7 +79,7 @@ class KnowledgeSearchCacheTests(unittest.TestCase):
             "https://e.com",
         )
         self.assertGreater(self.db._knowledge_version("demo"), before)
-        after_write = self.db.search_knowledge("demo", "shipping")
+        after_write = self.db.search_policy_articles("demo", "shipping")
         self.assertTrue(any("New policy" in item["title"] for item in after_write))
 
     def test_review_and_retire_invalidate_search_cache(self) -> None:
@@ -94,12 +94,12 @@ class KnowledgeSearchCacheTests(unittest.TestCase):
         )
         published = self.db.review_knowledge("demo", article["id"], "publish", "admin")
         assert published is not None
-        hits = self.db.search_knowledge("demo", "shipping")
+        hits = self.db.search_policy_articles("demo", "shipping")
         self.assertTrue(any(r["id"] == article["id"] for r in hits))
         before = self.db._knowledge_version("demo")
         self.db.review_knowledge("demo", article["id"], "retire", "admin")
         self.assertGreater(self.db._knowledge_version("demo"), before)
-        after = self.db.search_knowledge("demo", "shipping")
+        after = self.db.search_policy_articles("demo", "shipping")
         # The retired article must no longer surface even when the earlier hit
         # was cached against the pre-retire knowledge version.
         self.assertFalse(any(r["id"] == article["id"] for r in after))
@@ -121,11 +121,11 @@ class KnowledgeFallbackCandidateCapTests(unittest.TestCase):
         # through the no-FTS path. (The shared full list must still be visible
         # through list_knowledge.)
         with patch(
-            "app.db.knowledge.utc_now",
+            "app.db.policy.utc_now",
             return_value="2099-08-18T00:00:00.123000+00:00",
         ):
             for index in range(6):
-                self.db.create_knowledge(
+                self.db.create_policy_article(
                     "demo",
                     f"Article {index}",
                     f"Body of article {index}",
@@ -133,11 +133,11 @@ class KnowledgeFallbackCandidateCapTests(unittest.TestCase):
                     "general",
                     "https://e.com",
                 )
-        listed = self.db.list_knowledge("demo")
+        listed = self.db.list_policy_articles("demo")
         self.assertGreaterEqual(len(listed), 6)
         # No FTS here: force the fallback path.
         self.db._fts_enabled = False
-        hits = self.db.search_knowledge("demo", "topic", limit=3)
+        hits = self.db.search_policy_articles("demo", "topic", limit=3)
         # With cap=3 only the three most recent articles are scored; the old
         # "Article 0" body cannot be hit.
         self.assertNotIn("Article 0", [item["title"] for item in hits])
@@ -146,7 +146,7 @@ class KnowledgeFallbackCandidateCapTests(unittest.TestCase):
         # ordering instead of depending on the database's unspecified row
         # order.
         self.db._knowledge_cache.clear()
-        cold_hits = self.db.search_knowledge("demo", "topic", limit=3)
+        cold_hits = self.db.search_policy_articles("demo", "topic", limit=3)
         self.assertNotIn("Article 0", [item["title"] for item in cold_hits])
 
 

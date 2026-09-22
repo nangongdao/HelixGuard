@@ -216,7 +216,7 @@ class StaticBudgetCoverageTests(unittest.TestCase):
         (static / "js" / "widget-extra.js").write_bytes(b"//" + b"x" * widget_module_bytes + b"\n")
         return tmp, static
 
-    def test_widget_payload_includes_every_widget_module(self) -> None:
+    def test_portal_payload_includes_every_portal_module(self) -> None:
         tmp, static = self._temp_tree(400)
         self.addCleanup(tmp.cleanup)
         names = [path.name for path in performance_gate._widget_payload_files(static)]
@@ -227,7 +227,7 @@ class StaticBudgetCoverageTests(unittest.TestCase):
         expected = performance_gate._lf_bytes(performance_gate._widget_payload_files(static))
         self.assertEqual(sizes["widget_js_bytes"], expected)
 
-    def test_widget_budget_reports_a_problem_when_a_module_grows(self) -> None:
+    def test_portal_budget_reports_a_problem_when_a_module_grows(self) -> None:
         tmp, _static = self._temp_tree(BUDGETS["widget_js_bytes"] + 1_000)
         self.addCleanup(tmp.cleanup)
         with patch.object(performance_gate, "ROOT", Path(tmp.name)):

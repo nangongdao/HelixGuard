@@ -1,4 +1,4 @@
-"""Final coverage push for conversations.py uncovered paths.
+"""Final coverage push for review_cases.py uncovered paths.
 
 补充以下未覆盖的路径：
 - SSE 队列事件流（lines 186-211）
@@ -25,13 +25,13 @@ from app.config import Settings
 from app.main import create_app
 
 ADMIN_KEY = "test-admin-key-002"
-OPERATOR_KEY = "test-op-key-002"
+REVIEWER_KEY = "test-op-key-002"
 
 
 def _settings(db_path: Path) -> Settings:
     principals = {
         ADMIN_KEY: {"tenant_id": "demo", "actor_id": "admin", "role": "admin"},
-        OPERATOR_KEY: {"tenant_id": "demo", "actor_id": "operator", "role": "operator"},
+        REVIEWER_KEY: {"tenant_id": "demo", "actor_id": "operator", "role": "operator"},
     }
     return Settings(
         database_path=db_path,
@@ -42,7 +42,7 @@ def _settings(db_path: Path) -> Settings:
     )
 
 
-class ConversationCreateAndUpdateTests(unittest.TestCase):
+class ReviewCaseCreateAndUpdateTests(unittest.TestCase):
     """审核单创建和更新操作（lines 309-370）"""
 
     def setUp(self) -> None:
@@ -50,54 +50,54 @@ class ConversationCreateAndUpdateTests(unittest.TestCase):
         self.db_path = Path(self._tmp.name) / "create.db"
         self.client = TestClient(create_app(_settings(self.db_path)))
         self.services = cast(Any, self.client.app).state.services
-        self.operator = {"X-API-Key": OPERATOR_KEY, "X-Tenant-Id": "demo"}
+        self.reviewer = {"X-API-Key": REVIEWER_KEY, "X-Tenant-Id": "demo"}
 
     def tearDown(self) -> None:
         self.services.database.close()
         self.client.close()
         self._tmp.cleanup()
 
-    def test_create_conversation(self) -> None:
+    def test_create_review_case(self) -> None:
         # line 309-340
         response = self.client.post(
             "/api/review-cases",
             json={"customer_name": "Alice", "customer_ref": "CUST-A-1", "channel": "web"},
-            headers=self.operator,
+            headers=self.reviewer,
         )
         self.assertEqual(response.status_code, 201)
         body = response.json()
         self.assertEqual(body["customer_name"], "Alice")
 
-    def test_update_conversation_priority(self) -> None:
+    def test_update_review_case_priority(self) -> None:
         # line 348-355
-        conv = self.services.database.create_conversation(
+        conv = self.services.database.create_review_case(
             "demo", "Bob", "CUST-B-1", "web", "operator", 120
         )
         response = self.client.patch(
             f"/api/review-cases/{conv['id']}",
             json={"priority": "high"},
-            headers=self.operator,
+            headers=self.reviewer,
         )
         self.assertEqual(response.status_code, 200)
         body = response.json()
         self.assertEqual(body["priority"], "high")
 
-    def test_replace_conversation_labels(self) -> None:
+    def test_replace_review_case_labels(self) -> None:
         # line 363-370
-        conv = self.services.database.create_conversation(
+        conv = self.services.database.create_review_case(
             "demo", "Charlie", "CUST-C-1", "web", "operator", 120
         )
         response = self.client.put(
             f"/api/review-cases/{conv['id']}/labels",
             json={"labels": ["urgent", "billing"]},
-            headers=self.operator,
+            headers=self.reviewer,
         )
         self.assertEqual(response.status_code, 200)
         body = response.json()
         self.assertIn("urgent", body["labels"])
 
 
-class ConversationDetailTests(unittest.TestCase):
+class ReviewCaseDetailTests(unittest.TestCase):
     """获取审核单详情（lines 381-414）"""
 
     def setUp(self) -> None:
@@ -105,36 +105,36 @@ class ConversationDetailTests(unittest.TestCase):
         self.db_path = Path(self._tmp.name) / "detail.db"
         self.client = TestClient(create_app(_settings(self.db_path)))
         self.services = cast(Any, self.client.app).state.services
-        self.operator = {"X-API-Key": OPERATOR_KEY, "X-Tenant-Id": "demo"}
+        self.reviewer = {"X-API-Key": REVIEWER_KEY, "X-Tenant-Id": "demo"}
 
     def tearDown(self) -> None:
         self.services.database.close()
         self.client.close()
         self._tmp.cleanup()
 
-    def test_get_conversation_detail(self) -> None:
+    def test_get_review_case_detail(self) -> None:
         # line 381-414
-        conv = self.services.database.create_conversation(
+        conv = self.services.database.create_review_case(
             "demo", "David", "CUST-D-1", "web", "operator", 120
         )
-        response = self.client.get(f"/api/review-cases/{conv['id']}", headers=self.operator)
+        response = self.client.get(f"/api/review-cases/{conv['id']}", headers=self.reviewer)
         self.assertEqual(response.status_code, 200)
         body = response.json()
         self.assertEqual(body["conversation"]["id"], conv["id"])
 
-    def test_get_conversation_with_message_limit(self) -> None:
+    def test_get_review_case_with_message_limit(self) -> None:
         # line 377-397: 消息分页
-        conv = self.services.database.create_conversation(
+        conv = self.services.database.create_review_case(
             "demo", "Eve", "CUST-E-1", "web", "operator", 120
         )
         # 通过 API 添加消息
         self.client.post(
             f"/api/review-cases/{conv['id']}/messages",
             json={"content": "Hello"},
-            headers=self.operator,
+            headers=self.reviewer,
         )
         response = self.client.get(
-            f"/api/review-cases/{conv['id']}?message_limit=10", headers=self.operator
+            f"/api/review-cases/{conv['id']}?message_limit=10", headers=self.reviewer
         )
         self.assertEqual(response.status_code, 200)
         body = response.json()
@@ -149,7 +149,7 @@ class InternalNoteAndFeedbackTests(unittest.TestCase):
         self.db_path = Path(self._tmp.name) / "notes.db"
         self.client = TestClient(create_app(_settings(self.db_path)))
         self.services = cast(Any, self.client.app).state.services
-        self.operator = {"X-API-Key": OPERATOR_KEY, "X-Tenant-Id": "demo"}
+        self.reviewer = {"X-API-Key": REVIEWER_KEY, "X-Tenant-Id": "demo"}
 
     def tearDown(self) -> None:
         self.services.database.close()
@@ -158,13 +158,13 @@ class InternalNoteAndFeedbackTests(unittest.TestCase):
 
     def test_add_internal_note(self) -> None:
         # line 914-936
-        conv = self.services.database.create_conversation(
+        conv = self.services.database.create_review_case(
             "demo", "Frank", "CUST-F-1", "web", "operator", 120
         )
         response = self.client.post(
             f"/api/review-cases/{conv['id']}/notes",
             json={"content": "This is an internal note"},
-            headers=self.operator,
+            headers=self.reviewer,
         )
         self.assertEqual(response.status_code, 200)
         body = response.json()

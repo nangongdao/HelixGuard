@@ -15,19 +15,19 @@ from app.main import create_app
 from app.portal_token import sign_token
 
 
-class WidgetRoutesTests(unittest.TestCase):
+class PortalRoutesTests(unittest.TestCase):
     """Test widget API endpoints with signed token authentication."""
 
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
         self.db_path = Path(self.tmp.name) / "widget-routes.db"
-        self.widget_secret = "test-widget-secret-key"
+        self.portal_secret = "test-widget-secret-key"
         self.settings = Settings(
             database_path=self.db_path,
             auth_mode="demo",
             api_keys_json=json.dumps({}),
             docs_enabled=False,
-            widget_secret=self.widget_secret,
+            widget_secret=self.portal_secret,
             widget_frame_ancestors=("'self'",),
         )
         self.app = create_app(self.settings)
@@ -56,16 +56,16 @@ class WidgetRoutesTests(unittest.TestCase):
     def _sign_token(
         self,
         tenant_id: str | None = None,
-        customer_ref: str | None = None,
-        conversation_id: str | None = None,
+        submitter_ref: str | None = None,
+        review_case_id: str | None = None,
         ttl: int = 3600,
     ) -> str:
         """Helper to sign a widget token."""
         return sign_token(
-            secret=self.widget_secret,
+            secret=self.portal_secret,
             tenant_id=tenant_id or self.tenant_id,
-            customer_ref=customer_ref,
-            conversation_id=conversation_id,
+            submitter_ref=submitter_ref,
+            review_case_id=review_case_id,
             ttl_seconds=ttl,
         )
 
@@ -113,8 +113,8 @@ class WidgetRoutesTests(unittest.TestCase):
         self.assertEqual(response.status_code, 404)
         self.assertIn("Tenant not found", response.json()["detail"])
 
-    def test_create_session_default_customer_name(self) -> None:
-        """POST /api/submission-portal/sessions without customer_name uses 'Widget Visitor'."""
+    def test_create_session_default_submitter_name(self) -> None:
+        """POST /api/submission-portal/sessions without submitter_name uses 'Widget Visitor'."""
         token = self._sign_token()
         response = self.client.post(
             "/api/submission-portal/sessions",
@@ -125,7 +125,7 @@ class WidgetRoutesTests(unittest.TestCase):
         data = response.json()
         self.assertEqual(data["conversation"]["customer_name"], "Widget Visitor")
 
-    def test_history_exposes_csat_survey_url_when_resolved(self) -> None:
+    def test_history_exposes_qa_spot_check_survey_url_when_resolved(self) -> None:
         """ROADMAP 2.10.0: when the conversation is resolved and a CSAT
         survey is still pending, the history endpoint hands the widget its
         rating link via the X-CSAT-Survey-URL header — the customer side of
@@ -137,29 +137,29 @@ class WidgetRoutesTests(unittest.TestCase):
             headers={"X-Widget-Token": init_token},
         )
         session_data = session_resp.json()
-        conversation_id = session_data["conversation"]["id"]
+        review_case_id = session_data["conversation"]["id"]
         session_token = session_data["widget_token"]
         widget_headers = {"X-Widget-Token": session_token}
 
         # Unresolved: no survey header.
         unresolved = self.client.get(
-            f"/api/submission-portal/sessions/{conversation_id}/messages?limit=50",
+            f"/api/submission-portal/sessions/{review_case_id}/messages?limit=50",
             headers=widget_headers,
         )
         self.assertEqual(unresolved.status_code, 200)
         self.assertNotIn("X-CSAT-Survey-URL", unresolved.headers)
 
         # Resolve (creates the one-time survey) -> the header appears.
-        self.db.transition_conversation(
+        self.db.transition_review_case(
             self.tenant_id,
-            conversation_id,
+            review_case_id,
             ["open"],
             "resolved",
         )
         expires = "2027-01-01T00:00:00+00:00"
-        survey_token = self.db.create_csat_survey(self.tenant_id, conversation_id, expires)
+        survey_token = self.db.create_csat_survey(self.tenant_id, review_case_id, expires)
         resolved = self.client.get(
-            f"/api/submission-portal/sessions/{conversation_id}/messages?limit=50",
+            f"/api/submission-portal/sessions/{review_case_id}/messages?limit=50",
             headers=widget_headers,
         )
         self.assertEqual(resolved.status_code, 200)
@@ -175,17 +175,17 @@ class WidgetRoutesTests(unittest.TestCase):
             headers={"X-Widget-Token": init_token},
         )
         session_data = session_resp.json()
-        conversation_id = session_data["conversation"]["id"]
+        review_case_id = session_data["conversation"]["id"]
         session_token = session_data["widget_token"]
         widget_headers = {"X-Widget-Token": session_token}
-        self.db.transition_conversation(self.tenant_id, conversation_id, ["open"], "resolved")
+        self.db.transition_review_case(self.tenant_id, review_case_id, ["open"], "resolved")
         survey_token = self.db.create_csat_survey(
-            self.tenant_id, conversation_id, "2027-01-01T00:00:00+00:00"
+            self.tenant_id, review_case_id, "2027-01-01T00:00:00+00:00"
         )
         self.db.submit_csat_rating(survey_token, 1)
 
         responded = self.client.get(
-            f"/api/submission-portal/sessions/{conversation_id}/messages?limit=50",
+            f"/api/submission-portal/sessions/{review_case_id}/messages?limit=50",
             headers=widget_headers,
         )
         self.assertEqual(responded.status_code, 200)
@@ -202,12 +202,12 @@ class WidgetRoutesTests(unittest.TestCase):
             headers={"X-Widget-Token": init_token},
         )
         session_data = session_resp.json()
-        conversation_id = session_data["conversation"]["id"]
+        review_case_id = session_data["conversation"]["id"]
         session_token = session_data["widget_token"]
 
         # Send message
         response = self.client.post(
-            f"/api/submission-portal/sessions/{conversation_id}/messages",
+            f"/api/submission-portal/sessions/{review_case_id}/messages",
             json={"content": "Hello", "channel_message_id": "msg-001"},
             headers={"X-Widget-Token": session_token},
         )
@@ -218,7 +218,7 @@ class WidgetRoutesTests(unittest.TestCase):
         self.assertIn("conversation", data)
         self.assertEqual(data["customer_message"]["content"], "Hello")
 
-    def test_send_message_wrong_conversation_token(self) -> None:
+    def test_send_message_wrong_review_case_token(self) -> None:
         """POST /messages with token for different conversation returns 404."""
         # Create session
         init_token = self._sign_token()
@@ -227,12 +227,12 @@ class WidgetRoutesTests(unittest.TestCase):
             json={"customer_name": "Frank", "channel": "web_chat"},
             headers={"X-Widget-Token": init_token},
         )
-        conversation_id = session_resp.json()["conversation"]["id"]
+        review_case_id = session_resp.json()["conversation"]["id"]
 
         # Use token for different conversation
-        wrong_token = self._sign_token(conversation_id="other-conv-id")
+        wrong_token = self._sign_token(review_case_id="other-conv-id")
         response = self.client.post(
-            f"/api/submission-portal/sessions/{conversation_id}/messages",
+            f"/api/submission-portal/sessions/{review_case_id}/messages",
             json={"content": "Test"},
             headers={"X-Widget-Token": wrong_token},
         )
@@ -249,12 +249,12 @@ class WidgetRoutesTests(unittest.TestCase):
             headers={"X-Widget-Token": init_token},
         )
         session_data = session_resp.json()
-        conversation_id = session_data["conversation"]["id"]
+        review_case_id = session_data["conversation"]["id"]
         session_token = session_data["widget_token"]
 
         # Send message first time
         response1 = self.client.post(
-            f"/api/submission-portal/sessions/{conversation_id}/messages",
+            f"/api/submission-portal/sessions/{review_case_id}/messages",
             json={"content": "First", "channel_message_id": "msg-replay-001"},
             headers={"X-Widget-Token": session_token},
         )
@@ -263,7 +263,7 @@ class WidgetRoutesTests(unittest.TestCase):
 
         # Replay same message
         response2 = self.client.post(
-            f"/api/submission-portal/sessions/{conversation_id}/messages",
+            f"/api/submission-portal/sessions/{review_case_id}/messages",
             json={"content": "First", "channel_message_id": "msg-replay-001"},
             headers={"X-Widget-Token": session_token},
         )
@@ -281,12 +281,12 @@ class WidgetRoutesTests(unittest.TestCase):
             headers={"X-Widget-Token": init_token},
         )
         session_data = session_resp.json()
-        conversation_id = session_data["conversation"]["id"]
+        review_case_id = session_data["conversation"]["id"]
         session_token = session_data["widget_token"]
 
         # Send async
         response = self.client.post(
-            f"/api/submission-portal/sessions/{conversation_id}/messages?async_mode=true",
+            f"/api/submission-portal/sessions/{review_case_id}/messages?async_mode=true",
             json={"content": "Async test", "channel_message_id": "msg-async-001"},
             headers={"X-Widget-Token": session_token},
         )
@@ -305,18 +305,18 @@ class WidgetRoutesTests(unittest.TestCase):
             headers={"X-Widget-Token": init_token},
         )
         session_data = session_resp.json()
-        conversation_id = session_data["conversation"]["id"]
+        review_case_id = session_data["conversation"]["id"]
         session_token = session_data["widget_token"]
 
         self.client.post(
-            f"/api/submission-portal/sessions/{conversation_id}/messages",
+            f"/api/submission-portal/sessions/{review_case_id}/messages",
             json={"content": "Test message"},
             headers={"X-Widget-Token": session_token},
         )
 
         # List messages
         response = self.client.get(
-            f"/api/submission-portal/sessions/{conversation_id}/messages",
+            f"/api/submission-portal/sessions/{review_case_id}/messages",
             headers={"X-Widget-Token": session_token},
         )
         self.assertEqual(response.status_code, 200)
@@ -335,12 +335,12 @@ class WidgetRoutesTests(unittest.TestCase):
             headers={"X-Widget-Token": init_token},
         )
         session_data = session_resp.json()
-        conversation_id = session_data["conversation"]["id"]
+        review_case_id = session_data["conversation"]["id"]
         session_token = session_data["widget_token"]
 
         # List with limit
         response = self.client.get(
-            f"/api/submission-portal/sessions/{conversation_id}/messages?limit=10",
+            f"/api/submission-portal/sessions/{review_case_id}/messages?limit=10",
             headers={"X-Widget-Token": session_token},
         )
         self.assertEqual(response.status_code, 200)
@@ -355,11 +355,11 @@ class WidgetRoutesTests(unittest.TestCase):
             headers={"X-Widget-Token": init_token},
         )
         session_data = session_resp.json()
-        conversation_id = session_data["conversation"]["id"]
+        review_case_id = session_data["conversation"]["id"]
         session_token = session_data["widget_token"]
 
         response = self.client.get(
-            f"/api/submission-portal/sessions/{conversation_id}/stream",
+            f"/api/submission-portal/sessions/{review_case_id}/stream",
             headers={"X-Widget-Token": session_token},
         )
         self.assertEqual(response.status_code, 404)
@@ -375,18 +375,18 @@ class WidgetRoutesTests(unittest.TestCase):
             headers={"X-Widget-Token": init_token},
         )
         session_data = session_resp.json()
-        conversation_id = session_data["conversation"]["id"]
+        review_case_id = session_data["conversation"]["id"]
         session_token = session_data["widget_token"]
 
         self.client.post(
-            f"/api/submission-portal/sessions/{conversation_id}/messages?async_mode=true",
+            f"/api/submission-portal/sessions/{review_case_id}/messages?async_mode=true",
             json={"content": "Stream test"},
             headers={"X-Widget-Token": session_token},
         )
 
         # Stream with custom timeout (should start successfully)
         response = self.client.get(
-            f"/api/submission-portal/sessions/{conversation_id}/stream?timeout=5",
+            f"/api/submission-portal/sessions/{review_case_id}/stream?timeout=5",
             headers={"X-Widget-Token": session_token},
         )
         self.assertEqual(response.status_code, 200)
@@ -401,12 +401,12 @@ class WidgetRoutesTests(unittest.TestCase):
             headers={"X-Widget-Token": init_token},
         )
         session_data = session_resp.json()
-        conversation_id = session_data["conversation"]["id"]
+        review_case_id = session_data["conversation"]["id"]
         session_token = session_data["widget_token"]
 
         # Send without channel_message_id
         response = self.client.post(
-            f"/api/submission-portal/sessions/{conversation_id}/messages",
+            f"/api/submission-portal/sessions/{review_case_id}/messages",
             json={"content": "No channel ID"},
             headers={"X-Widget-Token": session_token},
         )
@@ -414,10 +414,10 @@ class WidgetRoutesTests(unittest.TestCase):
         data = response.json()
         self.assertIn("customer_message", data)
 
-    def test_send_message_to_nonexistent_conversation(self) -> None:
+    def test_send_message_to_nonexistent_review_case(self) -> None:
         """POST /messages to non-existent conversation returns 404."""
         fake_conv_id = "conv_nonexistent123"
-        session_token = self._sign_token(conversation_id=fake_conv_id)
+        session_token = self._sign_token(review_case_id=fake_conv_id)
 
         response = self.client.post(
             f"/api/submission-portal/sessions/{fake_conv_id}/messages",
@@ -426,10 +426,10 @@ class WidgetRoutesTests(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 404)
 
-    def test_list_messages_nonexistent_conversation(self) -> None:
+    def test_list_messages_nonexistent_review_case(self) -> None:
         """GET /messages for non-existent conversation returns 404."""
         fake_conv_id = "conv_fake999"
-        session_token = self._sign_token(conversation_id=fake_conv_id)
+        session_token = self._sign_token(review_case_id=fake_conv_id)
 
         response = self.client.get(
             f"/api/submission-portal/sessions/{fake_conv_id}/messages",
@@ -446,7 +446,7 @@ class WidgetRoutesTests(unittest.TestCase):
             headers={"X-Widget-Token": init_token},
         )
         session_data = session_resp.json()
-        conversation_id = session_data["conversation"]["id"]
+        review_case_id = session_data["conversation"]["id"]
         session_token = session_data["widget_token"]
 
         # Mock orchestrator to raise TurnInProgressError
@@ -457,7 +457,7 @@ class WidgetRoutesTests(unittest.TestCase):
         ) as mock_handle:
             mock_handle.side_effect = TurnInProgressError("Turn already in progress")
             response = self.client.post(
-                f"/api/submission-portal/sessions/{conversation_id}/messages",
+                f"/api/submission-portal/sessions/{review_case_id}/messages",
                 json={"content": "Test conflict"},
                 headers={"X-Widget-Token": session_token},
             )
@@ -473,7 +473,7 @@ class WidgetRoutesTests(unittest.TestCase):
             headers={"X-Widget-Token": init_token},
         )
         session_data = session_resp.json()
-        conversation_id = session_data["conversation"]["id"]
+        review_case_id = session_data["conversation"]["id"]
         session_token = session_data["widget_token"]
 
         # Mock orchestrator to raise ValueError
@@ -482,7 +482,7 @@ class WidgetRoutesTests(unittest.TestCase):
         ) as mock_handle:
             mock_handle.side_effect = ValueError("Invalid message content")
             response = self.client.post(
-                f"/api/submission-portal/sessions/{conversation_id}/messages",
+                f"/api/submission-portal/sessions/{review_case_id}/messages",
                 json={"content": "Bad input"},
                 headers={"X-Widget-Token": session_token},
             )
@@ -498,7 +498,7 @@ class WidgetRoutesTests(unittest.TestCase):
             headers={"X-Widget-Token": init_token},
         )
         session_data = session_resp.json()
-        conversation_id = session_data["conversation"]["id"]
+        review_case_id = session_data["conversation"]["id"]
         session_token = session_data["widget_token"]
 
         # Mock orchestrator to raise LookupError
@@ -507,7 +507,7 @@ class WidgetRoutesTests(unittest.TestCase):
         ) as mock_handle:
             mock_handle.side_effect = LookupError("Resource not found")
             response = self.client.post(
-                f"/api/submission-portal/sessions/{conversation_id}/messages",
+                f"/api/submission-portal/sessions/{review_case_id}/messages",
                 json={"content": "Lookup test"},
                 headers={"X-Widget-Token": session_token},
             )
@@ -523,7 +523,7 @@ class WidgetRoutesTests(unittest.TestCase):
             headers={"X-Widget-Token": init_token},
         )
         session_data = session_resp.json()
-        conversation_id = session_data["conversation"]["id"]
+        review_case_id = session_data["conversation"]["id"]
         session_token = session_data["widget_token"]
 
         # Mock orchestrator to raise IdempotencyConflictError
@@ -534,7 +534,7 @@ class WidgetRoutesTests(unittest.TestCase):
         ) as mock_handle:
             mock_handle.side_effect = IdempotencyConflictError("Idempotency key mismatch")
             response = self.client.post(
-                f"/api/submission-portal/sessions/{conversation_id}/messages",
+                f"/api/submission-portal/sessions/{review_case_id}/messages",
                 json={"content": "Conflict test"},
                 headers={"X-Widget-Token": session_token},
             )
@@ -550,7 +550,7 @@ class WidgetRoutesTests(unittest.TestCase):
             headers={"X-Widget-Token": init_token},
         )
         session_data = session_resp.json()
-        conversation_id = session_data["conversation"]["id"]
+        review_case_id = session_data["conversation"]["id"]
         session_token = session_data["widget_token"]
 
         # Mock orchestrator to raise InvalidTransitionError
@@ -561,7 +561,7 @@ class WidgetRoutesTests(unittest.TestCase):
         ) as mock_handle:
             mock_handle.side_effect = InvalidTransitionError("Cannot transition from resolved")
             response = self.client.post(
-                f"/api/submission-portal/sessions/{conversation_id}/messages",
+                f"/api/submission-portal/sessions/{review_case_id}/messages",
                 json={"content": "Transition test"},
                 headers={"X-Widget-Token": session_token},
             )
@@ -577,7 +577,7 @@ class WidgetRoutesTests(unittest.TestCase):
             headers={"X-Widget-Token": init_token},
         )
         session_data = session_resp.json()
-        conversation_id = session_data["conversation"]["id"]
+        review_case_id = session_data["conversation"]["id"]
         session_token = session_data["widget_token"]
 
         # Mock backpressure check to return overload reason
@@ -585,7 +585,7 @@ class WidgetRoutesTests(unittest.TestCase):
             "app.portal_routes.backpressure_reason", return_value="Queue full, try again later"
         ):
             response = self.client.post(
-                f"/api/submission-portal/sessions/{conversation_id}/messages?async_mode=true",
+                f"/api/submission-portal/sessions/{review_case_id}/messages?async_mode=true",
                 json={"content": "Test backpressure"},
                 headers={"X-Widget-Token": session_token},
             )
@@ -602,7 +602,7 @@ class WidgetRoutesTests(unittest.TestCase):
             headers={"X-Widget-Token": init_token},
         )
         session_data = session_resp.json()
-        conversation_id = session_data["conversation"]["id"]
+        review_case_id = session_data["conversation"]["id"]
         session_token = session_data["widget_token"]
 
         # Mock orchestrator to raise an unexpected exception type
@@ -613,7 +613,7 @@ class WidgetRoutesTests(unittest.TestCase):
         ) as mock_handle:
             mock_handle.side_effect = RuntimeError("Unexpected internal error")
             response = test_client.post(
-                f"/api/submission-portal/sessions/{conversation_id}/messages",
+                f"/api/submission-portal/sessions/{review_case_id}/messages",
                 json={"content": "Unhandled test"},
                 headers={"X-Widget-Token": session_token},
             )

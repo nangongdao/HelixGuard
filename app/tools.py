@@ -65,13 +65,16 @@ WRITE_TOOLS: dict[str, Any] = {}
 # sandbox surface today is read-only lookups; a new tool registers its side
 # effect and argument schema here at the same time as its connector wiring.
 DEFAULT_TOOL_POLICIES: dict[str, ToolPolicy] = {
-    "orders.lookup": ToolPolicy(
-        name="orders.lookup",
+    "source_lookups.lookup": ToolPolicy(
+        name="source_lookups.lookup",
         side_effect="readonly",
         parameter_schema={
             "type": "object",
-            "required": ["order_id"],
-            "properties": {"order_id": {"type": "string"}, "customer_ref": {"type": "string"}},
+            "required": ["source_record_id"],
+            "properties": {
+                "source_record_id": {"type": "string"},
+                "customer_ref": {"type": "string"},
+            },
         },
     ),
     "customers.resolve": ToolPolicy(
@@ -293,14 +296,16 @@ class ToolGateway:
         if not confirmation_id:
             raise PermissionError(f"write tool {tool!r} requires human confirmation")
 
-    def search_knowledge(self, tenant_id: str, query: str, *, limit: int = 3) -> list[KnowledgeHit]:
+    def search_policy_articles(
+        self, tenant_id: str, query: str, *, limit: int = 3
+    ) -> list[KnowledgeHit]:
         """Delegate knowledge retrieval to the injected connector (Phase 20.2)."""
         return self._knowledge_connector.search(tenant_id, query, limit=limit)
 
     def resolve_customer(
         self,
         tenant_id: str,
-        customer_ref: str,
+        submitter_ref: str,
         *,
         owner_tenant_id: str | None = None,
         capability: dict[str, Any] | None = None,
@@ -315,7 +320,7 @@ class ToolGateway:
         the connector runs; a failure refuses the call without disclosure.
         """
         started = perf_counter()
-        self._authorize(ToolReauthorization(tenant_id, owner_tenant_id or tenant_id), customer_ref)
+        self._authorize(ToolReauthorization(tenant_id, owner_tenant_id or tenant_id), submitter_ref)
 
         def _denied(code: str, reason: str, message: str) -> ToolExecution:
             logger.info("tool.denied tool=%s reason=%s", "customers.resolve", reason)
@@ -324,24 +329,24 @@ class ToolGateway:
                 success=False,
                 code=code,
                 duration_ms=int((perf_counter() - started) * 1000),
-                arguments={"customer_ref": customer_ref},
+                arguments={"customer_ref": submitter_ref},
             )
 
         try:
             self.enforce_governance(
                 "customers.resolve",
                 tenant_id,
-                {"customer_ref": customer_ref},
+                {"customer_ref": submitter_ref},
                 capability=capability,
             )
         except ToolGovernanceDenied as exc:
             return _denied("policy_denied", exc.reason, str(exc))
 
-        result = self._crm_connector.resolve_customer(tenant_id, customer_ref)
+        result = self._crm_connector.resolve_customer(tenant_id, submitter_ref)
         output: dict[str, Any] = {}
         if result.ok and result.profile is not None:
             output = {
-                "customer_ref": result.profile.customer_ref,
+                "customer_ref": result.profile.submitter_ref,
                 "name": result.profile.name,
             }
         return ToolExecution(
@@ -350,14 +355,14 @@ class ToolGateway:
             code=result.code,
             duration_ms=int((perf_counter() - started) * 1000),
             output=output,
-            arguments={"customer_ref": customer_ref},
+            arguments={"customer_ref": submitter_ref},
         )
 
     def lookup_order(
         self,
         tenant_id: str,
-        customer_ref: str | None,
-        order_id: str,
+        submitter_ref: str | None,
+        source_record_id: str,
         *,
         owner_tenant_id: str | None = None,
         capability: dict[str, Any] | None = None,
@@ -374,38 +379,40 @@ class ToolGateway:
         """
         started = perf_counter()
         try:
-            self._authorize(ToolReauthorization(tenant_id, owner_tenant_id or tenant_id), order_id)
+            self._authorize(
+                ToolReauthorization(tenant_id, owner_tenant_id or tenant_id), source_record_id
+            )
         except ValueError as exc:
             logger.info("order lookup refused: %s", exc)
             return ToolExecution(
-                tool="orders.lookup",
+                tool="source_lookups.lookup",
                 success=False,
                 code="not_found",
                 duration_ms=int((perf_counter() - started) * 1000),
-                arguments={"order_id": order_id},
+                arguments={"source_record_id": source_record_id},
             )
 
         def _denied(code: str, reason: str, message: str) -> ToolExecution:
-            logger.info("tool.denied tool=%s reason=%s", "orders.lookup", reason)
+            logger.info("tool.denied tool=%s reason=%s", "source_lookups.lookup", reason)
             return ToolExecution(
-                tool="orders.lookup",
+                tool="source_lookups.lookup",
                 success=False,
                 code=code,
                 duration_ms=int((perf_counter() - started) * 1000),
-                arguments={"order_id": order_id},
+                arguments={"source_record_id": source_record_id},
             )
 
         try:
             self.enforce_governance(
-                "orders.lookup",
+                "source_lookups.lookup",
                 tenant_id,
-                {"order_id": order_id, "customer_ref": customer_ref},
+                {"source_record_id": source_record_id, "customer_ref": submitter_ref},
                 capability=capability,
             )
         except ToolGovernanceDenied as exc:
             return _denied("policy_denied", exc.reason, str(exc))
 
-        result = self._order_connector.lookup_order(tenant_id, customer_ref, order_id)
+        result = self._order_connector.lookup_order(tenant_id, submitter_ref, source_record_id)
         output: dict[str, Any] = {}
         if result.ok and result.order is not None:
             output = {
@@ -415,12 +422,12 @@ class ToolGateway:
                 "tracking_code": result.order.tracking_code,
             }
         return ToolExecution(
-            tool="orders.lookup",
+            tool="source_lookups.lookup",
             success=result.ok,
             code=result.code,
             duration_ms=int((perf_counter() - started) * 1000),
             output=output,
-            arguments={"order_id": order_id},
+            arguments={"source_record_id": source_record_id},
         )
 
     def mint_capability_token(self, tool: str, tenant_id: str) -> dict[str, Any] | None:

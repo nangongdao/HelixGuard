@@ -69,20 +69,18 @@ class CollaborationTests(unittest.TestCase):
         self.assertEqual(conv.status_code, 201, conv.text)
         return conv.json()["id"]
 
-    def _accept(self, conversation_id: str) -> None:
+    def _accept(self, review_case_id: str) -> None:
         response = self.client.post(
-            f"/api/review-cases/{conversation_id}/accept", headers=self.admin
+            f"/api/review-cases/{review_case_id}/accept", headers=self.admin
         )
         self.assertEqual(response.status_code, 200, response.text)
 
-    def _note(
-        self, conversation_id: str, content: str, headers, reply_to: str | None = None
-    ) -> Any:
+    def _note(self, review_case_id: str, content: str, headers, reply_to: str | None = None) -> Any:
         payload: dict[str, Any] = {"content": content}
         if reply_to:
             payload["reply_to"] = reply_to
         response = self.client.post(
-            f"/api/review-cases/{conversation_id}/notes",
+            f"/api/review-cases/{review_case_id}/notes",
             json=payload,
             headers=headers,
         )
@@ -92,11 +90,11 @@ class CollaborationTests(unittest.TestCase):
     # ------------------------------------------------------------------ @提及
 
     def test_mention_records_and_inbox(self) -> None:
-        conversation_id = self._open("mention")
-        self._accept(conversation_id)
+        review_case_id = self._open("mention")
+        self._accept(review_case_id)
         # operator-a mentions operator-b in an internal note.
         note = self._note(
-            conversation_id,
+            review_case_id,
             "请 @operator-b 核对一下这个订单的物流状态",
             self.op_a,
         )
@@ -106,7 +104,7 @@ class CollaborationTests(unittest.TestCase):
         self.assertEqual(inbox["unread_count"], 1)
         self.assertEqual(len(inbox["mentions"]), 1)
         mention = inbox["mentions"][0]
-        self.assertEqual(mention["conversation_id"], conversation_id)
+        self.assertEqual(mention["conversation_id"], review_case_id)
         self.assertEqual(mention["mentioned_by"], "operator-a")
         self.assertEqual(mention["conversation_customer"], "mention")
         self.assertEqual(mention["unread"], True)
@@ -117,10 +115,10 @@ class CollaborationTests(unittest.TestCase):
         self.assertEqual(own["mentions"], [])
 
     def test_self_mention_and_non_actor_tokens_are_skipped(self) -> None:
-        conversation_id = self._open("skip")
-        self._accept(conversation_id)
+        review_case_id = self._open("skip")
+        self._accept(review_case_id)
         self._note(
-            conversation_id,
+            review_case_id,
             "自己 @operator-a 同一个人,邮箱 user@example.com 不算提及;@operator-b 算",
             self.op_a,
         )
@@ -131,9 +129,9 @@ class CollaborationTests(unittest.TestCase):
         self.assertEqual(inbox_b["mentions"][0]["mentioned_by"], "operator-a")
 
     def test_mark_read_is_idempotent_and_audited(self) -> None:
-        conversation_id = self._open("read")
-        self._accept(conversation_id)
-        self._note(conversation_id, "回我一下 @operator-b", self.op_a)
+        review_case_id = self._open("read")
+        self._accept(review_case_id)
+        self._note(review_case_id, "回我一下 @operator-b", self.op_a)
         inbox = self.client.get("/api/mentions", headers=self.op_b).json()
         mention_id = inbox["mentions"][0]["id"]
         first = self.client.post(f"/api/mentions/{mention_id}/read", headers=self.op_b)
@@ -150,9 +148,9 @@ class CollaborationTests(unittest.TestCase):
 
     def test_mention_read_requires_ownership(self) -> None:
         """operator-a cannot read operator-b's mention (tenant+actor scoped)."""
-        conversation_id = self._open("owner")
-        self._accept(conversation_id)
-        self._note(conversation_id, "只看 @operator-b", self.op_a)
+        review_case_id = self._open("owner")
+        self._accept(review_case_id)
+        self._note(review_case_id, "只看 @operator-b", self.op_a)
         inbox = self.client.get("/api/mentions", headers=self.op_b).json()
         mention_id = inbox["mentions"][0]["id"]
         response = self.client.post(f"/api/mentions/{mention_id}/read", headers=self.op_a)
@@ -173,9 +171,9 @@ class CollaborationTests(unittest.TestCase):
 
     def test_mention_cross_tenant_isolation(self) -> None:
         """A mention row never leaks across tenants."""
-        conversation_id = self._open("iso")
-        self._accept(conversation_id)
-        self._note(conversation_id, "给 @other-tenant-user 打个招呼 @operator-b", self.op_a)
+        review_case_id = self._open("iso")
+        self._accept(review_case_id)
+        self._note(review_case_id, "给 @other-tenant-user 打个招呼 @operator-b", self.op_a)
         inbox = self.client.get("/api/mentions", headers=self.op_b).json()
         # Only operator-b's rows (tenant-scoped) appear for this tenant.
         self.assertEqual(inbox["unread_count"], 1)
@@ -184,18 +182,18 @@ class CollaborationTests(unittest.TestCase):
     # ------------------------------------------------------------- 讨论线程
 
     def test_note_reply_threading(self) -> None:
-        conversation_id = self._open("thread")
-        self._accept(conversation_id)
-        root = self._note(conversation_id, "根备注:谁来处理这个排队问题", self.op_a)
+        review_case_id = self._open("thread")
+        self._accept(review_case_id)
+        root = self._note(review_case_id, "根备注:谁来处理这个排队问题", self.op_a)
         reply = self._note(
-            conversation_id,
+            review_case_id,
             "我来处理 @operator-b 一起看",
             self.op_a,
             reply_to=root["id"],
         )
         self.assertEqual(reply["reply_to"], root["id"])
         threads = self.client.get(
-            f"/api/review-cases/{conversation_id}/threads", headers=self.admin
+            f"/api/review-cases/{review_case_id}/threads", headers=self.admin
         ).json()
         self.assertEqual(len(threads["threads"]), 1)
         thread = threads["threads"][0]
@@ -205,45 +203,45 @@ class CollaborationTests(unittest.TestCase):
         self.assertEqual(thread["replies"][0]["id"], reply["id"])
 
     def test_reply_target_must_be_internal_note(self) -> None:
-        conversation_id = self._open("badtarget")
-        self._accept(conversation_id)
+        review_case_id = self._open("badtarget")
+        self._accept(review_case_id)
         self.client.post(
-            f"/api/review-cases/{conversation_id}/messages",
+            f"/api/review-cases/{review_case_id}/messages",
             json={"content": "待审内容"},
             headers={**self.admin, "Idempotency-Key": "collab-badtarget-msg"},
         )
-        details = self.client.get(f"/api/review-cases/{conversation_id}", headers=self.admin).json()
+        details = self.client.get(f"/api/review-cases/{review_case_id}", headers=self.admin).json()
         customer_msg = next(m for m in details["messages"] if m["role"] == "customer")
         response = self.client.post(
-            f"/api/review-cases/{conversation_id}/notes",
+            f"/api/review-cases/{review_case_id}/notes",
             json={"content": "回复一条待审内容是不允许的", "reply_to": customer_msg["id"]},
             headers=self.op_a,
         )
         self.assertIn(response.status_code, (409, 422), response.text)
 
     def test_reply_to_unknown_note_is_rejected(self) -> None:
-        conversation_id = self._open("unknown")
-        self._accept(conversation_id)
+        review_case_id = self._open("unknown")
+        self._accept(review_case_id)
         response = self.client.post(
-            f"/api/review-cases/{conversation_id}/notes",
+            f"/api/review-cases/{review_case_id}/notes",
             json={"content": "回错了", "reply_to": "msg_doesnotexist0000"},
             headers=self.op_a,
         )
         self.assertIn(response.status_code, (404, 422), response.text)
 
-    def test_threads_require_conversation_read(self) -> None:
+    def test_threads_require_review_case_read(self) -> None:
         response = self.client.get("/api/review-cases/nope/threads", headers=self.channel)
         self.assertEqual(response.status_code, 403)
 
     # ------------------------------------------------------------- 旁观模式
 
     def test_live_event_stream_emits_snapshot(self) -> None:
-        conversation_id = self._open("watch")
-        self._accept(conversation_id)
+        review_case_id = self._open("watch")
+        self._accept(review_case_id)
         # A supervisor (admin) can open the read-only stream.
         with self.client.stream(
             "GET",
-            f"/api/review-cases/{conversation_id}/events?timeout=6",
+            f"/api/review-cases/{review_case_id}/events?timeout=6",
             headers=self.admin,
         ) as response:
             self.assertEqual(response.status_code, 200)
@@ -256,12 +254,12 @@ class CollaborationTests(unittest.TestCase):
             )
 
     def test_live_event_stream_emits_changed_event(self) -> None:
-        conversation_id = self._open("watch2")
-        self._accept(conversation_id)
+        review_case_id = self._open("watch2")
+        self._accept(review_case_id)
         collected: dict[str, str | None] = {"revision": None}
         with self.client.stream(
             "GET",
-            f"/api/review-cases/{conversation_id}/events?timeout=7",
+            f"/api/review-cases/{review_case_id}/events?timeout=7",
             headers=self.admin,
         ) as response:
             events = self._drain_sse_until(response, "snapshot", collected)
@@ -275,17 +273,17 @@ class CollaborationTests(unittest.TestCase):
 
     def test_observation_does_not_change_revision(self) -> None:
         """Watching is read-only: revision before == revision after."""
-        conversation_id = self._open("watch3")
-        self._accept(conversation_id)
+        review_case_id = self._open("watch3")
+        self._accept(review_case_id)
         database = self.services.database
-        before = database.conversation_revision(TENANT, conversation_id)
+        before = database.conversation_revision(TENANT, review_case_id)
         with self.client.stream(
             "GET",
-            f"/api/review-cases/{conversation_id}/events?timeout=6",
+            f"/api/review-cases/{review_case_id}/events?timeout=6",
             headers=self.admin,
         ) as response:
             self._drain_sse_until(response, "snapshot", {})
-        after = database.conversation_revision(TENANT, conversation_id)
+        after = database.conversation_revision(TENANT, review_case_id)
         self.assertEqual(before, after)
 
     def test_channel_cannot_open_live_view(self) -> None:
@@ -294,9 +292,9 @@ class CollaborationTests(unittest.TestCase):
 
     def test_mention_flags_and_audit_on_note(self) -> None:
         """The note write audits mentions alongside the note."""
-        conversation_id = self._open("audit")
-        self._accept(conversation_id)
-        self._note(conversation_id, "请你确认 @operator-b", self.op_a)
+        review_case_id = self._open("audit")
+        self._accept(review_case_id)
+        self._note(review_case_id, "请你确认 @operator-b", self.op_a)
         events = self.client.get("/api/audit-events", headers=self.admin).json()
         events = events if isinstance(events, list) else events.get("events", [])
         recorded = [e for e in events if e.get("event_type") == "conversation.mentions_recorded"]

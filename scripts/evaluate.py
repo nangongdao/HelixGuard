@@ -1,6 +1,6 @@
 """Offline golden-set evaluation harness for Helix Guard.
 
-Runs a fixed set of end-to-end conversations through the application — the same
+Runs a fixed set of end-to-end review_cases through the application — the same
 path the HTTP API serves — and checks each case against its expected routing
 outcome.  The deployment plan treats this as the release quality gate: a model,
 prompt, or routing change must not regress the golden set.
@@ -123,12 +123,12 @@ def load_golden_set(path: Path) -> list[dict[str, Any]]:
         if message and messages:
             _fail(f"golden case '{case_id}' cannot have both message and messages")
 
-        conversation = case["conversation"]
-        if set(conversation) - _CONVERSATION_KEYS:
+        review_case = case["conversation"]
+        if set(review_case) - _CONVERSATION_KEYS:
             _fail(f"golden case '{case_id}' has unknown conversation keys")
-        if not isinstance(conversation.get("customer_ref"), (str, type(None))):
-            _fail(f"golden case '{case_id}' customer_ref must be a string or null")
-        if not isinstance(conversation.get("channel"), str):
+        if not isinstance(review_case.get("customer_ref"), (str, type(None))):
+            _fail(f"golden case '{case_id}' submitter_ref must be a string or null")
+        if not isinstance(review_case.get("channel"), str):
             _fail(f"golden case '{case_id}' channel must be a string")
 
         unknown_expect = set(case["expect"]) - _EXPECT_KEYS
@@ -204,7 +204,9 @@ def _check_expect(
 
     expected_tool = expect.get("tool_code")
     tool_calls = metadata.get("tool_calls") or []
-    order_call = next((call for call in tool_calls if call.get("tool") == "orders.lookup"), None)
+    order_call = next(
+        (call for call in tool_calls if call.get("tool") == "source_lookups.lookup"), None
+    )
     observed_tool = (order_call or (tool_calls[0] if tool_calls else {})).get("code")
     if expected_tool is not None and observed_tool != expected_tool:
         problems.append(f"tool_code={observed_tool!r} (expected {expected_tool!r})")
@@ -227,27 +229,27 @@ def _check_expect(
 
 def run_case(client: TestClient, headers: dict[str, str], case: dict[str, Any]) -> CaseResult:
     """Run one golden case and return its result."""
-    conversation: dict[str, Any] = case["conversation"]
+    review_case: dict[str, Any] = case["conversation"]
     payload: dict[str, str] = {
         "customer_name": f"golden-{case['id'][:20]}",
-        "channel": conversation.get("channel") or "web",
+        "channel": review_case.get("channel") or "web",
     }
-    if conversation.get("customer_ref"):
-        payload["customer_ref"] = conversation["customer_ref"]
+    if review_case.get("customer_ref"):
+        payload["customer_ref"] = review_case["customer_ref"]
 
     created = client.post("/api/review-cases", json=payload, headers=headers)
     if created.status_code != 201:
         return CaseResult(
             case["id"], False, 0.0, f"conversation create failed: HTTP {created.status_code}"
         )
-    conversation_id = created.json()["id"]
+    review_case_id = created.json()["id"]
 
     messages = case.get("messages") or [case["message"]]
     started = time.monotonic()
     last_response = None
     for index, content in enumerate(messages):
         response = client.post(
-            f"/api/review-cases/{conversation_id}/messages",
+            f"/api/review-cases/{review_case_id}/messages",
             headers=dict(headers, **{"Idempotency-Key": f"golden-{uuid4().hex[:12]}-{index}"}),
             json={"content": content},
         )

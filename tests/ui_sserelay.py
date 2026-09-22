@@ -107,7 +107,7 @@ def instrument(page: Page) -> dict:
     return tracker
 
 
-def _find_conversation_id(name: str) -> str | None:
+def _find_review_case_id(name: str) -> str | None:
     """Resolve the conversation id for ``name`` by walking the first list page.
 
     The queue list sorts high-priority rows first, so a freshly created
@@ -132,8 +132,8 @@ def _find_conversation_id(name: str) -> str | None:
     return None
 
 
-def count_conversations() -> int:
-    """Total open conversations by walking X-Next-Cursor pages."""
+def count_review_cases() -> int:
+    """Total open review_cases by walking X-Next-Cursor pages."""
     total = 0
     cursor: str | None = None
     while True:
@@ -165,7 +165,7 @@ def wait_queue_has(page: Page, name: str, timeout_s: float) -> None:
 
     Name-based instead of count-based because ``#queueCount`` caps at
     ``{page_size}+ 个审核单`` once the database holds more than one page of
-    conversations (shared scratch DB after ui_virtual_queue seeds hundreds
+    review_cases (shared scratch DB after ui_virtual_queue seeds hundreds
     of rows), so an exact count can never be observed there.
     """
     deadline = time.monotonic() + timeout_s
@@ -219,7 +219,7 @@ def main() -> None:
             f"follower=tab {follower_label} (sse=0)"
         )
 
-        # Seed two conversations one at a time; BOTH tabs must show each name
+        # Seed two review_cases one at a time; BOTH tabs must show each name
         # well before the 30s poll interval, proving the follower's update
         # came through the relayed event rather than its own stream or poll
         # timer.
@@ -241,7 +241,7 @@ def main() -> None:
                 f"seed conversation {seed_name} failed HTTP {create_status}"
             )
             # Fetch the freshly created conversation id so we can promote it.
-            conv_id = _find_conversation_id(seed_name)
+            conv_id = _find_review_case_id(seed_name)
             assert conv_id, f"could not resolve id for {seed_name}"
             promote_status = api_patch(
                 f"/api/review-cases/{conv_id}",

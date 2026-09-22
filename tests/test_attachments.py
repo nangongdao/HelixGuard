@@ -63,7 +63,7 @@ class AttachmentAppTests(unittest.TestCase):
         self.client.close()
         self._tmp.cleanup()
 
-    def _open_conversation(self) -> str:
+    def _open_review_case(self) -> str:
         conv = self.client.post(
             "/api/review-cases", json={"customer_name": "S"}, headers=self.admin
         ).json()
@@ -71,7 +71,7 @@ class AttachmentAppTests(unittest.TestCase):
 
     def _upload(
         self,
-        conversation_id: str,
+        review_case_id: str,
         filename: str = "pic.png",
         content: bytes = PNG_BYTES,
         content_type: str = "image/png",
@@ -79,7 +79,7 @@ class AttachmentAppTests(unittest.TestCase):
     ):
         return self.client.post(
             "/api/attachments",
-            data={"conversation_id": conversation_id},
+            data={"conversation_id": review_case_id},
             files={"file": (filename, content, content_type)},
             headers=headers or self.admin,
         )
@@ -94,8 +94,8 @@ class AttachmentAppTests(unittest.TestCase):
     # ---------------------------------------------------------------- upload
 
     def test_upload_stores_and_lists(self) -> None:
-        conversation_id = self._open_conversation()
-        response = self._upload(conversation_id)
+        review_case_id = self._open_review_case()
+        response = self._upload(review_case_id)
         self.assertEqual(response.status_code, 201, response.text)
         attachment = response.json()
         self.assertEqual(attachment["status"], "stored")
@@ -104,36 +104,36 @@ class AttachmentAppTests(unittest.TestCase):
         self.assertTrue(attachment["scanned"])
         self.assertTrue((self.storage / self._storage_key(attachment["id"])).is_file())
         listed = self.client.get(
-            f"/api/attachments?conversation_id={conversation_id}", headers=self.admin
+            f"/api/attachments?conversation_id={review_case_id}", headers=self.admin
         ).json()
         self.assertEqual(len(listed), 1)
 
     def test_upload_rejects_unsupported_type(self) -> None:
-        conversation_id = self._open_conversation()
+        review_case_id = self._open_review_case()
         response = self._upload(
-            conversation_id, "evil.exe", b"MZ\x90\x00", "application/octet-stream"
+            review_case_id, "evil.exe", b"MZ\x90\x00", "application/octet-stream"
         )
         self.assertEqual(response.status_code, 415, response.text)
 
     def test_upload_rejects_executable_magic_with_image_type(self) -> None:
-        conversation_id = self._open_conversation()
+        review_case_id = self._open_review_case()
         response = self._upload(
-            conversation_id, "fake.png", b"MZ\x90\x00" + b"\x00" * 16, "image/png"
+            review_case_id, "fake.png", b"MZ\x90\x00" + b"\x00" * 16, "image/png"
         )
         self.assertEqual(response.status_code, 201, response.text)
         self.assertEqual(response.json()["status"], "rejected")
         self.assertEqual(response.json()["verdict"], "executable magic bytes detected")
 
     def test_upload_rejects_mismatched_signature(self) -> None:
-        conversation_id = self._open_conversation()
-        response = self._upload(conversation_id, "fake.png", b"not a png at all", "image/png")
+        review_case_id = self._open_review_case()
+        response = self._upload(review_case_id, "fake.png", b"not a png at all", "image/png")
         self.assertEqual(response.status_code, 201, response.text)
         self.assertEqual(response.json()["status"], "rejected")
 
     def test_upload_over_per_file_limit(self) -> None:
         import types
 
-        conversation_id = self._open_conversation()
+        review_case_id = self._open_review_case()
         original = self.services.attachments.settings
         small = types.SimpleNamespace(
             attachment_max_mb=1,
@@ -144,13 +144,13 @@ class AttachmentAppTests(unittest.TestCase):
         self.services.attachments.settings = small
         try:
             big = b"\x89PNG\r\n\x1a\n" + b"\x00" * (2 * 1024 * 1024)
-            response = self._upload(conversation_id, "big.png", big)
+            response = self._upload(review_case_id, "big.png", big)
             self.assertEqual(response.status_code, 413, response.text)
         finally:
             self.services.attachments.settings = original
 
     def test_upload_over_tenant_quota(self) -> None:
-        conversation_id = self._open_conversation()
+        review_case_id = self._open_review_case()
         original = self.services.attachments.settings
         # Use a tiny quota by replacing the service settings object's values.
         import types
@@ -164,9 +164,9 @@ class AttachmentAppTests(unittest.TestCase):
         self.services.attachments.settings = small
         try:
             big = b"\x89PNG\r\n\x1a\n" + b"\x00" * (900 * 1024)
-            response = self._upload(conversation_id, "big.png", big)
+            response = self._upload(review_case_id, "big.png", big)
             self.assertEqual(response.status_code, 201, response.text)
-            second = self._upload(conversation_id, "big2.png", big)
+            second = self._upload(review_case_id, "big2.png", big)
             self.assertEqual(second.status_code, 413, second.text)
         finally:
             self.services.attachments.settings = original
@@ -174,8 +174,8 @@ class AttachmentAppTests(unittest.TestCase):
     # ------------------------------------------------------------- download
 
     def test_download_forces_attachment(self) -> None:
-        conversation_id = self._open_conversation()
-        attachment = self._upload(conversation_id).json()
+        review_case_id = self._open_review_case()
+        attachment = self._upload(review_case_id).json()
         response = self.client.get(
             f"/api/attachments/{attachment['id']}/download", headers=self.admin
         )
@@ -187,9 +187,9 @@ class AttachmentAppTests(unittest.TestCase):
         # A non-ASCII name must be served via ``filename*=utf-8''`` (RFC 6266),
         # never raw bytes or a hand-built quoted header that could break the
         # Content-Disposition line.
-        conversation_id = self._open_conversation()
+        review_case_id = self._open_review_case()
         attachment = self._upload(
-            conversation_id, "报价单.pdf", b"%PDF-1.4 test", "application/pdf"
+            review_case_id, "报价单.pdf", b"%PDF-1.4 test", "application/pdf"
         ).json()
         self.assertEqual(attachment["status"], "stored")
         response = self.client.get(
@@ -214,7 +214,7 @@ class AttachmentAppTests(unittest.TestCase):
         self.assertEqual(sanitize_filename("报表 报价单.pdf"), "报表 报价单.pdf")
 
     def test_upload_removes_orphaned_file_when_row_insert_fails(self) -> None:
-        conversation_id = self._open_conversation()
+        review_case_id = self._open_review_case()
         original_connect = self.services.database.connect
         calls = {"n": 0}
 
@@ -227,14 +227,14 @@ class AttachmentAppTests(unittest.TestCase):
         self.services.database.connect = flaky_connect
         try:
             with self.assertRaises(RuntimeError):
-                self._upload(conversation_id)
+                self._upload(review_case_id)
         finally:
             self.services.database.connect = original_connect
         self.assertEqual(list(self.storage.glob("*")), [])
 
     def test_rejected_attachment_not_downloadable(self) -> None:
-        conversation_id = self._open_conversation()
-        attachment = self._upload(conversation_id, "fake.png", b"not a png", "image/png").json()
+        review_case_id = self._open_review_case()
+        attachment = self._upload(review_case_id, "fake.png", b"not a png", "image/png").json()
         self.assertEqual(attachment["status"], "rejected")
         response = self.client.get(
             f"/api/attachments/{attachment['id']}/download", headers=self.admin
@@ -242,8 +242,8 @@ class AttachmentAppTests(unittest.TestCase):
         self.assertEqual(response.status_code, 404, response.text)
 
     def test_download_tenant_isolation(self) -> None:
-        conversation_id = self._open_conversation()
-        attachment = self._upload(conversation_id).json()
+        review_case_id = self._open_review_case()
+        attachment = self._upload(review_case_id).json()
         response = self.client.get(
             f"/api/attachments/{attachment['id']}/download",
             headers={"X-API-Key": VIEWER_KEY, "X-Tenant-Id": "other"},
@@ -253,8 +253,8 @@ class AttachmentAppTests(unittest.TestCase):
     # ------------------------------------------------------------------ delete
 
     def test_delete_removes_file_and_frees_quota(self) -> None:
-        conversation_id = self._open_conversation()
-        attachment = self._upload(conversation_id).json()
+        review_case_id = self._open_review_case()
+        attachment = self._upload(review_case_id).json()
         storage_key = self._storage_key(attachment["id"])
         before = self.services.attachments.quota_used("demo")
         self.assertGreater(before, 0)
@@ -265,12 +265,12 @@ class AttachmentAppTests(unittest.TestCase):
 
     # ----------------------------------------------------- operator messages
 
-    def test_operator_message_with_attachments(self) -> None:
-        conversation_id = self._open_conversation()
-        self.client.post(f"/api/review-cases/{conversation_id}/accept", headers=self.admin)
-        attachment = self._upload(conversation_id).json()
+    def test_reviewer_message_with_attachments(self) -> None:
+        review_case_id = self._open_review_case()
+        self.client.post(f"/api/review-cases/{review_case_id}/accept", headers=self.admin)
+        attachment = self._upload(review_case_id).json()
         response = self.client.post(
-            f"/api/review-cases/{conversation_id}/operator-messages",
+            f"/api/review-cases/{review_case_id}/operator-messages",
             json={"content": "请看附件", "attachment_ids": [attachment["id"]]},
             headers=self.admin,
         )
@@ -283,13 +283,13 @@ class AttachmentAppTests(unittest.TestCase):
             ).fetchone()
         self.assertEqual(row["message_id"], message["id"])
 
-    def test_operator_message_rejects_foreign_attachment(self) -> None:
-        conversation_id = self._open_conversation()
-        other = self._open_conversation()
+    def test_reviewer_message_rejects_foreign_attachment(self) -> None:
+        review_case_id = self._open_review_case()
+        other = self._open_review_case()
         attachment = self._upload(other).json()
-        self.client.post(f"/api/review-cases/{conversation_id}/accept", headers=self.admin)
+        self.client.post(f"/api/review-cases/{review_case_id}/accept", headers=self.admin)
         response = self.client.post(
-            f"/api/review-cases/{conversation_id}/operator-messages",
+            f"/api/review-cases/{review_case_id}/operator-messages",
             json={"content": "错附件", "attachment_ids": [attachment["id"]]},
             headers=self.admin,
         )
@@ -298,12 +298,12 @@ class AttachmentAppTests(unittest.TestCase):
     # --------------------------------------------------------------------- RBAC
 
     def test_viewer_denied_upload_but_can_read(self) -> None:
-        conversation_id = self._open_conversation()
-        response = self._upload(conversation_id, headers=self.viewer)
+        review_case_id = self._open_review_case()
+        response = self._upload(review_case_id, headers=self.viewer)
         self.assertEqual(response.status_code, 403, response.text)
-        attachment = self._upload(conversation_id).json()
+        attachment = self._upload(review_case_id).json()
         listed = self.client.get(
-            f"/api/attachments?conversation_id={conversation_id}", headers=self.viewer
+            f"/api/attachments?conversation_id={review_case_id}", headers=self.viewer
         )
         self.assertEqual(listed.status_code, 200, listed.text)
         meta = self.client.get(f"/api/attachments/{attachment['id']}", headers=self.viewer)

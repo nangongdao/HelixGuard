@@ -279,7 +279,7 @@ class DriftMonitor:
                 chunk = ordered[start : start + 500]
                 placeholders = ", ".join("?" for _ in chunk)
                 served = connection.execute(
-                    "SELECT id FROM knowledge_articles "
+                    "SELECT id FROM policy_articles "
                     f"WHERE tenant_id = ? AND active = 1 "
                     f"AND (status = 'published' OR status IS NULL) "
                     f"AND id IN ({placeholders})",

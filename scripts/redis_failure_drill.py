@@ -157,7 +157,7 @@ class StrengthTests(unittest.TestCase):
             self.redis.delete(key)
 
     def _conversation(self, index: int = 0) -> str:
-        return self.db.create_conversation(
+        return self.db.create_review_case(
             "drill-tenant", f"Drill Conv {index}", f"CUST-D-{index}", "web", "admin", 120
         )["id"]
 
@@ -239,7 +239,7 @@ class FailClosedApiTests(unittest.TestCase):
             self.assertEqual(ready.status_code, 503)
             self.assertFalse(ready.json()["queue"]["ready"])
             self.assertIsNotNone(ready.json()["queue"]["degraded_reason"])
-            conv = services.database.create_conversation(
+            conv = services.database.create_review_case(
                 "drill-tenant", "FC", "CUST-FC", "web", "admin", 120
             )
             headers = {"X-API-Key": DRILL_ADMIN_KEY, "X-Tenant-Id": "drill-tenant"}
@@ -267,7 +267,7 @@ class FailClosedApiTests(unittest.TestCase):
         try:
             # A valid conversation lets enqueue reach the Redis dispatch push;
             # a fail-closed Redis queue raises there before any job is queued.
-            conv = services.database.create_conversation(
+            conv = services.database.create_review_case(
                 "drill-tenant", "NF", "CUST-NF", "web", "admin", 120
             )
             with self.assertRaises(QueueUnavailableError):
@@ -321,7 +321,7 @@ class RecoveryTests(unittest.TestCase):
             ready = client.get("/health/ready")
             self.assertEqual(ready.status_code, 200)
             self.assertTrue(ready.json()["queue"]["ready"])
-            conv = services.database.create_conversation(
+            conv = services.database.create_review_case(
                 "drill-tenant", "RC", "CUST-RC", "web", "admin", 120
             )
             headers = {"X-API-Key": DRILL_ADMIN_KEY, "X-Tenant-Id": "drill-tenant"}

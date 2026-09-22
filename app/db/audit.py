@@ -13,7 +13,7 @@ from typing import Any
 from uuid import uuid4
 
 from app.context import current_request_id, current_scope_mode, tenant_scope
-from app.db._util import utc_now
+from app.db._util import to_wire_row, utc_now
 from app.security import sanitize_for_audit
 
 # Phase 28.3/29: serialize chain appends so two concurrent audit() calls can
@@ -98,7 +98,7 @@ class DatabaseAuditMixin:
         self,
         connection: Any,
         tenant_id: str,
-        conversation_id: str | None,
+        review_case_id: str | None,
         actor: str,
         event_type: str,
         payload: dict[str, Any],
@@ -118,7 +118,7 @@ class DatabaseAuditMixin:
             prev_hash=prev_hash,
             event_id=event_id,
             tenant_id=tenant_id,
-            conversation_id=conversation_id,
+            review_case_id=review_case_id,
             request_id=request_id,
             actor=str(actor),
             event_type=event_type,
@@ -127,13 +127,13 @@ class DatabaseAuditMixin:
         )
         connection.execute(
             """INSERT INTO audit_events
-            (id, tenant_id, conversation_id, request_id, actor, event_type,
+            (id, tenant_id, review_case_id, request_id, actor, event_type,
              payload_json, created_at, seq, prev_hash, event_hash)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 event_id,
                 tenant_id,
-                conversation_id,
+                review_case_id,
                 request_id,
                 str(actor),
                 event_type,
@@ -154,7 +154,7 @@ class DatabaseAuditMixin:
         self,
         connection: Any,
         tenant_id: str,
-        conversation_id: str | None,
+        review_case_id: str | None,
         actor: str,
         event_type: str,
         payload: dict[str, Any],
@@ -165,7 +165,7 @@ class DatabaseAuditMixin:
         return self._append_audit_event(
             connection,
             tenant_id,
-            conversation_id,
+            review_case_id,
             actor,
             event_type,
             payload,
@@ -175,7 +175,7 @@ class DatabaseAuditMixin:
     def record_feedback(
         self,
         tenant_id: str,
-        conversation_id: str,
+        review_case_id: str,
         message_id: str,
         actor: str,
         rating: int,
@@ -191,7 +191,7 @@ class DatabaseAuditMixin:
             feedback_id = existing["id"] if existing else f"fb_{uuid4().hex[:12]}"
             connection.execute(
                 """INSERT INTO feedback
-                (id, tenant_id, conversation_id, message_id, actor, rating, reason,
+                (id, tenant_id, review_case_id, message_id, actor, rating, reason,
                  created_at, updated_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(tenant_id, message_id, actor) DO UPDATE SET
@@ -201,7 +201,7 @@ class DatabaseAuditMixin:
                 (
                     feedback_id,
                     tenant_id,
-                    conversation_id,
+                    review_case_id,
                     message_id,
                     actor,
                     rating,
@@ -214,7 +214,7 @@ class DatabaseAuditMixin:
                 "SELECT * FROM feedback WHERE id = ?", (feedback_id,)
             ).fetchone()
         self._invalidate_dashboard(tenant_id)
-        return dict(row)
+        return to_wire_row(row)
 
     def _audit_scope(self, tenant_id: str) -> Any:
         """Bind the event's own tenant as the RLS scope when none is active.
@@ -234,7 +234,7 @@ class DatabaseAuditMixin:
     def audit(
         self,
         tenant_id: str,
-        conversation_id: str | None,
+        review_case_id: str | None,
         actor: str,
         event_type: str,
         payload: dict[str, Any],
@@ -245,7 +245,7 @@ class DatabaseAuditMixin:
             self._append_audit_event(
                 connection,
                 tenant_id,
-                conversation_id,
+                review_case_id,
                 actor,
                 event_type,
                 payload,
@@ -267,7 +267,7 @@ class DatabaseAuditMixin:
             prev_hash, tail_seq = self._audit_chain_tail(connection)
             rows: list[tuple[str, str, str, str | None, str, str, str, str, int, str, str]] = []
             sequences: list[tuple[int, str]] = []
-            for conversation_id, event_type, payload in events:
+            for review_case_id, event_type, payload in events:
                 event_id = f"evt_{uuid4().hex[:12]}"
                 payload_json = json.dumps(sanitize_for_audit(payload), ensure_ascii=False)
                 tail_seq += 1
@@ -275,7 +275,7 @@ class DatabaseAuditMixin:
                     prev_hash=prev_hash,
                     event_id=event_id,
                     tenant_id=tenant_id,
-                    conversation_id=conversation_id,
+                    review_case_id=review_case_id,
                     request_id=request_id,
                     actor=str(actor),
                     event_type=event_type,
@@ -286,7 +286,7 @@ class DatabaseAuditMixin:
                     (
                         event_id,
                         tenant_id,
-                        conversation_id,
+                        review_case_id,
                         request_id,
                         str(actor),
                         event_type,
@@ -301,7 +301,7 @@ class DatabaseAuditMixin:
                 prev_hash = event_hash_value
             connection.executemany(
                 """INSERT INTO audit_events
-                    (id, tenant_id, conversation_id, request_id, actor, event_type,
+                    (id, tenant_id, review_case_id, request_id, actor, event_type,
                      payload_json, created_at, seq, prev_hash, event_hash)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 rows,
@@ -311,17 +311,17 @@ class DatabaseAuditMixin:
                 sequences,
             )
 
-    def list_audit(self, tenant_id: str, conversation_id: str) -> list[dict[str, Any]]:
+    def list_audit(self, tenant_id: str, review_case_id: str) -> list[dict[str, Any]]:
         with self.connect() as connection:
             rows = connection.execute(
                 """SELECT * FROM audit_events
-                WHERE tenant_id = ? AND conversation_id = ?
+                WHERE tenant_id = ? AND review_case_id = ?
                 ORDER BY created_at, rowid""",
-                (tenant_id, conversation_id),
+                (tenant_id, review_case_id),
             ).fetchall()
         result: list[dict[str, Any]] = []
         for row in rows:
-            item = dict(row)
+            item = to_wire_row(row)
             item["payload"] = json.loads(item.pop("payload_json"))
             item.pop("tenant_id", None)
             item.pop("conversation_id", None)
@@ -335,7 +335,7 @@ class DatabaseAuditMixin:
         self,
         tenant_id: str,
         *,
-        conversation_id: str | None = None,
+        review_case_id: str | None = None,
         event_type: str | None = None,
         since: str | None = None,
         until: str | None = None,
@@ -344,9 +344,9 @@ class DatabaseAuditMixin:
     ) -> list[dict[str, Any]]:
         clauses = ["tenant_id = ?"]
         values: list[Any] = [tenant_id]
-        if conversation_id:
-            clauses.append("conversation_id = ?")
-            values.append(conversation_id)
+        if review_case_id:
+            clauses.append("review_case_id = ?")
+            values.append(review_case_id)
         if event_type:
             clauses.append("event_type = ?")
             values.append(event_type)
@@ -366,7 +366,7 @@ class DatabaseAuditMixin:
             ).fetchall()
         result: list[dict[str, Any]] = []
         for row in rows:
-            item = dict(row)
+            item = to_wire_row(row)
             item["payload"] = json.loads(item.pop("payload_json"))
             item.pop("seq", None)  # internal monotonic ordering column
             item.pop("prev_hash", None)  # internal hash-chain link (28.3)
@@ -416,7 +416,7 @@ class DatabaseAuditMixin:
             return None
         from app.audit_chain import validate_audit_archive, validate_audit_archive_stream
 
-        item = dict(row)
+        item = to_wire_row(row)
         object_key = item.pop("object_key", None)
         item.pop("object_sha256", None)
         if object_key:
@@ -531,7 +531,7 @@ class DatabaseAuditMixin:
                     AVG(CASE WHEN status != 'resolved' AND first_response_at IS NOT NULL
                          THEN (julianday(first_response_at) - julianday(created_at)) * 86400.0
                          ELSE NULL END) AS first_response_seconds
-                FROM conversations WHERE tenant_id = ?""",
+                FROM review_cases WHERE tenant_id = ?""",
                 (now, now, tenant_id),
             ).fetchone()
             total_assistant, automated, average_confidence, grounded = self._assistant_metrics(

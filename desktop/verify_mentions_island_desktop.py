@@ -31,9 +31,15 @@ def wait_for_cdp(deadline_s: float = 90.0) -> list[dict]:
     deadline = time.time() + deadline_s
     while time.time() < deadline:
         try:
-            with urllib.request.urlopen(f"http://127.0.0.1:{DEBUG_PORT}/json/list", timeout=2) as res:
+            with urllib.request.urlopen(
+                f"http://127.0.0.1:{DEBUG_PORT}/json/list", timeout=2
+            ) as res:
                 targets = json.loads(res.read().decode("utf-8"))
-            pages = [t for t in targets if t.get("type") == "page" and "127.0.0.1" in (t.get("url") or "")]
+            pages = [
+                t
+                for t in targets
+                if t.get("type") == "page" and "127.0.0.1" in (t.get("url") or "")
+            ]
             if pages:
                 return targets
         except Exception:
@@ -70,7 +76,9 @@ def main() -> int:
                 return 1
 
             page.wait_for_selector("#operatorIdentity", state="attached", timeout=30000)
-            page.wait_for_selector("#queueReactIsland .conversation-item", state="attached", timeout=30000)
+            page.wait_for_selector(
+                "#queueReactIsland .conversation-item", state="attached", timeout=30000
+            )
             checks: dict[str, object] = {}
             checks["island_mode"] = page.evaluate("() => window.__HELIX_ISLAND_MODE__ === true")
             checks["legacy_badge_hidden"] = page.evaluate(
@@ -91,11 +99,16 @@ def main() -> int:
                 """() => document.querySelector('#mentionsBadgeReactIsland .mentions-badge')
                     .dispatchEvent(new MouseEvent('click', { bubbles: true }))"""
             )
-            page.wait_for_selector("#mentionsPanelReactIsland .mentions-panel .mentions-heading", timeout=20000)
+            page.wait_for_selector(
+                "#mentionsPanelReactIsland .mentions-panel .mentions-heading", timeout=20000
+            )
             checks["panel_opens"] = True
-            checks["panel_empty_state"] = page.evaluate(
-                "() => document.querySelector('#mentionsPanelReactIsland .queue-empty')?.textContent"
-            ) == "暂无被提及"
+            checks["panel_empty_state"] = (
+                page.evaluate(
+                    "() => document.querySelector('#mentionsPanelReactIsland .queue-empty')?.textContent"
+                )
+                == "暂无被提及"
+            )
             checks["badge_visible_while_open"] = page.evaluate(
                 "() => document.querySelector('#mentionsBadgeReactIsland .mentions-badge')?.hidden === false"
             )

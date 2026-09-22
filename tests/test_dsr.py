@@ -31,7 +31,7 @@ from app.security import ROLE_PERMISSIONS, Role
 ADMIN_A_KEY = "p40-admin-a-00001"
 ADMIN_B_KEY = "p40-admin-b-00002"
 ADMIN_C_KEY = "p40-admin-c-00003"
-OPERATOR_KEY = "p40-op-key-0000001"
+REVIEWER_KEY = "p40-op-key-0000001"
 AUDITOR_KEY = "p40-auditor-key-001"
 VIEWER_KEY = "p40-viewer-key-001"
 TENANT2_ADMIN_KEY = "p40-admin-t2-00001"
@@ -42,7 +42,7 @@ def _settings(db_path: Path) -> Settings:
         ADMIN_A_KEY: {"tenant_id": "demo", "actor_id": "admin.a", "role": "admin"},
         ADMIN_B_KEY: {"tenant_id": "demo", "actor_id": "admin.b", "role": "admin"},
         ADMIN_C_KEY: {"tenant_id": "demo", "actor_id": "admin.c", "role": "admin"},
-        OPERATOR_KEY: {"tenant_id": "demo", "actor_id": "op.user", "role": "operator"},
+        REVIEWER_KEY: {"tenant_id": "demo", "actor_id": "op.user", "role": "operator"},
         AUDITOR_KEY: {"tenant_id": "demo", "actor_id": "aud.user", "role": "auditor"},
         VIEWER_KEY: {"tenant_id": "demo", "actor_id": "view.user", "role": "viewer"},
         TENANT2_ADMIN_KEY: {"tenant_id": "acme", "actor_id": "admin.t2", "role": "admin"},
@@ -69,38 +69,38 @@ class DsrWorkflowTests(unittest.TestCase):
         self.db_path = Path(self._tmp.name) / "p40.db"
         self.client = TestClient(create_app(_settings(self.db_path)))
         self.services = cast(Any, self.client.app).state.services
-        self._seed_conversation("CUST-1")
+        self._seed_review_case("CUST-1")
 
     def tearDown(self) -> None:
         self.services.database.close()
         self.client.close()
         self._tmp.cleanup()
 
-    def _seed_conversation(self, customer_ref: str) -> str:
+    def _seed_review_case(self, submitter_ref: str) -> str:
         response = self.client.post(
             "/api/review-cases",
-            json={"customer_name": "Customer", "customer_ref": customer_ref},
+            json={"customer_name": "Customer", "customer_ref": submitter_ref},
             headers=_headers(ADMIN_A_KEY),
         )
         self.assertEqual(response.status_code, 201, response.text)
-        conversation_id = response.json()["id"]
+        review_case_id = response.json()["id"]
         sent = self.client.post(
-            f"/api/review-cases/{conversation_id}/messages",
+            f"/api/review-cases/{review_case_id}/messages",
             json={"content": "Hello from the customer"},
             headers=_headers(ADMIN_A_KEY),
         )
         self.assertEqual(sent.status_code, 200, sent.text)
-        return conversation_id
+        return review_case_id
 
     def _create(
         self,
-        customer_ref: str = "CUST-1",
+        submitter_ref: str = "CUST-1",
         request_type: str = "deletion",
         idempotency_key: str | None = None,
         key: str = ADMIN_A_KEY,
     ) -> Any:
         payload: dict[str, Any] = {
-            "customer_ref": customer_ref,
+            "customer_ref": submitter_ref,
             "request_type": request_type,
         }
         if idempotency_key:
@@ -113,7 +113,7 @@ class DsrWorkflowTests(unittest.TestCase):
 
     def test_permissions_are_admin_only(self) -> None:
         for role, key in (
-            ("operator", OPERATOR_KEY),
+            ("operator", REVIEWER_KEY),
             ("auditor", AUDITOR_KEY),
             ("viewer", VIEWER_KEY),
         ):
@@ -139,7 +139,7 @@ class DsrWorkflowTests(unittest.TestCase):
         body = executed.json()
         self.assertEqual(body["status"], "completed")
         self.assertFalse(body["idempotent_replay"])
-        self.assertGreaterEqual(body["summary"]["deleted"]["conversations"], 1)
+        self.assertGreaterEqual(body["summary"]["deleted"]["review_cases"], 1)
         self.assertGreaterEqual(body["summary"]["deleted"]["messages"], 1)
 
     def test_execute_replays_completed_request_idempotently(self) -> None:
@@ -247,7 +247,7 @@ class DsrWorkflowTests(unittest.TestCase):
         )
         self.assertEqual(denied.status_code, 422, denied.text)
 
-    def test_audit_events_never_contain_customer_reference(self) -> None:
+    def test_audit_events_never_contain_submitter_reference(self) -> None:
         self._request_id(self._create())
         events = self.client.get(
             "/api/audit-events",
@@ -273,9 +273,9 @@ class DsrExportTests(unittest.TestCase):
             headers=_headers(ADMIN_A_KEY),
         )
         self.assertEqual(response.status_code, 201, response.text)
-        conversation_id = response.json()["id"]
+        review_case_id = response.json()["id"]
         sent = self.client.post(
-            f"/api/review-cases/{conversation_id}/messages",
+            f"/api/review-cases/{review_case_id}/messages",
             json={"content": "Secret message content"},
             headers=_headers(ADMIN_A_KEY),
         )

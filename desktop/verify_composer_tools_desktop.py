@@ -109,7 +109,7 @@ def main() -> int:
                     });
                     if (!macro2.ok) return { error: 'macro2 ' + macro2.status };
                     const conv = await post('/api/review-cases', {
-                        customer_name: '工具面验证 ' + suffix,
+                        submitter_name: '工具面验证 ' + suffix,
                     });
                     if (!conv.ok) return { error: 'conversation ' + conv.status };
                     const turn = await post('/api/review-cases/' + conv.data.id + '/messages', {
@@ -157,9 +157,11 @@ def main() -> int:
 
             # ── Canned chip → island insertion + real /use POST ──
             with page.expect_response(
-                lambda r: "/canned-verdicts/" in r.url
-                and r.url.endswith("/use")
-                and r.request.method == "POST"
+                lambda r: (
+                    "/canned-verdicts/" in r.url
+                    and r.url.endswith("/use")
+                    and r.request.method == "POST"
+                )
             ) as use_info:
                 page.locator("#composerReactIsland #cannedList .canned-chip").first.click()
             checks["macro_use_post_status"] = use_info.value.status
@@ -187,9 +189,11 @@ def main() -> int:
                 timeout=10000,
             )
             with page.expect_response(
-                lambda r: "/canned-verdicts/" in r.url
-                and r.url.endswith("/use")
-                and r.request.method == "POST"
+                lambda r: (
+                    "/canned-verdicts/" in r.url
+                    and r.url.endswith("/use")
+                    and r.request.method == "POST"
+                )
             ) as use_info2:
                 page.locator("#composerReactIsland #macroSuggest .macro-option").first.click()
             checks["macro_pick_post_status"] = use_info2.value.status

@@ -9,13 +9,12 @@ from app.migrations import _ensure_column, migration
 
 @migration(19, "conversation and knowledge article language")
 def migration_19(connection: sqlite3.Connection) -> None:
-    _ensure_column(connection, "conversations", "language", "TEXT")
-    _ensure_column(connection, "knowledge_articles", "language", "TEXT")
+    _ensure_column(connection, "review_cases", "language", "TEXT")
+    _ensure_column(connection, "policy_articles", "language", "TEXT")
     tables = {
         row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")
     }
-    if "knowledge_articles" in tables:
+    if "policy_articles" in tables:
         connection.execute(
-            "CREATE INDEX IF NOT EXISTS idx_knowledge_language "
-            "ON knowledge_articles(tenant_id, language)"
+            "CREATE INDEX IF NOT EXISTS idx_policy_language ON policy_articles(tenant_id, language)"
         )

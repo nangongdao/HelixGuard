@@ -14,7 +14,7 @@ def migration_22(connection: sqlite3.Connection) -> None:
         CREATE TABLE IF NOT EXISTS attachments (
             id TEXT PRIMARY KEY,
             tenant_id TEXT NOT NULL REFERENCES tenants(id),
-            conversation_id TEXT NOT NULL,
+            review_case_id TEXT NOT NULL,
             message_id TEXT,
             filename TEXT NOT NULL,
             content_type TEXT NOT NULL,
@@ -27,7 +27,7 @@ def migration_22(connection: sqlite3.Connection) -> None:
             created_at TEXT NOT NULL
         );
         CREATE INDEX IF NOT EXISTS idx_attachments_conversation
-            ON attachments(tenant_id, conversation_id, created_at);
+            ON attachments(tenant_id, review_case_id, created_at);
         CREATE INDEX IF NOT EXISTS idx_attachments_tenant_quota
             ON attachments(tenant_id, status, size_bytes);
         """

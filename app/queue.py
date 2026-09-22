@@ -55,7 +55,7 @@ class TaskQueue(Protocol):
     def enqueue(
         self,
         tenant_id: str,
-        conversation_id: str,
+        review_case_id: str,
         idempotency_key: str,
         actor_id: str,
         content: str,
@@ -126,7 +126,7 @@ class SQLiteTaskQueue:
     def enqueue(
         self,
         tenant_id: str,
-        conversation_id: str,
+        review_case_id: str,
         idempotency_key: str,
         actor_id: str,
         content: str,
@@ -136,7 +136,7 @@ class SQLiteTaskQueue:
         """Submit a job. Returns ``(job, replayed)``."""
         job, replayed = self.database.enqueue_turn_job(
             tenant_id,
-            conversation_id,
+            review_case_id,
             idempotency_key,
             actor_id,
             content,
@@ -287,7 +287,7 @@ class RedisTaskQueue:
     def enqueue(
         self,
         tenant_id: str,
-        conversation_id: str,
+        review_case_id: str,
         idempotency_key: str,
         actor_id: str,
         content: str,
@@ -296,7 +296,7 @@ class RedisTaskQueue:
     ) -> tuple[dict[str, Any], bool]:
         job, replayed = self.database.enqueue_turn_job(
             tenant_id,
-            conversation_id,
+            review_case_id,
             idempotency_key,
             actor_id,
             content,
