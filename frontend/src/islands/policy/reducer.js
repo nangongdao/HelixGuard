@@ -1,8 +1,8 @@
 /**
- * Helix Guard — knowledge island reducer (§43.6 createState + reduce).
+ * Helix Guard — policy island reducer (§43.6 createState + reduce).
  *
  * The pure state machine behind the filters and the draft editor. Split out
- * of knowledge-island.jsx (400-line module limit); the island re-exports
+ * of policy-island.jsx (400-line module limit); the island re-exports
  * both names so the component test's import surface is unchanged.
  */
 
@@ -12,7 +12,7 @@ export function createKnowledgeState() {
   return {
     filters: { status: "all", language: "", query: "" },
     // editor === null keeps the aside hidden, which is what the single-column
-    // :has(.knowledge-editor[hidden]) layout rule keys off.
+    // :has(.policy-editor[hidden]) layout rule keys off.
     editor: null,
   };
 }

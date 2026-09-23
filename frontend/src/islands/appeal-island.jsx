@@ -1,17 +1,17 @@
 /**
- * Helix Guard — ticket view React island (D3)
+ * Helix Guard — appeal view React island (D3)
  *
- * Migrates the ticket list rendering to React. The legacy ticket-view.js
+ * Migrates the appeal list rendering to React. The legacy appeal-view.js
  * module is heavily DOM-coupled (uses configure(deps) + ctx.els); this
  * island extracts the list rendering into a self-contained component that
- * fetches from /api/appeals and renders ticket rows with the same DOM
+ * fetches from /api/appeals and renders appeal rows with the same DOM
  * structure/class names so visual gates stay green.
  *
- * Mounts into #ticketReactIsland. The detail view stays in the legacy
+ * Mounts into #appealReactIsland. The detail view stays in the legacy
  * controller during the dual-track period (it has complex state machine
  * interactions with the conversation view).
  *
- * See DESKTOP_TAURI_PLAN.md §D3 (leaf→root: ticket-view after knowledge).
+ * See DESKTOP_TAURI_PLAN.md §D3 (leaf→root: ticket-view after policy).
  */
 
 import React, { useState } from "react";
@@ -24,29 +24,29 @@ const TICKET_STATUS_NAMES = {
   closed: "已关闭",
 };
 
-function TicketRow({ ticket, onSelect }) {
-  const statusName = TICKET_STATUS_NAMES[ticket.status] || ticket.status;
-  const isHigh = ticket.priority === "high";
-  const ref = ticket.customer_ref ? ` · ${ticket.customer_ref}` : "";
+function TicketRow({ appeal, onSelect }) {
+  const statusName = TICKET_STATUS_NAMES[appeal.status] || appeal.status;
+  const isHigh = appeal.priority === "high";
+  const ref = appeal.customer_ref ? ` · ${appeal.customer_ref}` : "";
   return (
     <button
       type="button"
-      className="ticket-row"
-      data-ticket-id={ticket.id}
-      onClick={() => onSelect(ticket.id)}
+      className="appeal-row"
+      data-appeal-id={appeal.id}
+      onClick={() => onSelect(appeal.id)}
     >
-      <span className="ticket-row-main">
-        <span className="ticket-subject">{ticket.subject}</span>
-        <span className="ticket-meta">
-          {ticket.customer_name || "—"}{ref}
+      <span className="appeal-row-main">
+        <span className="appeal-subject">{appeal.subject}</span>
+        <span className="appeal-meta">
+          {appeal.customer_name || "—"}{ref}
         </span>
       </span>
-      <span className="ticket-row-side">
+      <span className="appeal-row-side">
         <span className={`priority-pill${isHigh ? " is-high" : ""}`}>
           {isHigh ? "高优" : "普通"}
         </span>
         <span className="status-pill">{statusName}</span>
-        <span className="ticket-meta">{ticket.updated_at || ""}</span>
+        <span className="appeal-meta">{appeal.updated_at || ""}</span>
       </span>
     </button>
   );
@@ -71,7 +71,7 @@ function TicketIsland() {
   const tickets = Array.isArray(data) ? data : data?.items || [];
 
   const handleSelect = (ticketId) => {
-    // Delegate to the legacy ticket detail opener via custom event.
+    // Delegate to the legacy appeal detail opener via custom event.
     window.dispatchEvent(
       new CustomEvent("helix-ticket-open", { detail: { ticketId } }),
     );
@@ -94,8 +94,8 @@ function TicketIsland() {
   }
 
   return (
-    <div className="ticket-island">
-      <div className="ticket-filters">
+    <div className="appeal-island">
+      <div className="appeal-filters">
         <label className="filter-field">
           <span className="sr-only">筛选申诉单状态</span>
           <select
@@ -110,12 +110,12 @@ function TicketIsland() {
           </select>
         </label>
       </div>
-      <div className="ticket-list" aria-live="polite">
+      <div className="appeal-list" aria-live="polite">
         {tickets.length === 0 ? (
-          <p className="ticket-empty">暂无申诉单</p>
+          <p className="appeal-empty">暂无申诉单</p>
         ) : (
           tickets.map((t) => (
-            <TicketRow key={t.id} ticket={t} onSelect={handleSelect} />
+            <TicketRow key={t.id} appeal={t} onSelect={handleSelect} />
           ))
         )}
       </div>
@@ -124,7 +124,7 @@ function TicketIsland() {
 }
 
 /**
- * Mount the ticket island into a host <div>. Called by the island loader.
+ * Mount the appeal island into a host <div>. Called by the island loader.
  * @param {HTMLElement} element - mount point
  */
 export function mount(element) {

@@ -89,7 +89,7 @@ def main() -> None:
             page, console_errors, page_errors, http_errors, failed_requests
         )
         page.goto(BASE_URL, wait_until="domcontentloaded")
-        expect(page.locator("#operatorIdentity")).to_contain_text("demo.admin")
+        expect(page.locator("#reviewerIdentity")).to_contain_text("demo.admin")
         expect(
             page.locator(f'script[src="/static/app.js?v={STATIC_ASSET_VERSION}"]')
         ).to_have_count(1)
@@ -97,13 +97,13 @@ def main() -> None:
 
         # Form semantics mirror the backend contract and do not expose the
         # signing secret as plain text.
-        expect(page.locator("#quotaConversations")).to_have_attribute("min", "1")
+        expect(page.locator("#quotaReviewCases")).to_have_attribute("min", "1")
         expect(page.locator("#quotaStorageMb")).to_have_attribute("min", "1")
         expect(page.locator("#webhookUrl")).to_have_attribute("type", "url")
         expect(page.locator("#webhookSecret")).to_have_attribute("type", "password")
 
         # Quota read/write and immediate readout refresh.
-        page.locator("#quotaConversations").fill("2500")
+        page.locator("#quotaReviewCases").fill("2500")
         page.locator("#quotaStorageMb").fill("128")
         with page.expect_response(
             lambda response: response.url.endswith("/quota") and response.request.method == "PUT"
@@ -211,7 +211,7 @@ def main() -> None:
             ),
         )
         denied_page.goto(BASE_URL, wait_until="domcontentloaded")
-        expect(denied_page.locator("#operatorIdentity")).to_contain_text("browser.operator")
+        expect(denied_page.locator("#reviewerIdentity")).to_contain_text("browser.operator")
         denied_page.locator('.nav-item[data-view="admin"]').click()
         expect(denied_page.locator("#adminDenied")).to_be_visible()
         expect(denied_page.locator("#adminContent")).to_be_hidden()

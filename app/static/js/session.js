@@ -52,7 +52,7 @@ export function renderMentionsPanel(mentions) {
       (mention) => `
       <div class="mention-item${mention.unread ? " is-unread" : ""}">
         <div class="mention-top">
-          <button class="mention-link" type="button" data-mention-conversation="${ctx.escapeHtml(mention.conversation_id)}">
+          <button class="mention-link" type="button" data-mention-review-case="${ctx.escapeHtml(mention.conversation_id)}">
             <strong>${ctx.escapeHtml(mention.conversation_customer)}</strong>
             <span class="mention-meta">${ctx.escapeHtml(mention.channel)} · ${ctx.escapeHtml(ctx.formatTime(mention.created_at))}${mention.unread ? " · 未读" : ""}</span>
           </button>
@@ -192,9 +192,9 @@ export function bindSession() {
   }
   if (ctx.els.mentionsPanel) {
     ctx.els.mentionsPanel.addEventListener("click", async (event) => {
-      const link = event.target.closest("[data-mention-conversation]");
+      const link = event.target.closest("[data-mention-review-case]");
       if (link) {
-        const conversationId = link.dataset.mentionConversation;
+        const conversationId = link.dataset.mentionReviewCase;
         closeMentionsPanel();
         if (conversationId) await ctx.selectConversation(conversationId);
         return;

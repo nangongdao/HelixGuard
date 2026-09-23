@@ -37,7 +37,7 @@ class PortalClientTests(unittest.TestCase):
         with self._client(("'self'", "https://help.example")) as client:
             response = client.get("/widget")
             self.assertEqual(response.status_code, 200)
-            self.assertIn("widget-app.js", response.text)
+            self.assertIn("submission-portal-app.js", response.text)
             self.assertNotIn("X-Frame-Options", response.headers)
             self.assertIn(
                 "frame-ancestors 'self' https://help.example",

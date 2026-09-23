@@ -56,9 +56,9 @@ function stubLocalStorage() {
 
 function configureDeps({ overrides = {} } = {}) {
   const els = {
-    operatorInput: { value: "" },
+    reviewerInput: { value: "" },
     copilotSuggestions: { hidden: true, innerHTML: "" },
-    copilotKnowledge: { hidden: true, innerHTML: "" },
+    copilotPolicy: { hidden: true, innerHTML: "" },
     copilotStatus: { hidden: true, textContent: "" },
   };
   const apiCalls = [];
@@ -122,14 +122,14 @@ test("island applyCopilotTone publishes the rewritten text; legacy writes the in
   const islandDeps = configureDeps();
   const events = collectCopilot(islandWindow);
   await applyCopilotTone("concise", { text: "原始草稿" });
-  assert.equal(islandDeps.els.operatorInput.value, ""); // island owns its textarea
+  assert.equal(islandDeps.els.reviewerInput.value, ""); // island owns its textarea
   assert.equal(events.at(-1).rewritten, "改写后");
   assert.equal(events.at(-1).status, "已改写");
 
   installWindow({ islandMode: false });
   const legacyDeps = configureDeps();
   await applyCopilotTone("concise", { text: "原始草稿" });
-  assert.equal(legacyDeps.els.operatorInput.value, "改写后");
+  assert.equal(legacyDeps.els.reviewerInput.value, "改写后");
 });
 
 test("applyCopilotTone refuses an empty draft with the legacy status", async () => {

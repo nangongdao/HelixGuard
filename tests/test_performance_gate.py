@@ -211,16 +211,21 @@ class StaticBudgetCoverageTests(unittest.TestCase):
         (static / "js" / "app-core.js").write_bytes(b"// core\n")
         (static / "styles.css").write_bytes(b"/* styles */\n")
         (static / "css" / "tokens.css").write_bytes(b"/* tokens */\n")
-        (static / "widget-app.js").write_bytes(b"// widget shell\n")
-        (static / "js" / "widget-core.js").write_bytes(b"// core\n")
-        (static / "js" / "widget-extra.js").write_bytes(b"//" + b"x" * widget_module_bytes + b"\n")
+        (static / "submission-portal-app.js").write_bytes(b"// portal shell\n")
+        (static / "js" / "submission-portal-core.js").write_bytes(b"// core\n")
+        (static / "js" / "submission-portal-extra.js").write_bytes(
+            b"//" + b"x" * widget_module_bytes + b"\n"
+        )
         return tmp, static
 
     def test_portal_payload_includes_every_portal_module(self) -> None:
         tmp, static = self._temp_tree(400)
         self.addCleanup(tmp.cleanup)
         names = [path.name for path in performance_gate._widget_payload_files(static)]
-        self.assertEqual(names, ["widget-app.js", "widget-core.js", "widget-extra.js"])
+        self.assertEqual(
+            names,
+            ["submission-portal-app.js", "submission-portal-core.js", "submission-portal-extra.js"],
+        )
 
         with patch.object(performance_gate, "ROOT", Path(tmp.name)):
             sizes, _unenforced = performance_gate._static_payload()
@@ -271,8 +276,8 @@ class StaticPayloadMeasurementTests(unittest.TestCase):
             "js/app-core.js",
             "styles.css",
             "css/tokens.css",
-            "widget-app.js",
-            "js/widget-core.js",
+            "submission-portal-app.js",
+            "js/submission-portal-core.js",
         ):
             (static / rel).write_bytes(body)
         return tmp, static

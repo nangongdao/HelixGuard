@@ -71,9 +71,9 @@ def main() -> int:
                 print("FAIL: no console page found over CDP")
                 return 1
 
-            page.wait_for_selector("#operatorIdentity", state="attached", timeout=30000)
+            page.wait_for_selector("#reviewerIdentity", state="attached", timeout=30000)
             page.wait_for_selector(
-                "#queueReactIsland .conversation-item", state="attached", timeout=30000
+                "#queueReactIsland .review-case-item", state="attached", timeout=30000
             )
             checks: dict[str, object] = {}
             checks["island_mode"] = page.evaluate("() => window.__HELIX_ISLAND_MODE__ === true")
@@ -93,7 +93,7 @@ def main() -> int:
                 timeout=10000,
             )
             checks["island_switches_to_appeals"] = True
-            # …and the legacy pane follows (dataset.mode + ticket pane shown).
+            # …and the legacy pane follows (dataset.mode + appeal pane shown).
             page.wait_for_function(
                 "() => document.querySelector('#queuePane')?.dataset.mode === 'appeals'",
                 timeout=10000,

@@ -122,7 +122,7 @@ def main() -> None:
             ),
         )
         page.goto(BASE_URL)
-        expect(page.locator("#operatorIdentity")).to_contain_text("demo.admin")
+        expect(page.locator("#reviewerIdentity")).to_contain_text("demo.admin")
 
         # 切到管理视图 → CSAT 卡可见。
         with page.expect_response(
@@ -133,11 +133,11 @@ def main() -> None:
         ):
             page.locator('.nav-item[data-view="admin"]').click()
         expect(page.locator("#adminView")).to_be_visible()
-        expect(page.locator("#csatReadout")).to_be_visible()
+        expect(page.locator("#qaSpotCheckReadout")).to_be_visible()
 
         # 总体三数字。平均分必须是实际数值(1.00–5.00),0.00 或缺失即回归
         # (W4:仅断言文案含 "/ 5" 无法区分真正的空态兜底)。
-        dds = page.locator("#csatReadout dd")
+        dds = page.locator("#qaSpotCheckReadout dd")
         expect(dds.nth(0)).to_have_text(str(expect_total))
         avg_text = dds.nth(1).text_content() or ""
         avg_match = re.search(r"(\d+\.\d+)\s*/\s*5", avg_text)
@@ -148,7 +148,7 @@ def main() -> None:
 
         # 趋势列表最新行 = 今天(UTC)日期且带实际份数(S2:验证今天的增量行,
         # 而非仅"今天字符串存在"——同一天重复运行也可能平凡通过)。
-        first_day = page.locator("#csatTrend .csat-day").first
+        first_day = page.locator("#qaSpotCheckTrend .qa-spot-check-day").first
         expect(first_day).to_contain_text(today)
         expect(first_day).to_contain_text("份")
 

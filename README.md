@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <code>v2.29.0</code>&nbsp;
+  <code>v2.30.0</code>&nbsp;
   <code>Python 3.11+</code>&nbsp;
   <code>FastAPI</code>&nbsp;
   <code>SQLite / PostgreSQL</code>&nbsp;

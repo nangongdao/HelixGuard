@@ -97,7 +97,7 @@ def main() -> None:
             ),
         )
         page.goto(BASE_URL)
-        expect(page.locator("#operatorIdentity")).to_contain_text("demo.admin")
+        expect(page.locator("#reviewerIdentity")).to_contain_text("demo.admin")
 
         # 切到管理视图:SLA/路由卡可见,分配组下拉含预建组。
         with page.expect_response(

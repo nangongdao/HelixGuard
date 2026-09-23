@@ -2,6 +2,80 @@
 
 所有版本遵循[语义化版本](https://semver.org)。API 变更遵循 `docs/API_POLICY.md`(响应体只增不改、弃用需 `Deprecation`/`Sunset` 头 + 至少一个次版本过渡、每次变更记录于此)。
 
+## 2.30.0 — 域迁移 P6：DOM/标识符面收口与契约常量守护 (2026-09-23)
+
+本版把 [`docs/DOMAIN.md`](docs/DOMAIN.md) §5.1 登记的第一处**未收口面**（DOM id / class / 模块名 / i18n 键）迁到审核域，并顺带实施 §7.3 登记的 **R8④ 契约常量守护**（此前「建议补一条断言，本版未实施」）。**wire 契约不变**：HTTP 路径、响应体键、请求模型字段、权限串、webhook 事件名、请求头一律保持旧名——OpenAPI 快照的 diff **只有版本号一行**，这一点本身就是「API 面零改动」的实证。
+
+### 改动的面
+
+`app/static/**` 与 `frontend/src/islands/**` 的标识符面，**144 文件 / +1670 −1511**，其中 **18 个 `git mv`**：
+
+| 类别 | 旧 | 新 |
+| --- | --- | --- |
+| 原生 JS 模块 | `js/conversation-actions.js`、`js/conversation-detail.js`、`js/knowledge-view.js`、`js/knowledge.js`、`js/operator-settings.js`、`js/ticket-view.js`、`js/widget-core.js` | `js/review-case-actions.js`、`js/review-case-detail.js`、`js/policy-view.js`、`js/policy.js`、`js/reviewer-settings.js`、`js/appeal-view.js`、`js/submission-portal-core.js` |
+| 提交端三件套 | `widget-app.js`、`widget.css`、`widget.html` | `submission-portal-app.js`、`submission-portal.css`、`submission-portal.html` |
+| React 岛 | `knowledge-island.jsx`、`ticket-island.jsx`、`conversation-dialog-island.jsx`、`islands/knowledge/{reducer,domain,components}` | `policy-island.jsx`、`appeal-island.jsx`、`review-case-dialog-island.jsx`、`islands/policy/{reducer,domain,components}` |
+
+- **后缀式 id 常量（12 个）与 i18n 键**：`knowledgeEditorTitleReact` → `policyEditorTitleReact`、`operatorFormReact` → `reviewerFormReact`、`csatReadoutReact` → `qaSpotCheckReadoutReact`、`misc.internal_knowledge` → `misc.internal_policy` 等。这类标识符**故意绕过了词边界正则**（`knowledgeXxx` 的 `knowledge` 之后紧跟字母，`(?<![A-Za-z0-9_-])knowledge(?![A-Za-z0-9_-])` 不匹配），由独立残留扫描抓出后按字面量表迁移——即 R8⑤「后缀/属性式标识符是固定盲区」的第三次复发。
+- **dataset 属性与访问器成对迁移**：`data-conversation-id` ↔ `dataset.conversationId` → `data-review-case-id` / `reviewCaseId`；`data-ticket-id` → `data-appeal-id`；`data-mention-conversation` → `data-mention-review-case`。属性名改、**值表达式不改**（`gap.conversation_id`、`mention.conversation_id` 是 wire 键）。
+- **构建/加载入口同步**：`frontend/vite.config.js` 的 input 名（`knowledge` → `policy`、`ticket` → `appeal`、`"conversation-dialog"` → `"review-case-dialog"`）必须与 `frontend/src/island-loader.js` 的 `name` 字段、`resolveIslandUrl()` 拼出的 `src/islands/<name>-island.jsx` 以及真实文件名三者一致，否则岛静默不挂载。
+
+### 顺带修好的两处**既存**不一致
+
+两处都不是本版引入的，而是「改名只改了一半」留下的自相矛盾，由独立残留扫描发现：
+
+- **`data-wstab` / `data-mode` 的**值** `tickets` → `appeals`**：tab 的 id、CSS 选择器（`.queue-pane[data-mode="tickets"]` 7 条规则）与 `appeal-view.js` 已迁，但 `boot.js` 的校验数组、`index.html` 的 `data-wstab` 值没迁，而 `desktop/verify_workspace_tabs_desktop.py:91,98` **早就断言了 `appeals`**——即改名前的树与自己的 desktop 套件就是矛盾的。本版把值链一次改齐。
+- **`costAgentList` / `costAgentListReact` → `costReviewerList` / `costReviewerListReact`**：这是真 DOM id（`admin/constants.js` 声明、`admin/cost-card.jsx` 渲染、`admin-island.test.jsx` 读取）。判定依据是**同卡片的 API 路径已迁**为 `/api/analytics/costs/by_reviewer`（T4 `assigned_agent` → `assigned_reviewer`），id 必须跟随。
+
+### 刻意不改（判定依据）
+
+- **`.message-row.customer` / `.message-row.operator`**：这两个 CSS 类**绑的是数据值不是域词**——`app/static/js/thread.js` 用 `class="message-row ${message.role}"` 生成，而 `role` 是 `messages.role` 的 DB CHECK/触发器枚举（`app/db/core_schema.py`、`app/pg_compat.py`）。改名会让样式与数据脱钩。
+- **权限串**：`knowledge:write`、`conversation:read/write`、`operator:act`、`admin:manage`、`metrics:read`、`tenant:manage`、`privacy:*`、`audit:read` 全部保持旧名，权威来源是 `app/security.py` 的 `ROLE_PERMISSIONS`。
+- **其他协议**：`conversation.created` 等 webhook 事件名、`X-Widget-Token` / `X-Conversation-Status` 等请求头、`GET /widget` 路由路径（改的是它服务的文件，不是 URL）、`widget_js_bytes` 这个**预算键**、`conversation:` 命令命名空间、`helix-*` 内部事件、admin 岛的 react-query 缓存键（内部命名空间，不出进程）。
+
+### 机制教训：R8④ 第一次**实际触发**，而抓到它的是像素门禁
+
+把 `app/static/js/policy-view.js` 的 `canWriteKnowledge()` 从 `"knowledge:write"` 改成了 `"policy:write"`。服务端**照旧发 `knowledge:write`**（权限串是 wire 契约），于是这个判断对**任何真实主体**都为假：写权限分支整体变死——「新建草稿」按钮永不显现、编辑器永不打开、已发布过滤器永不放开。
+
+这次没有静态错误、没有 Python 测试红、也没有 vitest 红：**测试夹具被同一次改名一起改了**（`tests/frontend/knowledge-view.test.js` 的 `["policy:write"]`），两边同步漂移，断言与实现互相印证着同一个错误——这正是 R8④「契约串在自己的测试两侧同时被改名 = 不可见」。唯一症状是 `scripts/visual_gate.py` 的 `knowledge-view` 一面 **7.69% 像素漂移**（上限 0.50%）。
+
+取证用三图对照，把「本版引入」与「数据态噪声」分开：
+
+| 对照 | 差异 |
+| --- | --- |
+| 基线 vs **改名前**树 | **0.04%**（≈ 噪声，证明干净库能复现基线） |
+| 基线 vs **改名后**树 | **7.69%** |
+| 改名前 vs 改名后 | 7.73% |
+
+漂移按行聚集在 `.policy-heading` 与卡片区（y 297–531），而 computed style 显示 `policy-*` 规则都正确命中——即**样式没坏、元素少了**。修复后 `visual_gate` 立即 4/4 **0.00%**。
+
+**教训**：判定改名正确性的不是「引用的类名/选择器都存在」（四个独立检查器当时全绿），而是**每一处字符串改动是否落在域词表内**。域词表之外的一切（权限串、事件名、请求头、枚举值、预算键）都必须显式排除，靠词边界正则挡不住。
+
+### 新增守护：`tests/test_wire_contract_constants.py`（6 例）
+
+一处守护，两类契约常量，来源都是**服务端的唯一权威表**而非复制的清单：
+
+1. **权限串**：扫 `app/static/**`、`frontend/src/**`、`tests/frontend/*` 里所有权限形态的字面量，断言其 ⊆ `app.security.ROLE_PERMISSIONS` 的并集；动作词表由 `ROLE_PERMISSIONS` **推导**而非硬编码，服务端新增权限时前端字面量自动进入射程。另两例断言扫描非空、且 `policy:write` 不在其中（正向陈述「这些旧域词串是**应该**保留的协议」）。
+2. **`PII_FIELDS`**（§7.3 登记的 R8④ 未实施项）：断言 `PII_FIELDS ∩ _COLUMN_TO_WIRE = ∅`（任何列名若被 `to_wire_row` 改走，`redact_pii` 就永远认不出它 = **静默 PII 泄漏**），并用**行为断言**收尾——把新列名 `submitter_name` / `submitter_ref` / `assigned_reviewer` 组成的行过 `to_wire_row` 再 `redact_pii`，断言三者都以 wire 键名被脱敏。
+
+**证伪**（守护必须能红）：`artifacts/p6_guard_falsify.py` 临时把 `knowledge:write` 改回 `policy:write`，守护精确报出 `{'policy:write': {'app/static/js/policy-view.js'}} != {}`（2 例红），`finally` 恢复原文件。
+
+### 验证
+
+- 全量 `pytest tests`：**2 例红，且为既存本机环境噪声**（`test_telemetry_edge` / `test_telemetry_otel_branches`；本机装了真 `opentelemetry`，`app/telemetry.py` 对本版**零 diff**，CI 全绿），**1959 passed / 44 skipped**；`coverage` **TOTAL 89%**（> 85 门）。
+- `frontend_gate.py` 400 tests + ≤400 行门：**抓到了本版自己的一处违规**——给 `policy-view.js` 加 3 行注释把它顶到 401 行，压成 1 行后通过。模块行数上限是有效门禁，不是摆设。
+- `performance_gate.py` 通过：`operator_js_bytes` 415286、`operator_css_bytes` 98048、**`widget_js_bytes` 26315（非零）**。非零本身就是证据——`_widget_payload_files()` 的取样 glob 从 `js/widget-*.js` 改为 `js/submission-portal-*.js`；若漏改，glob 会匹配不到任何文件、载荷**静默变小**（该函数文档注释自己警告过的 fail-open）。
+- `visual_gate.py`（干净库、端口 8767）**4/4 面 0.00%**，基线**无需重锚**（标识符改名 CSS+HTML+JS 三方一致，像素中性；唯一一次漂移即上面的权限串缺陷）。
+- `openapi_snapshot.py --dump` 重生成 → diff **仅版本号 1 行**；`tests/test_openapi_gate.py` + `tests/test_release_manifest.py` 22 例全绿。
+- `pyright app` **0 errors / 0 warnings**；`ruff format --check` 394 文件全过、`ruff check --select E4,E7,E9,F` 全过；`node --check` 全部 `app/static/**/*.js` 通过。
+- **独立检查器**（`artifacts/`，非守护）：`p6_check_refs.py` → HTML 资产引用 **0**、ES 模块说明符 **0**、harness 选择器 id **0**；`p6_check_els.py` → `getElementById`/`querySelector('#…')` 与 HTML `id` 的配对仅 1 处「缺失」，逐条核实为**假阳性**（`#reviewCaseLabelsForm` 由 `inspector.js:180` / `sections.jsx:41` 动态生成，不在 index.html）。
+  - 这两个检查器自身在本版修过两次**假绿/假红**：`p6_check_refs.py` 原先只拿 `app/static/index.html` 当 id 全集（漏掉 React 岛与动态 id，报 94 处假红）且硬编码 `app/static/widget.html`（文件已改名后**静默不再读提交端**，报 25 处假红）——已改为 glob 全部 `app/static/*.html`、并从 JS/JSX 收集 `<base>React` 常量与 `id=` 赋值。
+
+### 未覆盖（有意为之，已登记）
+
+- **`docs/api/reference.md` 未重生成**：其既存漂移（文档化 141 vs 快照 181 路径 / 215 操作）**先于**域迁移存在，且与域迁移正交；重生成会夹带 3000+ 行无关 diff。仍是独立事项（P3a 登记，本版未纳入）。
+- **测试/harness 的**文件名**与视觉**场景名**仍是旧域词**：`tests/ui_knowledge.py`、`tests/ui_knowledge_island.py`（CI 引用）、`tests/frontend/knowledge.test.js`、`tests/frontend/knowledge-view.test.js`、`desktop/verify_knowledge_island_desktop.py`、`tests/baselines/knowledge-view.png`、`scripts/visual_gate.py` 的 `"knowledge-view"` 场景名、`scripts/readme_screenshots.py` 的 `operator-workspace` / `knowledge-operations` / `operator-handoff`。它们属 P5 的「测试/基线面」，但改名会牵动**基线 PNG 的文件名**（等于强制重锚一次视觉门禁），故与本版「像素中性」的目标冲突，登记为后续独立批次。
+
 ## 2.29.0 — 域迁移 P4+P5：数据层与测试/基线 (2026-09-22)
 
 **破坏性变更**：本版按 [`docs/DOMAIN_MIGRATION_PLAN.md`](docs/DOMAIN_MIGRATION_PLAN.md) §3 的**一致改写（consistently rewrite）**策略，把**数据库表名、列名与迁移链本身**迁到审核域，并同步改名测试函数/文件名与清理残留。**迁移历史被改写（仍在 v01–v48 内，不新增 v49），已部署实例无法平滑升级，必须重建库**（R2 的代价，本项目无生产部署故可接受）。`docs/API_POLICY.md` 的 wire 契约**不变**：HTTP 路径、响应体键、请求模型字段一律保持旧键名，数据层改名通过新增的 `to_wire_row()` 在响应组装点还原。

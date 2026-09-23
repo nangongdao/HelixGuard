@@ -27,8 +27,8 @@ def open_new_conversation(page: Page, name: str, submitter_ref: str = "") -> Non
         page.get_by_role("button", name="创建审核单").click()
     response = response_info.value
     assert response.ok, f"Conversation creation failed: {response.status} {response.text()}"
-    expect(page.locator("#newConversationDialog")).not_to_be_visible()
-    expect(page.locator("#conversationTitle")).to_have_text(name)
+    expect(page.locator("#newReviewCaseDialog")).not_to_be_visible()
+    expect(page.locator("#reviewCaseTitle")).to_have_text(name)
 
 
 def send_customer_message(page: Page, message: str) -> None:
@@ -98,7 +98,7 @@ def main() -> None:
             ),
         )
         page.goto(BASE_URL)
-        expect(page.locator("#operatorIdentity")).to_contain_text("demo.admin")
+        expect(page.locator("#reviewerIdentity")).to_contain_text("demo.admin")
         expect(page.get_by_role("heading", name="审核队列")).to_be_visible()
 
         # Low-perf probes depending on the runner's core count: 4-core CI
@@ -134,8 +134,8 @@ def main() -> None:
 
         send_customer_message(page, "违规内容怎么分级？")
         expect(page.locator("#messages")).to_contain_text("根据当前策略条款")
-        expect(page.locator("#customerForm")).to_have_attribute("aria-busy", "false")
-        expect(page.locator("#inspectorOverview")).to_contain_text("knowledge")
+        expect(page.locator("#submitterForm")).to_have_attribute("aria-busy", "false")
+        expect(page.locator("#inspectorOverview")).to_contain_text("policy")
         page.get_by_role("tab", name="证据").click()
         expect(page.locator("#inspectorEvidence")).to_contain_text("违规内容分级标准")
         expect(page.locator(".citation-item")).to_have_count(1)
@@ -157,7 +157,7 @@ def main() -> None:
         priority_high.click()
         expect(priority_high).to_have_attribute("aria-pressed", "true")
         browser_label = f"browser-{run_id}"
-        labels_input = page.locator("#conversationLabelsForm input[name='labels']")
+        labels_input = page.locator("#reviewCaseLabelsForm input[name='labels']")
         labels_input.fill(f"{browser_label}, priority")
         with page.expect_response(
             lambda response: response.url.endswith("/labels") and response.request.method == "PUT"
@@ -173,7 +173,7 @@ def main() -> None:
             )
         ):
             page.locator("#labelFilter").select_option(browser_label)
-        expect(page.locator(".conversation-item")).to_have_count(1)
+        expect(page.locator(".review-case-item")).to_have_count(1)
         with page.expect_response(
             lambda response: "/api/review-cases?" in response.url and "label=" not in response.url
         ):
@@ -185,21 +185,21 @@ def main() -> None:
 
         open_new_conversation(page, f"人工接管-{run_id}")
         send_customer_message(page, "我要投诉并升级复审，请转人工复核")
-        expect(page.locator("#conversationStatus")).to_have_text("等待人工")
+        expect(page.locator("#reviewCaseStatus")).to_have_text("等待人工")
         with page.expect_response(
             lambda response: response.url.endswith("/accept") and response.request.method == "POST"
         ) as accept_response_info:
             page.get_by_role("button", name="接入", exact=True).click()
         assert accept_response_info.value.ok, accept_response_info.value.text()
-        expect(page.locator("#conversationStatus")).to_have_text("人工处理中")
-        expect(page.locator("#operatorForm")).to_be_visible()
+        expect(page.locator("#reviewCaseStatus")).to_have_text("人工处理中")
+        expect(page.locator("#reviewerForm")).to_be_visible()
         page.get_by_label("人工回复", exact=True).fill("已接入，正在核验退款条件。")
         page.get_by_role("button", name="发送人工回复", exact=True).click()
         expect(page.locator("#messages")).to_contain_text("已接入，正在核验退款条件。")
         page.get_by_role("button", name="判定", exact=True).click()
-        expect(page.locator("#conversationStatus")).to_have_text("已判定")
+        expect(page.locator("#reviewCaseStatus")).to_have_text("已判定")
         expect(page.get_by_role("button", name="重开", exact=True)).to_be_visible()
-        checkboxes = page.locator(".conversation-checkbox")
+        checkboxes = page.locator(".review-case-checkbox")
         assert checkboxes.count() >= 2
         checkboxes.nth(0).check()
         checkboxes.nth(1).check()
@@ -233,7 +233,7 @@ def main() -> None:
             ),
         )
         mobile.goto(BASE_URL)
-        expect(mobile.locator("#operatorIdentity")).to_contain_text("demo.admin")
+        expect(mobile.locator("#reviewerIdentity")).to_contain_text("demo.admin")
         expect(mobile.get_by_role("button", name="打开审核队列")).to_be_visible()
         mobile.get_by_role("button", name="打开审核队列").click()
         expect(mobile.locator("#queuePane")).to_have_class("queue-pane is-open")
@@ -241,7 +241,7 @@ def main() -> None:
         expect(mobile.get_by_role("heading", name="审核队列")).to_be_visible()
         expect(mobile.locator(".queue-scrim")).to_be_visible()
         expect(mobile.locator("#queuePane")).to_have_attribute("aria-modal", "true")
-        assert mobile.locator(".conversation-pane").get_attribute("inert") is not None
+        assert mobile.locator(".review-case-pane").get_attribute("inert") is not None
         queue_box = mobile.locator("#queuePane").bounding_box()
         assert queue_box is not None
         assert queue_box["x"] >= -1 and queue_box["width"] >= 340, queue_box
@@ -253,7 +253,7 @@ def main() -> None:
         mobile.keyboard.press("Escape")
         expect(mobile.locator("#queuePane")).not_to_have_class("queue-pane is-open")
         expect(mobile.locator(".queue-scrim")).to_be_hidden()
-        assert mobile.locator(".conversation-pane").get_attribute("inert") is None
+        assert mobile.locator(".review-case-pane").get_attribute("inert") is None
 
         browser.close()
 

@@ -24,7 +24,7 @@ function bindLegacyBoot() {
   const { state, els, document, window: win } = ctx;
 
   els.list.addEventListener("click", (event) => {
-    const item = event.target.closest(".conversation-item");
+    const item = event.target.closest(".review-case-item");
     if (item?.dataset.id) ctx.selectConversation(item.dataset.id);
   });
 
@@ -32,11 +32,11 @@ function bindLegacyBoot() {
   els.list.addEventListener("scroll", ctx.handleQueueScroll, { passive: true });
 
   els.list.addEventListener("change", (event) => {
-    const checkbox = event.target.closest(".conversation-checkbox");
+    const checkbox = event.target.closest(".review-case-checkbox");
     if (!checkbox?.dataset.selectId) return;
     if (checkbox.checked) state.bulkSelected.add(checkbox.dataset.selectId);
     else state.bulkSelected.delete(checkbox.dataset.selectId);
-    checkbox.closest(".conversation-row")?.classList.toggle("is-selected", checkbox.checked);
+    checkbox.closest(".review-case-row")?.classList.toggle("is-selected", checkbox.checked);
     ctx.renderBulkToolbar();
   });
 
@@ -96,7 +96,7 @@ function bindLegacyBoot() {
 
   // Module islands' own binders (mark activation); each owns its listeners.
   win.HelixModules?.qualityPanel?.bindQuality?.();
-  win.HelixModules?.knowledgeView?.bindKnowledgeView?.();
+  win.HelixModules?.policyView?.bindKnowledgeView?.();
   win.HelixModules?.queueView?.bindQueueDrawer?.();
   win.HelixModules?.savedViews?.bindSavedViews?.();
   win.HelixModules?.commandDispatch?.bindCommandDispatch?.();
@@ -123,17 +123,17 @@ function bindLegacyBoot() {
     });
   }
 
-  // D3 bridge: the React ticket island dispatches "helix-ticket-open" when a
-  // row is clicked (the legacy #ticketList is yielded and hidden in the
-  // desktop shell). Bridge it to the legacy detail opener so the ticket detail
-  // view stays in ticket-view.js until a later D3 slice migrates it.
+  // D3 bridge: the React appeal island dispatches "helix-ticket-open" when a
+  // row is clicked (the legacy #appealList is yielded and hidden in the
+  // desktop shell). Bridge it to the legacy detail opener so the appeal detail
+  // view stays in appeal-view.js until a later D3 slice migrates it.
   win.addEventListener("helix-ticket-open", (event) => {
     const { ticketId } = event.detail || {};
     if (!ticketId) return;
     void win.HelixModules?.ticketView?.openTicketDetail?.(ticketId);
   });
   // D3 bridge: the React queue island dispatches "helix-queue-select" when a
-  // row is clicked (the legacy #conversationList is yielded and hidden in the
+  // row is clicked (the legacy #reviewCaseList is yielded and hidden in the
   // desktop shell). Bridge it back to the legacy detail loader, which owns the
   // conversation thread view until a later D3 slice migrates it.
   win.addEventListener("helix-queue-select", (event) => {
@@ -143,10 +143,10 @@ function bindLegacyBoot() {
   });
   // D3 bridge (workspace tabs island): the island dispatches
   // helix-workspace-tab on clicks; pane switching and the data side effects
-  // (ticket loading, queue refresh) stay in legacy switchWorkspaceTab.
+  // (appeal loading, queue refresh) stay in legacy switchWorkspaceTab.
   win.addEventListener("helix-workspace-tab", (event) => {
     const { field } = event.detail || {};
-    if (!["queue", "tickets"].includes(field)) return;
+    if (!["queue", "appeals"].includes(field)) return;
     win.HelixModules?.ticketView?.switchWorkspaceTab?.(field);
   });
   // D3 bridge (mentions island): the island owns the badge/panel; jumping to

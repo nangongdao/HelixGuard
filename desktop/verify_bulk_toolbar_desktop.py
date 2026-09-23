@@ -74,9 +74,9 @@ def main() -> int:
                 print("FAIL: no console page found over CDP")
                 return 1
 
-            page.wait_for_selector("#operatorIdentity", state="attached", timeout=30000)
+            page.wait_for_selector("#reviewerIdentity", state="attached", timeout=30000)
             page.wait_for_selector(
-                "#queueReactIsland .conversation-item", state="attached", timeout=30000
+                "#queueReactIsland .review-case-item", state="attached", timeout=30000
             )
             checks: dict[str, object] = {}
             checks["island_mode"] = page.evaluate("() => window.__HELIX_ISLAND_MODE__ === true")
@@ -108,12 +108,12 @@ def main() -> int:
             checks["seeded"] = seeded
             page.locator("#refreshList").click()
             page.wait_for_function(
-                "() => document.querySelectorAll('#queueReactIsland .conversation-item').length >= 3",
+                "() => document.querySelectorAll('#queueReactIsland .review-case-item').length >= 3",
                 timeout=30000,
             )
 
             # Select two island rows via their bulk checkboxes.
-            checkboxes = page.locator("#queueReactIsland .conversation-checkbox")
+            checkboxes = page.locator("#queueReactIsland .review-case-checkbox")
             checkboxes.nth(0).check()
             checkboxes.nth(1).check()
             page.wait_for_selector("#queueReactIsland .bulk-toolbar", timeout=10000)

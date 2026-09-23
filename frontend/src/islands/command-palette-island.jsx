@@ -41,7 +41,7 @@ const COMMAND_GROUPS = [
     commands: [
       { id: "nav:workspace", label: "工作台", hint: "切换到审核单工作台" },
       { id: "nav:quality", label: "质量看板", hint: "查看质量仪表板" },
-      { id: "nav:knowledge", label: "策略库", hint: "管理策略文章" },
+      { id: "nav:policy", label: "策略库", hint: "管理策略文章" },
       { id: "nav:admin", label: "管理", hint: "管理租户与成员" },
       { id: "nav:settings", label: "设置", hint: "桌面运行时信息" },
     ],

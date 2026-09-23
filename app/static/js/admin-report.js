@@ -61,7 +61,7 @@ export function renderReportSubscriptions(subs) {
           <span class="admin-report-sub-meta">窗口 ${ctx.escapeHtml(String(sub.window_days))} 天 · ${ctx.escapeHtml(sub.webhook_endpoint_id)} · 上次 ${ctx.escapeHtml(lastRun)}</span>
         </span>
         <span class="admin-member-actions">
-          <span class="status-pill${sub.active ? "" : " is-ticket-closed"}">${sub.active ? "启用" : "停用"}</span>
+          <span class="status-pill${sub.active ? "" : " is-appeal-closed"}">${sub.active ? "启用" : "停用"}</span>
           <button type="button" class="admin-ghost-button report-sub-toggle" data-id="${ctx.escapeHtml(sub.id)}">${sub.active ? "停用" : "启用"}</button>
           <button type="button" class="admin-ghost-button report-sub-delete" data-id="${ctx.escapeHtml(sub.id)}">删除</button>
         </span>

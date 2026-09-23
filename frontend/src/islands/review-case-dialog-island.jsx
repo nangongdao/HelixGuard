@@ -31,9 +31,9 @@ export const DIALOG_EVENTS = Object.freeze({
 
 /** React-suffixed ids: the yielded legacy dialog keeps the originals. */
 export const DIALOG_IDS = Object.freeze({
-  form: "newConversationFormReact",
-  customerName: "newCustomerNameReact",
-  customerRef: "newCustomerRefReact",
+  form: "newReviewCaseFormReact",
+  submitterName: "newSubmitterNameReact",
+  customerRef: "newSubmitterRefReact",
   channel: "newChannelReact",
 });
 
@@ -41,14 +41,14 @@ export const DIALOG_IDS = Object.freeze({
  * Pure payload projection — parity with legacy: trimmed fields, customer_ref
  * included only when non-empty, customer_name required (empty → null, the
  * caller skips the submit).
- * @param {{customerName: string, customerRef: string, channel: string}} values
+ * @param {{submitterName: string, customerRef: string, channel: string}} values
  * @returns {Object|null} API payload or null when customer_name is blank
  */
 export function conversationPayload(values) {
-  const customerName = String(values.customerName || "").trim();
-  if (!customerName) return null;
+  const submitterName = String(values.submitterName || "").trim();
+  if (!submitterName) return null;
   const payload = {
-    customer_name: customerName,
+    customer_name: submitterName,
     channel: values.channel || "web",
   };
   const customerRef = String(values.customerRef || "").trim();
@@ -61,13 +61,13 @@ export function ConversationDialogIsland() {
   const nameRef = useRef(null);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [values, setValues] = useState({ customerName: "", customerRef: "", channel: "web" });
+  const [values, setValues] = useState({ submitterName: "", customerRef: "", channel: "web" });
 
   const setValue = (name) => (event) =>
     setValues((prev) => ({ ...prev, [name]: event.target.value }));
 
   const openDialog = () => {
-    setValues({ customerName: "", customerRef: "", channel: "web" });
+    setValues({ submitterName: "", customerRef: "", channel: "web" });
     setBusy(false);
     setOpen(true);
     // showModal() must run after the dialog element is mounted/patched.
@@ -133,16 +133,16 @@ export function ConversationDialogIsland() {
             <svg className="icon"><use href="/static/icons.svg?v=1.4.0#x" /></svg>
           </button>
         </div>
-        <label className="field-label" htmlFor={DIALOG_IDS.customerName}>提交方名称</label>
+        <label className="field-label" htmlFor={DIALOG_IDS.submitterName}>提交方名称</label>
         <input
-          id={DIALOG_IDS.customerName}
+          id={DIALOG_IDS.submitterName}
           ref={nameRef}
           className="text-input"
           maxLength={80}
           required
           placeholder="例如：林嘉"
-          value={values.customerName}
-          onChange={setValue("customerName")}
+          value={values.submitterName}
+          onChange={setValue("submitterName")}
         />
         <label className="field-label" htmlFor={DIALOG_IDS.customerRef}>
           提交方标识 <span>可选</span>

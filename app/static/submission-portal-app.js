@@ -15,7 +15,7 @@ import {
   saveSession,
   sessionKey,
   shouldPoll,
-} from "/static/js/widget-core.js?v=1.4.0";
+} from "/static/js/submission-portal-core.js?v=1.4.0";
 
 const config = readWidgetConfig();
 const storage = globalThis.sessionStorage;
@@ -47,7 +47,7 @@ const messageInput = $("messageInput");
 const sendButton = $("sendButton");
 const messageForm = $("messageForm");
 const resolvedBanner = $("resolvedBanner");
-const csatLink = $("csatLink");
+const qaSpotCheckLink = $("qaSpotCheckLink");
 const connectionBanner = $("connectionBanner");
 
 function setText(id, value) {
@@ -59,14 +59,14 @@ function applyCopy() {
   document.documentElement.lang = config.locale === "en" ? "en" : "zh-CN";
   document.body.dataset.accent = config.accent;
   document.title = config.brand;
-  setText("widgetBrand", config.brand);
+  setText("submissionPortalBrand", config.brand);
   setText("headerKicker", copy(config.locale, "eyebrow"));
   setText("onlineLabel", copy(config.locale, "online"));
   setText("welcomeEyebrow", copy(config.locale, "eyebrow"));
   setText("welcomeTitle", config.locale === "en" ? "Start here" : "欢迎使用提交入口");
   setText("welcomeCopy", config.greeting);
   setText("nameLabel", copy(config.locale, "nameLabel"));
-  $("customerName").placeholder = copy(config.locale, "namePlaceholder");
+  $("submitterName").placeholder = copy(config.locale, "namePlaceholder");
   setText("startButton", copy(config.locale, "start"));
   setText("introCopy", copy(config.locale, "intro"));
   setText("inputLabel", copy(config.locale, "inputLabel"));
@@ -164,8 +164,8 @@ function appendSystemNote(text) {
 
 function renderResolvedBanner() {
   resolvedBanner.hidden = !state.resolved;
-  if (state.resolved && csatLink.getAttribute("href") !== state.resolvedSurveyUrl) {
-    csatLink.href = state.resolvedSurveyUrl;
+  if (state.resolved && qaSpotCheckLink.getAttribute("href") !== state.resolvedSurveyUrl) {
+    qaSpotCheckLink.href = state.resolvedSurveyUrl;
   }
 }
 
@@ -344,10 +344,10 @@ async function startSession(event) {
   const button = $("startButton");
   button.disabled = true;
   try {
-    const customerName = $("customerName").value.trim();
+    const submitterName = $("submitterName").value.trim();
     const response = await request("/api/submission-portal/sessions", {
       method: "POST",
-      body: JSON.stringify(customerName ? { customer_name: customerName } : {}),
+      body: JSON.stringify(submitterName ? { customer_name: submitterName } : {}),
     });
     const session = await response.json();
     state.conversationId = session.conversation.id;
@@ -438,7 +438,7 @@ function handleBootstrapNavigation() {
   state.pendingAttempt = null;
   state.cursor = "";
   state.pollFailures = 0;
-  $("customerName").value = "";
+  $("submitterName").value = "";
   messageInput.value = "";
   setBusy(false);
   showBanner("", false);
@@ -446,7 +446,7 @@ function handleBootstrapNavigation() {
   chatView.hidden = true;
   fatalState.hidden = true;
   prechatView.hidden = false;
-  $("customerName").focus({ preventScroll: true });
+  $("submitterName").focus({ preventScroll: true });
 }
 
 async function restoreOrPrepare() {

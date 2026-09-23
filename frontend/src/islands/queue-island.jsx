@@ -6,7 +6,7 @@
  * filters, pagination and calls renderQueue(), which in island mode
  * publishes HELIX_QUEUE_UPDATED
  * {conversations, selectedId, canOperate, queueHasMore, queueLoadingMore,
- * compact} instead of painting #conversationList/#queueCount/#loadMore.
+ * compact} instead of painting #reviewCaseList/#queueCount/#loadMore.
  * This island listens, renders the same row classes as queueRowHtml (so
  * visual/axe/perf gates stay valid), and bridges interactions back via the
  * legacy events:
@@ -164,7 +164,7 @@ export function QueueIsland() {
       )}
       <div
         ref={listRef}
-        className="conversation-list"
+        className="review-case-list"
         aria-live="polite"
         aria-busy="false"
         onScroll={handleScroll}

@@ -177,7 +177,7 @@ export function renderOverview(detail) {
         <div class="detail-row"><dt>分配</dt><dd>${ctx.escapeHtml(conversation.assigned_agent || "未分配")}</dd></div>
         <div class="detail-row"><dt>认领</dt><dd>${conversation.claim_active ? `${ctx.escapeHtml(conversation.claimed_by)} · 至 ${ctx.escapeHtml(ctx.formatTime(conversation.claim_expires_at, true))}` : "未认领"}</dd></div>
       </dl>
-      ${ctx.canOperate() ? `<form id="conversationLabelsForm" class="label-editor">
+      ${ctx.canOperate() ? `<form id="reviewCaseLabelsForm" class="label-editor">
         <label class="label-editor-field">
           <svg class="icon"><use href="/static/icons.svg?v=1.4.0#tag" /></svg>
           <span class="sr-only">审核单标签</span>
@@ -207,7 +207,7 @@ export function renderOverview(detail) {
   ctx.els.inspectorOverview.querySelectorAll(".priority-option").forEach((button) => {
     button.addEventListener("click", () => updatePriority(button));
   });
-  const labelsForm = ctx.els.inspectorOverview.querySelector("#conversationLabelsForm");
+  const labelsForm = ctx.els.inspectorOverview.querySelector("#reviewCaseLabelsForm");
   if (labelsForm) labelsForm.addEventListener("submit", updateLabels);
 }
 

@@ -20,8 +20,8 @@ import * as commands from "./commands.js?v=1.4.0";
 import * as composer from "./composer.js?v=1.4.0";
 import * as composerCommand from "./composer-command.js?v=1.4.0";
 import * as copilotTools from "./copilot-tools.js?v=1.4.0";
-import * as conversationActions from "./conversation-actions.js?v=1.4.0";
-import * as conversationDetail from "./conversation-detail.js?v=1.4.0";
+import * as conversationActions from "./review-case-actions.js?v=1.4.0";
+import * as conversationDetail from "./review-case-detail.js?v=1.4.0";
 import * as composerIslandBridge from "./composer-island-bridge.js?v=1.4.0";
 import * as density from "./density.js?v=1.4.0";
 import * as desktopInfo from "./desktop-info.js?v=1.4.0";
@@ -31,10 +31,10 @@ import * as helpers from "./helpers.js?v=1.4.0";
 import * as i18n from "./i18n.js?v=1.4.0";
 import * as http from "./http.js?v=1.4.0";
 import * as inspector from "./inspector.js?v=1.4.0";
-import * as knowledge from "./knowledge.js?v=1.4.0";
-import * as knowledgeView from "./knowledge-view.js?v=1.4.0";
+import * as policy from "./policy.js?v=1.4.0";
+import * as policyView from "./policy-view.js?v=1.4.0";
 import * as notes from "./notes.js?v=1.4.0";
-import * as operatorSettings from "./operator-settings.js?v=1.4.0";
+import * as operatorSettings from "./reviewer-settings.js?v=1.4.0";
 import * as savedViews from "./saved-views.js?v=1.4.0";
 import * as commandDispatch from "./command-dispatch.js?v=1.4.0";
 import * as refresh from "./refresh.js?v=1.4.0";
@@ -54,7 +54,7 @@ import * as sse from "./sse.js?v=1.4.0";
 import * as state from "./state.js?v=1.4.0";
 import * as summary from "./summary.js?v=1.4.0";
 import * as thread from "./thread.js?v=1.4.0";
-import * as ticketView from "./ticket-view.js?v=1.4.0";
+import * as ticketView from "./appeal-view.js?v=1.4.0";
 import * as vqueue from "./vqueue.js?v=1.4.0";
 import * as wire from "./wire.js?v=1.4.0";
 
@@ -149,8 +149,8 @@ export function initModules() {
     i18n,
     http,
     inspector,
-    knowledge,
-    knowledgeView,
+    policy,
+    policyView,
     notes,
     operatorSettings,
     savedViews,
@@ -261,7 +261,7 @@ if (typeof window !== "undefined") {
  * the legacy app.js is the sole renderer, so islands must NOT mount —
  * even when a built dist/ happens to be present on disk (local dev who
  * ran `vite build`, or a shared static dir). Without this gate the
- * non-hidden island mount points (quality/knowledge/command-palette/
+ * non-hidden island mount points (quality/policy/command-palette/
  * terminal) would render a parallel React tree on top of the legacy
  * DOM, duplicating those surfaces. The desktop shell sets
  * `__HELIX_ISLAND_MODE__` so islands know the legacy renderer has yielded;

@@ -55,9 +55,9 @@ def api_patch(path: str, body: dict) -> dict:
 
 def select_conversation(page: Page, submitter: str) -> None:
     """Click the queue row whose customer name matches (independent of order)."""
-    row = page.locator(".conversation-row", has_text=submitter).first
+    row = page.locator(".review-case-row", has_text=submitter).first
     row.click()
-    expect(page.locator("#conversationTitle")).to_contain_text(submitter)
+    expect(page.locator("#reviewCaseTitle")).to_contain_text(submitter)
     expect(page.locator("#noteForm")).to_be_visible()
 
 
@@ -116,7 +116,7 @@ def main() -> None:
             ),
         )
         page.goto(BASE_URL)
-        expect(page.locator("#operatorIdentity")).to_contain_text("demo.admin")
+        expect(page.locator("#reviewerIdentity")).to_contain_text("demo.admin")
         select_conversation(page, submitter)
         note_input = page.locator("#noteInput")
         suggest = page.locator("#mentionSuggest")

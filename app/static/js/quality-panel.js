@@ -210,7 +210,7 @@ export function buildQualityGapsHtml(gaps) {
           <span class="quality-gap-intent">${ctx.escapeHtml(gap.intent || "未知风险类别")}</span>
         </div>
         <p class="quality-gap-preview">${ctx.escapeHtml((gap.assistant_content || "").slice(0, 120))}</p>
-        <button class="button button-secondary quality-gap-draft" data-conversation-id="${ctx.escapeHtml(gap.conversation_id)}" data-message-id="${ctx.escapeHtml(gap.message_id)}" type="button">
+        <button class="button button-secondary quality-gap-draft" data-review-case-id="${ctx.escapeHtml(gap.conversation_id)}" data-message-id="${ctx.escapeHtml(gap.message_id)}" type="button">
           生成策略草稿
         </button>
       </article>
@@ -228,7 +228,7 @@ export function renderQualityPanel(targetBuckets = ctx.els.qualityBuckets, targe
     .forEach((button) => {
       button.addEventListener("click", () =>
         createKnowledgeDraftFromFeedback(
-          button.dataset.conversationId,
+          button.dataset.reviewCaseId,
           button.dataset.messageId,
         ),
       );
@@ -248,40 +248,40 @@ export async function createKnowledgeDraftFromFeedback(conversationId, messageId
 }
 
 export async function loadCsatSummary() {
-  if (!ctx.els.csatReadout) return;
+  if (!ctx.els.qaSpotCheckReadout) return;
   try {
     const data = await ctx.api("/api/admin/qa-spot-check-summary");
     renderCsatSummary(data);
   } catch (error) {
     // 失败不伪装成合法的 0 态——直接提示,避免掩盖权限/端点故障(W2)。
-    if (ctx.els.csatReadout) {
-      ctx.els.csatReadout.innerHTML = '<dt>状态</dt><dd class="admin-empty">汇总加载失败</dd>';
+    if (ctx.els.qaSpotCheckReadout) {
+      ctx.els.qaSpotCheckReadout.innerHTML = '<dt>状态</dt><dd class="admin-empty">汇总加载失败</dd>';
     }
-    if (ctx.els.csatTrend) ctx.els.csatTrend.innerHTML = "";
+    if (ctx.els.qaSpotCheckTrend) ctx.els.qaSpotCheckTrend.innerHTML = "";
   }
 }
 
 export function renderCsatSummary(data) {
-  if (!ctx.els.csatReadout || !ctx.els.csatTrend) return;
+  if (!ctx.els.qaSpotCheckReadout || !ctx.els.qaSpotCheckTrend) return;
   const days = Array.isArray(data.per_day) ? data.per_day : [];
   const total = Math.round(Number(data.total || 0));
   // 有样本才有均值/好评率;空态用 — 而非 0.00(提交方不可能打 0 分,W2)。
   const avg = total > 0 ? `${Number(data.avg_rating || 0).toFixed(2)} / 5` : "— / 5";
   const pct = total > 0 ? `${Math.round(Number(data.positive_rate || 0) * 100)}%` : "—";
-  ctx.els.csatReadout.innerHTML = `
+  ctx.els.qaSpotCheckReadout.innerHTML = `
     <dt>累计样本数</dt><dd>${total}</dd>
     <dt>累计平均分</dt><dd>${avg}</dd>
     <dt>累计好评率</dt><dd>${pct}</dd>`;
   if (!days.length) {
-    ctx.els.csatTrend.innerHTML = '<li class="admin-empty">暂无已回收的评分</li>';
+    ctx.els.qaSpotCheckTrend.innerHTML = '<li class="admin-empty">暂无已回收的评分</li>';
     return;
   }
-  ctx.els.csatTrend.innerHTML = days
+  ctx.els.qaSpotCheckTrend.innerHTML = days
     .map(
       (d) => `
-      <li class="csat-day">
-        <span class="csat-day-date">${ctx.escapeHtml(d.date)}</span>
-        <span class="csat-day-meta">${d.count} 份 · 平均 ${Number(d.avg_rating || 0).toFixed(2)}</span>
+      <li class="qa-spot-check-day">
+        <span class="qa-spot-check-day-date">${ctx.escapeHtml(d.date)}</span>
+        <span class="qa-spot-check-day-meta">${d.count} 份 · 平均 ${Number(d.avg_rating || 0).toFixed(2)}</span>
       </li>`,
     )
     .join("");

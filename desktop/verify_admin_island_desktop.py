@@ -84,10 +84,10 @@ def main() -> int:
                 print("FAIL: no console page found over CDP")
                 return 1
 
-            page.wait_for_selector("#operatorIdentity", timeout=30000)
+            page.wait_for_selector("#reviewerIdentity", timeout=30000)
             checks: dict[str, object] = {}
             checks["island_mode"] = page.evaluate("() => window.__HELIX_ISLAND_MODE__ === true")
-            checks["identity"] = page.text_content("#operatorIdentity") or ""
+            checks["identity"] = page.text_content("#reviewerIdentity") or ""
 
             # Open the admin view; the island mounts at page load but its
             # queries only fire once helix-identity reports admin:manage.

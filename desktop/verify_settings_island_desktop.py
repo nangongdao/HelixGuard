@@ -78,7 +78,7 @@ def main() -> int:
                 print("FAIL: no console page found over CDP")
                 return 1
 
-            page.wait_for_selector("#operatorIdentity", timeout=30000)
+            page.wait_for_selector("#reviewerIdentity", timeout=30000)
             checks: dict[str, object] = {}
             checks["island_mode"] = page.evaluate("() => window.__HELIX_ISLAND_MODE__ === true")
             # The live sidecar origin URL is the port the readout must show.

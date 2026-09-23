@@ -1,7 +1,7 @@
 /**
- * Helix Guard — knowledge island component tests (D3)
+ * Helix Guard — policy island component tests (D3)
  *
- * The island owns the whole knowledge surface including the draft editor, but
+ * The island owns the whole policy surface including the draft editor, but
  * every write bridges back to legacy via events. These tests cover the reducer
  * triplet, the validation parity with legacy saveKnowledgeArticle, and the
  * bridge contract — no legacy app.js, only a stubbed fetch.
@@ -19,7 +19,7 @@ import {
   createKnowledgeState,
   reduceKnowledge,
   validateKnowledgeDraft,
-} from "./knowledge-island.jsx";
+} from "./policy-island.jsx";
 
 function makeArticle(overrides = {}) {
   return {
@@ -57,7 +57,7 @@ async function renderIsland(articles = [makeArticle()], role = "admin") {
       <KnowledgeIsland />
     </QueryClientProvider>,
   );
-  await waitFor(() => expect(document.querySelector(".knowledge-island")).toBeTruthy());
+  await waitFor(() => expect(document.querySelector(".policy-island")).toBeTruthy());
   return { articles, client };
 }
 
@@ -135,15 +135,15 @@ describe("validateKnowledgeDraft parity with legacy", () => {
 describe("KnowledgeIsland editor surface", () => {
   it("keeps the editor aside in the DOM but hidden until opened", async () => {
     await renderIsland();
-    const aside = document.querySelector(".knowledge-editor");
-    // The single-column layout rule keys off .knowledge-editor[hidden], so the
+    const aside = document.querySelector(".policy-editor");
+    // The single-column layout rule keys off .policy-editor[hidden], so the
     // aside must exist even when closed.
     expect(aside).toBeTruthy();
     expect(aside.hidden).toBe(true);
     expect(document.getElementById(EDITOR_IDS.form)).toBeNull();
 
     openEditorForFirstArticle();
-    expect(document.querySelector(".knowledge-editor").hidden).toBe(false);
+    expect(document.querySelector(".policy-editor").hidden).toBe(false);
     expect(document.getElementById(EDITOR_IDS.form)).toBeTruthy();
   });
 
@@ -182,7 +182,7 @@ describe("KnowledgeIsland editor surface", () => {
   it("hides the editor and the write actions for a reader role", async () => {
     await renderIsland([makeArticle({ status: "published" })], "viewer");
     expect(screen.queryByRole("button", { name: "编辑" })).toBeNull();
-    expect(document.querySelector(".knowledge-editor").hidden).toBe(true);
+    expect(document.querySelector(".policy-editor").hidden).toBe(true);
     expect(screen.getByText(/仅对策略管理员开放/)).toBeTruthy();
   });
 
@@ -242,7 +242,7 @@ describe("KnowledgeIsland bridge contract", () => {
     act(() => {
       window.dispatchEvent(new CustomEvent(KNOWLEDGE_EVENTS.SAVED, { detail: { ok: true } }));
     });
-    await waitFor(() => expect(document.querySelector(".knowledge-editor").hidden).toBe(true));
+    await waitFor(() => expect(document.querySelector(".policy-editor").hidden).toBe(true));
   });
 
   it("keeps the editor open and editable when legacy reports a failure", async () => {
@@ -252,7 +252,7 @@ describe("KnowledgeIsland bridge contract", () => {
     act(() => {
       window.dispatchEvent(new CustomEvent(KNOWLEDGE_EVENTS.SAVED, { detail: { ok: false } }));
     });
-    expect(document.querySelector(".knowledge-editor").hidden).toBe(false);
+    expect(document.querySelector(".policy-editor").hidden).toBe(false);
     // Busy clears so the operator can retry instead of a stuck submit button.
     expect(document.getElementById(EDITOR_IDS.form).getAttribute("aria-busy")).toBe("false");
   });
@@ -266,7 +266,7 @@ describe("KnowledgeIsland bridge contract", () => {
       .find((ev) => ev.type === KNOWLEDGE_EVENTS.ACTION);
     expect(actionEvent.detail).toEqual({ action: "publish", articleId: "kb_1" });
     // Edit stays island-local — no bridge event for it.
-    expect(document.querySelector(".knowledge-editor").hidden).toBe(true);
+    expect(document.querySelector(".policy-editor").hidden).toBe(true);
   });
 
   it("refetches on a forced helix-knowledge-refresh", async () => {
@@ -281,14 +281,14 @@ describe("KnowledgeIsland bridge contract", () => {
   });
 
   it("skips the round-trip when an unforced refresh finds fresh data", async () => {
-    // Re-opening the knowledge view dispatches an unforced refresh. The island
+    // Re-opening the policy view dispatches an unforced refresh. The island
     // mounts at page load, so without this the view would fetch twice.
     await renderIsland();
     const before = fetch.mock.calls.length;
     act(() => {
       window.dispatchEvent(new CustomEvent(KNOWLEDGE_EVENTS.REFRESH));
     });
-    await waitFor(() => expect(document.querySelector(".knowledge-island")).toBeTruthy());
+    await waitFor(() => expect(document.querySelector(".policy-island")).toBeTruthy());
     expect(fetch.mock.calls.length).toBe(before);
   });
 

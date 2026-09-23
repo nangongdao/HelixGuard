@@ -59,8 +59,8 @@ function installWindow() {
 
 function configureAll({ apiImpl } = {}) {
   const els = {
-    operatorInput: { value: "" },
-    operatorForm: { dataset: {} },
+    reviewerInput: { value: "" },
+    reviewerForm: { dataset: {} },
     pendingAttachments: { innerHTML: "" },
     attachmentFile: { value: "" },
   };

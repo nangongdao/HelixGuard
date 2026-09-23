@@ -304,7 +304,7 @@ function renderQualityPanel(...args) { return window.HelixModules?.['qualityPane
 
 function renderSubtitle(...args) { return window.HelixModules?.['conversationDetail']?.['renderSubtitle'](...args); }
 
-// Backlog (多语言审核): header select lives in js/conversation-detail.js
+// Backlog (多语言审核): header select lives in js/review-case-detail.js
 // (renderLanguagePicker — injected once; PATCH rollback via renderDetail).
 function renderLanguagePicker(...args) { return window.HelixModules?.['conversationDetail']?.['renderLanguagePicker'](...args); }
 
@@ -353,9 +353,9 @@ function renderCannedResponses(...args) { return window.HelixModules?.['composer
 async function insertCannedResponse(responseId) {
   const macro = state.cannedResponses.find((item) => item.id === responseId);
   if (!macro) return;
-  const prefix = els.operatorInput.value.trim();
-  els.operatorInput.value = prefix ? `${prefix}\n${macro.body}` : macro.body;
-  els.operatorInput.focus();
+  const prefix = els.reviewerInput.value.trim();
+  els.reviewerInput.value = prefix ? `${prefix}\n${macro.body}` : macro.body;
+  els.reviewerInput.focus();
   try {
     await api(`/api/canned-verdicts/${encodeURIComponent(responseId)}/use`, { method: "POST" });
   } catch {
@@ -369,7 +369,7 @@ function resetCopilot(...args) { return window.HelixModules?.['composer']?.['res
 
 async function enrichTicketBadge(...args) { return window.HelixModules?.['ticketView']?.['enrichTicketBadge'](...args); }
 
-/** Hide the ticket detail, restoring the conversation/empty mount point. */
+/** Hide the appeal detail, restoring the conversation/empty mount point. */
 
 function attachmentChips(...args) { return window.HelixModules?.['attachments']?.['attachmentChips'](...args); }
 
@@ -378,14 +378,14 @@ async function loadAttachmentNames(...args) { return window.HelixModules?.['atta
 function renderAttachmentBar(...args) { return window.HelixModules?.['attachments']?.['renderAttachmentBar'](...args); }
 
 // ---- ROADMAP §17: 策略运营页 ---------------------------------------------
-// bridges); the pure helpers stay in js/knowledge.js.
+// bridges); the pure helpers stay in js/policy.js.
 
 // D1 桌面设置页 + D3 策略/管理岛事件桥：委托给 js/desktop-info.js 模块。
 function loadDesktopInfo() {
   window.HelixModules?.desktopInfo?.loadDesktopInfo(els);
 }
 
-async function loadKnowledgeView(...args) { return window.HelixModules?.['knowledgeView']?.['loadKnowledgeView'](...args); }
+async function loadKnowledgeView(...args) { return window.HelixModules?.['policyView']?.['loadKnowledgeView'](...args); }
 
 // ---- UI 升级 §17.1: 全局导航栏 -------------------------------------------
 
@@ -404,7 +404,7 @@ function switchAppView(...args) { return window.HelixModules?.['appNav']?.['swit
 
 // ---- UI 升级 §17.2: 三档密度 (comfortable/compact/dense) --------------------
 
-// ---- UI 升级 §17.2/§17.3: density/prefs/permissions live in js/operator-settings.js ----
+// ---- UI 升级 §17.2/§17.3: density/prefs/permissions live in js/reviewer-settings.js ----
 
 
 // ---- UI 升级 §17.3: 管理页 (tenant quota / members / webhooks) ------------

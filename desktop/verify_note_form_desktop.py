@@ -81,7 +81,7 @@ def main() -> int:
                 print("FAIL: no console page found over CDP")
                 return 1
 
-            page.wait_for_selector("#operatorIdentity", state="attached", timeout=30000)
+            page.wait_for_selector("#reviewerIdentity", state="attached", timeout=30000)
             page.wait_for_selector("#inspectorReactIsland", state="attached", timeout=30000)
             checks: dict[str, object] = {}
             checks["island_mode"] = page.evaluate("() => window.__HELIX_ISLAND_MODE__ === true")
@@ -120,10 +120,10 @@ def main() -> int:
 
             page.locator("#refreshList").click()
             page.wait_for_selector(
-                "#queueReactIsland .conversation-item", state="visible", timeout=30000
+                "#queueReactIsland .review-case-item", state="visible", timeout=30000
             )
             page.locator(
-                f"#queueReactIsland .conversation-item[data-id='{seeded['conversationId']}']"
+                f"#queueReactIsland .review-case-item[data-id='{seeded['conversationId']}']"
             ).click()
 
             # Island note form visible; legacy note form stays yielded.

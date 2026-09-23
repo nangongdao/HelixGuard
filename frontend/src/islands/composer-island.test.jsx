@@ -31,9 +31,9 @@ describe("ComposerIsland mirror contract", () => {
   it("renders both forms with the fixed DOM contract", () => {
     render(<ComposerIsland />);
     publishState({ human: true });
-    expect(document.getElementById(INPUT_IDS.customerForm)).toBeTruthy();
-    expect(document.getElementById(INPUT_IDS.operatorForm)).toBeTruthy();
-    expect(document.getElementById(INPUT_IDS.customerInput)).toBeTruthy();
+    expect(document.getElementById(INPUT_IDS.submitterForm)).toBeTruthy();
+    expect(document.getElementById(INPUT_IDS.reviewerForm)).toBeTruthy();
+    expect(document.getElementById(INPUT_IDS.submitterInput)).toBeTruthy();
     // Accessible labels stay the legacy wording so get_by_label works.
     expect(screen.getByLabelText("待审内容")).toBeTruthy();
     expect(screen.getByRole("button", { name: "发送待审内容" })).toBeTruthy();
@@ -43,45 +43,45 @@ describe("ComposerIsland mirror contract", () => {
   it("hides the operator form until the conversation is human-active", () => {
     render(<ComposerIsland />);
     publishState({ human: false });
-    expect(document.getElementById(INPUT_IDS.operatorForm).hidden).toBe(true);
+    expect(document.getElementById(INPUT_IDS.reviewerForm).hidden).toBe(true);
     publishState({ human: true });
-    expect(document.getElementById(INPUT_IDS.operatorForm).hidden).toBe(false);
+    expect(document.getElementById(INPUT_IDS.reviewerForm).hidden).toBe(false);
   });
 
   it("disables the customer form when the conversation is resolved", () => {
     render(<ComposerIsland />);
     publishState({ resolved: true });
-    expect(document.getElementById(INPUT_IDS.customerInput).disabled).toBe(true);
-    expect(document.getElementById(INPUT_IDS.customerForm).querySelector("button").disabled).toBe(true);
+    expect(document.getElementById(INPUT_IDS.submitterInput).disabled).toBe(true);
+    expect(document.getElementById(INPUT_IDS.submitterForm).querySelector("button").disabled).toBe(true);
   });
 
   it("sets aria-busy from the legacy busy flags", () => {
     render(<ComposerIsland />);
     publishState({ customerBusy: true });
-    expect(document.getElementById(INPUT_IDS.customerForm).getAttribute("aria-busy")).toBe("true");
+    expect(document.getElementById(INPUT_IDS.submitterForm).getAttribute("aria-busy")).toBe("true");
   });
 
   it("dispatches helix-composer-submit with the typed content", async () => {
     const dispatchSpy = vi.spyOn(window, "dispatchEvent");
     render(<ComposerIsland />);
     publishState({});
-    const input = document.getElementById(INPUT_IDS.customerInput);
+    const input = document.getElementById(INPUT_IDS.submitterInput);
     fireEvent.change(input, { target: { value: "帮我查一下订单" } });
-    fireEvent.submit(document.getElementById(INPUT_IDS.customerForm));
+    fireEvent.submit(document.getElementById(INPUT_IDS.submitterForm));
     const submitEvent = dispatchSpy.mock.calls.map(([ev]) => ev).find(
       (ev) => ev.type === COMPOSER_EVENTS.SUBMIT,
     );
     expect(submitEvent).toBeTruthy();
     expect(submitEvent.detail).toEqual({ kind: "customer", content: "帮我查一下订单" });
     // The mirrored textarea clears after a successful submit.
-    await waitFor(() => expect(document.getElementById(INPUT_IDS.customerInput).value).toBe(""));
+    await waitFor(() => expect(document.getElementById(INPUT_IDS.submitterInput).value).toBe(""));
   });
 
   it("dispatches helix-composer-typing while typing in the operator input", () => {
     const dispatchSpy = vi.spyOn(window, "dispatchEvent");
     render(<ComposerIsland />);
     publishState({});
-    fireEvent.change(document.getElementById(INPUT_IDS.operatorInput), {
+    fireEvent.change(document.getElementById(INPUT_IDS.reviewerInput), {
       target: { value: "已接入" },
     });
     const typingEvent = dispatchSpy.mock.calls.map(([ev]) => ev).find(
@@ -136,14 +136,14 @@ describe("ComposerIsland canned bar and macro suggest", () => {
     fireEvent.click(chips[0]);
     const useEvent = dispatchSpy.mock.calls.map(([ev]) => ev).find((ev) => ev.type === COMPOSER_EVENTS.MACRO_USE);
     expect(useEvent.detail).toEqual({ macroId: "macro-1" });
-    expect(document.getElementById(INPUT_IDS.operatorInput).value).toBe("您的订单正在加急处理。");
+    expect(document.getElementById(INPUT_IDS.reviewerInput).value).toBe("您的订单正在加急处理。");
   });
 
   it("shows macro suggest for a trailing /token and replaces it on pick", () => {
     const dispatchSpy = vi.spyOn(window, "dispatchEvent");
     render(<ComposerIsland />);
     publishToolsState();
-    const input = document.getElementById(INPUT_IDS.operatorInput);
+    const input = document.getElementById(INPUT_IDS.reviewerInput);
     fireEvent.change(input, { target: { value: "请稍等，我发您 /tui" } });
     const options = document.querySelectorAll("#macroSuggest .macro-option");
     expect(options.length).toBe(1);
@@ -157,7 +157,7 @@ describe("ComposerIsland canned bar and macro suggest", () => {
   it("keeps the macro suggest hidden without a trailing /token", () => {
     render(<ComposerIsland />);
     publishToolsState();
-    fireEvent.change(document.getElementById(INPUT_IDS.operatorInput), {
+    fireEvent.change(document.getElementById(INPUT_IDS.reviewerInput), {
       target: { value: "普通文本没有建议" },
     });
     expect(document.getElementById("macroSuggest").hidden).toBe(true);
@@ -169,7 +169,7 @@ describe("ComposerIsland copilot tools", () => {
     const dispatchSpy = vi.spyOn(window, "dispatchEvent");
     render(<ComposerIsland />);
     publishToolsState();
-    fireEvent.change(document.getElementById(INPUT_IDS.operatorInput), {
+    fireEvent.change(document.getElementById(INPUT_IDS.reviewerInput), {
       target: { value: "提交方催单，帮我起草" },
     });
     fireEvent.click(document.getElementById("copilotSuggestBtn"));
@@ -193,14 +193,14 @@ describe("ComposerIsland copilot tools", () => {
     expect(items.length).toBe(2);
     expect(items[0].querySelector(".copilot-suggestion-badge").textContent).toBe("AI");
     fireEvent.click(items[1]);
-    expect(document.getElementById(INPUT_IDS.operatorInput).value).toBe("建议回复二");
+    expect(document.getElementById(INPUT_IDS.reviewerInput).value).toBe("建议回复二");
   });
 
   it("bridges the tone rewrite and lands the rewritten text in the textarea", () => {
     const dispatchSpy = vi.spyOn(window, "dispatchEvent");
     render(<ComposerIsland />);
     publishToolsState();
-    fireEvent.change(document.getElementById(INPUT_IDS.operatorInput), {
+    fireEvent.change(document.getElementById(INPUT_IDS.reviewerInput), {
       target: { value: "原始草稿" },
     });
     fireEvent.change(document.getElementById("copilotTone"), { target: { value: "concise" } });
@@ -209,20 +209,20 @@ describe("ComposerIsland copilot tools", () => {
     );
     expect(toneEvent.detail).toEqual({ tone: "concise", text: "原始草稿" });
     publishCopilot({ rewritten: "改写后的草稿", status: "已改写" });
-    expect(document.getElementById(INPUT_IDS.operatorInput).value).toBe("改写后的草稿");
+    expect(document.getElementById(INPUT_IDS.reviewerInput).value).toBe("改写后的草稿");
     expect(document.getElementById("copilotStatus").textContent).toBe("已改写");
     // The select resets to its placeholder after a rewrite request.
     expect(document.getElementById("copilotTone").value).toBe("");
   });
 
-  it("renders copilot knowledge articles and applies a title on click", () => {
+  it("renders copilot policy articles and applies a title on click", () => {
     render(<ComposerIsland />);
     publishToolsState();
-    publishCopilot({ knowledge: [{ title: "配送时效", category: "物流" }] });
-    const articles = document.querySelectorAll("#copilotKnowledge .copilot-kb-item");
+    publishCopilot({ policy: [{ title: "配送时效", category: "物流" }] });
+    const articles = document.querySelectorAll("#copilotPolicy .copilot-kb-item");
     expect(articles.length).toBe(1);
     fireEvent.click(articles[0]);
-    expect(document.getElementById(INPUT_IDS.operatorInput).value).toBe("配送时效");
+    expect(document.getElementById(INPUT_IDS.reviewerInput).value).toBe("配送时效");
   });
 });
 
@@ -321,15 +321,15 @@ describe("ComposerIsland attachment failures and send lifecycle", () => {
   it("keeps the operator draft on submit and clears it only on confirmation", () => {
     render(<ComposerIsland />);
     publishToolsState();
-    fireEvent.change(document.getElementById(INPUT_IDS.operatorInput), {
+    fireEvent.change(document.getElementById(INPUT_IDS.reviewerInput), {
       target: { value: "已为您加急处理" },
     });
-    fireEvent.submit(document.getElementById(INPUT_IDS.operatorForm));
-    expect(document.getElementById(INPUT_IDS.operatorInput).value).toBe("已为您加急处理");
+    fireEvent.submit(document.getElementById(INPUT_IDS.reviewerForm));
+    expect(document.getElementById(INPUT_IDS.reviewerInput).value).toBe("已为您加急处理");
 
     // The confirmed send clears legacy's draft *and* advances its generation.
     publishToolsState({ operatorDraft: "", operatorDraftRevision: 1 });
-    expect(document.getElementById(INPUT_IDS.operatorInput).value).toBe("");
+    expect(document.getElementById(INPUT_IDS.reviewerInput).value).toBe("");
   });
 
   // The generation is the only signal that distinguishes "legacy cleared it"
@@ -338,12 +338,12 @@ describe("ComposerIsland attachment failures and send lifecycle", () => {
   it("ignores a republish that does not advance the draft generation", () => {
     render(<ComposerIsland />);
     publishToolsState({ operatorDraft: "", operatorDraftRevision: 0 });
-    fireEvent.change(document.getElementById(INPUT_IDS.operatorInput), {
+    fireEvent.change(document.getElementById(INPUT_IDS.reviewerInput), {
       target: { value: "已为您加急处理" },
     });
-    fireEvent.submit(document.getElementById(INPUT_IDS.operatorForm));
+    fireEvent.submit(document.getElementById(INPUT_IDS.reviewerForm));
     // A silent refresh republishes the same (empty) value and generation.
     publishToolsState({ operatorDraft: "", operatorDraftRevision: 0 });
-    expect(document.getElementById(INPUT_IDS.operatorInput).value).toBe("已为您加急处理");
+    expect(document.getElementById(INPUT_IDS.reviewerInput).value).toBe("已为您加急处理");
   });
 });

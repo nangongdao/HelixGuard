@@ -36,19 +36,19 @@ beforeEach(() => {
   reset();
 });
 
-test("a ticket is current while the operator stays on its conversation", () => {
-  const ticket = beginCommand("copilot-suggest", "conv-a");
-  assert.equal(ticket.conversationId, "conv-a");
-  assert.equal(isCurrent(ticket), true);
+test("a appeal is current while the operator stays on its conversation", () => {
+  const appeal = beginCommand("copilot-suggest", "conv-a");
+  assert.equal(appeal.conversationId, "conv-a");
+  assert.equal(isCurrent(appeal), true);
 });
 
-test("a ticket stops being current once the operator switches conversation", () => {
-  const ticket = beginCommand("copilot-suggest", "conv-a");
+test("a appeal stops being current once the operator switches conversation", () => {
+  const appeal = beginCommand("copilot-suggest", "conv-a");
   state.selectedId = "conv-b";
-  assert.equal(isCurrent(ticket), false);
+  assert.equal(isCurrent(appeal), false);
 });
 
-test("a newer command on the same surface supersedes the older ticket", () => {
+test("a newer command on the same surface supersedes the older appeal", () => {
   const first = beginCommand("copilot-tone", "conv-a");
   const second = beginCommand("copilot-tone", "conv-a");
   assert.equal(isCurrent(first), false);
@@ -62,27 +62,27 @@ test("surfaces supersede independently", () => {
 });
 
 test("beginCommand falls back to the selected conversation", () => {
-  assert.equal(beginCommand("operator-send").conversationId, "conv-a");
+  assert.equal(beginCommand("reviewer-send").conversationId, "conv-a");
 });
 
 test("a keystroke invalidates a result computed from the older draft", () => {
-  const ticket = beginCommand("copilot-tone", "conv-a");
-  assert.equal(isDraftUnchanged(ticket), true);
+  const appeal = beginCommand("copilot-tone", "conv-a");
+  assert.equal(isDraftUnchanged(appeal), true);
   bumpDraftVersion("conv-a");
-  assert.equal(isDraftUnchanged(ticket), false);
+  assert.equal(isDraftUnchanged(appeal), false);
 });
 
 test("draft versions are per conversation", () => {
-  const ticket = beginCommand("copilot-tone", "conv-a");
+  const appeal = beginCommand("copilot-tone", "conv-a");
   bumpDraftVersion("conv-b");
   assert.equal(draftVersionFor("conv-a"), 0);
-  assert.equal(isDraftUnchanged(ticket), true);
+  assert.equal(isDraftUnchanged(appeal), true);
 });
 
-test("a ticket for another conversation is never draft-unchanged", () => {
-  const ticket = beginCommand("copilot-tone", "conv-a");
+test("a appeal for another conversation is never draft-unchanged", () => {
+  const appeal = beginCommand("copilot-tone", "conv-a");
   state.selectedId = "conv-b";
-  assert.equal(isDraftUnchanged(ticket), false);
+  assert.equal(isDraftUnchanged(appeal), false);
 });
 
 test("send keys are stable for the same attempt", () => {
@@ -118,12 +118,12 @@ test("a confirmed attempt releases its key, so resending is a new attempt", () =
   assert.notEqual(sendKeyFor("conv-a", "您好"), first);
 });
 
-test("reset drops every ticket, draft version and send key", () => {
-  const ticket = beginCommand("operator-send", "conv-a");
+test("reset drops every appeal, draft version and send key", () => {
+  const appeal = beginCommand("reviewer-send", "conv-a");
   bumpDraftVersion("conv-a");
   const before = sendKeyFor("conv-a", "您好");
   reset();
-  assert.equal(isCurrent(ticket), false);
+  assert.equal(isCurrent(appeal), false);
   assert.equal(draftVersionFor("conv-a"), 0);
   assert.notEqual(sendKeyFor("conv-a", "您好"), before);
 });

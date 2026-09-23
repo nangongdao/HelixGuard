@@ -40,7 +40,7 @@ function configureDeps({ state = {} } = {}) {
   const calls = [];
   const els = {
     searchInput: { focus: () => focused.push("searchInput") },
-    newConversation: { click: () => clicked.push("newConversation") },
+    newReviewCase: { click: () => clicked.push("newReviewCase") },
     inspectorToggle: { click: () => clicked.push("inspectorToggle") },
     lowPerfToggle: { click: () => clicked.push("lowPerfToggle") },
   };
@@ -85,14 +85,14 @@ test("single keys drive search focus, the dialog, refresh and toggles", () => {
   assert.deepEqual(focused, ["searchInput"]);
 
   doc.press("c");
-  assert.deepEqual(clicked, ["newConversation"]);
+  assert.deepEqual(clicked, ["newReviewCase"]);
 
   doc.press("r");
   assert.deepEqual(calls, ["refresh"]);
 
   doc.press("i");
   doc.press("l");
-  assert.deepEqual(clicked, ["newConversation", "inspectorToggle", "lowPerfToggle"]);
+  assert.deepEqual(clicked, ["newReviewCase", "inspectorToggle", "lowPerfToggle"]);
 });
 
 test("j and k walk the queue with clamping at both ends", () => {

@@ -29,22 +29,22 @@ function renderSubtitle(conversation) {
     conversation.customer_ref || "未绑定身份",
   ];
   if (languageName) subtitleParts.push(`语言:${languageName}`);
-  ctx.els.conversationSubtitle.textContent = subtitleParts.join(" · ");
+  ctx.els.reviewCaseSubtitle.textContent = subtitleParts.join(" · ");
 }
 
 // Backlog (多语言审核): the header select mirrors the stored manual override
 // (empty = auto). Options are injected once; renderDetail sets the value so a
 // PATCH error can roll back by re-rendering.
 function renderLanguagePicker(conversation) {
-  if (!ctx.els.conversationLanguageSelect) return;
+  if (!ctx.els.reviewCaseLanguageSelect) return;
   // viewer/auditor have no conversation:write — hide the override control so
   // read-only roles don't get a control that would always 403.
-  ctx.els.conversationLanguageSelect.hidden = !ctx.canWriteConversations();
-  if (!ctx.els.conversationLanguageSelect.dataset.built) {
-    ctx.els.conversationLanguageSelect.insertAdjacentHTML("beforeend", ctx.languageOptions);
-    ctx.els.conversationLanguageSelect.dataset.built = "1";
+  ctx.els.reviewCaseLanguageSelect.hidden = !ctx.canWriteConversations();
+  if (!ctx.els.reviewCaseLanguageSelect.dataset.built) {
+    ctx.els.reviewCaseLanguageSelect.insertAdjacentHTML("beforeend", ctx.languageOptions);
+    ctx.els.reviewCaseLanguageSelect.dataset.built = "1";
   }
-  ctx.els.conversationLanguageSelect.value = conversation.language || "";
+  ctx.els.reviewCaseLanguageSelect.value = conversation.language || "";
 }
 
 async function loadDetail(id) {
@@ -71,7 +71,7 @@ async function selectConversation(id) {
   ensureSelectedRowVisible(id);
   ctx.renderQueue();
   ctx.els.emptyState.hidden = true;
-  ctx.els.conversationView.hidden = false;
+  ctx.els.reviewCaseView.hidden = false;
   // Island mode: the thread island renders the loading state from a
   // helix-thread-state snapshot; the legacy container is hidden.
   if (typeof window !== "undefined" && window.__HELIX_ISLAND_MODE__) {
@@ -110,7 +110,7 @@ function clearSelection() {
   ctx.state.selectedId = null;
   ctx.state.detail = null;
   ctx.els.emptyState.hidden = false;
-  ctx.els.conversationView.hidden = true;
+  ctx.els.reviewCaseView.hidden = true;
   ctx.els.noteForm.hidden = true;
   ctx.resetCopilot();
   ctx.renderQueue();

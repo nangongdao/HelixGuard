@@ -1,10 +1,10 @@
 /**
- * Helix Guard — knowledge island pure domain helpers.
+ * Helix Guard — policy island pure domain helpers.
  *
- * Verbatim from js/knowledge.js (§43.6 framework-agnostic): status/language
+ * Verbatim from js/policy.js (§43.6 framework-agnostic): status/language
  * catalogues, tag parsing, the API payload shape, article normalization,
  * filtering, the summary counters and the per-status review actions. Split
- * out of knowledge-island.jsx when it crossed the 400-line module limit.
+ * out of policy-island.jsx when it crossed the 400-line module limit.
  */
 
 export const KNOWLEDGE_STATUSES = ["all", "published", "draft", "pending_review", "retired"];
@@ -49,17 +49,17 @@ export const KNOWLEDGE_EVENTS = Object.freeze({
 
 /** React-suffixed ids: the yielded legacy editor keeps the originals. */
 export const EDITOR_IDS = Object.freeze({
-  form: "knowledgeFormReact",
-  heading: "knowledgeEditorTitleReact",
-  title: "knowledgeTitleReact",
-  content: "knowledgeContentReact",
-  tags: "knowledgeTagsReact",
-  category: "knowledgeCategoryReact",
-  language: "knowledgeLanguageReact",
-  source: "knowledgeSourceReact",
+  form: "policyFormReact",
+  heading: "policyEditorTitleReact",
+  title: "policyTitleReact",
+  content: "policyContentReact",
+  tags: "policyTagsReact",
+  category: "policyCategoryReact",
+  language: "policyLanguageReact",
+  source: "policySourceReact",
 });
 
-/** Comma/whitespace-separated tags → API list contract (js/knowledge.js). */
+/** Comma/whitespace-separated tags → API list contract (js/policy.js). */
 export function parseKnowledgeTags(value) {
   return [...new Set(String(value || "").split(/[\s,，]+/).map((tag) => tag.trim()).filter(Boolean))];
 }

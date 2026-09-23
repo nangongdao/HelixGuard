@@ -13,7 +13,7 @@ import {
   restoreSessionForLaunch,
   saveSession,
   tokenPayload,
-} from "../../app/static/js/widget-core.js";
+} from "../../app/static/js/submission-portal-core.js";
 
 test("widget config reads token from fragment and clamps unsafe accent", () => {
   const config = readWidgetConfig("https://help.example/widget?brand=Acme&accent=not-real&locale=en#greeting=nope&token=abc");

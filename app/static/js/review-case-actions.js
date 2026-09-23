@@ -27,7 +27,7 @@ export async function sendCustomerMessage(content) {
   const conversationId = ctx.state.selectedId;
   const text = String(content || "").trim();
   if (!text) return;
-  ctx.setFormBusy(ctx.els.customerForm, true);
+  ctx.setFormBusy(ctx.els.submitterForm, true);
   try {
     const result = await ctx.api(
       `/api/review-cases/${encodeURIComponent(conversationId)}/messages`,
@@ -37,14 +37,14 @@ export async function sendCustomerMessage(content) {
         body: JSON.stringify({ content: text }),
       },
     );
-    ctx.els.customerInput.value = "";
+    ctx.els.submitterInput.value = "";
     if (!result.assistant_message) ctx.showToast("待审内容已进入人工队列");
     await ctx.loadDetail(conversationId);
     void ctx.refreshAll({ silent: true, refreshDetail: false });
   } catch (error) {
     ctx.showToast(error.message, true);
   } finally {
-    ctx.setFormBusy(ctx.els.customerForm, false);
+    ctx.setFormBusy(ctx.els.submitterForm, false);
   }
 }
 
@@ -58,10 +58,10 @@ export async function performConversationAction(action, successMessage) {
     if (action === "resolve") {
       const surveyUrl = result && result.survey_url;
       if (surveyUrl) {
-        ctx.els.csatUrl.textContent = surveyUrl;
-        ctx.els.csatBanner.hidden = false;
+        ctx.els.qaSpotCheckUrl.textContent = surveyUrl;
+        ctx.els.qaSpotCheckBanner.hidden = false;
       } else {
-        ctx.els.csatBanner.hidden = true;
+        ctx.els.qaSpotCheckBanner.hidden = true;
       }
     }
     ctx.showToast(successMessage);
@@ -79,9 +79,9 @@ export async function performConversationAction(action, successMessage) {
  */
 export function bindConversationActions() {
   if (!ctx?.els) return false;
-  ctx.els.customerForm.addEventListener("submit", (event) => {
+  ctx.els.submitterForm.addEventListener("submit", (event) => {
     event.preventDefault();
-    void sendCustomerMessage(ctx.els.customerInput.value);
+    void sendCustomerMessage(ctx.els.submitterInput.value);
   });
   window.addEventListener("helix-composer-submit", (event) => {
     const { kind, content } = event.detail || {};
@@ -89,12 +89,12 @@ export function bindConversationActions() {
     if (kind === "customer") void sendCustomerMessage(content);
   });
   ctx.els.claimBtn.addEventListener("click", () => performConversationAction("claim", "审核单已认领"));
-  if (ctx.els.conversationLanguageSelect) {
+  if (ctx.els.reviewCaseLanguageSelect) {
     // Backlog (多语言审核): PATCH the manual override; the select rolls back on
     // failure and a background refresh re-syncs the whole view.
-    ctx.els.conversationLanguageSelect.addEventListener("change", async () => {
+    ctx.els.reviewCaseLanguageSelect.addEventListener("change", async () => {
       if (!ctx.state.selectedId) return;
-      const language = ctx.els.conversationLanguageSelect.value || null;
+      const language = ctx.els.reviewCaseLanguageSelect.value || null;
       try {
         await ctx.api(`/api/review-cases/${encodeURIComponent(ctx.state.selectedId)}/language`, {
           method: "PATCH",
@@ -135,8 +135,8 @@ export function bindConversationActions() {
   }
   ctx.els.acceptBtn.addEventListener("click", () => performConversationAction("accept", "审核单已接入"));
   ctx.els.resolveBtn.addEventListener("click", () => performConversationAction("resolve", "审核单已判定"));
-  ctx.els.csatCopyBtn.addEventListener("click", async () => {
-    const url = ctx.els.csatUrl.textContent;
+  ctx.els.qaSpotCheckCopyBtn.addEventListener("click", async () => {
+    const url = ctx.els.qaSpotCheckUrl.textContent;
     if (!url) return;
     try {
       await navigator.clipboard.writeText(url);
@@ -168,17 +168,17 @@ export function openNewConversationDialog() {
     window.dispatchEvent(new CustomEvent("helix-conversation-new"));
     return;
   }
-  ctx.els.newConversationForm.reset();
-  ctx.els.newConversationDialog.showModal();
-  window.setTimeout(() => ctx.els.newCustomerName.focus(), 0);
+  ctx.els.newReviewCaseForm.reset();
+  ctx.els.newReviewCaseDialog.showModal();
+  window.setTimeout(() => ctx.els.newSubmitterName.focus(), 0);
 }
 
 export function closeConversationDialog() {
-  ctx.els.newConversationDialog.close();
+  ctx.els.newReviewCaseDialog.close();
 }
 
 export async function createConversation(payload) {
-  ctx.setFormBusy(ctx.els.newConversationForm, true);
+  ctx.setFormBusy(ctx.els.newReviewCaseForm, true);
   try {
     const created = await ctx.api("/api/review-cases", {
       method: "POST",
@@ -198,22 +198,22 @@ export async function createConversation(payload) {
     ctx.showToast(error.message, true);
     return false;
   } finally {
-    ctx.setFormBusy(ctx.els.newConversationForm, false);
+    ctx.setFormBusy(ctx.els.newReviewCaseForm, false);
   }
 }
 
 export function bindConversationDialog() {
   if (!ctx?.els) return false;
-  ctx.els.newConversation.addEventListener("click", openNewConversationDialog);
+  ctx.els.newReviewCase.addEventListener("click", openNewConversationDialog);
   ctx.els.closeDialog.addEventListener("click", closeConversationDialog);
   ctx.els.cancelDialog.addEventListener("click", closeConversationDialog);
-  ctx.els.newConversationForm.addEventListener("submit", async (event) => {
+  ctx.els.newReviewCaseForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     const payload = {
-      customer_name: ctx.els.newCustomerName.value.trim(),
+      customer_name: ctx.els.newSubmitterName.value.trim(),
       channel: ctx.els.newChannel.value,
     };
-    const customerRef = ctx.els.newCustomerRef.value.trim();
+    const customerRef = ctx.els.newSubmitterRef.value.trim();
     if (customerRef) payload.customer_ref = customerRef;
     if (!payload.customer_name) return;
     await createConversation(payload);

@@ -1,7 +1,7 @@
 """Knowledge authoring journey in the DESKTOP SHELL (islands mounted).
 
 ui_knowledge.py drives the same journey in web mode against the legacy
-renderer; this variant boots the shell so the knowledge island owns the
+renderer; this variant boots the shell so the policy island owns the
 whole surface (summary, filter toolbar, article list, draft editor) and
 proves the authoring loop against the real backend: create draft →
 search/filter → edit → publish → mobile viewport → retire → and the
@@ -70,16 +70,14 @@ def open_view(page: Page, view: str, view_id: str) -> None:
 
 
 def open_knowledge_island(page: Page) -> None:
-    """Click the knowledge nav item and wait for the island's own list.
+    """Click the policy nav item and wait for the island's own list.
 
     The island fetches /api/policy at boot (before the nav click), so
     the settled marker is rendered article rows, not the response.
     """
-    open_view(page, "knowledge", "#knowledgeView")
-    page.wait_for_selector("#knowledgeReactIsland:not(:empty)", timeout=30000)
-    expect(page.locator("#knowledgeReactIsland .knowledge-article").first).to_be_visible(
-        timeout=30000
-    )
+    open_view(page, "policy", "#policyView")
+    page.wait_for_selector("#policyReactIsland:not(:empty)", timeout=30000)
+    expect(page.locator("#policyReactIsland .policy-article").first).to_be_visible(timeout=30000)
 
 
 def main() -> None:
@@ -110,23 +108,23 @@ def main() -> None:
         expect(page.get_by_text("demo.admin", exact=False).first).to_be_visible(timeout=30000)
         open_knowledge_island(page)
 
-        island = page.locator("#knowledgeReactIsland")
+        island = page.locator("#policyReactIsland")
 
         # Create a draft through the island editor (the 新建草稿 button stays
         # legacy and bridges helix-knowledge-new).
         # The 新建草稿 button stays legacy (yields nothing); it bridges
         # helix-knowledge-new and the island opens its editor.
-        page.locator("#newKnowledgeDraft").click()
-        editor_title = island.locator("#knowledgeEditorTitleReact")
+        page.locator("#newPolicyDraft").click()
+        editor_title = island.locator("#policyEditorTitleReact")
         expect(editor_title).to_have_text("新建策略草稿")
-        island.locator("#knowledgeTitleReact").fill(title)
-        island.locator("#knowledgeContentReact").fill(
+        island.locator("#policyTitleReact").fill(title)
+        island.locator("#policyContentReact").fill(
             f"桌面壳验收正文 {run_id}：首单配送时效承诺为 72 小时。"
         )
-        island.locator("#knowledgeTagsReact").fill(f"browser, {run_id}, 配送")
-        island.locator("#knowledgeCategoryReact").fill("browser-acceptance")
-        island.locator("#knowledgeLanguageReact").select_option("zh")
-        island.locator("#knowledgeSourceReact").fill(f"https://example.com/knowledge/{run_id}")
+        island.locator("#policyTagsReact").fill(f"browser, {run_id}, 配送")
+        island.locator("#policyCategoryReact").fill("browser-acceptance")
+        island.locator("#policyLanguageReact").select_option("zh")
+        island.locator("#policySourceReact").fill(f"https://example.com/policy/{run_id}")
         with page.expect_response(
             lambda response: (
                 response.url.endswith("/api/policy/drafts") and response.request.method == "POST"
@@ -137,22 +135,22 @@ def main() -> None:
         article = save_info.value.json()
         assert article.get("id"), article
 
-        row = island.locator(".knowledge-article", has_text=title)
+        row = island.locator(".policy-article", has_text=title)
         expect(row).to_have_count(1)
-        expect(row.locator(".knowledge-status")).to_have_text("草稿")
+        expect(row.locator(".policy-status")).to_have_text("草稿")
 
         # Search + filters are controlled island components (no ids): the
         # search input carries a placeholder; the status/language selects
-        # are the two .knowledge-filter selects in toolbar order.
+        # are the two .policy-filter selects in toolbar order.
         island.get_by_placeholder("搜索标题、正文、标签或来源").fill(run_id)
-        island.locator(".knowledge-filter select").nth(0).select_option("draft")
-        island.locator(".knowledge-filter select").nth(1).select_option("zh")
+        island.locator(".policy-filter select").nth(0).select_option("draft")
+        island.locator(".policy-filter select").nth(1).select_option("zh")
         expect(island.get_by_text("1 /").first).to_be_visible()
 
         # Edit and save the revision.
         row.get_by_role("button", name="编辑").click()
-        expect(island.locator("#knowledgeEditorTitleReact")).to_have_text("编辑策略文章")
-        island.locator("#knowledgeContentReact").fill(revised_content)
+        expect(island.locator("#policyEditorTitleReact")).to_have_text("编辑策略文章")
+        island.locator("#policyContentReact").fill(revised_content)
         with page.expect_response(
             lambda response: (
                 response.url.endswith(f"/api/policy/{article['id']}")
@@ -162,7 +160,7 @@ def main() -> None:
             island.get_by_role("button", name="保存修改").click()
         assert update_info.value.ok, update_info.value.text()
         row.get_by_text("查看正文").click()
-        expect(row.locator(".knowledge-article-content")).to_have_text(revised_content)
+        expect(row.locator(".policy-article-content")).to_have_text(revised_content)
 
         # Publish through the review bridge.
         with page.expect_response(
@@ -173,11 +171,11 @@ def main() -> None:
         ) as publish_info:
             row.get_by_role("button", name="发布").click()
         assert publish_info.value.ok, publish_info.value.text()
-        island.locator(".knowledge-filter select").nth(0).select_option("published")
-        row = island.locator(".knowledge-article", has_text=title)
-        expect(row.locator(".knowledge-status")).to_have_text("已发布")
+        island.locator(".policy-filter select").nth(0).select_option("published")
+        row = island.locator(".policy-article", has_text=title)
+        expect(row.locator(".policy-status")).to_have_text("已发布")
         expect(page.locator("#toast")).to_be_hidden(timeout=5000)
-        page.screenshot(path=ARTIFACTS / "ui-knowledge-island.png", full_page=True)
+        page.screenshot(path=ARTIFACTS / "ui-policy-island.png", full_page=True)
 
         # The same view remains usable at a narrow operator viewport.
         page.set_viewport_size({"width": 390, "height": 844})
@@ -185,17 +183,17 @@ def main() -> None:
         assert page.evaluate(
             "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
         )
-        page.screenshot(path=ARTIFACTS / "ui-knowledge-island-mobile.png", full_page=True)
+        page.screenshot(path=ARTIFACTS / "ui-policy-island-mobile.png", full_page=True)
 
         row.get_by_role("button", name="编辑").click()
-        editor = island.locator("#knowledgeFormReact")
+        editor = island.locator("#policyFormReact")
         expect(editor).to_be_visible()
         editor.scroll_into_view_if_needed()
         editor_box = editor.bounding_box()
         assert editor_box is not None
         assert editor_box["x"] >= 0
         assert editor_box["x"] + editor_box["width"] <= 390
-        page.screenshot(path=ARTIFACTS / "ui-knowledge-island-mobile-editor.png", full_page=True)
+        page.screenshot(path=ARTIFACTS / "ui-policy-island-mobile-editor.png", full_page=True)
         island.get_by_role("button", name="关闭编辑器").click()
         row.scroll_into_view_if_needed()
         page.set_viewport_size({"width": 1440, "height": 1000})
@@ -209,9 +207,9 @@ def main() -> None:
         ) as retire_info:
             row.get_by_role("button", name="停用").click()
         assert retire_info.value.ok, retire_info.value.text()
-        island.locator(".knowledge-filter select").nth(0).select_option("retired")
-        row = island.locator(".knowledge-article", has_text=title)
-        expect(row.locator(".knowledge-status")).to_have_text("已停用")
+        island.locator(".policy-filter select").nth(0).select_option("retired")
+        row = island.locator(".policy-article", has_text=title)
+        expect(row.locator(".policy-status")).to_have_text("已停用")
 
         # Reader invariant in the shell: an operator session sees the island
         # but never writer controls, and issues only read requests.
@@ -256,11 +254,11 @@ def main() -> None:
         )
         reader_page.goto(BASE_URL, wait_until="domcontentloaded")
         reader_page.evaluate("() => window.dispatchEvent(new Event('helix-backend-ready'))")
-        reader_page.locator('.nav-item[data-view="knowledge"]').click()
-        reader_page.wait_for_selector("#knowledgeReactIsland:not(:empty)", timeout=30000)
-        reader_island = reader_page.locator("#knowledgeReactIsland")
-        expect(reader_island.locator(".knowledge-article").first).to_be_visible(timeout=30000)
-        assert reader_page.locator("#newKnowledgeDraft").is_hidden(), (
+        reader_page.locator('.nav-item[data-view="policy"]').click()
+        reader_page.wait_for_selector("#policyReactIsland:not(:empty)", timeout=30000)
+        reader_island = reader_page.locator("#policyReactIsland")
+        expect(reader_island.locator(".policy-article").first).to_be_visible(timeout=30000)
+        assert reader_page.locator("#newPolicyDraft").is_hidden(), (
             "reader must not see the draft button"
         )
         assert reader_island.get_by_role("button", name="发布").count() == 0, (
@@ -290,8 +288,8 @@ def main() -> None:
             {
                 "status": "ok",
                 "article_id": article.get("id"),
-                "desktop": str(ARTIFACTS / "ui-knowledge-island.png"),
-                "mobile": str(ARTIFACTS / "ui-knowledge-island-mobile.png"),
+                "desktop": str(ARTIFACTS / "ui-policy-island.png"),
+                "mobile": str(ARTIFACTS / "ui-policy-island-mobile.png"),
             },
             ensure_ascii=False,
         )

@@ -30,9 +30,9 @@ export function configure(deps) {
 
 /** Stable structural parts of one rendered queue row. */
 export const QUEUE_ROW_PARTS = Object.freeze({
-  ROW: "conversation-row",
-  ITEM: "conversation-item",
-  SELECT: "conversation-checkbox",
+  ROW: "review-case-row",
+  ITEM: "review-case-item",
+  SELECT: "review-case-checkbox",
   PAD: "vqueue-pad",
 });
 
@@ -89,11 +89,11 @@ export function queueRowHtml(conversation, { showSelection, compactQueue }) {
     ? ""
     : `<span class="item-labels">${renderLabelChips(labels.slice(0, 2), "未分类")}${labels.length > 2 ? `<span class="label-more">+${ctx.escapeHtml(labels.length - 2)}</span>` : ""}</span>`;
   return `
-        <div class="conversation-row${showSelection ? " has-selection" : ""}${checked ? " is-selected" : ""}">
-          ${showSelection ? `<label class="conversation-select" title="选择 ${ctx.escapeHtml(conversation.customer_name)}">
-            <input class="conversation-checkbox" type="checkbox" data-select-id="${ctx.escapeHtml(conversation.id)}" aria-label="选择 ${ctx.escapeHtml(conversation.customer_name)}" ${checked ? "checked" : ""} />
+        <div class="review-case-row${showSelection ? " has-selection" : ""}${checked ? " is-selected" : ""}">
+          ${showSelection ? `<label class="review-case-select" title="选择 ${ctx.escapeHtml(conversation.customer_name)}">
+            <input class="review-case-checkbox" type="checkbox" data-select-id="${ctx.escapeHtml(conversation.id)}" aria-label="选择 ${ctx.escapeHtml(conversation.customer_name)}" ${checked ? "checked" : ""} />
           </label>` : ""}
-          <button class="conversation-item${active ? " is-active" : ""}" type="button" data-id="${ctx.escapeHtml(conversation.id)}" aria-pressed="${active}">
+          <button class="review-case-item${active ? " is-active" : ""}" type="button" data-id="${ctx.escapeHtml(conversation.id)}" aria-pressed="${active}">
           <span class="item-top">
             <span class="item-name">${ctx.escapeHtml(conversation.customer_name)}</span>
             <span class="status-pill ${ctx.escapeHtml(conversation.status)}">${ctx.escapeHtml(ctx.statusLabel(conversation.status))}</span>
@@ -173,7 +173,7 @@ export function renderWindowedQueue(win, rowHeight, opts) {
   // Measure the first live row exactly once, then align with a corrective
   // re-render so the pads match real geometry instead of the estimate.
   if (!state.queueRowHeight && !state.queueMeasuring) {
-    const firstRow = els.list.querySelector(".conversation-row");
+    const firstRow = els.list.querySelector(".review-case-row");
     const measured = firstRow ? ctx.rowHeightFromElement(firstRow) : null;
     if (measured && measured !== rowHeight) {
       state.queueMeasuring = true;
@@ -298,7 +298,7 @@ export function isQueueDrawerMode() {
 }
 
 export function setBackgroundInert(inert) {
-  const main = document.querySelector(".conversation-pane");
+  const main = document.querySelector(".review-case-pane");
   if (!main) return;
   if (inert) main.setAttribute("inert", "");
   else main.removeAttribute("inert");

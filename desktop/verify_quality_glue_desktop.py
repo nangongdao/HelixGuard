@@ -72,9 +72,9 @@ SEED_JS = """async () => {
     const turn = await turnRes.json();
     if (!turn.assistant_message) return { error: 'no assistant reply' };
 
-    // The knowledge agent cites its sources for known topics, and a gap
+    // The policy agent cites its sources for known topics, and a gap
     // requires a negatively-rated message WITHOUT citations. Ask something
-    // the knowledge base cannot match; if the fallback still cites, rate the
+    // the policy base cannot match; if the fallback still cites, rate the
     // (always citation-free) customer message instead so the gap exists.
     const gapTarget = { messageId: null, kind: null };
     const unknownRes = await fetch('/api/review-cases/' + conv.id + '/messages', {
@@ -134,7 +134,7 @@ def main() -> int:
                 print("FAIL: no console page found over CDP")
                 return 1
 
-            page.wait_for_selector("#operatorIdentity", state="attached", timeout=30000)
+            page.wait_for_selector("#reviewerIdentity", state="attached", timeout=30000)
             page.wait_for_selector("#qualityReactIsland", state="attached", timeout=30000)
             checks: dict[str, object] = {}
             checks["island_mode"] = page.evaluate("() => window.__HELIX_ISLAND_MODE__ === true")
@@ -201,9 +201,9 @@ def main() -> int:
             page.locator("button.nav-item[data-view='workspace']").click()
             page.locator("#refreshList").click()
             page.wait_for_selector(
-                "#queueReactIsland .conversation-item", state="visible", timeout=30000
+                "#queueReactIsland .review-case-item", state="visible", timeout=30000
             )
-            page.locator("#queueReactIsland .conversation-item").first.click()
+            page.locator("#queueReactIsland .review-case-item").first.click()
             page.wait_for_selector(
                 "#inspectorReactIsland .inspector-tab[data-tab='quality']",
                 state="visible",

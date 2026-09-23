@@ -1,16 +1,16 @@
 /**
- * Helix Guard — knowledge view lifecycle (D3 long tail slice 17).
+ * Helix Guard — policy view lifecycle (D3 long tail slice 17).
  *
- * The knowledge page's DOM lifecycle (summary/filter/list, cached fetch,
+ * The policy page's DOM lifecycle (summary/filter/list, cached fetch,
  * editor + review flows, listeners and island bridges); app.js keeps a thin
  * loadKnowledgeView wrapper. Browser tab → legacy paint; desktop shell → the
- * knowledge island owns the surface, writes stay here.
+ * policy island owns the surface, writes stay here.
  */
 
 import {
   KNOWLEDGE_STATUS_LABELS, knowledgeFormPayload, normalizeKnowledgeArticle,
   filterKnowledgeArticles, summarizeKnowledgeArticles, reviewActionsFor,
-} from "./knowledge.js?v=1.4.0";
+} from "./policy.js?v=1.4.0";
 
 let ctx = null;
 
@@ -25,12 +25,13 @@ export const KNOWLEDGE_EVENTS = Object.freeze({
 });
 
 export function canWriteKnowledge() {
+  // `knowledge:write` is a wire-contract permission (app/security.py) — not migrated.
   return ctx.state.me?.permissions?.includes("knowledge:write") === true;
 }
 export function syncKnowledgeLanguageSelects() {
   // Selects must cover every languageNames entry or unlisted-language
   // articles silently lose their language on edit (audit: backlog 1).
-  for (const select of [ctx.els.knowledgeLanguage, ctx.els.knowledgeLanguageFilter]) {
+  for (const select of [ctx.els.policyLanguage, ctx.els.policyLanguageFilter]) {
     if (!select) continue;
     const covered = new Set([...select.options].map((option) => option.value));
     const missing = Object.keys(ctx.languageNames)
@@ -44,14 +45,14 @@ export function syncKnowledgeLanguageSelects() {
 
 export function knowledgeFilters() {
   return {
-    query: ctx.els.knowledgeSearch?.value || "",
-    status: ctx.els.knowledgeStatusFilter?.value || "all",
-    language: ctx.els.knowledgeLanguageFilter?.value || "",
+    query: ctx.els.policySearch?.value || "",
+    status: ctx.els.policyStatusFilter?.value || "all",
+    language: ctx.els.policyLanguageFilter?.value || "",
   };
 }
 
 export function renderKnowledgeSummary() {
-  if (!ctx.els.knowledgeSummary) return;
+  if (!ctx.els.policySummary) return;
   const summary = summarizeKnowledgeArticles(ctx.state.knowledgeArticles);
   const writer = canWriteKnowledge();
   const rows = [
@@ -61,10 +62,10 @@ export function renderKnowledgeSummary() {
     ["待审核", writer ? summary.pending_review : "—"],
     ["已停用", writer ? summary.retired : "—"],
   ];
-  ctx.els.knowledgeSummary.innerHTML = rows
+  ctx.els.policySummary.innerHTML = rows
     .map(
       ([label, count]) =>
-        `<div class="knowledge-summary-item"><span>${label}</span><strong>${ctx.escapeHtml(count)}</strong></div>`,
+        `<div class="policy-summary-item"><span>${label}</span><strong>${ctx.escapeHtml(count)}</strong></div>`,
     )
     .join("");
 }
@@ -72,29 +73,29 @@ export function renderKnowledgeSummary() {
 export function knowledgeSourceMarkup(article) {
   const source = String(article.source_url || "");
   if (/^https?:\/\//i.test(source)) {
-    return `<a class="knowledge-source" href="${ctx.escapeHtml(source)}" target="_blank" rel="noopener noreferrer" title="${ctx.escapeHtml(source)}">${ctx.escapeHtml(source)}</a>`;
+    return `<a class="policy-source" href="${ctx.escapeHtml(source)}" target="_blank" rel="noopener noreferrer" title="${ctx.escapeHtml(source)}">${ctx.escapeHtml(source)}</a>`;
   }
-  return `<span class="knowledge-source" title="${ctx.escapeHtml(source)}">${ctx.escapeHtml(source || "未记录来源")}</span>`;
+  return `<span class="policy-source" title="${ctx.escapeHtml(source)}">${ctx.escapeHtml(source || "未记录来源")}</span>`;
 }
 
 export function renderKnowledgeArticles() {
-  if (!ctx.els.knowledgeList) return;
+  if (!ctx.els.policyList) return;
   const articles = filterKnowledgeArticles(ctx.state.knowledgeArticles, knowledgeFilters());
   const writer = canWriteKnowledge();
-  if (ctx.els.knowledgeResultCount) {
-    ctx.els.knowledgeResultCount.textContent = `${articles.length} / ${ctx.state.knowledgeArticles.length} 篇`;
+  if (ctx.els.policyResultCount) {
+    ctx.els.policyResultCount.textContent = `${articles.length} / ${ctx.state.knowledgeArticles.length} 篇`;
   }
   if (!articles.length) {
-    ctx.els.knowledgeList.innerHTML = "";
-    if (ctx.els.knowledgeListStatus) {
-      ctx.els.knowledgeListStatus.textContent = ctx.state.knowledgeArticles.length
+    ctx.els.policyList.innerHTML = "";
+    if (ctx.els.policyListStatus) {
+      ctx.els.policyListStatus.textContent = ctx.state.knowledgeArticles.length
         ? "没有符合当前筛选条件的文章。"
         : "当前租户还没有策略文章。";
     }
     return;
   }
-  if (ctx.els.knowledgeListStatus) ctx.els.knowledgeListStatus.textContent = "";
-  ctx.els.knowledgeList.innerHTML = articles
+  if (ctx.els.policyListStatus) ctx.els.policyListStatus.textContent = "";
+  ctx.els.policyList.innerHTML = articles
     .map((raw) => {
       const article = normalizeKnowledgeArticle(raw);
       const status = Object.hasOwn(KNOWLEDGE_STATUS_LABELS, article.status)
@@ -103,37 +104,37 @@ export function renderKnowledgeArticles() {
       const statusLabel = KNOWLEDGE_STATUS_LABELS[status] || status;
       const language = article.language ? ctx.languageNames[article.language] || article.language : "通用";
       const tags = article.tags.length
-        ? article.tags.map((tag) => `<span class="knowledge-tag">${ctx.escapeHtml(tag)}</span>`).join("")
-        : '<span class="knowledge-tag">未分类</span>';
+        ? article.tags.map((tag) => `<span class="policy-tag">${ctx.escapeHtml(tag)}</span>`).join("")
+        : '<span class="policy-tag">未分类</span>';
       const reviewButtons = writer
         ? reviewActionsFor(article)
             .map((action) => {
               const label = action === "publish" ? "发布" : "停用";
-              return `<button type="button" class="knowledge-action" data-action="${action}" data-article-id="${ctx.escapeHtml(article.id)}">${label}</button>`;
+              return `<button type="button" class="policy-action" data-action="${action}" data-article-id="${ctx.escapeHtml(article.id)}">${label}</button>`;
             })
             .join("")
         : "";
       const editButton = writer
-        ? `<button type="button" class="knowledge-action" data-action="edit" data-article-id="${ctx.escapeHtml(article.id)}">编辑</button>`
+        ? `<button type="button" class="policy-action" data-action="edit" data-article-id="${ctx.escapeHtml(article.id)}">编辑</button>`
         : "";
-      return `<article class="knowledge-article" role="listitem" data-article-id="${ctx.escapeHtml(article.id)}">
-        <div class="knowledge-article-head">
+      return `<article class="policy-article" role="listitem" data-article-id="${ctx.escapeHtml(article.id)}">
+        <div class="policy-article-head">
           <h3>${ctx.escapeHtml(article.title)}</h3>
-          <span class="knowledge-status ${status}">${ctx.escapeHtml(statusLabel)}</span>
+          <span class="policy-status ${status}">${ctx.escapeHtml(statusLabel)}</span>
         </div>
-        <div class="knowledge-article-meta">
+        <div class="policy-article-meta">
           <span>${ctx.escapeHtml(article.category)}</span><span>·</span>
           <span>${ctx.escapeHtml(language)}</span><span>·</span>
           <span>v${ctx.escapeHtml(article.version || 1)}</span><span>·</span>
           <time>${ctx.escapeHtml(ctx.formatTime(article.updated_at, true))}</time>
         </div>
-        <div class="knowledge-tag-list">${tags}</div>
+        <div class="policy-tag-list">${tags}</div>
         <details>
           <summary>查看正文</summary>
-          <p class="knowledge-article-content">${ctx.escapeHtml(article.content)}</p>
+          <p class="policy-article-content">${ctx.escapeHtml(article.content)}</p>
         </details>
         ${knowledgeSourceMarkup(article)}
-        ${writer ? `<div class="knowledge-article-actions">${editButton}${reviewButtons}</div>` : ""}
+        ${writer ? `<div class="policy-article-actions">${editButton}${reviewButtons}</div>` : ""}
       </article>`;
     })
     .join("");
@@ -141,25 +142,25 @@ export function renderKnowledgeArticles() {
 
 export function updateKnowledgeAccessState() {
   const writer = canWriteKnowledge();
-  if (ctx.els.newKnowledgeDraft) ctx.els.newKnowledgeDraft.hidden = !writer;
+  if (ctx.els.newPolicyDraft) ctx.els.newPolicyDraft.hidden = !writer;
   // Island mode: the island owns the notice/filter/editor (no un-hiding).
   if (typeof window !== "undefined" && window.__HELIX_ISLAND_MODE__) return;
-  if (ctx.els.knowledgeReadOnly) ctx.els.knowledgeReadOnly.hidden = writer;
-  if (!writer && ctx.els.knowledgeEditor) ctx.els.knowledgeEditor.hidden = true;
-  if (!writer && ctx.els.knowledgeStatusFilter) {
-    for (const option of ctx.els.knowledgeStatusFilter.options) {
+  if (ctx.els.policyReadOnly) ctx.els.policyReadOnly.hidden = writer;
+  if (!writer && ctx.els.policyEditor) ctx.els.policyEditor.hidden = true;
+  if (!writer && ctx.els.policyStatusFilter) {
+    for (const option of ctx.els.policyStatusFilter.options) {
       option.disabled = option.value !== "all" && option.value !== "published";
     }
-    if (!["all", "published"].includes(ctx.els.knowledgeStatusFilter.value)) {
-      ctx.els.knowledgeStatusFilter.value = "published";
+    if (!["all", "published"].includes(ctx.els.policyStatusFilter.value)) {
+      ctx.els.policyStatusFilter.value = "published";
     }
-  } else if (writer && ctx.els.knowledgeStatusFilter) {
-    for (const option of ctx.els.knowledgeStatusFilter.options) option.disabled = false;
+  } else if (writer && ctx.els.policyStatusFilter) {
+    for (const option of ctx.els.policyStatusFilter.options) option.disabled = false;
   }
 }
 
 export async function loadKnowledgeView({ force = false } = {}) {
-  if (!ctx.els.knowledgeView) return;
+  if (!ctx.els.policyView) return;
   updateKnowledgeAccessState();
   // Island mode: the island owns the fetch + DOM — hand the refresh over
   // (`force` carries the cache decision for a fresh react-query fetch).
@@ -179,8 +180,8 @@ export async function loadKnowledgeView({ force = false } = {}) {
     renderKnowledgeArticles();
     return;
   }
-  if (ctx.els.knowledgeList) ctx.els.knowledgeList.setAttribute("aria-busy", "true");
-  if (ctx.els.knowledgeListStatus) ctx.els.knowledgeListStatus.textContent = "正在加载文章…";
+  if (ctx.els.policyList) ctx.els.policyList.setAttribute("aria-busy", "true");
+  if (ctx.els.policyListStatus) ctx.els.policyListStatus.textContent = "正在加载文章…";
   try {
     const path = canWriteKnowledge() ? "/api/policy?include_inactive=true" : "/api/policy";
     const articles = await ctx.api(path);
@@ -195,23 +196,23 @@ export async function loadKnowledgeView({ force = false } = {}) {
     ctx.state.knowledgeArticles = [];
     ctx.state.knowledgeLoadedForWriter = null;
     ctx.state.knowledgeLoadedAt = 0;
-    if (ctx.els.knowledgeList) ctx.els.knowledgeList.innerHTML = "";
-    if (ctx.els.knowledgeListStatus) {
-      ctx.els.knowledgeListStatus.textContent = `策略文章加载失败：${error.message || error}`;
+    if (ctx.els.policyList) ctx.els.policyList.innerHTML = "";
+    if (ctx.els.policyListStatus) {
+      ctx.els.policyListStatus.textContent = `策略文章加载失败：${error.message || error}`;
     }
   } finally {
-    if (ctx.els.knowledgeList) ctx.els.knowledgeList.setAttribute("aria-busy", "false");
+    if (ctx.els.policyList) ctx.els.policyList.setAttribute("aria-busy", "false");
   }
 }
 
 export function resetKnowledgeEditor({ close = false } = {}) {
   ctx.state.knowledgeEditingId = null;
   // eslint-disable-next-line no-multi-assign
-  ctx.els.knowledgeForm?.reset();
-  if (ctx.els.knowledgeCategory) ctx.els.knowledgeCategory.value = "general";
-  if (ctx.els.knowledgeEditorTitle) ctx.els.knowledgeEditorTitle.textContent = "新建策略草稿";
-  if (ctx.els.knowledgeSaveLabel) ctx.els.knowledgeSaveLabel.textContent = "保存草稿";
-  if (ctx.els.knowledgeEditor) ctx.els.knowledgeEditor.hidden = close;
+  ctx.els.policyForm?.reset();
+  if (ctx.els.policyCategory) ctx.els.policyCategory.value = "general";
+  if (ctx.els.policyEditorTitle) ctx.els.policyEditorTitle.textContent = "新建策略草稿";
+  if (ctx.els.policySaveLabel) ctx.els.policySaveLabel.textContent = "保存草稿";
+  if (ctx.els.policyEditor) ctx.els.policyEditor.hidden = close;
 }
 
 export function editKnowledgeArticle(articleId) {
@@ -220,48 +221,48 @@ export function editKnowledgeArticle(articleId) {
   if (!raw) return;
   const article = normalizeKnowledgeArticle(raw);
   ctx.state.knowledgeEditingId = article.id;
-  if (ctx.els.knowledgeTitle) ctx.els.knowledgeTitle.value = article.title;
-  if (ctx.els.knowledgeContent) ctx.els.knowledgeContent.value = article.content;
-  if (ctx.els.knowledgeTags) ctx.els.knowledgeTags.value = article.tags.join(", ");
-  if (ctx.els.knowledgeCategory) ctx.els.knowledgeCategory.value = article.category;
-  if (ctx.els.knowledgeLanguage) ctx.els.knowledgeLanguage.value = article.language || "";
-  if (ctx.els.knowledgeSource) ctx.els.knowledgeSource.value = article.source_url;
-  if (ctx.els.knowledgeEditorTitle) ctx.els.knowledgeEditorTitle.textContent = "编辑策略文章";
-  if (ctx.els.knowledgeSaveLabel) ctx.els.knowledgeSaveLabel.textContent = "保存修改";
-  if (ctx.els.knowledgeEditor) ctx.els.knowledgeEditor.hidden = false;
-  ctx.els.knowledgeTitle?.focus({ preventScroll: true });
+  if (ctx.els.policyTitle) ctx.els.policyTitle.value = article.title;
+  if (ctx.els.policyContent) ctx.els.policyContent.value = article.content;
+  if (ctx.els.policyTags) ctx.els.policyTags.value = article.tags.join(", ");
+  if (ctx.els.policyCategory) ctx.els.policyCategory.value = article.category;
+  if (ctx.els.policyLanguage) ctx.els.policyLanguage.value = article.language || "";
+  if (ctx.els.policySource) ctx.els.policySource.value = article.source_url;
+  if (ctx.els.policyEditorTitle) ctx.els.policyEditorTitle.textContent = "编辑策略文章";
+  if (ctx.els.policySaveLabel) ctx.els.policySaveLabel.textContent = "保存修改";
+  if (ctx.els.policyEditor) ctx.els.policyEditor.hidden = false;
+  ctx.els.policyTitle?.focus({ preventScroll: true });
 }
 
 export async function saveKnowledgeArticle(event) {
   event.preventDefault();
-  if (!canWriteKnowledge() || !ctx.els.knowledgeForm) return;
+  if (!canWriteKnowledge() || !ctx.els.policyForm) return;
   const payload = knowledgeFormPayload({
-    title: ctx.els.knowledgeTitle?.value,
-    content: ctx.els.knowledgeContent?.value,
-    tags: ctx.els.knowledgeTags?.value,
-    category: ctx.els.knowledgeCategory?.value,
-    sourceUrl: ctx.els.knowledgeSource?.value,
-    language: ctx.els.knowledgeLanguage?.value,
+    title: ctx.els.policyTitle?.value,
+    content: ctx.els.policyContent?.value,
+    tags: ctx.els.policyTags?.value,
+    category: ctx.els.policyCategory?.value,
+    sourceUrl: ctx.els.policySource?.value,
+    language: ctx.els.policyLanguage?.value,
   });
   if (!payload.tags.length) {
     ctx.showToast("请至少填写一个策略标签", true);
-    ctx.els.knowledgeTags?.focus();
+    ctx.els.policyTags?.focus();
     return;
   }
   // minlength counts raw chars; a trimmed payload can still miss the backend
   // minimums (2 title / 10 content) — surface it before the 422.
   if (payload.title.length < 2) {
     ctx.showToast("标题至少需要 2 个字符", true);
-    ctx.els.knowledgeTitle?.focus();
+    ctx.els.policyTitle?.focus();
     return;
   }
   if (payload.content.length < 10) {
     ctx.showToast("正文至少需要 10 个字符", true);
-    ctx.els.knowledgeContent?.focus();
+    ctx.els.policyContent?.focus();
     return;
   }
   const editingId = ctx.state.knowledgeEditingId;
-  ctx.setFormBusy(ctx.els.knowledgeForm, true);
+  ctx.setFormBusy(ctx.els.policyForm, true);
   try {
     const path = editingId
       ? `/api/policy/${encodeURIComponent(editingId)}`
@@ -277,7 +278,7 @@ export async function saveKnowledgeArticle(event) {
   } catch (error) {
     ctx.showToast(`策略文章保存失败：${error.message || error}`, true);
   } finally {
-    ctx.setFormBusy(ctx.els.knowledgeForm, false);
+    ctx.setFormBusy(ctx.els.policyForm, false);
   }
 }
 
@@ -305,7 +306,7 @@ export async function reviewKnowledgeArticle(articleId, action) {
   if (action === "retire" && !window.confirm("确认停用该策略文章？停用后将不再参与检索。")) {
     return;
   }
-  if (ctx.els.knowledgeList) ctx.els.knowledgeList.setAttribute("aria-busy", "true");
+  if (ctx.els.policyList) ctx.els.policyList.setAttribute("aria-busy", "true");
   try {
     await ctx.api(`/api/policy/${encodeURIComponent(articleId)}/review`, {
       method: "POST",
@@ -317,29 +318,29 @@ export async function reviewKnowledgeArticle(articleId, action) {
   } catch (error) {
     ctx.showToast(`审核操作失败：${error.message || error}`, true);
   } finally {
-    if (ctx.els.knowledgeList) ctx.els.knowledgeList.setAttribute("aria-busy", "false");
+    if (ctx.els.policyList) ctx.els.policyList.setAttribute("aria-busy", "false");
   }
 }
 
 /**
- * Bind the knowledge page listeners and island bridges (exactly once, at
+ * Bind the policy page listeners and island bridges (exactly once, at
  * app.js load). The legacy listeners only reach their DOM in a plain browser
  * tab; the island bridges carry the desktop shell's writes.
  */
 export function bindKnowledgeView() {
   if (!ctx?.els) return false;
   const islandMode = () => typeof window !== "undefined" && window.__HELIX_ISLAND_MODE__;
-  if (ctx.els.knowledgeSearch) {
-    ctx.els.knowledgeSearch.addEventListener("input", () => renderKnowledgeArticles());
+  if (ctx.els.policySearch) {
+    ctx.els.policySearch.addEventListener("input", () => renderKnowledgeArticles());
   }
-  if (ctx.els.knowledgeStatusFilter) {
-    ctx.els.knowledgeStatusFilter.addEventListener("change", () => renderKnowledgeArticles());
+  if (ctx.els.policyStatusFilter) {
+    ctx.els.policyStatusFilter.addEventListener("change", () => renderKnowledgeArticles());
   }
-  if (ctx.els.knowledgeLanguageFilter) {
-    ctx.els.knowledgeLanguageFilter.addEventListener("change", () => renderKnowledgeArticles());
+  if (ctx.els.policyLanguageFilter) {
+    ctx.els.policyLanguageFilter.addEventListener("change", () => renderKnowledgeArticles());
   }
-  if (ctx.els.newKnowledgeDraft) {
-    ctx.els.newKnowledgeDraft.addEventListener("click", () => {
+  if (ctx.els.newPolicyDraft) {
+    ctx.els.newPolicyDraft.addEventListener("click", () => {
       // The header button is outside the island mount — island mode opens the
       // island's editor instead of the hidden form.
       if (islandMode()) {
@@ -347,27 +348,27 @@ export function bindKnowledgeView() {
         return;
       }
       resetKnowledgeEditor();
-      ctx.els.knowledgeTitle?.focus({ preventScroll: true });
+      ctx.els.policyTitle?.focus({ preventScroll: true });
     });
   }
-  if (ctx.els.refreshKnowledge) {
-    ctx.els.refreshKnowledge.addEventListener("click", () => {
+  if (ctx.els.refreshPolicy) {
+    ctx.els.refreshPolicy.addEventListener("click", () => {
       ctx.state.knowledgeLoadedAt = 0;
       void loadKnowledgeView({ force: true });
     });
   }
-  if (ctx.els.cancelKnowledgeEdit) {
-    ctx.els.cancelKnowledgeEdit.addEventListener("click", () => resetKnowledgeEditor({ close: true }));
+  if (ctx.els.cancelPolicyEdit) {
+    ctx.els.cancelPolicyEdit.addEventListener("click", () => resetKnowledgeEditor({ close: true }));
   }
-  if (ctx.els.resetKnowledgeForm) {
-    ctx.els.resetKnowledgeForm.addEventListener("click", () => resetKnowledgeEditor());
+  if (ctx.els.resetPolicyForm) {
+    ctx.els.resetPolicyForm.addEventListener("click", () => resetKnowledgeEditor());
   }
-  if (ctx.els.knowledgeForm) {
-    ctx.els.knowledgeForm.addEventListener("submit", (event) => void saveKnowledgeArticle(event));
+  if (ctx.els.policyForm) {
+    ctx.els.policyForm.addEventListener("submit", (event) => void saveKnowledgeArticle(event));
   }
-  if (ctx.els.knowledgeList) {
-    ctx.els.knowledgeList.addEventListener("click", (event) => {
-      const button = event.target.closest(".knowledge-action");
+  if (ctx.els.policyList) {
+    ctx.els.policyList.addEventListener("click", (event) => {
+      const button = event.target.closest(".policy-action");
       if (!button) return;
       const articleId = button.dataset.articleId;
       if (button.dataset.action === "edit") editKnowledgeArticle(articleId);
@@ -375,7 +376,7 @@ export function bindKnowledgeView() {
     });
   }
   if (typeof window !== "undefined") {
-    // Island bridges: the knowledge island owns the surface, the write
+    // Island bridges: the policy island owns the surface, the write
     // lifecycle stays here (reviewKnowledgeArticle owns the retire confirm).
     window.addEventListener(KNOWLEDGE_EVENTS.ACTION, (event) => {
       const { action, articleId } = event.detail || {};

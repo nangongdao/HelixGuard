@@ -48,7 +48,7 @@ def open_new_conversation(page: Page, name: str) -> None:
     ) as response_info:
         page.get_by_role("button", name="创建审核单").click()
     assert response_info.value.ok, f"审核单创建失败: {response_info.value.status}"
-    expect(page.locator("#conversationTitle")).to_have_text(name)
+    expect(page.locator("#reviewCaseTitle")).to_have_text(name)
 
 
 def request_human_handoff(page: Page, message: str) -> None:
@@ -65,7 +65,7 @@ def request_human_handoff(page: Page, message: str) -> None:
     ) as response_info:
         page.get_by_role("button", name="发送待审内容").click()
     assert response_info.value.ok, f"待审内容失败: {response_info.value.status}"
-    status = page.locator("#conversationStatus")
+    status = page.locator("#reviewCaseStatus")
     deadline = monotonic() + 20
     while monotonic() < deadline:
         text = status.text_content() or ""
@@ -145,7 +145,7 @@ def main() -> None:
             ),
         )
         page.goto(BASE_URL)
-        expect(page.locator("#operatorIdentity")).to_contain_text("demo.admin")
+        expect(page.locator("#reviewerIdentity")).to_contain_text("demo.admin")
         expect(page.get_by_role("heading", name="审核队列")).to_be_visible()
 
         run_id = uuid4().hex[:6]

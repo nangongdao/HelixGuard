@@ -122,7 +122,7 @@ def open_admin_island(page: Page) -> None:
     # under the fixed header) and recovers on the next page load. Detect the
     # collapsed layout and reload once before any form interaction.
     if (
-        page.locator("#quotaConversationsReact").evaluate("el => el.getBoundingClientRect().height")
+        page.locator("#quotaReviewCasesReact").evaluate("el => el.getBoundingClientRect().height")
         == 0
     ):
         page.reload(wait_until="domcontentloaded")
@@ -157,13 +157,13 @@ def main() -> None:
         open_admin_island(page)
 
         # Island form semantics mirror the legacy contract.
-        expect(page.locator("#quotaConversationsReact")).to_have_attribute("min", "1")
+        expect(page.locator("#quotaReviewCasesReact")).to_have_attribute("min", "1")
         expect(page.locator("#quotaStorageMbReact")).to_have_attribute("min", "1")
         expect(page.locator("#webhookUrlReact")).to_have_attribute("type", "url")
         expect(page.locator("#webhookSecretReact")).to_have_attribute("type", "password")
 
         # Quota: island submit → bridge → PUT → saved event → island refetch.
-        page.locator("#quotaConversationsReact").fill("2500")
+        page.locator("#quotaReviewCasesReact").fill("2500")
         page.locator("#quotaStorageMbReact").fill("128")
         with page.expect_response(
             lambda response: response.url.endswith("/quota") and response.request.method == "PUT"
@@ -275,7 +275,7 @@ def main() -> None:
                  decision, reason, created_at)
                 VALUES (?, 'demo', 'tool_enablement', ?, 'seed.supervisor',
                         'pending', 'ui journey', ?)""",
-                (f"apr_{run_id}", f"knowledge.publish_bulk.{run_id}", decision_now),
+                (f"apr_{run_id}", f"policy.publish_bulk.{run_id}", decision_now),
             )
             seed_conn.execute(
                 """INSERT INTO ai_online_feedback
@@ -291,7 +291,7 @@ def main() -> None:
         page.get_by_role("button", name="刷新管理数据").click()
         approvals_card = page.locator("#governanceApprovalsListReact")
         gov_row = approvals_card.locator(
-            ".governance-row", has_text=f"knowledge.publish_bulk.{run_id}"
+            ".governance-row", has_text=f"policy.publish_bulk.{run_id}"
         )
         expect(gov_row).to_have_count(1)
         feedback_card = page.locator("#governanceFeedbackListReact")
@@ -310,7 +310,7 @@ def main() -> None:
         expect(
             page.locator(
                 "#governanceApprovalsListReact .governance-row",
-                has_text=f"knowledge.publish_bulk.{run_id}",
+                has_text=f"policy.publish_bulk.{run_id}",
             )
         ).to_have_count(0)
 

@@ -58,7 +58,7 @@ export function matchesKnowledgeArticle(article, filters = {}) {
   const language = String(filters.language || "").trim();
   if (status !== "all" && normalized.status !== status) return false;
   // A language-agnostic article (language === null) matches any requested
-  // language, mirroring retrieval semantics (app/db/knowledge.py: null gets
+  // language, mirroring retrieval semantics (app/db/policy.py: null gets
   // the best rank under any language) — see review backlog 3.
   if (language && normalized.language && normalized.language !== language) return false;
 

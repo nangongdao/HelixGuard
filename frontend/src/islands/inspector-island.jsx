@@ -101,7 +101,7 @@ export function InspectorIsland() {
     window.dispatchEvent(
       new CustomEvent(INSPECTOR_EVENTS.QUALITY_DRAFT, {
         detail: {
-          conversationId: button.dataset.conversationId,
+          conversationId: button.dataset.reviewCaseId,
           messageId: button.dataset.messageId,
         },
       }),

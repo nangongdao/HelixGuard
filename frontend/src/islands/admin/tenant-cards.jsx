@@ -39,7 +39,7 @@ export function AdminQuotaCard({ quota }) {
       <form id={CARD_IDS.quotaForm} className="admin-form" onSubmit={submit}>
         <label className="admin-field">审核单配额
           <input
-            id={CARD_IDS.quotaConversations}
+            id={CARD_IDS.quotaReviewCases}
             type="number"
             min="1"
             max="10000000"

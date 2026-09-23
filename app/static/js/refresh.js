@@ -222,7 +222,7 @@ export async function runRefresh({ silent = false, refreshDetail = true, backgro
     const queueChanged = signature !== state.lastQueueSignature;
     const firstMe = !state.me;
     state.me = me;
-    // Expose the operator identity so the desktop React islands (knowledge
+    // Expose the operator identity so the desktop React islands (policy
     // canWrite gate, admin admin:manage gate, terminal §4.1 RBAC) can read
     // it without re-fetching /api/me. The helix-identity event closes the
     // mount race: islands that mount before /api/me returns keep every
@@ -263,7 +263,7 @@ export async function runRefresh({ silent = false, refreshDetail = true, backgro
     // subscribes to the helix-identity dispatch above — skip painting the
     // hidden legacy span.
     if (!window.__HELIX_ISLAND_MODE__) {
-      els.operatorIdentity.textContent = `${me.actor_id} · ${actions.roleLabel(me.role)}`;
+      els.reviewerIdentity.textContent = `${me.actor_id} · ${actions.roleLabel(me.role)}`;
     }
     if (!queueOnly) actions.renderLabelFilter();
     els.focusWaiting.setAttribute("aria-pressed", String(els.ownershipFilter.value === "needs_response"));

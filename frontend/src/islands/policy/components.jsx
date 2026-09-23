@@ -1,11 +1,11 @@
 /**
- * Helix Guard — knowledge island presentational components.
+ * Helix Guard — policy island presentational components.
  *
  * Summary counters, the article card and the draft editor. Split out of
- * knowledge-island.jsx (400-line module limit); the island root keeps the
+ * policy-island.jsx (400-line module limit); the island root keeps the
  * data/query lifecycle and the legacy write bridge.
  *
- * The legacy DOM id + class contract (knowledgeEditor/knowledgeTitle/…) is
+ * The legacy DOM id + class contract (policyEditor/policyTitle/…) is
  * preserved so the ui_knowledge and axe keyboard-path locators resolve.
  */
 
@@ -28,9 +28,9 @@ export function KnowledgeSummary({ summary, canWrite }) {
     ["已停用", canWrite ? summary.retired : "—"],
   ];
   return (
-    <div className="knowledge-summary" aria-live="polite">
+    <div className="policy-summary" aria-live="polite">
       {rows.map(([label, count]) => (
-        <div className="knowledge-summary-item" key={label}>
+        <div className="policy-summary-item" key={label}>
           <span>{label}</span>
           <strong>{String(count)}</strong>
         </div>
@@ -50,42 +50,42 @@ export function KnowledgeArticle({ article, canWrite, onAction }) {
   const isUrl = /^https?:\/\//i.test(article.source_url);
 
   return (
-    <article className="knowledge-article" role="listitem" data-article-id={article.id}>
-      <div className="knowledge-article-head">
+    <article className="policy-article" role="listitem" data-article-id={article.id}>
+      <div className="policy-article-head">
         <h3>{article.title}</h3>
-        <span className={`knowledge-status ${status}`}>{statusLabel}</span>
+        <span className={`policy-status ${status}`}>{statusLabel}</span>
       </div>
-      <div className="knowledge-article-meta">
+      <div className="policy-article-meta">
         <span>{article.category}</span><span>·</span>
         <span>{language}</span><span>·</span>
         <span>v{article.version || 1}</span><span>·</span>
         <time>{article.updated_at || ""}</time>
       </div>
-      <div className="knowledge-tag-list">
+      <div className="policy-tag-list">
         {tags.map((tag) => (
-          <span className="knowledge-tag" key={tag}>{tag}</span>
+          <span className="policy-tag" key={tag}>{tag}</span>
         ))}
       </div>
       <details>
         <summary>查看正文</summary>
-        <p className="knowledge-article-content">{article.content}</p>
+        <p className="policy-article-content">{article.content}</p>
       </details>
       {isUrl ? (
-        <a className="knowledge-source" href={article.source_url} target="_blank" rel="noopener noreferrer" title={article.source_url}>
+        <a className="policy-source" href={article.source_url} target="_blank" rel="noopener noreferrer" title={article.source_url}>
           {article.source_url}
         </a>
       ) : (
-        <span className="knowledge-source" title={article.source_url}>
+        <span className="policy-source" title={article.source_url}>
           {article.source_url || "未记录来源"}
         </span>
       )}
       {canWrite && (
-        <div className="knowledge-article-actions">
-          <button type="button" className="knowledge-action" data-action="edit" data-article-id={article.id} onClick={() => onAction("edit", article.id)}>
+        <div className="policy-article-actions">
+          <button type="button" className="policy-action" data-action="edit" data-article-id={article.id} onClick={() => onAction("edit", article.id)}>
             编辑
           </button>
           {reviewActions.map((action) => (
-            <button key={action} type="button" className="knowledge-action" data-action={action} data-article-id={article.id} onClick={() => onAction(action, article.id)}>
+            <button key={action} type="button" className="policy-action" data-action={action} data-article-id={article.id} onClick={() => onAction(action, article.id)}>
               {action === "publish" ? "发布" : "停用"}
             </button>
           ))}
@@ -97,14 +97,14 @@ export function KnowledgeArticle({ article, canWrite, onAction }) {
 
 /**
  * The aside stays in the DOM even when closed: the single-column layout rule
- * is `.knowledge-layout:has(.knowledge-editor[hidden])`, so dropping the
+ * is `.policy-layout:has(.policy-editor[hidden])`, so dropping the
  * element would leave the list squeezed beside a blank 420px column. The form
  * itself only mounts while open, which also gives the title its focus-on-open
- * for free (legacy editKnowledgeArticle/newKnowledgeDraft both focus it).
+ * for free (legacy editKnowledgeArticle/newPolicyDraft both focus it).
  */
 export function KnowledgeEditor({ editor, dispatch, onSubmit }) {
   return (
-    <aside className="knowledge-editor" hidden={!editor} aria-label="策略草稿编辑器">
+    <aside className="policy-editor" hidden={!editor} aria-label="策略草稿编辑器">
       {editor && <KnowledgeEditorForm editor={editor} dispatch={dispatch} onSubmit={onSubmit} />}
     </aside>
   );
@@ -130,7 +130,7 @@ function KnowledgeEditorForm({ editor, dispatch, onSubmit }) {
 
   return (
     <form id={EDITOR_IDS.form} onSubmit={onSubmit} data-busy={String(editor.busy)} aria-busy={editor.busy}>
-      <header className="knowledge-editor-heading">
+      <header className="policy-editor-heading">
         <div>
           <span className="section-kicker">EDITOR</span>
           <h3 id={EDITOR_IDS.heading}>{editing ? "编辑策略文章" : "新建策略草稿"}</h3>
@@ -146,22 +146,22 @@ function KnowledgeEditorForm({ editor, dispatch, onSubmit }) {
         </button>
       </header>
       {editor.error && (
-        <p className="knowledge-editor-error" role="alert">{editor.error.message}</p>
+        <p className="policy-editor-error" role="alert">{editor.error.message}</p>
       )}
-      <label className="knowledge-field">标题
+      <label className="policy-field">标题
         <input id={EDITOR_IDS.title} ref={titleRef} type="text" minLength={2} maxLength={160} required {...field("title")} />
       </label>
-      <label className="knowledge-field">正文
+      <label className="policy-field">正文
         <textarea id={EDITOR_IDS.content} rows={10} minLength={10} maxLength={12000} required {...field("content")} />
       </label>
-      <div className="knowledge-form-grid">
-        <label className="knowledge-field">标签
+      <div className="policy-form-grid">
+        <label className="policy-field">标签
           <input id={EDITOR_IDS.tags} type="text" maxLength={820} placeholder="shipping, refund" required {...field("tags")} />
         </label>
-        <label className="knowledge-field">分类
+        <label className="policy-field">分类
           <input id={EDITOR_IDS.category} type="text" minLength={2} maxLength={60} required {...field("category")} />
         </label>
-        <label className="knowledge-field">语言
+        <label className="policy-field">语言
           <select id={EDITOR_IDS.language} {...field("language")}>
             <option value="">不限语言</option>
             {codes.map((code) => (
@@ -170,10 +170,10 @@ function KnowledgeEditorForm({ editor, dispatch, onSubmit }) {
           </select>
         </label>
       </div>
-      <label className="knowledge-field">来源
+      <label className="policy-field">来源
         <input id={EDITOR_IDS.source} type="text" minLength={1} maxLength={500} placeholder="https://… 或 internal:…" required {...field("sourceUrl")} />
       </label>
-      <div className="knowledge-editor-actions">
+      <div className="policy-editor-actions">
         <button className="button button-secondary" type="button" onClick={() => dispatch({ type: "RESET_EDITOR" })}>
           重置
         </button>

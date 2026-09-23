@@ -30,7 +30,7 @@ function stubEls() {
   return {
     refreshList: el(),
     liveStatus: el(),
-    operatorIdentity: el(),
+    reviewerIdentity: el(),
     focusWaiting: el(),
     ownershipFilter: el(),
     list: el(),

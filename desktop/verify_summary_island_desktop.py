@@ -75,7 +75,7 @@ def main() -> int:
                 print("FAIL: no console page found over CDP")
                 return 1
 
-            page.wait_for_selector("#operatorIdentity", state="attached", timeout=30000)
+            page.wait_for_selector("#reviewerIdentity", state="attached", timeout=30000)
             page.wait_for_selector("#summaryReactIsland", state="attached", timeout=30000)
             checks: dict[str, object] = {}
             checks["island_mode"] = page.evaluate("() => window.__HELIX_ISLAND_MODE__ === true")
@@ -120,12 +120,12 @@ def main() -> int:
 
             page.locator("#refreshList").click()
             page.wait_for_selector(
-                "#queueReactIsland .conversation-item", state="visible", timeout=30000
+                "#queueReactIsland .review-case-item", state="visible", timeout=30000
             )
 
             # Empty conversation → island banner stays hidden.
             page.locator(
-                f"#queueReactIsland .conversation-item[data-id='{seeded['emptyId']}']"
+                f"#queueReactIsland .review-case-item[data-id='{seeded['emptyId']}']"
             ).click()
             page.wait_for_function(
                 """() => {
@@ -138,7 +138,7 @@ def main() -> int:
 
             # Data conversation → deterministic context summary renders.
             page.locator(
-                f"#queueReactIsland .conversation-item[data-id='{seeded['conversationId']}']"
+                f"#queueReactIsland .review-case-item[data-id='{seeded['conversationId']}']"
             ).click()
             page.wait_for_function(
                 """() => {
@@ -149,7 +149,7 @@ def main() -> int:
             )
             checks["banner_visible_with_context_summary"] = True
             checks["banner_title"] = page.evaluate(
-                "() => document.querySelector('#summaryReactIsland .csat-label span:last-child')?.textContent"
+                "() => document.querySelector('#summaryReactIsland .qa-spot-check-label span:last-child')?.textContent"
             )
             checks["banner_text"] = page.evaluate(
                 "() => document.querySelector('#summaryReactIsland .summary-text')?.textContent"

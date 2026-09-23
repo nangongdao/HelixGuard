@@ -1,7 +1,7 @@
 /**
  * Helix Guard — copilot tool surfaces (ROADMAP H02).
  *
- * The AI copilot bar's three write cores — reply suggestions, knowledge
+ * The AI copilot bar's three write cores — reply suggestions, policy
  * lookups and tone rewrites — extracted from composer.js so both the legacy
  * DOM flow and the React island publish path share one implementation with
  * room under the 400-line frontend gate.
@@ -10,7 +10,7 @@
  * *specific* draft, and every one of them used to apply its result
  * unconditionally: a slow suggestion for A painted into B's copilot bar, and a
  * rewrite computed from an older draft overwrote the text the operator had
- * typed since. Each now opens a ticket through `composer-command.js` and
+ * typed since. Each now opens a appeal through `composer-command.js` and
  * re-checks it at apply time — `isCurrent` for the conversation/generation
  * half, `isDraftUnchanged` for the draft half.
  */
@@ -31,7 +31,7 @@ export function configure(deps) {
 /** Event the composer island listens on for copilot tool state. */
 export const COMPOSER_COPILOT_EVENT = "helix-composer-copilot";
 
-/** Publish a copilot section {status?, suggestions?, knowledge?, rewritten?}
+/** Publish a copilot section {status?, suggestions?, policy?, rewritten?}
  * to the composer island (no-op outside island mode). */
 export function publishCopilot(detail) {
   if (typeof window === "undefined" || !window.__HELIX_ISLAND_MODE__) return;
@@ -62,7 +62,7 @@ const STALE_REWRITE_STATUS = "改写已放弃（草稿已更新）";
 export async function fetchCopilotSuggestions({ draft } = {}) {
   const conversationId = ctx.state.selectedId;
   if (!conversationId || !ctx.canOperate()) return;
-  const ticket = beginCommand("copilot-suggest", conversationId);
+  const appeal = beginCommand("copilot-suggest", conversationId);
   setCopilotStatus("生成中…", false);
   publishCopilot({ status: "生成中…" });
   try {
@@ -71,11 +71,11 @@ export async function fetchCopilotSuggestions({ draft } = {}) {
       body: JSON.stringify({
         conversation_id: conversationId,
         // Island mode passes the island textarea content; legacy reads its own input.
-        draft: draft !== undefined ? draft : ctx.els.operatorInput?.value || null,
+        draft: draft !== undefined ? draft : ctx.els.reviewerInput?.value || null,
       }),
     });
     // A suggestion for A must never paint into B.
-    if (!isCurrent(ticket)) return;
+    if (!isCurrent(appeal)) return;
     const items = payload.suggestions || [];
     const mapped = items.map((item) => ({ content: item.content, source: item.source }));
     copilotSuggestionTexts = mapped.map((item) => item.content);
@@ -101,7 +101,7 @@ export async function fetchCopilotSuggestions({ draft } = {}) {
     ctx.els.copilotSuggestions.hidden = false;
     setCopilotStatus("");
   } catch {
-    if (!isCurrent(ticket)) return;
+    if (!isCurrent(appeal)) return;
     setCopilotStatus("建议生成失败");
     publishCopilot({ status: "建议生成失败" });
   }
@@ -111,7 +111,7 @@ export async function loadCopilotKnowledge() {
   const conversationId = ctx.state.selectedId;
   if (!conversationId || !ctx.canOperate()) return;
   if (ctx.state.lastCopilotConv === conversationId) return;
-  const ticket = beginCommand("copilot-knowledge", conversationId);
+  const appeal = beginCommand("copilot-policy", conversationId);
   try {
     const payload = await ctx.api("/api/copilot/policy", {
       method: "POST",
@@ -120,43 +120,43 @@ export async function loadCopilotKnowledge() {
     // Only claim the conversation once the articles are actually applied: a
     // result discarded by a switch must leave the cache cold, so returning to
     // the conversation reloads instead of showing nothing.
-    if (!isCurrent(ticket)) return;
+    if (!isCurrent(appeal)) return;
     ctx.state.lastCopilotConv = conversationId;
     const articles = (payload.articles || []).map((article) => ({
       title: article.title,
       category: article.category || "",
     }));
     if (typeof window !== "undefined" && window.__HELIX_ISLAND_MODE__) {
-      publishCopilot({ knowledge: articles });
+      publishCopilot({ policy: articles });
       return;
     }
-    if (!ctx.els.copilotKnowledge) return;
-    ctx.els.copilotKnowledge.hidden = !articles.length;
-    ctx.els.copilotKnowledge.innerHTML = articles
+    if (!ctx.els.copilotPolicy) return;
+    ctx.els.copilotPolicy.hidden = !articles.length;
+    ctx.els.copilotPolicy.innerHTML = articles
       .map((article) => `<button type="button" class="copilot-kb-item" data-title="${ctx.escapeHtml(article.title)}">`
         + `<span class="copilot-kb-title">${ctx.escapeHtml(article.title)}</span>`
         + `<span class="copilot-kb-cat">${ctx.escapeHtml(article.category)}</span></button>`)
       .join("");
   } catch {
-    if (!isCurrent(ticket)) return;
+    if (!isCurrent(appeal)) return;
     ctx.state.lastCopilotConv = conversationId;
     if (typeof window !== "undefined" && window.__HELIX_ISLAND_MODE__) {
-      publishCopilot({ knowledge: [] });
+      publishCopilot({ policy: [] });
       return;
     }
-    if (ctx.els.copilotKnowledge) ctx.els.copilotKnowledge.hidden = true;
+    if (ctx.els.copilotPolicy) ctx.els.copilotPolicy.hidden = true;
   }
 }
 
 export async function applyCopilotTone(tone, { text } = {}) {
   const conversationId = ctx.state.selectedId;
-  const value = text !== undefined ? text : ctx.els.operatorInput?.value || "";
+  const value = text !== undefined ? text : ctx.els.reviewerInput?.value || "";
   if (!value.trim()) {
     setCopilotStatus("先输入草稿再改写");
     publishCopilot({ status: "先输入草稿再改写" });
     return;
   }
-  const ticket = beginCommand("copilot-tone", conversationId);
+  const appeal = beginCommand("copilot-tone", conversationId);
   setCopilotStatus("改写中…", false);
   publishCopilot({ status: "改写中…" });
   try {
@@ -166,8 +166,8 @@ export async function applyCopilotTone(tone, { text } = {}) {
     });
     // Reject both the wrong conversation (switch during the rewrite) and the
     // stale draft (the operator kept typing): their newer text wins.
-    if (!isDraftUnchanged(ticket)) {
-      if (isCurrent(ticket)) {
+    if (!isDraftUnchanged(appeal)) {
+      if (isCurrent(appeal)) {
         setCopilotStatus(STALE_REWRITE_STATUS);
         publishCopilot({ status: STALE_REWRITE_STATUS });
       }
@@ -178,10 +178,10 @@ export async function applyCopilotTone(tone, { text } = {}) {
       publishCopilot({ status: statusText, rewritten: payload.rewritten });
       return;
     }
-    ctx.els.operatorInput.value = payload.rewritten;
+    ctx.els.reviewerInput.value = payload.rewritten;
     setCopilotStatus(statusText);
   } catch {
-    if (!isCurrent(ticket)) return;
+    if (!isCurrent(appeal)) return;
     setCopilotStatus("改写失败");
     publishCopilot({ status: "改写失败" });
   }
@@ -194,9 +194,9 @@ export function resetCopilot() {
     ctx.els.copilotSuggestions.hidden = true;
     ctx.els.copilotSuggestions.innerHTML = "";
   }
-  if (ctx.els.copilotKnowledge) {
-    ctx.els.copilotKnowledge.hidden = true;
-    ctx.els.copilotKnowledge.innerHTML = "";
+  if (ctx.els.copilotPolicy) {
+    ctx.els.copilotPolicy.hidden = true;
+    ctx.els.copilotPolicy.innerHTML = "";
   }
   if (ctx.els.copilotStatus) ctx.els.copilotStatus.hidden = true;
 }

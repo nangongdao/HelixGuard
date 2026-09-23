@@ -34,7 +34,7 @@ function stubCtx(overrides = {}) {
     navItems: [makeEl(), makeEl(), makeEl()],
     workspaceView: makeEl(),
     qualityView: makeEl(),
-    knowledgeView: makeEl(),
+    policyView: makeEl(),
     adminView: makeEl(),
     placeholderView: makeEl(),
     qualityViewBuckets: {},
@@ -82,7 +82,7 @@ test("showAppView reveals the target mount and hides the others", () => {
   showAppView("admin");
   assert.equal(els.workspaceView.hidden, true);
   assert.equal(els.qualityView.hidden, true);
-  assert.equal(els.knowledgeView.hidden, true);
+  assert.equal(els.policyView.hidden, true);
   assert.equal(els.adminView.hidden, false);
   // settings is a placeholder — nothing else hidden except the placeholder.
   showAppView("settings");
@@ -100,27 +100,27 @@ test("showAppView loads desktop info only when the settings placeholder shows", 
 });
 
 test("switchAppView workspace hides every view and no loaders run", () => {
-  const calls = { admin: 0, knowledge: 0, quality: 0 };
+  const calls = { admin: 0, policy: 0, quality: 0 };
   const { els } = stubCtx({
     loadAdminView: () => { calls.admin += 1; },
-    loadKnowledgeView: () => { calls.knowledge += 1; },
+    loadKnowledgeView: () => { calls.policy += 1; },
     loadQualityPanel: () => { calls.quality += 1; },
   });
   switchAppView("workspace");
   assert.equal(els.workspaceView.hidden, false);
-  assert.deepEqual(calls, { admin: 0, knowledge: 0, quality: 0 });
+  assert.deepEqual(calls, { admin: 0, policy: 0, quality: 0 });
 });
 
-test("switchAppView admin/knowledge fan out to their loaders", () => {
-  const calls = { admin: 0, knowledge: 0, quality: 0 };
+test("switchAppView admin/policy fan out to their loaders", () => {
+  const calls = { admin: 0, policy: 0, quality: 0 };
   const ctx = stubCtx({
     loadAdminView: () => { calls.admin += 1; },
-    loadKnowledgeView: () => { calls.knowledge += 1; },
+    loadKnowledgeView: () => { calls.policy += 1; },
     loadQualityPanel: () => { calls.quality += 1; },
   });
   switchAppView("admin");
-  switchAppView("knowledge");
-  assert.deepEqual(calls, { admin: 1, knowledge: 1, quality: 0 });
+  switchAppView("policy");
+  assert.deepEqual(calls, { admin: 1, policy: 1, quality: 0 });
 });
 
 test("switchAppView quality in browser mode renders + schedules a refresh", () => {

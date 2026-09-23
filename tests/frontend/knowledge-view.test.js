@@ -1,4 +1,4 @@
-// Helix Guard — knowledge view lifecycle unit tests (D3 long tail slice 17)
+// Helix Guard — policy view lifecycle unit tests (D3 long tail slice 17)
 // Run: node --test tests/frontend/knowledge-view.test.js
 
 import { test, beforeEach } from "node:test";
@@ -9,7 +9,7 @@ import {
   configure,
   loadKnowledgeView,
   renderKnowledgeSummary,
-} from "../../app/static/js/knowledge-view.js";
+} from "../../app/static/js/policy-view.js";
 
 const ARTICLES = [
   { id: "k1", title: "配送时效", content: "24 小时内出库。", category: "logistics", status: "published", language: "zh", tags: ["配送"], version: 2 },
@@ -30,29 +30,29 @@ function installWindow({ islandMode } = {}) {
 function stubEls() {
   const el = () => ({ innerHTML: "", hidden: true, textContent: "", value: "", options: [], setAttribute() {}, getAttribute: () => null, addEventListener() {}, insertAdjacentHTML() {}, reset() {}, focus() {} });
   return {
-    knowledgeView: el(),
-    knowledgeSearch: el(),
-    knowledgeStatusFilter: el(),
-    knowledgeLanguageFilter: el(),
-    knowledgeLanguage: el(),
-    knowledgeSummary: el(),
-    knowledgeList: el(),
-    knowledgeListStatus: el(),
-    knowledgeResultCount: el(),
-    knowledgeReadOnly: el(),
-    knowledgeEditor: el(),
-    knowledgeForm: el(),
-    knowledgeTitle: el(),
-    knowledgeContent: el(),
-    knowledgeTags: el(),
-    knowledgeCategory: el(),
-    knowledgeSource: el(),
-    knowledgeEditorTitle: el(),
-    knowledgeSaveLabel: el(),
-    newKnowledgeDraft: el(),
-    refreshKnowledge: el(),
-    cancelKnowledgeEdit: el(),
-    resetKnowledgeForm: el(),
+    policyView: el(),
+    policySearch: el(),
+    policyStatusFilter: el(),
+    policyLanguageFilter: el(),
+    policyLanguage: el(),
+    policySummary: el(),
+    policyList: el(),
+    policyListStatus: el(),
+    policyResultCount: el(),
+    policyReadOnly: el(),
+    policyEditor: el(),
+    policyForm: el(),
+    policyTitle: el(),
+    policyContent: el(),
+    policyTags: el(),
+    policyCategory: el(),
+    policySource: el(),
+    policyEditorTitle: el(),
+    policySaveLabel: el(),
+    newPolicyDraft: el(),
+    refreshPolicy: el(),
+    cancelPolicyEdit: el(),
+    resetPolicyForm: el(),
   };
 }
 
@@ -91,7 +91,7 @@ test("island-mode loadKnowledgeView hands the refresh over without fetching", as
   await loadKnowledgeView({ force: true });
   assert.deepEqual(dispatched, { force: true });
   assert.equal(apiCalls.length, 0, "no fetch in island mode");
-  assert.equal(els.knowledgeList.innerHTML, "");
+  assert.equal(els.policyList.innerHTML, "");
 });
 
 test("legacy loadKnowledgeView fetches, caches and renders the list", async () => {
@@ -101,8 +101,8 @@ test("legacy loadKnowledgeView fetches, caches and renders the list", async () =
     api: async () => { apiCalls += 1; return ARTICLES; },
   });
   await loadKnowledgeView({ force: true });
-  assert.match(els.knowledgeList.innerHTML, /配送时效/);
-  assert.match(els.knowledgeSummary.innerHTML, /已发布/);
+  assert.match(els.policyList.innerHTML, /配送时效/);
+  assert.match(els.policySummary.innerHTML, /已发布/);
   await loadKnowledgeView(); // within the 15s cache — no refetch
   assert.equal(apiCalls, 1);
 });
@@ -111,5 +111,5 @@ test("renderKnowledgeSummary hides draft counters from readers", () => {
   installWindow({ islandMode: false });
   const { els } = configureDeps({ writer: false, overrides: { state: { me: { permissions: [] }, knowledgeArticles: ARTICLES, knowledgeLoadedAt: 0, knowledgeLoadedForWriter: null, knowledgeEditingId: null } } });
   renderKnowledgeSummary();
-  assert.match(els.knowledgeSummary.innerHTML, /<strong>—<\/strong>/);
+  assert.match(els.policySummary.innerHTML, /<strong>—<\/strong>/);
 });

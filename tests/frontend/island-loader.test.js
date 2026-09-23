@@ -49,10 +49,10 @@ test("yieldLegacyContainers hides the listed legacy containers", () => {
 });
 
 test("yieldLegacyContainers skips missing and already-hidden elements", () => {
-  const doc = fakeDoc(["knowledgeList"]);
-  doc.getElementById("knowledgeList").hidden = true; // already hidden
+  const doc = fakeDoc(["policyList"]);
+  doc.getElementById("policyList").hidden = true; // already hidden
   const hidden = yieldLegacyContainers(
-    ["knowledgeList", "knowledgeSummary", "knowledgeReadOnly"],
+    ["policyList", "policySummary", "policyReadOnly"],
     doc,
   );
   assert.deepEqual(hidden, []);
@@ -69,18 +69,18 @@ test("ISLANDS entries that take over a legacy surface declare yieldsLegacy", () 
   const byName = Object.fromEntries(ISLANDS.map((i) => [i.name, i]));
   // quality owns the trend buckets but not the gaps (island renders no gaps).
   assert.deepEqual(byName.quality.yieldsLegacy, ["qualityViewBuckets"]);
-  // knowledge owns the whole surface: summary + toolbar + list + editor.
-  assert.ok(byName.knowledge.yieldsLegacy.includes("knowledgeList"));
-  assert.ok(byName.knowledge.yieldsLegacy.includes("knowledgeEditor"));
+  // policy owns the whole surface: summary + toolbar + list + editor.
+  assert.ok(byName.policy.yieldsLegacy.includes("policyList"));
+  assert.ok(byName.policy.yieldsLegacy.includes("policyEditor"));
   // command palette owns the Ctrl+K dialog.
   assert.deepEqual(byName["command-palette"].yieldsLegacy, ["commandPalette"]);
-  // ticket owns the status filter + list; the detail view stays legacy.
-  assert.deepEqual(byName.ticket.yieldsLegacy, ["ticketStatusFilter", "ticketList"]);
-  assert.ok(!byName.ticket.yieldsLegacy.includes("ticketDetailView"));
+  // appeal owns the status filter + list; the detail view stays legacy.
+  assert.deepEqual(byName.appeal.yieldsLegacy, ["appealStatusFilter", "appealList"]);
+  assert.ok(!byName.appeal.yieldsLegacy.includes("appealDetailView"));
   // queue owns the conversation list, the footer strip (count + load-more)
   // and the bulk toolbar; only the mentions badge stays legacy.
   assert.deepEqual(byName.queue.yieldsLegacy, [
-    "conversationList",
+    "reviewCaseList",
     "queueCount",
     "loadMore",
     "bulkToolbar",
@@ -89,10 +89,10 @@ test("ISLANDS entries that take over a legacy surface declare yieldsLegacy", () 
   // legacy via helix-dashboard-refresh on foreground cycles.
   assert.deepEqual(byName.dashboard.yieldsLegacy, ["metrics"]);
   // identity owns the header readout; the header toggles stay legacy.
-  assert.deepEqual(byName.identity.yieldsLegacy, ["operatorIdentity"]);
+  assert.deepEqual(byName.identity.yieldsLegacy, ["reviewerIdentity"]);
   // conversation dialog owns the new-conversation <dialog>; the create
   // lifecycle stays legacy via helix-conversation-create/-created.
-  assert.deepEqual(byName["conversation-dialog"].yieldsLegacy, ["newConversationDialog"]);
+  assert.deepEqual(byName["review-case-dialog"].yieldsLegacy, ["newReviewCaseDialog"]);
   // workspace tabs owns the 队列/申诉单 tablist; pane switching stays legacy.
   assert.deepEqual(byName["workspace-tabs"].yieldsLegacy, ["workspaceTabs"]);
   // saved views owns the select + save/delete buttons; the data lifecycle
@@ -113,7 +113,7 @@ test("ISLANDS entries that take over a legacy surface declare yieldsLegacy", () 
     "adminWebhooksCard",
     "adminReportSubsCard",
     "adminReportExportCard",
-    "adminCsatCard",
+    "adminQaSpotCheckCard",
     "adminSlaCard",
     "adminRoutingCard",
   ]);
@@ -121,7 +121,7 @@ test("ISLANDS entries that take over a legacy surface declare yieldsLegacy", () 
   // heading stays legacy.
   assert.deepEqual(byName.settings.yieldsLegacy, ["settingsDesktopCard", "settingsPrefsCard"]);
   // composer owns the message forms; the send lifecycle stays legacy via bridges.
-  assert.deepEqual(byName.composer.yieldsLegacy, ["customerForm", "operatorForm"]);
+  assert.deepEqual(byName.composer.yieldsLegacy, ["submitterForm", "reviewerForm"]);
   // inspector owns the tabs + detail panels; the quality self-fetch stays legacy.
   assert.deepEqual(byName.inspector.yieldsLegacy, [
     "inspectorTabs",

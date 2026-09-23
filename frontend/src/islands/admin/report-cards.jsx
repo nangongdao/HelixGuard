@@ -53,7 +53,7 @@ export function AdminSubscriptionsCard({ subscriptions, webhooks }) {
                 <span className="admin-report-sub-meta">{row.meta}</span>
               </span>
               <span className="admin-member-actions">
-                <span className={`status-pill${row.active ? "" : " is-ticket-closed"}`}>
+                <span className={`status-pill${row.active ? "" : " is-appeal-closed"}`}>
                   {row.active ? "启用" : "停用"}
                 </span>
                 <button
@@ -197,13 +197,13 @@ export function AdminCsatCard({ csat }) {
   return (
     <section className="admin-card" aria-label="CSAT 评分汇总">
       <h3>CSAT 评分汇总</h3>
-      <AdminReadout id={CARD_IDS.csatReadout} rows={model.rows} />
-      <ul id={CARD_IDS.csatTrend} className="admin-list">
+      <AdminReadout id={CARD_IDS.qaSpotCheckReadout} rows={model.rows} />
+      <ul id={CARD_IDS.qaSpotCheckTrend} className="admin-list">
         {!model.trend.length && <AdminEmpty>暂无已回收的评分</AdminEmpty>}
         {model.trend.map((day) => (
-          <li className="csat-day" key={day.date}>
-            <span className="csat-day-date">{day.date}</span>
-            <span className="csat-day-meta">{day.meta}</span>
+          <li className="qa-spot-check-day" key={day.date}>
+            <span className="qa-spot-check-day-date">{day.date}</span>
+            <span className="qa-spot-check-day-meta">{day.meta}</span>
           </li>
         ))}
       </ul>

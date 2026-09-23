@@ -30,7 +30,7 @@ const MESSAGES = [
     role: "assistant",
     content: "根据当前服务政策 48 小时内送达 @duty.lead",
     created_at: "2026-08-30T08:00:05Z",
-    metadata: { agent: "knowledge" },
+    metadata: { agent: "policy" },
   },
 ];
 
@@ -145,7 +145,7 @@ test("legacy renderMessages paints bubbles, chips and bars into #messages", () =
   renderMessages(MESSAGES);
   assert.match(els.messages.innerHTML, /message-row customer/);
   assert.match(els.messages.innerHTML, /message-row assistant/);
-  assert.match(els.messages.innerHTML, /agent-chip/);
+  assert.match(els.messages.innerHTML, /reviewer-chip/);
   assert.match(els.messages.innerHTML, /mention-chip">@duty.lead</);
   assert.match(els.messages.innerHTML, /data-feedback="1"/);
   assert.match(els.messages.innerHTML, /translate-bar" data-message-id="msg-1"/);

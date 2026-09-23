@@ -1,6 +1,6 @@
 /* H01 widget side: the pure halves of "resumable send" and "idle polling".
  *
- * `widget-app.js` is DOM-bound and is kept thin on purpose (it is an entry
+ * `submission-portal-app.js` is DOM-bound and is kept thin on purpose (it is an entry
  * point with a 500-line ceiling), so the decisions that must not be wrong —
  * whether a retry is the same send attempt, whether a poll may run, how far the
  * cursor may move — live here as pure functions and are tested without a
@@ -17,7 +17,7 @@ import {
   nextPollDelayMs,
   nextSendAttempt,
   shouldPoll,
-} from "../../app/static/js/widget-core.js";
+} from "../../app/static/js/submission-portal-core.js";
 
 const ids = (...values) => {
   let index = 0;

@@ -11,7 +11,7 @@ import {
   parseKnowledgeTags,
   reviewActionsFor,
   summarizeKnowledgeArticles,
-} from "../../app/static/js/knowledge.js";
+} from "../../app/static/js/policy.js";
 
 const ARTICLES = [
   {

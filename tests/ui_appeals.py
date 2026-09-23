@@ -43,10 +43,10 @@ def open_new_conversation(page: Page, name: str) -> None:
     assert response_info.value.ok, f"审核单创建失败: {response_info.value.status}"
     conv_id = response_info.value.json()["id"]
     # Wait for the UI to finish selecting the new conversation BEFORE promoting
-    # priority.  The newConversationForm submit handler calls loadDetail then
+    # priority.  The newReviewCaseForm submit handler calls loadDetail then
     # refreshAll; if we PATCH mid-flight, the background refresh can re-select
     # a different top row and overwrite the title.
-    expect(page.locator("#conversationTitle")).to_have_text(name)
+    expect(page.locator("#reviewCaseTitle")).to_have_text(name)
     # Promote to high priority so the seeded conversation stays at the top of
     # the queue regardless of how many open rows the shared scratch DB already
     # holds (load-test seeding promotes rows to high).
@@ -108,14 +108,14 @@ def main() -> None:
             ),
         )
         page.goto(BASE_URL)
-        expect(page.locator("#operatorIdentity")).to_contain_text("demo.admin")
+        expect(page.locator("#reviewerIdentity")).to_contain_text("demo.admin")
         expect(page.get_by_role("heading", name="审核队列")).to_be_visible()
 
         run_id = uuid4().hex[:6]
         open_new_conversation(page, f"申诉单验收-{run_id}")
 
         # 打开审核单后「转申诉单」可用 → 创建,徽章出现。
-        ticket_button = page.locator("#ticketBtn")
+        ticket_button = page.locator("#appealBtn")
         expect(ticket_button).to_be_visible()
         with page.expect_response(
             lambda response: (
@@ -128,8 +128,8 @@ def main() -> None:
             f"转申诉单失败: {create_response.status} {create_response.text()}"
         )
         appeal_id = create_response.json()["id"]
-        expect(page.locator("#ticketBadge")).to_be_visible()
-        expect(page.locator("#ticketBadge")).to_contain_text(appeal_id)
+        expect(page.locator("#appealBadge")).to_be_visible()
+        expect(page.locator("#appealBadge")).to_contain_text(appeal_id)
 
         # 切到「申诉单」tab → 列表含该申诉单。matcher 收紧为列表 URL(/api/appeals
         # 或 ?status= 查询),避免命中 enrichTicketBadge 安排的 GET /api/appeals/{id}。
@@ -140,8 +140,8 @@ def main() -> None:
             )
         ):
             page.get_by_role("tab", name="申诉单").click()
-        expect(page.locator("#ticketPane")).to_be_visible()
-        ticket_row = page.locator(f".ticket-row[data-ticket-id='{appeal_id}']")
+        expect(page.locator("#appealPane")).to_be_visible()
+        ticket_row = page.locator(f".appeal-row[data-appeal-id='{appeal_id}']")
         expect(ticket_row).to_contain_text("退款单提交失败申诉单")
         page.screenshot(path=ARTIFACTS / "ui-ticket-list.png", full_page=True)
 
@@ -153,9 +153,9 @@ def main() -> None:
             )
         ):
             ticket_row.click()
-        expect(page.locator("#ticketDetailView")).to_be_visible()
-        expect(page.locator("#ticketDetailStatus")).to_have_text("待处理")
-        expect(page.locator("#ticketDetailTitle")).to_contain_text(appeal_id)
+        expect(page.locator("#appealDetailView")).to_be_visible()
+        expect(page.locator("#appealDetailStatus")).to_have_text("待处理")
+        expect(page.locator("#appealDetailTitle")).to_contain_text(appeal_id)
         expect(page.get_by_role("button", name="开始处理")).to_be_visible()
 
         with page.expect_response(
@@ -167,7 +167,7 @@ def main() -> None:
             page.get_by_role("button", name="开始处理").click()
         assert transition_info.value.ok, transition_info.value.text()
         assert transition_info.value.json()["status"] == "in_progress", transition_info.value.json()
-        expect(page.locator("#ticketDetailStatus")).to_have_text("处理中")
+        expect(page.locator("#appealDetailStatus")).to_have_text("处理中")
         expect(page.get_by_role("button", name="关闭")).to_be_visible()
 
         # 关闭 → 已关闭 → 重开。
@@ -179,7 +179,7 @@ def main() -> None:
         ) as close_info:
             page.get_by_role("button", name="关闭").click()
         assert close_info.value.json()["status"] == "closed", close_info.value.json()
-        expect(page.locator("#ticketDetailStatus")).to_have_text("已关闭")
+        expect(page.locator("#appealDetailStatus")).to_have_text("已关闭")
         expect(page.get_by_role("button", name="重开")).to_be_visible()
         page.screenshot(path=ARTIFACTS / "ui-ticket-closed.png", full_page=True)
 
@@ -191,25 +191,25 @@ def main() -> None:
         ) as reopen_info:
             page.get_by_role("button", name="重开").click()
         assert reopen_info.value.json()["status"] == "open", reopen_info.value.json()
-        expect(page.locator("#ticketDetailStatus")).to_have_text("待处理")
+        expect(page.locator("#appealDetailStatus")).to_have_text("待处理")
 
         # 切回队列 tab(关闭申诉单详情)→ 打开第二个审核单。
         page.get_by_role("tab", name="队列").click()
-        expect(page.locator("#ticketDetailView")).to_be_hidden()
-        expect(page.locator("#ticketPane")).to_be_hidden()
+        expect(page.locator("#appealDetailView")).to_be_hidden()
+        expect(page.locator("#appealPane")).to_be_hidden()
         open_new_conversation(page, f"申诉单关联-{run_id}")
 
         # 再切申诉单 tab 进详情:selectedId=第二个审核单(未关联)→「关联当前审核单」可见。
         page.get_by_role("tab", name="申诉单").click()
-        expect(page.locator("#ticketPane")).to_be_visible()
+        expect(page.locator("#appealPane")).to_be_visible()
         with page.expect_response(
             lambda response: (
                 response.url.endswith(f"/api/appeals/{appeal_id}")
                 and response.request.method == "GET"
             )
         ):
-            page.locator(f".ticket-row[data-ticket-id='{appeal_id}']").click()
-        expect(page.locator("#ticketDetailView")).to_be_visible()
+            page.locator(f".appeal-row[data-appeal-id='{appeal_id}']").click()
+        expect(page.locator("#appealDetailView")).to_be_visible()
         expect(page.get_by_role("button", name="关联当前审核单")).to_be_visible()
         with page.expect_response(
             lambda response: (
@@ -219,8 +219,8 @@ def main() -> None:
         ) as link_info:
             page.get_by_role("button", name="关联当前审核单").click()
         assert link_info.value.ok, f"关联失败: {link_info.value.status} {link_info.value.text()}"
-        expect(page.locator("#ticketDetailConvs")).to_contain_text("申诉单关联")
-        expect(page.locator("#ticketDetailConvs .ticket-conv-row")).to_have_count(2)
+        expect(page.locator("#appealDetailConvs")).to_contain_text("申诉单关联")
+        expect(page.locator("#appealDetailConvs .appeal-conv-row")).to_have_count(2)
 
         # 点详情关联列表中「申诉单验收」那行 → 跳回队列并打开该审核单(回归
         # jumpToTicketConversation:不得因 selectedId 为空抢开队列第一条,
@@ -231,16 +231,16 @@ def main() -> None:
                 and response.request.method == "GET"
             )
         ):
-            page.locator("#ticketDetailConvs .ticket-conv-row", has_text="申诉单验收").click()
-        expect(page.locator("#ticketDetailView")).to_be_hidden()
-        expect(page.locator("#ticketPane")).to_be_hidden()
+            page.locator("#appealDetailConvs .appeal-conv-row", has_text="申诉单验收").click()
+        expect(page.locator("#appealDetailView")).to_be_hidden()
+        expect(page.locator("#appealPane")).to_be_hidden()
         expect(page.get_by_role("heading", name="审核队列")).to_be_visible()
-        expect(page.locator("#conversationTitle")).to_contain_text("申诉单验收")
+        expect(page.locator("#reviewCaseTitle")).to_contain_text("申诉单验收")
 
         # 切回队列 tab:申诉单详情视图被关闭,队列恢复。
         page.get_by_role("tab", name="队列").click()
-        expect(page.locator("#ticketDetailView")).to_be_hidden()
-        expect(page.locator("#ticketPane")).to_be_hidden()
+        expect(page.locator("#appealDetailView")).to_be_hidden()
+        expect(page.locator("#appealPane")).to_be_hidden()
         expect(page.get_by_role("heading", name="审核队列")).to_be_visible()
         page.screenshot(path=ARTIFACTS / "ui-ticket-detail.png", full_page=True)
 

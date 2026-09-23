@@ -12,7 +12,7 @@ import {
   renderLanguagePicker,
   renderSubtitle,
   selectConversation,
-} from "../../app/static/js/conversation-detail.js";
+} from "../../app/static/js/review-case-detail.js";
 
 function makeEl(extra = {}) {
   return {
@@ -31,10 +31,10 @@ function makeEl(extra = {}) {
 
 function configureDeps(overrides = {}) {
   const els = {
-    conversationSubtitle: makeEl(),
-    conversationLanguageSelect: makeEl({ dataset: {} }),
+    reviewCaseSubtitle: makeEl(),
+    reviewCaseLanguageSelect: makeEl({ dataset: {} }),
     emptyState: makeEl(),
-    conversationView: makeEl(),
+    reviewCaseView: makeEl(),
     messages: makeEl(),
     queuePane: makeEl({ classList: { contains: () => false } }),
     noteForm: makeEl(),
@@ -92,19 +92,19 @@ afterEach(() => {
 test("renderSubtitle joins id/channel/customer with the language name", () => {
   const { ctx } = configureDeps();
   renderSubtitle({ id: "c1", channel: "web", customer_ref: "张三", language: "zh" });
-  assert.equal(ctx.els.conversationSubtitle.textContent, "c1 · web · 张三 · 语言:中文");
+  assert.equal(ctx.els.reviewCaseSubtitle.textContent, "c1 · web · 张三 · 语言:中文");
 });
 
 test("renderSubtitle uses 未绑定身份 when no customer ref", () => {
   const { ctx } = configureDeps();
   renderSubtitle({ id: "c1", channel: "web", language: null });
-  assert.equal(ctx.els.conversationSubtitle.textContent, "c1 · web · 未绑定身份");
+  assert.equal(ctx.els.reviewCaseSubtitle.textContent, "c1 · web · 未绑定身份");
 });
 
 test("renderLanguagePicker builds options once and mirrors the language", () => {
   const { ctx, calls } = configureDeps();
   renderLanguagePicker({ language: "en" });
-  const sel = ctx.els.conversationLanguageSelect;
+  const sel = ctx.els.reviewCaseLanguageSelect;
   assert.equal(sel.hidden, false);
   assert.equal(sel.dataset.built, "1");
   assert.equal(sel.value, "en");
@@ -171,7 +171,7 @@ test("clearSelection resets state and paints the empty view", () => {
   assert.equal(ctx.state.selectedId, null);
   assert.equal(ctx.state.detail, null);
   assert.equal(ctx.els.emptyState.hidden, false);
-  assert.equal(ctx.els.conversationView.hidden, true);
+  assert.equal(ctx.els.reviewCaseView.hidden, true);
   assert.equal(ctx.els.noteForm.hidden, true);
   assert.ok(calls.some((c) => c.resetCopilot));
 });

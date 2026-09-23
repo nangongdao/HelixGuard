@@ -1,4 +1,4 @@
-"""ROADMAP section 17 knowledge operations browser acceptance.
+"""ROADMAP section 17 policy operations browser acceptance.
 
 Exercises the real writer journey (draft, edit, filter, publish, retire) and
 proves a read-only operator only requests the public article list and receives
@@ -58,9 +58,9 @@ def open_knowledge(page: Page, *, include_inactive: bool) -> None:
             response.url == f"{BASE_URL}{expected_suffix}" and response.request.method == "GET"
         )
     ) as response_info:
-        page.locator('.nav-item[data-view="knowledge"]').click()
+        page.locator('.nav-item[data-view="policy"]').click()
     assert response_info.value.ok, response_info.value.text()
-    expect(page.locator("#knowledgeView")).to_be_visible()
+    expect(page.locator("#policyView")).to_be_visible()
     expect(page.locator("#placeholderView")).to_be_hidden()
 
 
@@ -86,23 +86,21 @@ def main() -> None:
             page, console_errors, page_errors, http_errors, failed_requests
         )
         page.goto(BASE_URL, wait_until="domcontentloaded")
-        expect(page.locator("#operatorIdentity")).to_contain_text("demo.admin")
+        expect(page.locator("#reviewerIdentity")).to_contain_text("demo.admin")
         expect(
             page.locator(f'script[src="/static/app.js?v={STATIC_ASSET_VERSION}"]')
         ).to_have_count(1)
         open_knowledge(page, include_inactive=True)
 
-        expect(page.locator("#newKnowledgeDraft")).to_be_visible()
-        page.locator("#newKnowledgeDraft").click()
-        expect(page.locator("#knowledgeEditor")).to_be_visible()
-        page.locator("#knowledgeTitle").fill(title)
-        page.locator("#knowledgeContent").fill(
-            "这是一条等待审核的策略正文，长度满足服务端验证要求。"
-        )
-        page.locator("#knowledgeTags").fill(f"browser, {run_id}, 配送")
-        page.locator("#knowledgeCategory").fill("browser-acceptance")
-        page.locator("#knowledgeLanguage").select_option("zh")
-        page.locator("#knowledgeSource").fill(f"https://example.com/knowledge/{run_id}")
+        expect(page.locator("#newPolicyDraft")).to_be_visible()
+        page.locator("#newPolicyDraft").click()
+        expect(page.locator("#policyEditor")).to_be_visible()
+        page.locator("#policyTitle").fill(title)
+        page.locator("#policyContent").fill("这是一条等待审核的策略正文，长度满足服务端验证要求。")
+        page.locator("#policyTags").fill(f"browser, {run_id}, 配送")
+        page.locator("#policyCategory").fill("browser-acceptance")
+        page.locator("#policyLanguage").select_option("zh")
+        page.locator("#policySource").fill(f"https://example.com/policy/{run_id}")
         with page.expect_response(
             lambda response: (
                 response.url.endswith("/api/policy/drafts") and response.request.method == "POST"
@@ -112,21 +110,21 @@ def main() -> None:
         assert create_info.value.status == 201, create_info.value.text()
         article = create_info.value.json()
 
-        row = page.locator(".knowledge-article", has_text=title)
+        row = page.locator(".policy-article", has_text=title)
         expect(row).to_have_count(1)
-        expect(row.locator(".knowledge-status")).to_have_text("草稿")
+        expect(row.locator(".policy-status")).to_have_text("草稿")
 
         # Search, status, and language filters compose without another API
         # request; the unique draft remains the only visible result.
-        page.locator("#knowledgeSearch").fill(run_id)
-        page.locator("#knowledgeStatusFilter").select_option("draft")
-        page.locator("#knowledgeLanguageFilter").select_option("zh")
-        expect(page.locator("#knowledgeResultCount")).to_contain_text("1 /")
+        page.locator("#policySearch").fill(run_id)
+        page.locator("#policyStatusFilter").select_option("draft")
+        page.locator("#policyLanguageFilter").select_option("zh")
+        expect(page.locator("#policyResultCount")).to_contain_text("1 /")
         expect(row).to_be_visible()
 
         row.get_by_role("button", name="编辑").click()
-        expect(page.locator("#knowledgeEditorTitle")).to_have_text("编辑策略文章")
-        page.locator("#knowledgeContent").fill(revised_content)
+        expect(page.locator("#policyEditorTitle")).to_have_text("编辑策略文章")
+        page.locator("#policyContent").fill(revised_content)
         with page.expect_response(
             lambda response: (
                 response.url.endswith(f"/api/policy/{article['id']}")
@@ -135,9 +133,9 @@ def main() -> None:
         ) as update_info:
             page.get_by_role("button", name="保存修改").click()
         assert update_info.value.ok, update_info.value.text()
-        row = page.locator(".knowledge-article", has_text=title)
+        row = page.locator(".policy-article", has_text=title)
         row.get_by_text("查看正文").click()
-        expect(row.locator(".knowledge-article-content")).to_have_text(revised_content)
+        expect(row.locator(".policy-article-content")).to_have_text(revised_content)
 
         with page.expect_response(
             lambda response: (
@@ -147,9 +145,9 @@ def main() -> None:
         ) as publish_info:
             row.get_by_role("button", name="发布").click()
         assert publish_info.value.ok, publish_info.value.text()
-        page.locator("#knowledgeStatusFilter").select_option("published")
-        row = page.locator(".knowledge-article", has_text=title)
-        expect(row.locator(".knowledge-status")).to_have_text("已发布")
+        page.locator("#policyStatusFilter").select_option("published")
+        row = page.locator(".policy-article", has_text=title)
+        expect(row.locator(".policy-status")).to_have_text("已发布")
         expect(page.locator("#toast")).to_be_hidden(timeout=5000)
         page.screenshot(path=ARTIFACTS / "ui-knowledge.png", full_page=True)
 
@@ -162,7 +160,7 @@ def main() -> None:
         page.screenshot(path=ARTIFACTS / "ui-knowledge-mobile.png", full_page=True)
 
         row.get_by_role("button", name="编辑").click()
-        editor = page.locator("#knowledgeEditor")
+        editor = page.locator("#policyEditor")
         expect(editor).to_be_visible()
         editor.scroll_into_view_if_needed()
         editor_box = editor.bounding_box()
@@ -170,7 +168,7 @@ def main() -> None:
         assert editor_box["x"] >= 0
         assert editor_box["x"] + editor_box["width"] <= 390
         page.screenshot(path=ARTIFACTS / "ui-knowledge-mobile-editor.png", full_page=True)
-        page.locator("#cancelKnowledgeEdit").click()
+        page.locator("#cancelPolicyEdit").click()
         row.scroll_into_view_if_needed()
 
         page.on("dialog", lambda dialog: dialog.accept())
@@ -182,9 +180,9 @@ def main() -> None:
         ) as retire_info:
             row.get_by_role("button", name="停用").click()
         assert retire_info.value.ok, retire_info.value.text()
-        page.locator("#knowledgeStatusFilter").select_option("retired")
-        row = page.locator(".knowledge-article", has_text=title)
-        expect(row.locator(".knowledge-status")).to_have_text("已停用")
+        page.locator("#policyStatusFilter").select_option("retired")
+        row = page.locator(".policy-article", has_text=title)
+        expect(row.locator(".policy-status")).to_have_text("已停用")
 
         # Intercept /api/me as an operator. The app must request only the
         # public listing and must never expose writer controls.
@@ -222,12 +220,12 @@ def main() -> None:
             ),
         )
         reader_page.goto(BASE_URL, wait_until="domcontentloaded")
-        expect(reader_page.locator("#operatorIdentity")).to_contain_text("browser.operator")
+        expect(reader_page.locator("#reviewerIdentity")).to_contain_text("browser.operator")
         open_knowledge(reader_page, include_inactive=False)
-        expect(reader_page.locator("#knowledgeReadOnly")).to_be_visible()
-        expect(reader_page.locator("#newKnowledgeDraft")).to_be_hidden()
-        expect(reader_page.locator("#knowledgeEditor")).to_be_hidden()
-        expect(reader_page.locator(".knowledge-action")).to_have_count(0)
+        expect(reader_page.locator("#policyReadOnly")).to_be_visible()
+        expect(reader_page.locator("#newPolicyDraft")).to_be_hidden()
+        expect(reader_page.locator("#policyEditor")).to_be_hidden()
+        expect(reader_page.locator(".policy-action")).to_have_count(0)
         reader_page.wait_for_timeout(250)
         assert reader_requests == [f"GET {BASE_URL}/api/policy"], reader_requests
 

@@ -16,7 +16,7 @@ import {
   DIALOG_EVENTS,
   DIALOG_IDS,
   conversationPayload,
-} from "./conversation-dialog-island.jsx";
+} from "./review-case-dialog-island.jsx";
 
 function renderIsland() {
   return render(<ConversationDialogIsland />);
@@ -35,15 +35,15 @@ afterEach(() => {
 describe("conversationPayload parity with legacy submit", () => {
   it("trims fields and omits an empty customer_ref", () => {
     expect(
-      conversationPayload({ customerName: "  林嘉  ", customerRef: "  ", channel: "web" }),
+      conversationPayload({ submitterName: "  林嘉  ", customerRef: "  ", channel: "web" }),
     ).toEqual({ customer_name: "林嘉", channel: "web" });
     expect(
-      conversationPayload({ customerName: "林嘉", customerRef: " CUST-9 ", channel: "api" }),
+      conversationPayload({ submitterName: "林嘉", customerRef: " CUST-9 ", channel: "api" }),
     ).toEqual({ customer_name: "林嘉", customer_ref: "CUST-9", channel: "api" });
   });
 
   it("returns null when customer_name is blank (legacy guard)", () => {
-    expect(conversationPayload({ customerName: "   ", customerRef: "", channel: "web" })).toBeNull();
+    expect(conversationPayload({ submitterName: "   ", customerRef: "", channel: "web" })).toBeNull();
     expect(conversationPayload({})).toBeNull();
   });
 });
@@ -63,8 +63,8 @@ describe("ConversationDialogIsland", () => {
     const dialog = document.querySelector("dialog.dialog");
     // The deferred showModal/focus runs on a 0ms timeout — poll, don't sleep.
     await waitFor(() => expect(dialog.open).toBe(true));
-    expect(document.getElementById(DIALOG_IDS.customerName).value).toBe("");
-    expect(document.activeElement).toBe(document.getElementById(DIALOG_IDS.customerName));
+    expect(document.getElementById(DIALOG_IDS.submitterName).value).toBe("");
+    expect(document.activeElement).toBe(document.getElementById(DIALOG_IDS.submitterName));
   });
 
   it("bridges the trimmed payload and reports busy while waiting", async () => {
@@ -72,7 +72,7 @@ describe("ConversationDialogIsland", () => {
     renderIsland();
     openIslandDialog();
     await waitFor(() => expect(document.querySelector("dialog.dialog").open).toBe(true));
-    fireEvent.change(document.getElementById(DIALOG_IDS.customerName), {
+    fireEvent.change(document.getElementById(DIALOG_IDS.submitterName), {
       target: { value: "  林嘉  " },
     });
     fireEvent.change(document.getElementById(DIALOG_IDS.customerRef), {

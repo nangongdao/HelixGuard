@@ -237,7 +237,7 @@ def build_router(deps: RouteDeps) -> APIRouter:
     @router.get("/widget", response_class=HTMLResponse, include_in_schema=False)
     def widget_home() -> HTMLResponse:
         """Mobile-first customer Web Chat shell (ROADMAP 17.3)."""
-        index = deps.static_dir / "widget.html"
+        index = deps.static_dir / "submission-portal.html"
         if not index.exists():
             return HTMLResponse("<h1>Web Chat unavailable</h1>", status_code=503)
         return HTMLResponse(index.read_text(encoding="utf-8"))

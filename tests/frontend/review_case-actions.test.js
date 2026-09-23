@@ -1,5 +1,5 @@
 // Helix Guard — conversation write actions unit tests (app.js <500 slice 18)
-// Run: node --test tests/frontend/conversation-actions.test.js
+// Run: node --test tests/frontend/review-case-actions.test.js
 
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
@@ -11,7 +11,7 @@ import {
   sendCustomerMessage,
   bindConversationActions,
   bindConversationDialog,
-} from "../../app/static/js/conversation-actions.js";
+} from "../../app/static/js/review-case-actions.js";
 
 let dialogClosed = false;
 
@@ -32,24 +32,24 @@ function stubEls() {
     focus() {},
   });
   return {
-    customerForm: el(),
-    customerInput: el(),
+    submitterForm: el(),
+    submitterInput: el(),
     claimBtn: el(),
     releaseBtn: el(),
     acceptBtn: el(),
     resolveBtn: el(),
     reopenBtn: el(),
     assignBtn: el(),
-    csatCopyBtn: el(),
-    csatUrl: el(),
-    csatBanner: el(),
-    conversationLanguageSelect: el(),
-    newConversationForm: el(),
-    newConversationDialog: { close() { dialogClosed = true; } },
-    newCustomerName: el(),
-    newCustomerRef: el(),
+    qaSpotCheckCopyBtn: el(),
+    qaSpotCheckUrl: el(),
+    qaSpotCheckBanner: el(),
+    reviewCaseLanguageSelect: el(),
+    newReviewCaseForm: el(),
+    newReviewCaseDialog: { close() { dialogClosed = true; } },
+    newSubmitterName: el(),
+    newSubmitterRef: el(),
     newChannel: el(),
-    newConversation: el(),
+    newReviewCase: el(),
     closeDialog: el(),
     cancelDialog: el(),
   };
@@ -89,7 +89,7 @@ test("sendCustomerMessage posts with an idempotency key and refreshes", async ()
   windowStub.__HELIX_ISLAND_MODE__ = false;
   globalThis.window = windowStub;
   const { calls, els } = configureDeps();
-  els.customerInput.value = "待清除";
+  els.submitterInput.value = "待清除";
   await sendCustomerMessage("  帮我查订单  ");
   const post = calls.find((call) => call.url);
   assert.match(post.url, /\/api\/review-cases\/conv-1\/messages$/);
@@ -97,7 +97,7 @@ test("sendCustomerMessage posts with an idempotency key and refreshes", async ()
   assert.deepEqual(JSON.parse(post.options.body), { content: "帮我查订单" });
   assert.ok(calls.some((call) => call.loadDetail === "conv-1"));
   assert.ok(calls.some((call) => call.refreshAll && call.refreshAll.silent === true));
-  assert.equal(els.customerInput.value, "");
+  assert.equal(els.submitterInput.value, "");
 });
 
 test("sendCustomerMessage surfaces the manual-queue notice without an agent reply", async () => {
@@ -113,8 +113,8 @@ test("performConversationAction toggles the CSAT banner on resolve", async () =>
   globalThis.window = new (class extends EventTarget {})();
   const { calls, els } = configureDeps();
   await performConversationAction("resolve", "审核单已判定");
-  assert.equal(els.csatUrl.textContent, "https://csat.example/s/1");
-  assert.equal(els.csatBanner.hidden, false);
+  assert.equal(els.qaSpotCheckUrl.textContent, "https://csat.example/s/1");
+  assert.equal(els.qaSpotCheckBanner.hidden, false);
   assert.ok(calls.some((call) => call.toast === "审核单已判定"));
   assert.ok(calls.some((call) => call.loadDetail === "conv-1"));
   assert.ok(calls.some((call) => call.refreshAll && call.refreshAll.refreshDetail === false));
@@ -126,7 +126,7 @@ test("performConversationAction hides the CSAT banner without a survey url", asy
     api: async () => ({}),
   });
   await performConversationAction("resolve", "审核单已判定");
-  assert.equal(els.csatBanner.hidden, true);
+  assert.equal(els.qaSpotCheckBanner.hidden, true);
 });
 
 test("bindConversationActions wires the lifecycle buttons and bridges", () => {
@@ -184,14 +184,14 @@ test("bindConversationDialog wires open/close/submit and the island bridge", asy
   globalThis.window = windowStub;
   const { els, calls } = configureDeps();
   assert.equal(bindConversationDialog(), true);
-  assert.ok(els.newConversation.listeners.click);
+  assert.ok(els.newReviewCase.listeners.click);
   assert.ok(els.closeDialog.listeners.click);
   assert.ok(els.cancelDialog.listeners.click);
-  assert.ok(els.newConversationForm.listeners.submit);
+  assert.ok(els.newReviewCaseForm.listeners.submit);
   // The open click dispatches helix-conversation-new in island mode.
   const dispatched = [];
   windowStub.addEventListener("helix-conversation-new", () => dispatched.push("new"));
-  els.newConversation.listeners.click();
+  els.newReviewCase.listeners.click();
   assert.deepEqual(dispatched, ["new"]);
   // The island bridge posts and reports the created outcome.
   windowStub.addEventListener("helix-conversation-created", (event) => dispatched.push(event.detail.ok));

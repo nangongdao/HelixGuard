@@ -63,10 +63,10 @@ function installWindow() {
 
 function configureAll({ apiImpl } = {}) {
   const els = {
-    operatorInput: { value: "" },
-    operatorForm: { dataset: {} },
+    reviewerInput: { value: "" },
+    reviewerForm: { dataset: {} },
     copilotSuggestions: { hidden: true, innerHTML: "" },
-    copilotKnowledge: { hidden: true, innerHTML: "" },
+    copilotPolicy: { hidden: true, innerHTML: "" },
     copilotStatus: { hidden: true, textContent: "" },
     pendingAttachments: { innerHTML: "" },
     attachmentFile: { value: "" },
@@ -124,14 +124,14 @@ test("a rewrite does not overwrite text typed while it was in flight", async () 
   const { els } = configureAll({
     apiImpl: (url) => (url === "/api/copilot/rewrite" ? gate.promise : {}),
   });
-  els.operatorInput.value = "原始草稿";
+  els.reviewerInput.value = "原始草稿";
   const inFlight = applyCopilotTone("concise", { text: "原始草稿" });
   // The operator keeps typing: the bridge bumps the draft generation.
   bumpDraftVersion("conv-a");
-  els.operatorInput.value = "原始草稿，另外再补充一句";
+  els.reviewerInput.value = "原始草稿，另外再补充一句";
   gate.resolve({ rewritten: "改写后", source: "model" });
   await inFlight;
-  assert.equal(els.operatorInput.value, "原始草稿，另外再补充一句");
+  assert.equal(els.reviewerInput.value, "原始草稿，另外再补充一句");
   assert.match(els.copilotStatus.textContent, /草稿已更新/);
 });
 
@@ -140,13 +140,13 @@ test("a rewrite issued for A does not write into B's composer", async () => {
   const { state, els } = configureAll({
     apiImpl: (url) => (url === "/api/copilot/rewrite" ? gate.promise : {}),
   });
-  els.operatorInput.value = "A 的草稿";
+  els.reviewerInput.value = "A 的草稿";
   const inFlight = applyCopilotTone("concise", { text: "A 的草稿" });
   state.selectedId = "conv-b";
-  els.operatorInput.value = "B 的草稿";
+  els.reviewerInput.value = "B 的草稿";
   gate.resolve({ rewritten: "改写后", source: "model" });
   await inFlight;
-  assert.equal(els.operatorInput.value, "B 的草稿");
+  assert.equal(els.reviewerInput.value, "B 的草稿");
 });
 
 test("a send confirmation landing after a switch leaves B's composer alone", async () => {
@@ -154,13 +154,13 @@ test("a send confirmation landing after a switch leaves B's composer alone", asy
   const { state, els, detailLoads } = configureAll({
     apiImpl: (url) => (url.includes("/operator-messages") ? gate.promise : {}),
   });
-  els.operatorInput.value = "A 的回复";
+  els.reviewerInput.value = "A 的回复";
   const inFlight = sendOperatorMessage("A 的回复");
   state.selectedId = "conv-b";
-  els.operatorInput.value = "B 正在输入";
+  els.reviewerInput.value = "B 正在输入";
   gate.resolve({ id: "msg_1" });
   await inFlight;
-  assert.equal(els.operatorInput.value, "B 正在输入");
+  assert.equal(els.reviewerInput.value, "B 正在输入");
   assert.equal(detailLoads(), 0);
 });
 
@@ -168,12 +168,12 @@ test("a send carries an idempotency key and clears its own composer", async () =
   const { els, calls, detailLoads, toasts } = configureAll({
     apiImpl: (url) => (url.includes("/operator-messages") ? { id: "msg_1" } : {}),
   });
-  els.operatorInput.value = "已为您加急处理";
+  els.reviewerInput.value = "已为您加急处理";
   await sendOperatorMessage("已为您加急处理");
   const post = calls.find((call) => call.url.includes("/operator-messages"));
   assert.ok(post, "the reply was posted");
   assert.ok(post.options.headers["Idempotency-Key"], "the attempt is identified");
-  assert.equal(els.operatorInput.value, "");
+  assert.equal(els.reviewerInput.value, "");
   assert.equal(detailLoads(), 1);
   assert.deepEqual(toasts, []);
 });
@@ -198,9 +198,9 @@ test("a failed send keeps the draft and retries with the same key", async () => 
       return failing ? Promise.reject(new Error("Request timed out")) : { id: "msg_1" };
     },
   });
-  els.operatorInput.value = "已为您加急";
+  els.reviewerInput.value = "已为您加急";
   await sendOperatorMessage("已为您加急");
-  assert.equal(els.operatorInput.value, "已为您加急", "the draft survives a failed send");
+  assert.equal(els.reviewerInput.value, "已为您加急", "the draft survives a failed send");
   assert.equal(toasts.length, 1);
   failing = false;
   await sendOperatorMessage("已为您加急");
@@ -208,7 +208,7 @@ test("a failed send keeps the draft and retries with the same key", async () => 
     .filter((call) => call.url.includes("/operator-messages"))
     .map((call) => call.options.headers["Idempotency-Key"]);
   assert.equal(new Set(keys).size, 1, "the retry resolves to the same attempt");
-  assert.equal(els.operatorInput.value, "");
+  assert.equal(els.reviewerInput.value, "");
 });
 
 test("a failed send keeps the pending attachments for the retry", async () => {
@@ -232,7 +232,7 @@ test("a failed send keeps the pending attachments for the retry", async () => {
   clearPendingAttachments("conv-a");
 });
 
-test("a knowledge load discarded by a switch reloads when the operator returns", async () => {
+test("a policy load discarded by a switch reloads when the operator returns", async () => {
   const gate = deferred();
   const { state, calls } = configureAll({
     apiImpl: (url) => (url === "/api/copilot/policy" ? gate.promise : {}),
@@ -248,14 +248,14 @@ test("a knowledge load discarded by a switch reloads when the operator returns",
   assert.equal(state.lastCopilotConv, "conv-a");
 });
 
-test("a knowledge load paints and marks the conversation once applied", async () => {
+test("a policy load paints and marks the conversation once applied", async () => {
   const { state, els } = configureAll({
     apiImpl: (url) =>
       url === "/api/copilot/policy" ? { articles: [{ title: "配送时效", category: "物流" }] } : {},
   });
   await loadCopilotKnowledge();
   assert.equal(state.lastCopilotConv, "conv-a");
-  assert.match(els.copilotKnowledge.innerHTML, /配送时效/);
+  assert.match(els.copilotPolicy.innerHTML, /配送时效/);
   // A second call short-circuits on the warm cache.
   await loadCopilotKnowledge();
   assert.equal(state.lastCopilotConv, "conv-a");
@@ -266,11 +266,11 @@ test("a confirmation does not wipe text typed while the send was in flight", asy
   const { els } = configureAll({
     apiImpl: (url) => (url.includes("/operator-messages") ? gate.promise : {}),
   });
-  els.operatorInput.value = "已为您加急处理";
+  els.reviewerInput.value = "已为您加急处理";
   const inFlight = sendOperatorMessage("已为您加急处理");
   // The operator keeps typing: the box no longer holds what was sent.
-  els.operatorInput.value = "已为您加急处理，另外再补一句";
+  els.reviewerInput.value = "已为您加急处理，另外再补一句";
   gate.resolve({ id: "msg_1" });
   await inFlight;
-  assert.equal(els.operatorInput.value, "已为您加急处理，另外再补一句");
+  assert.equal(els.reviewerInput.value, "已为您加急处理，另外再补一句");
 });

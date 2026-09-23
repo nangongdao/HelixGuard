@@ -103,7 +103,7 @@ test("buildQualityGapsHtml renders draft buttons with data attributes", () => {
   configureDeps({ api: async () => [], showToast: async () => {} });
   const html = buildQualityGapsHtml(GAPS);
   assert.match(html, /quality-gap-draft/);
-  assert.match(html, /data-conversation-id="conv-1"/);
+  assert.match(html, /data-review-case-id="conv-1"/);
   assert.match(html, /data-message-id="msg-1"/);
   assert.equal(buildQualityGapsHtml([]).includes("quality-gap-draft"), false);
 });

@@ -15,7 +15,7 @@ import {
   pollInterval,
   queuePageSize,
   setDensity,
-} from "../../app/static/js/operator-settings.js";
+} from "../../app/static/js/reviewer-settings.js";
 
 function makeEl(extra = {}) {
   const el = {

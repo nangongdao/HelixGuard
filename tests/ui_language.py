@@ -57,10 +57,10 @@ def api_get(path: str) -> dict:
 
 def select_conversation(page: Page, submitter: str) -> None:
     """Click the queue row whose customer name matches (independent of order)."""
-    row = page.locator(".conversation-row", has_text=submitter).first
+    row = page.locator(".review-case-row", has_text=submitter).first
     row.click()
-    expect(page.locator("#conversationTitle")).to_contain_text(submitter)
-    expect(page.locator("#conversationView")).to_be_visible()
+    expect(page.locator("#reviewCaseTitle")).to_contain_text(submitter)
+    expect(page.locator("#reviewCaseView")).to_be_visible()
 
 
 def main() -> None:
@@ -145,15 +145,15 @@ def main() -> None:
             ),
         )
         page.goto(BASE_URL)
-        expect(page.locator("#operatorIdentity")).to_contain_text("demo.admin")
+        expect(page.locator("#reviewerIdentity")).to_contain_text("demo.admin")
         select_conversation(page, submitter)
 
         # 2) 语言 picker:默认跟随自动检测 → 手动 en → 恢复「自动」。
-        picker = page.locator("#conversationLanguageSelect")
+        picker = page.locator("#reviewCaseLanguageSelect")
         expect(picker).to_be_visible()
         initial_language = (detail.get("conversation") or {}).get("language") or ""
         expect(picker).to_have_value(initial_language)
-        subtitle = page.locator("#conversationSubtitle")
+        subtitle = page.locator("#reviewCaseSubtitle")
         expect(subtitle).not_to_contain_text("语言:English")
 
         with page.expect_response(

@@ -89,7 +89,7 @@ def main() -> None:
         assert document_response is not None and document_response.ok
         assert "x-frame-options" not in document_response.headers
         assert "frame-ancestors 'self'" in document_response.headers["content-security-policy"]
-        expect(page.locator("#widgetBrand")).to_have_text("Northstar Care")
+        expect(page.locator("#submissionPortalBrand")).to_have_text("Northstar Care")
         expect(page.locator("#welcomeCopy")).to_contain_text("内容提交入口")
         assert page.locator("body").get_attribute("data-accent") == "amber"
         assert_no_overflow(page)
@@ -241,7 +241,7 @@ def main() -> None:
         resolved_banner = page.locator("#resolvedBanner")
         expect(resolved_banner).to_be_visible(timeout=30000)
         expect(resolved_banner).to_contain_text("审核单已判定")
-        csat_href = resolved_banner.locator("#csatLink").get_attribute("href")
+        csat_href = resolved_banner.locator("#qaSpotCheckLink").get_attribute("href")
         assert csat_href and "/api/qa-spot-check/" in csat_href, csat_href
         survey_token = csat_href.rsplit("/", 1)[-1]
 

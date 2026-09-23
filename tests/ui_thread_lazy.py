@@ -163,7 +163,7 @@ def main() -> None:
         search = page.locator("#searchInput")
         search.fill(seed_tag)
         search.dispatch_event("input")
-        item = page.locator(".conversation-item", has_text=seed_tag)
+        item = page.locator(".review-case-item", has_text=seed_tag)
         deadline = time.monotonic() + 15
         while time.monotonic() < deadline and item.count() == 0:
             page.wait_for_timeout(250)

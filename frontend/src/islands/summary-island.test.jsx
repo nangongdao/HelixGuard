@@ -39,7 +39,7 @@ describe("SummaryIsland", () => {
     });
     const banner = document.querySelector(".summary-banner");
     expect(banner.hidden).toBe(false);
-    expect(banner.querySelector(".csat-label span:last-child").textContent).toBe(
+    expect(banner.querySelector(".qa-spot-check-label span:last-child").textContent).toBe(
       "前情摘要（接入参考）",
     );
     expect(banner.querySelector(".summary-text").textContent).toBe(

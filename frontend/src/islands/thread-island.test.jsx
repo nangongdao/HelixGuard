@@ -25,7 +25,7 @@ const MESSAGES = [
     role: "assistant",
     content: "根据当前服务政策 48 小时内送达 @duty.lead",
     created_at: "2026-08-30T08:00:05Z",
-    metadata: { agent: "knowledge", attachment_ids: [] },
+    metadata: { agent: "policy", attachment_ids: [] },
   },
 ];
 
@@ -92,7 +92,7 @@ describe("ThreadIsland state rendering", () => {
     expect(rows.length).toBe(2);
     expect(rows[0].className).toContain("customer");
     expect(rows[1].className).toContain("assistant");
-    expect(document.querySelector(".agent-chip")?.textContent).toBe("knowledge");
+    expect(document.querySelector(".reviewer-chip")?.textContent).toBe("policy");
     expect(document.querySelector(".mention-chip")?.textContent).toBe("@duty.lead");
     expect(document.querySelector(".message-meta time").textContent).toMatch(/\d{2}:\d{2}/);
   });

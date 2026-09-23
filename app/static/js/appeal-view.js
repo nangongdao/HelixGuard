@@ -1,5 +1,5 @@
 /**
- * Helix Guard — ticket view (ROADMAP §41.6 / ARC-001).
+ * Helix Guard — appeal view (ROADMAP §41.6 / ARC-001).
  *
  * Ticket list/detail/state machine and the workspace queue/tickets tab.
  * Extracted from the legacy app.js; app.js keeps thin delegating wrappers
@@ -18,17 +18,17 @@ const TICKET_STATUS_NAMES = { open: "待处理", in_progress: "处理中", close
 let ticketBadgeCache = {};
 
 export async function enrichTicketBadge(ticketId) {
-  if (!ticketId || !ctx.els.ticketBadge) return;
+  if (!ticketId || !ctx.els.appealBadge) return;
   if (ticketBadgeCache[ticketId]) {
-    ctx.els.ticketBadge.textContent = `申诉单 ${ticketId} · ${ticketBadgeCache[ticketId]}`;
+    ctx.els.appealBadge.textContent = `申诉单 ${ticketId} · ${ticketBadgeCache[ticketId]}`;
     return;
   }
   try {
-    const ticket = await ctx.api(`/api/appeals/${encodeURIComponent(ticketId)}`);
-    const status = TICKET_STATUS_NAMES[ticket.status] || ticket.status || "";
+    const appeal = await ctx.api(`/api/appeals/${encodeURIComponent(ticketId)}`);
+    const status = TICKET_STATUS_NAMES[appeal.status] || appeal.status || "";
     ticketBadgeCache[ticketId] = status;
-    if (ctx.state.selectedId && ctx.els.ticketBadge) {
-      ctx.els.ticketBadge.textContent = `申诉单 ${ticketId} · ${status}`;
+    if (ctx.state.selectedId && ctx.els.appealBadge) {
+      ctx.els.appealBadge.textContent = `申诉单 ${ticketId} · ${status}`;
     }
   } catch {
     /* badge stays at the id-only form */
@@ -58,24 +58,24 @@ let suppressAutoSelect = 0;
 let activeTicketId = null;
 
 export function switchWorkspaceTab(field) {
-  if (!ctx.els.wsTabQueue || !ctx.els.wsTabTickets) return;
-  const isTickets = field === "tickets";
-  if (ctx.els.queuePane) ctx.els.queuePane.dataset.mode = isTickets ? "tickets" : "queue";
+  if (!ctx.els.wsTabQueue || !ctx.els.wsTabAppeals) return;
+  const isAppeals = field === "appeals";
+  if (ctx.els.queuePane) ctx.els.queuePane.dataset.mode = isAppeals ? "appeals" : "queue";
   // Island mode: the workspace tabs island owns the tablist; report the new
   // active tab so the island reconciles (also covers programmatic switches).
   window.dispatchEvent(
     new CustomEvent("helix-workspace-tab-changed", { detail: { field } }),
   );
   if (ctx.els.wsTabQueue) {
-    ctx.els.wsTabQueue.classList.toggle("is-active", !isTickets);
-    ctx.els.wsTabQueue.setAttribute("aria-selected", String(!isTickets));
+    ctx.els.wsTabQueue.classList.toggle("is-active", !isAppeals);
+    ctx.els.wsTabQueue.setAttribute("aria-selected", String(!isAppeals));
   }
-  if (ctx.els.wsTabTickets) {
-    ctx.els.wsTabTickets.classList.toggle("is-active", isTickets);
-    ctx.els.wsTabTickets.setAttribute("aria-selected", String(isTickets));
+  if (ctx.els.wsTabAppeals) {
+    ctx.els.wsTabAppeals.classList.toggle("is-active", isAppeals);
+    ctx.els.wsTabAppeals.setAttribute("aria-selected", String(isAppeals));
   }
-  if (ctx.els.ticketPane) ctx.els.ticketPane.hidden = !isTickets;
-  if (isTickets) {
+  if (ctx.els.appealPane) ctx.els.appealPane.hidden = !isAppeals;
+  if (isAppeals) {
     if (!ticketListLoaded) void loadTickets();
     else refreshTicketsList();
   } else {
@@ -84,35 +84,35 @@ export function switchWorkspaceTab(field) {
   }
 }
 
-/** Hide the ticket detail, restoring the conversation/empty mount point. */
+/** Hide the appeal detail, restoring the conversation/empty mount point. */
 export function closeTicketDetail() {
   if (activeTicketId === null) return;
   activeTicketId = null;
-  if (ctx.els.ticketDetailView) ctx.els.ticketDetailView.hidden = true;
-  if (ctx.state.selectedId && ctx.els.conversationView) {
-    ctx.els.conversationView.hidden = false;
+  if (ctx.els.appealDetailView) ctx.els.appealDetailView.hidden = true;
+  if (ctx.state.selectedId && ctx.els.reviewCaseView) {
+    ctx.els.reviewCaseView.hidden = false;
     if (ctx.els.emptyState) ctx.els.emptyState.hidden = true;
   } else {
-    if (ctx.els.conversationView) ctx.els.conversationView.hidden = true;
+    if (ctx.els.reviewCaseView) ctx.els.reviewCaseView.hidden = true;
     if (ctx.els.emptyState) ctx.els.emptyState.hidden = false;
   }
 }
 
 export async function loadTickets() {
-  // D3 take-over: in the desktop shell the React ticket island owns the list
-  // (#ticketList is yielded and hidden by the island loader). Rendering into a
-  // hidden container would still duplicate .ticket-row nodes in the DOM and
+  // D3 take-over: in the desktop shell the React appeal island owns the list
+  // (#appealList is yielded and hidden by the island loader). Rendering into a
+  // hidden container would still duplicate .appeal-row nodes in the DOM and
   // fire a redundant fetch, so yield here instead.
   if (typeof window !== "undefined" && window.__HELIX_ISLAND_MODE__) return;
-  const status = ctx.els.ticketStatusFilter?.value || "";
+  const status = ctx.els.appealStatusFilter?.value || "";
   const query = status ? `?status=${encodeURIComponent(status)}` : "";
   try {
     const tickets = await ctx.api(`/api/appeals${query}`);
     ticketListLoaded = true;
     renderTicketList(tickets || []);
   } catch (error) {
-    if (ctx.els.ticketList) {
-      ctx.els.ticketList.innerHTML = `<p class="ticket-empty">加载失败：${ctx.escapeHtml(error.message || error)}</p>`;
+    if (ctx.els.appealList) {
+      ctx.els.appealList.innerHTML = `<p class="appeal-empty">加载失败：${ctx.escapeHtml(error.message || error)}</p>`;
     }
   }
 }
@@ -122,25 +122,25 @@ export function refreshTicketsList() {
 }
 
 export function renderTicketList(tickets) {
-  if (!ctx.els.ticketList) return;
+  if (!ctx.els.appealList) return;
   if (!tickets.length) {
-    ctx.els.ticketList.innerHTML = `<p class="ticket-empty">暂无申诉单</p>`;
+    ctx.els.appealList.innerHTML = `<p class="appeal-empty">暂无申诉单</p>`;
     return;
   }
-  ctx.els.ticketList.innerHTML = tickets
+  ctx.els.appealList.innerHTML = tickets
     .map((t) => {
       const statusName = TICKET_STATUS_NAMES[t.status] || t.status;
       const high = t.priority === "high" ? " is-high" : "";
       const ref = t.customer_ref ? ` · ${ctx.escapeHtml(t.customer_ref)}` : "";
-      return `<button type="button" class="ticket-row" data-ticket-id="${ctx.escapeHtml(t.id)}">
-        <span class="ticket-row-main">
-          <span class="ticket-subject">${ctx.escapeHtml(t.subject)}</span>
-          <span class="ticket-meta">${ctx.escapeHtml(t.customer_name || "—")}${ref}</span>
+      return `<button type="button" class="appeal-row" data-appeal-id="${ctx.escapeHtml(t.id)}">
+        <span class="appeal-row-main">
+          <span class="appeal-subject">${ctx.escapeHtml(t.subject)}</span>
+          <span class="appeal-meta">${ctx.escapeHtml(t.customer_name || "—")}${ref}</span>
         </span>
-        <span class="ticket-row-side">
+        <span class="appeal-row-side">
           <span class="priority-pill${high}">${t.priority === "high" ? "高优" : "普通"}</span>
           <span class="status-pill">${ctx.escapeHtml(statusName)}</span>
-          <span class="ticket-meta">${ctx.escapeHtml(ctx.formatTime(t.updated_at))}</span>
+          <span class="appeal-meta">${ctx.escapeHtml(ctx.formatTime(t.updated_at))}</span>
         </span>
       </button>`;
     })
@@ -155,8 +155,8 @@ export async function openTicketDetail(ticketId) {
     // 变化),旧票响应不得覆盖当前视图,也不得把 null 传给 /api/appeals/null。
     if (activeTicketId !== ticketId) return;
     renderTicketDetail(detail);
-    if (ctx.els.ticketDetailView) ctx.els.ticketDetailView.hidden = false;
-    if (ctx.els.conversationView) ctx.els.conversationView.hidden = true;
+    if (ctx.els.appealDetailView) ctx.els.appealDetailView.hidden = false;
+    if (ctx.els.reviewCaseView) ctx.els.reviewCaseView.hidden = true;
     if (ctx.els.emptyState) ctx.els.emptyState.hidden = true;
   } catch (error) {
     if (activeTicketId === ticketId) {
@@ -168,68 +168,68 @@ export async function openTicketDetail(ticketId) {
 
 export function renderTicketDetail(t) {
   const statusName = TICKET_STATUS_NAMES[t.status] || t.status;
-  if (ctx.els.ticketDetailTitle) ctx.els.ticketDetailTitle.textContent = `${t.id} · ${t.subject}`;
-  if (ctx.els.ticketDetailStatus) {
-    ctx.els.ticketDetailStatus.textContent = statusName;
-    ctx.els.ticketDetailStatus.classList.toggle("is-ticket-closed", t.status === "closed");
+  if (ctx.els.appealDetailTitle) ctx.els.appealDetailTitle.textContent = `${t.id} · ${t.subject}`;
+  if (ctx.els.appealDetailStatus) {
+    ctx.els.appealDetailStatus.textContent = statusName;
+    ctx.els.appealDetailStatus.classList.toggle("is-appeal-closed", t.status === "closed");
   }
-  if (ctx.els.ticketDetailPriority) {
-    ctx.els.ticketDetailPriority.textContent = t.priority === "high" ? "高优先级" : "普通优先级";
-    ctx.els.ticketDetailPriority.classList.toggle("is-high", t.priority === "high");
-    ctx.els.ticketDetailPriority.hidden = false;
+  if (ctx.els.appealDetailPriority) {
+    ctx.els.appealDetailPriority.textContent = t.priority === "high" ? "高优先级" : "普通优先级";
+    ctx.els.appealDetailPriority.classList.toggle("is-high", t.priority === "high");
+    ctx.els.appealDetailPriority.hidden = false;
   }
-  if (ctx.els.ticketDetailSubtitle) {
+  if (ctx.els.appealDetailSubtitle) {
     const parts = [t.customer_name || "—"];
     if (t.customer_ref) parts.push(t.customer_ref);
     if (t.assigned_agent) parts.push(`负责人：${t.assigned_agent}`);
     parts.push(`创建 ${ctx.formatTime(t.created_at)}`);
     if (t.closed_at) parts.push(`关闭 ${ctx.formatTime(t.closed_at)}`);
-    ctx.els.ticketDetailSubtitle.textContent = parts.join(" · ");
+    ctx.els.appealDetailSubtitle.textContent = parts.join(" · ");
   }
-  if (ctx.els.ticketDetailDescription) {
+  if (ctx.els.appealDetailDescription) {
     if (t.description) {
-      ctx.els.ticketDetailDescription.hidden = false;
-      ctx.els.ticketDetailDescription.textContent = t.description;
+      ctx.els.appealDetailDescription.hidden = false;
+      ctx.els.appealDetailDescription.textContent = t.description;
     } else {
-      ctx.els.ticketDetailDescription.hidden = true;
+      ctx.els.appealDetailDescription.hidden = true;
     }
   }
   renderTicketConvs(t.conversations);
   renderTicketTransitions(t.status);
   const linkedThisConv = (t.conversations || []).some((c) => c.id === ctx.state.selectedId);
-  if (ctx.els.ticketLinkCurrent) ctx.els.ticketLinkCurrent.hidden = !ctx.state.selectedId || linkedThisConv;
+  if (ctx.els.appealLinkCurrent) ctx.els.appealLinkCurrent.hidden = !ctx.state.selectedId || linkedThisConv;
 }
 
 export function renderTicketTransitions(status) {
-  if (!ctx.els.ticketTransitions) return;
+  if (!ctx.els.appealTransitions) return;
   const actions = {
     open: [["in_progress", "开始处理"], ["closed", "直接关闭"]],
     in_progress: [["closed", "关闭"]],
     closed: [["open", "重开"]],
   }[status] || [];
-  ctx.els.ticketTransitions.innerHTML = actions
+  ctx.els.appealTransitions.innerHTML = actions
     .map(
       ([next, label]) =>
-        `<button type="button" class="button button-secondary ticket-transition" data-status="${ctx.escapeHtml(next)}">${ctx.escapeHtml(label)}</button>`,
+        `<button type="button" class="button button-secondary appeal-transition" data-status="${ctx.escapeHtml(next)}">${ctx.escapeHtml(label)}</button>`,
     )
     .join("");
 }
 
 export function renderTicketConvs(convs) {
-  if (!ctx.els.ticketDetailConvs) return;
+  if (!ctx.els.appealDetailConvs) return;
   if (!convs || !convs.length) {
-    ctx.els.ticketDetailConvs.innerHTML = `<h3 class="ticket-convs-title">关联审核单</h3><p class="ticket-empty">未关联审核单</p>`;
+    ctx.els.appealDetailConvs.innerHTML = `<h3 class="appeal-convs-title">关联审核单</h3><p class="appeal-empty">未关联审核单</p>`;
     return;
   }
-  ctx.els.ticketDetailConvs.innerHTML =
-    `<h3 class="ticket-convs-title">关联审核单</h3>` +
+  ctx.els.appealDetailConvs.innerHTML =
+    `<h3 class="appeal-convs-title">关联审核单</h3>` +
     convs
       .map(
         (c) =>
-          `<button type="button" class="ticket-conv-row" data-conv-id="${ctx.escapeHtml(c.id)}">
-            <span class="ticket-meta">${ctx.escapeHtml(c.customer_name || "—")}</span>
+          `<button type="button" class="appeal-conv-row" data-conv-id="${ctx.escapeHtml(c.id)}">
+            <span class="appeal-meta">${ctx.escapeHtml(c.customer_name || "—")}</span>
             <span class="status-pill">${ctx.escapeHtml(ctx.statusLabel(c.status))}</span>
-            <span class="ticket-meta">${ctx.escapeHtml(ctx.formatTime(c.updated_at))}</span>
+            <span class="appeal-meta">${ctx.escapeHtml(ctx.formatTime(c.updated_at))}</span>
           </button>`,
       )
       .join("");
@@ -286,42 +286,42 @@ export function autoSelectSuppressed() {
 }
 
 /**
- * Bind the ticket workspace DOM (exactly once, at app.js load): convert
+ * Bind the appeal workspace DOM (exactly once, at app.js load): convert
  * button, workspace tabs, list/detail/transition/link controls.
  */
 export function bindTickets() {
   if (!ctx?.els) return false;
-  if (ctx.els.ticketBtn) {
-    ctx.els.ticketBtn.addEventListener("click", () => void convertToTicket());
+  if (ctx.els.appealBtn) {
+    ctx.els.appealBtn.addEventListener("click", () => void convertToTicket());
   }
   if (ctx.els.wsTabQueue) ctx.els.wsTabQueue.addEventListener("click", () => switchWorkspaceTab("queue"));
-  if (ctx.els.wsTabTickets) {
-    ctx.els.wsTabTickets.addEventListener("click", () => switchWorkspaceTab("tickets"));
+  if (ctx.els.wsTabAppeals) {
+    ctx.els.wsTabAppeals.addEventListener("click", () => switchWorkspaceTab("appeals"));
   }
-  if (ctx.els.ticketStatusFilter) {
-    ctx.els.ticketStatusFilter.addEventListener("change", () => void loadTickets());
+  if (ctx.els.appealStatusFilter) {
+    ctx.els.appealStatusFilter.addEventListener("change", () => void loadTickets());
   }
-  if (ctx.els.ticketList) {
-    ctx.els.ticketList.addEventListener("click", (event) => {
-      const row = event.target.closest(".ticket-row");
-      if (row) void openTicketDetail(row.dataset.ticketId);
+  if (ctx.els.appealList) {
+    ctx.els.appealList.addEventListener("click", (event) => {
+      const row = event.target.closest(".appeal-row");
+      if (row) void openTicketDetail(row.dataset.appealId);
     });
   }
-  if (ctx.els.ticketBack) {
-    ctx.els.ticketBack.addEventListener("click", () => closeTicketDetail());
+  if (ctx.els.appealBack) {
+    ctx.els.appealBack.addEventListener("click", () => closeTicketDetail());
   }
-  if (ctx.els.ticketTransitions) {
-    ctx.els.ticketTransitions.addEventListener("click", (event) => {
-      const button = event.target.closest(".ticket-transition");
+  if (ctx.els.appealTransitions) {
+    ctx.els.appealTransitions.addEventListener("click", (event) => {
+      const button = event.target.closest(".appeal-transition");
       if (button) void transitionActiveTicket(button.dataset.status);
     });
   }
-  if (ctx.els.ticketLinkCurrent) {
-    ctx.els.ticketLinkCurrent.addEventListener("click", () => void linkActiveTicketConversation());
+  if (ctx.els.appealLinkCurrent) {
+    ctx.els.appealLinkCurrent.addEventListener("click", () => void linkActiveTicketConversation());
   }
-  if (ctx.els.ticketDetailConvs) {
-    ctx.els.ticketDetailConvs.addEventListener("click", (event) => {
-      const row = event.target.closest(".ticket-conv-row");
+  if (ctx.els.appealDetailConvs) {
+    ctx.els.appealDetailConvs.addEventListener("click", (event) => {
+      const row = event.target.closest(".appeal-conv-row");
       if (row) jumpToTicketConversation(row.dataset.convId);
     });
   }

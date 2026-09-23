@@ -170,7 +170,7 @@ def wait_queue_has(page: Page, name: str, timeout_s: float) -> None:
     """
     deadline = time.monotonic() + timeout_s
     while time.monotonic() < deadline:
-        names = page.locator("#conversationList .item-name").all_text_contents()
+        names = page.locator("#reviewCaseList .item-name").all_text_contents()
         if any(name in text for text in names):
             return
         page.wait_for_timeout(200)

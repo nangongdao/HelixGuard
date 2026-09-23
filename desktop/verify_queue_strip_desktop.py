@@ -74,7 +74,7 @@ def main() -> int:
                 print("FAIL: no console page found over CDP")
                 return 1
 
-            page.wait_for_selector("#operatorIdentity", timeout=30000)
+            page.wait_for_selector("#reviewerIdentity", timeout=30000)
             checks: dict[str, object] = {}
             checks["island_mode"] = page.evaluate("() => window.__HELIX_ISLAND_MODE__ === true")
             checks["legacy_queue_count_hidden"] = page.evaluate(
@@ -128,7 +128,7 @@ def main() -> int:
                 " return b && b.hidden === true; }"
             )
             rows_before = page.evaluate(
-                "() => document.querySelectorAll('#queueReactIsland .conversation-item').length"
+                "() => document.querySelectorAll('#queueReactIsland .review-case-item').length"
             )
 
             # The island's 加载更多 bridges to legacy loadMoreConversations —
@@ -139,13 +139,13 @@ def main() -> int:
                 page.locator("#queueReactIsland .queue-more").click()
             page.wait_for_function(
                 """(before) => document.querySelectorAll(
-                       '#queueReactIsland .conversation-item').length > before""",
+                       '#queueReactIsland .review-case-item').length > before""",
                 arg=rows_before,
                 timeout=30000,
             )
             checks["load_more_cursor_request"] = True
             checks["rows_after_load_more"] = page.evaluate(
-                "() => document.querySelectorAll('#queueReactIsland .conversation-item').length"
+                "() => document.querySelectorAll('#queueReactIsland .review-case-item').length"
             )
 
             print(json.dumps(checks, ensure_ascii=False, indent=2))

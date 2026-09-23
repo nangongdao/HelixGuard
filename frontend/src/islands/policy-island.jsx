@@ -1,19 +1,19 @@
 /**
- * Helix Guard — knowledge domain React island (D3)
+ * Helix Guard — policy domain React island (D3)
  *
- * Migrates the knowledge operations view to React, using useReducer with
- * the existing pure functions from js/knowledge.js (normalize/filter/
+ * Migrates the policy operations view to React, using useReducer with
+ * the existing pure functions from js/policy.js (normalize/filter/
  * summarize/reviewActions — §43.6 framework-agnostic reducer triplets).
  *
- * Mounts into #knowledgeReactIsland and owns the whole knowledge surface:
+ * Mounts into #policyReactIsland and owns the whole policy surface:
  * summary + filters + article list + the draft editor (the final D3 slice).
  * Editor writes go through legacy via helix-knowledge-save/-review so the
  * api()/showToast()/reload lifecycle stays in one place; the island keeps
- * the legacy DOM id + label contract (knowledgeEditor/knowledgeTitle/…) so
+ * the legacy DOM id + label contract (policyEditor/policyTitle/…) so
  * the ui_knowledge and axe keyboard-path locators keep resolving.
  *
  * This file is the composition root: the pure domain helpers, the reducer
- * and the presentational components live under ./knowledge/ (the domain
+ * and the presentational components live under ./policy/ (the domain
  * outgrew the project's 400-line module limit). Every previously exported
  * name is re-exported here so importers are unchanged.
  *
@@ -37,16 +37,16 @@ import {
   normalizeKnowledgeArticle,
   summarizeKnowledgeArticles,
   validateKnowledgeDraft,
-} from "./knowledge/domain.js";
-import { createKnowledgeState, reduceKnowledge } from "./knowledge/reducer.js";
+} from "./policy/domain.js";
+import { createKnowledgeState, reduceKnowledge } from "./policy/reducer.js";
 import {
   KnowledgeArticle,
   KnowledgeEditor,
   KnowledgeSummary,
-} from "./knowledge/components.jsx";
+} from "./policy/components.jsx";
 
-export { EDITOR_IDS, KNOWLEDGE_EVENTS, validateKnowledgeDraft } from "./knowledge/domain.js";
-export { createKnowledgeState, reduceKnowledge } from "./knowledge/reducer.js";
+export { EDITOR_IDS, KNOWLEDGE_EVENTS, validateKnowledgeDraft } from "./policy/domain.js";
+export { createKnowledgeState, reduceKnowledge } from "./policy/reducer.js";
 
 export function KnowledgeIsland() {
   const [state, dispatch] = useReducer(reduceKnowledge, undefined, createKnowledgeState);
@@ -66,7 +66,7 @@ export function KnowledgeIsland() {
       const res = await fetch(path, {
         headers: { "X-Tenant-Id": "demo" },
       });
-      if (!res.ok) throw new Error(`knowledge API ${res.status}`);
+      if (!res.ok) throw new Error(`policy API ${res.status}`);
       return res.json();
     },
     staleTime: 30_000,
@@ -167,10 +167,10 @@ export function KnowledgeIsland() {
   }
 
   return (
-    <div className="knowledge-island">
+    <div className="policy-island">
       <KnowledgeSummary summary={summary} canWrite={canWrite} />
-      <div className="knowledge-toolbar" aria-label="策略文章筛选">
-        <label className="knowledge-search">
+      <div className="policy-toolbar" aria-label="策略文章筛选">
+        <label className="policy-search">
           <span className="sr-only">搜索策略文章</span>
           <input
             type="search"
@@ -181,7 +181,7 @@ export function KnowledgeIsland() {
             onChange={(e) => dispatch({ type: "SET_FILTER", payload: { query: e.target.value } })}
           />
         </label>
-        <label className="knowledge-filter">
+        <label className="policy-filter">
           <span>状态</span>
           <select
             value={state.filters.status}
@@ -194,7 +194,7 @@ export function KnowledgeIsland() {
             <option value="retired">已停用</option>
           </select>
         </label>
-        <label className="knowledge-filter">
+        <label className="policy-filter">
           <span>语言</span>
           <select
             value={state.filters.language}
@@ -211,25 +211,25 @@ export function KnowledgeIsland() {
             <option value="pt">Português</option>
           </select>
         </label>
-        <span className="knowledge-result-count">
+        <span className="policy-result-count">
           {filtered.length} / {articles.length} 篇
         </span>
       </div>
       {!canWrite && (
-        <p className="knowledge-read-only">
+        <p className="policy-read-only">
           当前角色可检索已发布文章；草稿和审核操作仅对策略管理员开放。
         </p>
       )}
-      <div className="knowledge-layout">
-        <section className="knowledge-list-panel" aria-label="策略文章">
-          <div className="knowledge-list-status" role="status">
+      <div className="policy-layout">
+        <section className="policy-list-panel" aria-label="策略文章">
+          <div className="policy-list-status" role="status">
             {!filtered.length
               ? articles.length
                 ? "没有符合当前筛选条件的文章。"
                 : "当前租户还没有策略文章。"
               : ""}
           </div>
-          <div className="knowledge-list" role="list">
+          <div className="policy-list" role="list">
             {filtered.map((raw) => {
               const article = normalizeKnowledgeArticle(raw);
               return <KnowledgeArticle key={article.id} article={article} canWrite={canWrite} onAction={handleAction} />;
@@ -245,7 +245,7 @@ export function KnowledgeIsland() {
 }
 
 /**
- * Mount the knowledge island into a host <div>. Called by the island loader.
+ * Mount the policy island into a host <div>. Called by the island loader.
  * @param {HTMLElement} element - mount point
  */
 export function mount(element) {

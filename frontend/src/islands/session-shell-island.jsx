@@ -15,7 +15,7 @@ import { createRoot } from "react-dom/client";
 const NAV_VIEWS = [
   { id: "workspace", label: "工作台", icon: "inbox" },
   { id: "quality", label: "质量看板", icon: "activity" },
-  { id: "knowledge", label: "策略库", icon: "book-open" },
+  { id: "policy", label: "策略库", icon: "book-open" },
   { id: "admin", label: "管理", icon: "settings" },
   { id: "settings", label: "设置", icon: "sliders" },
 ];
@@ -62,7 +62,7 @@ function SessionShellIsland() {
           <span className="environment-chip">CONTROL ROOM</span>
         </div>
         <div className="header-actions">
-          <span className="operator-identity">{operator}</span>
+          <span className="reviewer-identity">{operator}</span>
           <button
             className="icon-button header-tool"
             type="button"

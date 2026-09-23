@@ -119,11 +119,11 @@ export function CopilotBar({ toolsVisible, copilot, tone, onSuggest, onTone, onA
         ))}
       </div>
       <div
-        id="copilotKnowledge"
-        className="copilot-knowledge"
-        hidden={!copilot.knowledge.length}
+        id="copilotPolicy"
+        className="copilot-policy"
+        hidden={!copilot.policy.length}
       >
-        {copilot.knowledge.map((article) => (
+        {copilot.policy.map((article) => (
           <button
             key={article.title}
             type="button"

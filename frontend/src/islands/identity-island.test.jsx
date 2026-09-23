@@ -64,8 +64,8 @@ describe("IdentityIsland", () => {
     expect(screen.getByText("demo.admin · 管理员")).toBeTruthy();
   });
 
-  it("keeps the legacy operator-identity class", () => {
+  it("keeps the legacy reviewer-identity class", () => {
     const { container } = render(<IdentityIsland />);
-    expect(container.querySelector("span.operator-identity")).toBeTruthy();
+    expect(container.querySelector("span.reviewer-identity")).toBeTruthy();
   });
 });
