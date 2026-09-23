@@ -121,7 +121,7 @@ class SdkEndToEndTests(unittest.TestCase):
         quota = self.client.provision_tenant("sdkco", "SDK Co", conversation_quota=50)
         self.assertEqual(quota["tenant_id"], "sdkco")
         self.assertEqual(quota["conversation_quota"], 50)
-        # Tenant admins are risk_categoryionally scoped to their own tenant. Use the
+        # Tenant admins are intentionally scoped to their own tenant. Use the
         # newly provisioned tenant's credential for its member lifecycle.
         with HelixClient(
             base_url="http://testserver",
