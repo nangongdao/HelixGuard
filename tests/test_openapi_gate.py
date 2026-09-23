@@ -34,7 +34,7 @@ class OpenApiSnapshotGateTests(unittest.TestCase):
             breaking,
             [],
             f"OpenAPI breaking changes vs snapshot: {breaking} "
-            "(regenerate with --dump only for risk_categoryional API changes)",
+            "(regenerate with --dump only for intentional API changes)",
         )
 
     def test_snapshot_is_current_with_code(self) -> None:

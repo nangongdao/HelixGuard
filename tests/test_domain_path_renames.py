@@ -34,7 +34,7 @@ from app.deprecation import (
 )
 from app.main import create_app
 
-# Operations that risk_categoryionally stay out of the document: the spot-check
+# Operations that intentionally stay out of the document: the spot-check
 # landing page renders HTML for a browser and is include_in_schema=False.
 OFF_SCHEMA = {"GET /api/csat/{token}"}
 

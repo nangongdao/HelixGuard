@@ -179,7 +179,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--update",
         action="store_true",
-        help="rewrite every baseline from this run's captures (risk_categoryional re-baseline)",
+        help="rewrite every baseline from this run's captures (intentional re-baseline)",
     )
     args = parser.parse_args(argv)
     update = args.update

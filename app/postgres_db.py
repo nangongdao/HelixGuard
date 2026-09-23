@@ -230,7 +230,7 @@ class PostgresDatabase(Database):
         ``tenant`` scope -> ``set_config('app.tenant_id', ..., true)``, i.e.
         transaction-local: it disappears at commit/rollback so a pooled
         connection never leaks context into its next user. ``maintenance``
-        scope risk_categoryionally binds nothing and requires a role RLS does not
+        scope intentionally binds nothing and requires a role RLS does not
         cover (owner / BYPASSRLS). No scope at all fails loudly — silently
         seeing zero rows would hide bugs instead of surfacing them.
         """

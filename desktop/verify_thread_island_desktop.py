@@ -103,7 +103,7 @@ def main() -> int:
                         return { ok: res.ok, status: res.status, data: res.ok ? await res.json() : null };
                     };
                     const conv = await post('/api/review-cases', {
-                        submitter_name: '线程岛验证 ' + Math.random().toString(36).slice(2, 8),
+                        customer_name: '线程岛验证 ' + Math.random().toString(36).slice(2, 8),
                     });
                     if (!conv.ok) return { error: 'conversation ' + conv.status };
                     const turn = await post('/api/review-cases/' + conv.data.id + '/messages', {
@@ -111,11 +111,11 @@ def main() -> int:
                     });
                     if (!turn.ok) return { error: 'turn ' + turn.status };
                     const empty = await post('/api/review-cases', {
-                        submitter_name: '线程岛空线 ' + Math.random().toString(36).slice(2, 8),
+                        customer_name: '线程岛空线 ' + Math.random().toString(36).slice(2, 8),
                     });
                     if (!empty.ok) return { error: 'empty conversation ' + empty.status };
                     const long = await post('/api/review-cases', {
-                        submitter_name: '线程岛长线 ' + Math.random().toString(36).slice(2, 8),
+                        customer_name: '线程岛长线 ' + Math.random().toString(36).slice(2, 8),
                     });
                     if (!long.ok) return { error: 'long conversation ' + long.status };
                     for (let i = 0; i < messageCount; i += 1) {

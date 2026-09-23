@@ -120,7 +120,7 @@ def _primary_is_up(base_url: str, client: httpx.Client) -> bool:
 def _pg_verify(dsn: str, run_prefix: str, after_iso: str) -> dict[str, Any]:
     """Assert row-level invariants in Postgres (the systems of record)."""
     # psycopg's overloads default to tuple rows unless the row factory type is
-    # carried through a generic annotation. This diagnostic risk_categoryionally uses
+    # carried through a generic annotation. This diagnostic intentionally uses
     # mapping rows throughout; make that dynamic boundary explicit once.
     conn = psycopg.connect(dsn, row_factory=cast(Any, dict_row))
     cur: Any = conn.cursor()

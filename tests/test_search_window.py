@@ -1,6 +1,6 @@
 """ROADMAP 18.5 PostgreSQL dense-message search fast-path tests.
 
-The production path is PostgreSQL-only, but its SQL is risk_categoryionally shared
+The production path is PostgreSQL-only, but its SQL is intentionally shared
 SQL.  These tests execute it against SQLite with message FTS disabled, then
 compare it with the existing aggregate fallback.  Live PostgreSQL tests pin
 the supporting native indexes separately in ``tests.test_postgres``.

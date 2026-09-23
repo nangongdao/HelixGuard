@@ -35,14 +35,14 @@ BASE_URL = os.getenv("HELIX_BASE_URL", "http://127.0.0.1:8765").rstrip("/")
 ARTIFACTS = Path(__file__).resolve().parents[1] / "artifacts"
 
 
-def attach_failure_recsource_lookups(
+def attach_failure_recorders(
     page: Page,
     console_errors: list[str],
     page_errors: list[str],
     http_errors: list[str],
     failed_requests: list[str],
 ) -> None:
-    """Mirror ui_admin's recsource_lookups: any console error, page error, HTTP >= 400
+    """Mirror ui_admin's recorders: any console error, page error, HTTP >= 400
     or aborted request fails the run (SSE aborts and DELETE races excepted)."""
 
     def record_console(message) -> None:
@@ -150,9 +150,7 @@ def main() -> None:
 
         context = browser.new_context(viewport={"width": 1440, "height": 1000})
         page = context.new_page()
-        attach_failure_recsource_lookups(
-            page, console_errors, page_errors, http_errors, failed_requests
-        )
+        attach_failure_recorders(page, console_errors, page_errors, http_errors, failed_requests)
         boot_shell(page)
         open_admin_island(page)
 
@@ -356,7 +354,7 @@ def main() -> None:
         # and, unlike the read path, not a single privileged request fires.
         denied_context = browser.new_context(viewport={"width": 1100, "height": 800})
         denied_page = denied_context.new_page()
-        attach_failure_recsource_lookups(
+        attach_failure_recorders(
             denied_page, console_errors, page_errors, http_errors, failed_requests
         )
         denied_requests: list[str] = []

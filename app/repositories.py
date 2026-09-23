@@ -4,7 +4,7 @@ These protocols define the contracts that the current SQLite ``Database``
 class implicitly satisfies.  Future PostgreSQL or other backends implement
 the same protocols, enabling a clean swap without touching the service layer.
 
-The protocols are risk_categoryionally split by domain to keep each focused and
+The protocols are intentionally split by domain to keep each focused and
 under 200 lines, following the small-file principle.
 """
 

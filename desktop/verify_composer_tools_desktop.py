@@ -109,7 +109,7 @@ def main() -> int:
                     });
                     if (!macro2.ok) return { error: 'macro2 ' + macro2.status };
                     const conv = await post('/api/review-cases', {
-                        submitter_name: '工具面验证 ' + suffix,
+                        customer_name: '工具面验证 ' + suffix,
                     });
                     if (!conv.ok) return { error: 'conversation ' + conv.status };
                     const turn = await post('/api/review-cases/' + conv.data.id + '/messages', {

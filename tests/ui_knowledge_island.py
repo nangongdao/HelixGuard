@@ -23,7 +23,7 @@ BASE_URL = os.getenv("HELIX_BASE_URL", "http://127.0.0.1:8765").rstrip("/")
 ARTIFACTS = Path(__file__).resolve().parents[1] / "artifacts"
 
 
-def attach_failure_recsource_lookups(
+def attach_failure_recorders(
     page: Page,
     console_errors: list[str],
     page_errors: list[str],
@@ -99,9 +99,7 @@ def main() -> None:
             browser = playwright.chromium.launch(channel="msedge", headless=True)
         context = browser.new_context(viewport={"width": 1440, "height": 1000})
         page = context.new_page()
-        attach_failure_recsource_lookups(
-            page, console_errors, page_errors, http_errors, failed_requests
-        )
+        attach_failure_recorders(page, console_errors, page_errors, http_errors, failed_requests)
         page.add_init_script("window.__TAURI_INTERNALS__ = { invoke: () => Promise.resolve() };")
         page.goto(BASE_URL, wait_until="domcontentloaded")
         page.evaluate("() => window.dispatchEvent(new Event('helix-backend-ready'))")
@@ -215,7 +213,7 @@ def main() -> None:
         # but never writer controls, and issues only read requests.
         reader_context = browser.new_context(viewport={"width": 1100, "height": 800})
         reader_page = reader_context.new_page()
-        attach_failure_recsource_lookups(
+        attach_failure_recorders(
             reader_page, console_errors, page_errors, http_errors, failed_requests
         )
         reader_requests: list[str] = []

@@ -181,7 +181,7 @@ class DatabaseCollaborationMixin:
 
         Only ``internal_note`` messages are returned, each carrying
         ``reply_to`` (the note it replies to, when threaded) and the usual
-        message shape minus internal columns. The layer is risk_categoryionally free
+        message shape minus internal columns. The layer is intentionally free
         of grouping logic — the API groups roots and replies for the client.
         """
         with self.connect() as connection:

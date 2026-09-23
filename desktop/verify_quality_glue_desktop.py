@@ -60,7 +60,7 @@ SEED_JS = """async () => {
     const tenant = { 'Content-Type': 'application/json', 'X-Tenant-Id': 'demo' };
     const convRes = await fetch('/api/review-cases', {
         method: 'POST', headers: tenant,
-        body: JSON.stringify({ submitter_name: '质量胶水验证 ' + Math.random().toString(36).slice(2, 8) }),
+        body: JSON.stringify({ customer_name: '质量胶水验证 ' + Math.random().toString(36).slice(2, 8) }),
     });
     if (!convRes.ok) return { error: 'conversation ' + convRes.status };
     const conv = await convRes.json();

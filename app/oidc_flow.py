@@ -441,7 +441,7 @@ def resolve_oidc_identity(
 
     The roster is the only source of tenant, role and membership truth: unknown
     members, deactivated members, non-roster roles and tenant mismatches are
-    rejected.  There is risk_categoryionally no fallback to ``demo``/``admin``.
+    rejected.  There is intentionally no fallback to ``demo``/``admin``.
     """
     actor_id = _resolve_actor(claims)
     claimed_tenant = claims.get("helix_tenant")

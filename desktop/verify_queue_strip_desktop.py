@@ -99,7 +99,7 @@ def main() -> int:
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json', 'X-Tenant-Id': 'demo' },
                             body: JSON.stringify({
-                                submitter_name: `分页验证 ${i} (${Math.random().toString(36).slice(2, 8)})`,
+                                customer_name: `分页验证 ${i} (${Math.random().toString(36).slice(2, 8)})`,
                                 channel: 'web',
                             }),
                         });

@@ -24,7 +24,7 @@ from app.portal_token import sign_token
 
 ROOT = Path(__file__).resolve().parents[1]
 BASE_URL = os.getenv("HELIX_BASE_URL", "http://127.0.0.1:8765").rstrip("/")
-PORTAL_SECRET = os.getenv("PORTAL_SECRET", "helix-widget-dev-secret")
+WIDGET_SECRET = os.getenv("WIDGET_SECRET", "helix-widget-dev-secret")
 AXE_PATH = ROOT / "node_modules" / "axe-core" / "axe.min.js"
 
 
@@ -80,9 +80,9 @@ def seed_shell_review_cases(page: Page) -> None:
         """() => {
           const now = new Date().toISOString();
           const statuses = ['open', 'waiting_human', 'human_active', 'resolved'];
-          const review_cases = statuses.map((status, index) => ({
+          const conversations = statuses.map((status, index) => ({
             id: `a11y_${index}`,
-            submitter_name: `验收提交方 ${index}`,
+            customer_name: `验收提交方 ${index}`,
             status,
             channel: 'web',
             preview: '无障碍验收合成审核单。',
@@ -91,10 +91,10 @@ def seed_shell_review_cases(page: Page) -> None:
             version: 1,
             sla_due_at: null,
           }));
-          window.dispatchEvent(new CustomEvent('helix-review_cases-updated', {
+          window.dispatchEvent(new CustomEvent('helix-conversations-updated', {
             detail: {
-              review_cases,
-              selectedId: review_cases[0].id,
+              conversations,
+              selectedId: conversations[0].id,
               bulkSelected: [],
               canOperate: true,
               compact: false,
@@ -323,7 +323,7 @@ def assert_reduced_motion(page: Page, label: str) -> None:
 
 def widget_url() -> str:
     token = sign_token(
-        secret=PORTAL_SECRET,
+        secret=WIDGET_SECRET,
         tenant_id="demo",
         submitter_ref=f"A11Y-{uuid4().hex[:8]}",
         ttl_seconds=1800,

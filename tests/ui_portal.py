@@ -13,7 +13,7 @@ from playwright.sync_api import Page, expect, sync_playwright
 from app.portal_token import sign_token
 
 BASE_URL = os.getenv("HELIX_BASE_URL", "http://127.0.0.1:8774").rstrip("/")
-PORTAL_SECRET = os.getenv("PORTAL_SECRET", "helix-widget-dev-secret")
+WIDGET_SECRET = os.getenv("WIDGET_SECRET", "helix-widget-dev-secret")
 ARTIFACTS = Path(__file__).resolve().parents[1] / "artifacts"
 
 
@@ -41,7 +41,7 @@ def main() -> None:
     ARTIFACTS.mkdir(parents=True, exist_ok=True)
     run_id = uuid4().hex[:8]
     token = sign_token(
-        secret=PORTAL_SECRET,
+        secret=WIDGET_SECRET,
         tenant_id="demo",
         submitter_ref=f"WIDGET-{run_id}",
         ttl_seconds=1800,

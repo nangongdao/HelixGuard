@@ -103,7 +103,7 @@ def main() -> int:
                     });
                     if (!member.ok && member.status !== 200) return { error: 'member ' + member.status };
                     const conv = await post('/api/review-cases', {
-                        submitter_name: '备注岛验证 ' + Math.random().toString(36).slice(2, 8),
+                        customer_name: '备注岛验证 ' + Math.random().toString(36).slice(2, 8),
                     });
                     if (!conv.ok) return { error: 'conversation ' + conv.status };
                     const turn = await post('/api/review-cases/' + conv.data.id + '/messages', {

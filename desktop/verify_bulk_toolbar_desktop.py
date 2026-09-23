@@ -97,7 +97,7 @@ def main() -> int:
                         const res = await fetch('/api/review-cases', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json', 'X-Tenant-Id': 'demo' },
-                            body: JSON.stringify({ submitter_name: `批量验证 ${i} (${Math.random().toString(36).slice(2, 8)})` }),
+                            body: JSON.stringify({ customer_name: `批量验证 ${i} (${Math.random().toString(36).slice(2, 8)})` }),
                         });
                         if (res.ok) ok += 1;
                     }

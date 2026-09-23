@@ -55,7 +55,7 @@ class AutoMigrateConfigTests(unittest.TestCase):
 
 class AutoMigrateAppTests(unittest.TestCase):
     def setUp(self) -> None:
-        # Fail-fast tests risk_categoryionally leak the constructed Database pool
+        # Fail-fast tests intentionally leak the constructed Database pool
         # (create_app raises before returning it), which keeps file handles
         # open on Windows; cleanup errors are tolerated.
         self._tmp = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)

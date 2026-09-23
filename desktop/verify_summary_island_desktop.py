@@ -95,7 +95,7 @@ def main() -> int:
                     };
                     const suffix = Math.random().toString(36).slice(2, 6);
                     const conv = await post('/api/review-cases', {
-                        submitter_name: '摘要岛验证 ' + suffix,
+                        customer_name: '摘要岛验证 ' + suffix,
                     });
                     if (!conv.ok) return { error: 'conversation ' + conv.status };
                     const turn = await post('/api/review-cases/' + conv.data.id + '/messages', {
@@ -107,7 +107,7 @@ def main() -> int:
                     const accept = await post('/api/review-cases/' + conv.data.id + '/accept');
                     if (!accept.ok) return { error: 'accept ' + accept.status };
                     const empty = await post('/api/review-cases', {
-                        submitter_name: '摘要岛空线 ' + suffix,
+                        customer_name: '摘要岛空线 ' + suffix,
                     });
                     if (!empty.ok) return { error: 'empty conversation ' + empty.status };
                     return { conversationId: conv.data.id, emptyId: empty.data.id };

@@ -133,7 +133,7 @@ BROWSER_BUDGETS = {
     # long tasks (§43.6 residual: "INP 直接归因列为后续增强"). The probe
     # clicks a real queue row and records the event handler's processing
     # duration from PerformanceObserver('event'); the worst single
-    # interaction of the load is asserted. P95-style tails are risk_categoryionally
+    # interaction of the load is asserted. P95-style tails are intentionally
     # out of scope for a synthetic probe — a single late click on a settled
     # page already indicates a main-thread regression.
     "inp_ms": 300,  # web: worst single row-click processing duration
@@ -183,14 +183,14 @@ _INP_PROBE_SCRIPT = """
 # (web and desktop shell) start with a real, clickable queue row. The demo
 # auth mode used by CI and local dev accepts keyless requests.
 _SEED_SCRIPT = """
-async (submitterName) => {
+async (customerName) => {
   try {
     const response = await fetch('/api/review-cases', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        submitter_name: submitterName,
-        submitter_ref: 'PERF-SEED',
+        customer_name: customerName,
+        customer_ref: 'PERF-SEED',
         channel: 'web',
       }),
     });
@@ -562,9 +562,9 @@ def check_browser_budgets(base_url: str) -> tuple[dict[str, float | None], list[
             () => {
               const total = 10000;
               const now = new Date().toISOString();
-              state.review_cases = Array.from({ length: total }, (_, i) => ({
+              state.conversations = Array.from({ length: total }, (_, i) => ({
                 id: `perf_${i}`,
-                submitter_name: `压测提交方 ${i}`,
+                customer_name: `压测提交方 ${i}`,
                 status: i % 4 === 0 ? 'waiting_human' : 'open',
                 channel: ['web', 'email', 'chat'][i % 3],
                 preview: '预算门合成审核单，仅用于渲染测量。',
@@ -578,7 +578,7 @@ def check_browser_budgets(base_url: str) -> tuple[dict[str, float | None], list[
               renderQueue();
               const elapsed = performance.now() - start;
               // Restore real data on the next poll; keep the DOM honest.
-              state.review_cases = [];
+              state.conversations = [];
               // Re-render the emptied state: without it the synthetic rows
               // stay in the DOM and the subsequent INP probe would click a
               // fake `perf_*` id and 404 on the detail fetch.
@@ -614,7 +614,7 @@ def check_browser_budgets(base_url: str) -> tuple[dict[str, float | None], list[
             )
             shell_page.goto(base_url, wait_until="domcontentloaded")
             shell_page.evaluate("() => window.dispatchEvent(new Event('helix-backend-ready'))")
-            # The island may render the empty state (no review_cases) —
+            # The island may render the empty state (no conversations) —
             # any React content proves the mount, so wait on :not(:empty).
             shell_page.wait_for_selector("#queueReactIsland:not(:empty)", timeout=30000)
             shell_page.wait_for_timeout(1500)
@@ -642,9 +642,9 @@ def check_browser_budgets(base_url: str) -> tuple[dict[str, float | None], list[
                 () => new Promise((resolve) => {
                   const total = 10000;
                   const now = new Date().toISOString();
-                  const review_cases = Array.from({ length: total }, (_, i) => ({
+                  const conversations = Array.from({ length: total }, (_, i) => ({
                     id: `perf_island_${i}`,
-                    submitter_name: `压测提交方 ${i}`,
+                    customer_name: `压测提交方 ${i}`,
                     status: i % 4 === 0 ? 'waiting_human' : 'open',
                     channel: ['web', 'email', 'chat'][i % 3],
                     preview: '预算门合成审核单，仅用于渲染测量。',
@@ -654,9 +654,9 @@ def check_browser_budgets(base_url: str) -> tuple[dict[str, float | None], list[
                     sla_due_at: null,
                   }));
                   const started = performance.now();
-                  window.dispatchEvent(new CustomEvent('helix-review_cases-updated', {
+                  window.dispatchEvent(new CustomEvent('helix-conversations-updated', {
                     detail: {
-                      review_cases,
+                      conversations,
                       selectedId: null,
                       bulkSelected: [],
                       canOperate: true,
