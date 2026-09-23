@@ -183,16 +183,18 @@ T9 在映射表里写作「`知识库` → `策略库`」—— **一个现成�
 
 **T5 建议作为最后一步单独收口**：它独占全部改动量的约 70%，但增量简历价值最低（`conversation` / `messages` 是通用软件词汇）。T1–T4、T6–T14 落地后，仓库已不再"一眼是客服"。
 
-### 5.1 P4/P5 完成后的两处**未收口面**（已登记，非遗漏）
+### 5.1 P4/P5 之后的未收口面（其一已由 P6 于 2.30.0 收口）
 
-P4/P5（2.29.0）按计划把「数据库对象 + 测试/基线」迁完，但下面两处**明确不在该批次范围**内，且经实测确认仍是旧域命名——它们**不是遗漏，是已登记的后续项**：
+P4/P5（2.29.0）按计划把「数据库对象 + 测试/基线」迁完。当时实测确认有两处仍是旧域命名，**不是遗漏，是已登记的后续项**；P6（2.30.0）收口了其中第一处：
 
-| 面 | 实测状态（2.29.0 时点） | 为何未纳入 P5 |
+| 面 | 实测状态 | 处置 |
 | --- | --- | --- |
-| DOM id / class / 模块名 | `app/static/index.html` 仍有 `#knowledgeSearch` / `.knowledge-article`；`frontend/src/islands/*` 同名残留；`i18n.js` 的 **键** `misc.internal_knowledge` 未改（§3.4 已把**值**迁为「内部策略」） | 改 DOM 标识符会牵动 `visual_gate` / `frontend_gate` / `readme_screenshots` / `ui_accessibility` 四个脚本与视觉基线，属**独立重锚批次**的成本，与「测试/基线收口」不是一回事 |
-| `docs/api/reference.md` | 文档化 141 处 vs 快照 181 路径 / 215 操作，**既存漂移先于域迁移**（P3a 时点为 107 vs 133） | 该文件由 `scripts/api_docs.py` 从快照生成，漂移与域迁移**正交**；在本批次重生成会把 3000+ 行无关 diff 混进域迁移提交里，破坏「一次迁移一个理由」的审阅边界 |
+| DOM id / class / 模块名 | 2.29.0 时：`app/static/index.html` 仍有 `#knowledgeSearch` / `.knowledge-article`；`frontend/src/islands/*` 同名残留；`i18n.js` 的**键** `misc.internal_knowledge` 未改（§3.4 已把**值**迁为「内部策略」） | **P6（2.30.0）已完成**：144 文件 / +1670 −1511、18 个 `git mv`；含 12 个后缀式 id 常量、i18n 键、dataset 属性↔访问器对、vite/vite-loader 入口键。连带修好两处**既存**半改状态（`data-wstab`/`data-mode` 的值、`costAgentList` DOM id）与一处**契约串误改**（见 §7.4） |
+| `docs/api/reference.md` | 文档化 141 处 vs 快照 181 路径 / 215 操作，**既存漂移先于域迁移**（P3a 时点为 107 vs 133） | **仍未收口**：该文件由 `scripts/api_docs.py` 从快照生成，漂移与域迁移**正交**；重生成会把 3000+ 行无关 diff 混进域迁移提交里，破坏「一次迁移一个理由」的审阅边界 |
 
 这两项与 §4「明确不动的标识符」性质不同：§4 是**判定为不改**，本节是**判定为改、但排在域迁移之后**。
+
+**P6 收口后仍为旧域词、且判定为「改但另起批次」的面**：测试/harness 的**文件名**与视觉/截图的**场景名**——`tests/ui_knowledge.py`、`tests/ui_knowledge_island.py`（CI 引用）、`tests/frontend/knowledge*.test.js`、`desktop/verify_knowledge_island_desktop.py`、`tests/baselines/knowledge-view.png`、`scripts/visual_gate.py` 的 `"knowledge-view"`、`scripts/readme_screenshots.py` 的 `operator-workspace` / `knowledge-operations` / `operator-handoff`。它们属 P5 的「测试/基线面」，但改名会牵动**基线 PNG 的文件名**，等于强制重锚一次视觉门禁——与 P6 追求的「像素中性」直接冲突，故独立成批。
 
 **P2 的两条方法学教训**（后续阶段直接复用）：
 
@@ -246,6 +248,18 @@ P4 把数据库**表名与列名**迁到新域词之后，仓库里同时存在*
 | `app/routers/system.py` 的 `_REPLICATED_SYNTHETIC` / `_REPLICATED_COLUMNS` | **不是 wire 面** → 用新列名 | 跨区复制是 `region_replication.py` 的 cell-to-cell 内部协议，逐字节转发源行，无外部消费者 |
 | `app/routers/attachments.py` 的 Form/Query 参数、`app/routers/admin.py:634` 的查询参数 | **是 wire 名** → 保持 `conversation_id` / `customer_ref` | URL 契约，改名会让现存调用 422 |
 
-### 7.3 遗留的守护缺口（R8④，未实施）
+### 7.3 契约常量守护（R8④，**已于 2.30.0 实施**）
 
-上述判据**不在任何现有守护的射程内**：漏应用表现为「客户端静默取不到值」、误应用表现为「内部协议被改坏」，两者都不会让测试变红。建议补一条**契约常量断言**——`PII_FIELDS` 这类按 wire 名登记的常量，其键名必须等于 `_COLUMN_TO_WIRE` 的**像集**与「未改名原样列名」之并集的子集。本版未实施，登记于此。
+上述判据**不在任何现有守护的射程内**：漏应用表现为「客户端静默取不到值」、误应用表现为「内部协议被改坏」，两者都不会让测试变红。
+
+`tests/test_wire_contract_constants.py`（6 例）按本节登记的方案落地：`PII_FIELDS` 与 `_COLUMN_TO_WIRE` **必须不相交**（任何列名若被 `to_wire_row` 改走，`redact_pii` 就永远认不出它——**静默 PII 泄漏**，是安全缺陷不是风格问题），并用**行为断言**收尾：把新列名组成的行过 `to_wire_row` 再 `redact_pii`，断言它们以 wire 键名被脱敏。
+
+### 7.4 R8④ 的第二个实例：权限串（2.30.0 实际触发，由**像素门禁**抓到）
+
+P6 的标识符面迁移把 `app/static/js/policy-view.js` 的 `canWriteKnowledge()` 从 `"knowledge:write"` 改成了 `"policy:write"`。服务端**照旧发 `knowledge:write`**（本文件 §3 与 `docs/API_POLICY.md` 都把权限串列为协议），于是该判断对任何真实主体都为假：写权限分支整体变死（按钮永不显现、编辑器永不打开、已发布过滤器永不放开）。
+
+**为什么全套测试都没红**：`tests/frontend/knowledge-view.test.js` 的夹具被**同一次改名**一起改成了 `["policy:write"]`——断言与实现同步漂移、互相印证同一个错误。这是 R8④ 的一般形态：**契约串在自己的测试两侧同时被改名 = 不可见**。唯一症状是 `scripts/visual_gate.py` 的 `knowledge-view` 一面 **7.69%** 像素漂移。
+
+**教训**：判定改名正确性的不是「引用的类名/选择器都存在」（当时四个独立检查器全绿），而是**每一处字符串改动是否落在域词表内**。词表之外的一切——权限串、事件名、请求头、DB 枚举值、预算键——都必须显式排除，词边界正则挡不住。
+
+守护扩展：`tests/test_wire_contract_constants.py` 扫前端所有权限形态字面量并断言 ⊆ `app.security.ROLE_PERMISSIONS` 的并集，动作词表由该表**推导**（服务端新增权限时前端字面量自动进入射程）。证伪脚本 `artifacts/p6_guard_falsify.py` 证明它能红。

@@ -152,7 +152,7 @@
 
 ---
 
-## 8. 执行结论（P1–P5 全部落地）
+## 8. 执行结论（P1–P6 全部落地）
 
 | 阶段 | 版本 | 状态 |
 | --- | --- | --- |
@@ -163,6 +163,7 @@
 | P3 模块与路由 | 2.26.0（P3a）/ 2.28.0（P3b） | 已完成（R8 三条机制教训） |
 | P4 数据层 | 2.29.0 | 已完成（一致改写，链长仍 48；wire 契约经 `to_wire_row()` 不变） |
 | P5 测试与基线 | 2.29.0 | 已完成（与 P4 同批次；`database.py.bak` 已清、README 横幅已撤） |
+| P6 DOM/标识符面 | 2.30.0 | 已完成（144 文件 / +1670 −1511、18 `git mv`；visual_gate 4/4 **0.00%**，基线无需重锚；OpenAPI diff 仅版本号一行） |
 
 ### P4/P5 暴露的两条新机制教训（建议补入 R8）
 
@@ -173,7 +174,9 @@
 
 **R8⑤「点号属性访问」是改名脚本的固定盲区，且已复发三次。** P3b 教训③（`token.conversation_id` 误改）→ P5 第一遍改名脚本的负向后顾 `(?<!\w.)` 把 `self.<attr>` 成批排除（方法定义改了、调用点没改，251 行）→ 残留一例因落在 SKIP 子串规则里而两遍都漏。**根因是判据选错了**：脚本按**行文本**匹配，而改名正确性的判据是**标识符绑定**。可复用做法：改名后用 AST 收集全部 `Attribute` 节点与 `Name` 节点，对每个改过的标识符断言「定义与引用同批变更」，而非依赖正则的哨兵。同理，SKIP 子串规则必须与改名规则**互斥或显式求交**，否则会出现「被 SKIP 的标识符仍被引用端改写」的单边改名。
 
+**R8⑥ 契约串（权限、事件名、请求头、枚举值、预算键）必须显式排除在词表之外，且**像素门禁是唯一会红的门禁**。** P6（2.30.0）把 `policy-view.js` 的 `"knowledge:write"` 改成了 `"policy:write"`，服务端照旧发旧名，于是写权限分支整体变死（按钮不显现、编辑器不打开）。**关键在失败模式**：vitest 夹具被同一次改名一起改了（`["policy:write"]`），断言与实现同步漂移、互相印证——**契约串在自己的测试两侧同时被改名 = 不可见**。没有静态错误、没有 Python 测试红、没有 vitest 红，唯一症状是 `visual_gate` 的 `knowledge-view` 一面 **7.69%** 像素漂移（取证：基线 vs 改名前 0.04% / 改名前 vs 改名后 7.73%，把「本版引入」与「数据态噪声」分开）。可复用做法：① 词表**只列域词**，权限/事件/头/枚举/预算键单独列「禁改清单」并在脚本里做交集断言；② 加**来源单一**的守护（`tests/test_wire_contract_constants.py` 从前端的 `ROLE_PERMISSIONS` 推导动作词表，不复制清单）；③ 守护必须**证伪**过一次（`artifacts/p6_guard_falsify.py`）。
+
 ### 后续可选项（本计划范围外，已登记）
 
-- **R7 的收尾面**：`app/static/index.html`、`frontend/src/islands/*` 的 DOM id / class / 模块名（`#knowledgeSearch`、`knowledgeReactIsland` 等）仍是旧域词；属 P5 的**标识符面**但改动会触发 `visual_gate` / `frontend_gate` 重锚，未纳入本批次。
-- **`docs/api/reference.md` 重生成**：该文件由 `scripts/api_docs.py` 从快照生成，但在 P3a 时**已落后 spec 26 个端点**（107 vs 133）；重生成会夹带 3541/1493 行无关漂移。登记的既存事项，与域迁移解耦后单独处理。
+- **测试/harness 的文件名与视觉场景名**：`tests/ui_knowledge.py`、`tests/ui_knowledge_island.py`（CI 引用）、`tests/frontend/knowledge*.test.js`、`desktop/verify_knowledge_island_desktop.py`、`tests/baselines/knowledge-view.png`、`scripts/visual_gate.py` 的 `"knowledge-view"`、`scripts/readme_screenshots.py` 的 `operator-workspace` / `knowledge-operations` / `operator-handoff` 仍是旧域词。P6 的**标识符面**已收口（见上），但这一层属 P5 的「测试/基线面」：改名会牵动**基线 PNG 的文件名**，等于强制重锚一次视觉门禁，与 P6 追求的「像素中性」冲突，故独立成批。
+- **`docs/api/reference.md` 重生成**：该文件由 `scripts/api_docs.py` 从快照生成，但在 P3a 时**已落后 spec 26 个端点**（107 vs 133，2.29.0 时点为 141 vs 181 路径 / 215 操作）；重生成会夹带 3541/1493 行无关漂移。登记的既存事项，与域迁移解耦后单独处理；**P6 未纳入**。
