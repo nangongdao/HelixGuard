@@ -179,4 +179,4 @@
 ### 后续可选项（本计划范围外，已登记）
 
 - **测试/harness 的文件名与视觉场景名**：`tests/ui_knowledge.py`、`tests/ui_knowledge_island.py`（CI 引用）、`tests/frontend/knowledge*.test.js`、`desktop/verify_knowledge_island_desktop.py`、`tests/baselines/knowledge-view.png`、`scripts/visual_gate.py` 的 `"knowledge-view"`、`scripts/readme_screenshots.py` 的 `operator-workspace` / `knowledge-operations` / `operator-handoff` 仍是旧域词。P6 的**标识符面**已收口（见上），但这一层属 P5 的「测试/基线面」：改名会牵动**基线 PNG 的文件名**，等于强制重锚一次视觉门禁，与 P6 追求的「像素中性」冲突，故独立成批。
-- **`docs/api/reference.md` 重生成**：该文件由 `scripts/api_docs.py` 从快照生成，但在 P3a 时**已落后 spec 26 个端点**（107 vs 133，2.29.0 时点为 141 vs 181 路径 / 215 操作）；重生成会夹带 3541/1493 行无关漂移。登记的既存事项，与域迁移解耦后单独处理；**P6 未纳入**。
+- **`docs/api/reference.md` 重生成（2.30.0 已收口）**：原漂移为文档化 141 vs 快照 181 路径 / 215 操作（P3a 时点 107 vs 133）。2.30.0 以**独立提交**重生成（6269 → 9917 行、`+5593 −1945`），并补 `tests/test_api_docs.py`（3 例）——漂移能累积的根因正是**从无门禁比对文档与快照**。守护含**非空断言**（快照每条路径都必须在文档里），因为只比对「文档 == 生成器输出」的话，一个静默丢掉一半 spec 的生成器照样能过。

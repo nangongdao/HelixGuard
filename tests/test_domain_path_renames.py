@@ -96,6 +96,7 @@ P3A_SWEEP_EXEMPT: frozenset[str] = frozenset(
         "app/main.py",  # inline @legacy_route on the FastAPI instance
         "app/portal_routes.py",  # the submission-portal aliases
         "api/openapi.json",  # generated; must carry the deprecated operations
+        "docs/api/reference.md",  # generated from that snapshot; wire paths stay legacy
         "CHANGELOG.md",  # release notes spell retired -> current
         "docs/DOMAIN.md",  # the term contract itself
         "docs/DOMAIN_MIGRATION_PLAN.md",

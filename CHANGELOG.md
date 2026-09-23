@@ -71,9 +71,16 @@
 - **独立检查器**（`artifacts/`，非守护）：`p6_check_refs.py` → HTML 资产引用 **0**、ES 模块说明符 **0**、harness 选择器 id **0**；`p6_check_els.py` → `getElementById`/`querySelector('#…')` 与 HTML `id` 的配对仅 1 处「缺失」，逐条核实为**假阳性**（`#reviewCaseLabelsForm` 由 `inspector.js:180` / `sections.jsx:41` 动态生成，不在 index.html）。
   - 这两个检查器自身在本版修过两次**假绿/假红**：`p6_check_refs.py` 原先只拿 `app/static/index.html` 当 id 全集（漏掉 React 岛与动态 id，报 94 处假红）且硬编码 `app/static/widget.html`（文件已改名后**静默不再读提交端**，报 25 处假红）——已改为 glob 全部 `app/static/*.html`、并从 JS/JSX 收集 `<base>React` 常量与 `id=` 赋值。
 
+### 顺带：重生成 `docs/api/reference.md` 并加新鲜度守护
+
+`docs/DOMAIN.md` §5.1 登记的另一处未收口面（P3a 起累积）本版**独立收口**——按计划它与域迁移正交，故单独成一个提交，避免把 7538 行无关 diff 混进域迁移的审阅边界：
+
+- **重生成**：`scripts/api_docs.py` 的输出 6269 行 → **9917 行**，文档化端点 **141 → 215**（= 快照全部操作：181 路径 / 215 操作），diff `+5593 −1945`。
+- **加了守护**：`tests/test_api_docs.py`（3 例）。漂移能累积到 141/181 的根因是**没有任何门禁比对文档与快照**——`api_docs.py` 只是被写出来，从来没被跑过。守护断言：① 提交的文档 == 生成器输出（**换行归一化**：工作树 CRLF / CI 检出 LF，否则本机绿、CI 红——即 `performance_gate._lf_bytes` 那条既有教训）；② **非空断言**——快照的每条路径都必须出现在文档里（只比对生成器与自身一致性的话，一个静默丢掉一半 spec 的生成器照样通过）；③ 版本行跟随快照。
+- **证伪**：`artifacts/p6_falsify_apidocs.py` 把 HEAD 的陈旧文档写回工作区，守护**3 例全红**；`finally` 恢复原文件。
+
 ### 未覆盖（有意为之，已登记）
 
-- **`docs/api/reference.md` 未重生成**：其既存漂移（文档化 141 vs 快照 181 路径 / 215 操作）**先于**域迁移存在，且与域迁移正交；重生成会夹带 3000+ 行无关 diff。仍是独立事项（P3a 登记，本版未纳入）。
 - **测试/harness 的**文件名**与视觉**场景名**仍是旧域词**：`tests/ui_knowledge.py`、`tests/ui_knowledge_island.py`（CI 引用）、`tests/frontend/knowledge.test.js`、`tests/frontend/knowledge-view.test.js`、`desktop/verify_knowledge_island_desktop.py`、`tests/baselines/knowledge-view.png`、`scripts/visual_gate.py` 的 `"knowledge-view"` 场景名、`scripts/readme_screenshots.py` 的 `operator-workspace` / `knowledge-operations` / `operator-handoff`。它们属 P5 的「测试/基线面」，但改名会牵动**基线 PNG 的文件名**（等于强制重锚一次视觉门禁），故与本版「像素中性」的目标冲突，登记为后续独立批次。
 
 ## 2.29.0 — 域迁移 P4+P5：数据层与测试/基线 (2026-09-22)

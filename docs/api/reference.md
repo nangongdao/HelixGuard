@@ -1,6 +1,6 @@
 # Helix Guard API Reference
 
-Version: `1.3.0`
+Version: `2.30.0`
 
 This reference is generated from the OpenAPI contract snapshot (`api/openapi.json`) by `scripts/api_docs.py`. The error contract is documented in [ERRORS.md](../ERRORS.md); versioning and deprecation policy in [API_POLICY.md](../API_POLICY.md).
 
@@ -62,6 +62,422 @@ SEC-006 quarantine flow: an external AV/CDR engine promotes a quarantined upload
   }
 
 ## Admin
+
+### GET `/api/admin/agent-groups`
+
+**List agent groups (skills + capacity)**
+
+List agent groups (skills + capacity). Requires: admin:manage.
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/admin/reviewer-groups. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `admin`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  array of:
+    {
+      id: string (required)
+      tenant_id: string (required)
+      name: string (required)
+      skills: array
+      capacity: integer (required)
+      created_at: string (required)
+    }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### POST `/api/admin/agent-groups`
+
+**Create an agent group**
+
+Create an agent group. Requires: admin:manage.
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/admin/reviewer-groups. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `admin`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Request body**
+
+`application/json`
+
+{
+  name: string (required)
+  skills: array
+  capacity: integer
+}
+
+**Responses**
+
+- `201` Successful Response
+
+  `application/json`
+
+  {
+    id: string (required)
+    tenant_id: string (required)
+    name: string (required)
+    skills: array
+    capacity: integer (required)
+    created_at: string (required)
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### DELETE `/api/admin/agent-groups/{group_id}`
+
+**Delete an agent group**
+
+Delete an agent group. Requires: admin:manage.
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/admin/reviewer-groups/{group_id}. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `admin`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `group_id` | path | yes |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Responses**
+
+- `204` Successful Response
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### POST `/api/admin/agent-groups/{group_id}/agents`
+
+**Add an agent to a group**
+
+Add an agent to a group. Requires: admin:manage.
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/admin/reviewer-groups/{group_id}/reviewers. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `admin`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `group_id` | path | yes |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Request body**
+
+`application/json`
+
+object
+
+**Responses**
+
+- `201` Successful Response
+
+  `application/json`
+
+  {
+    group_id: string (required)
+    tenant_id: string (required)
+    actor_id: string (required)
+    added_at: string (required)
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### DELETE `/api/admin/agent-groups/{group_id}/agents/{actor_id}`
+
+**Remove an agent from a group**
+
+Remove an agent from a group. Requires: admin:manage.
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/admin/reviewer-groups/{group_id}/reviewers/{actor_id}. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `admin`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `group_id` | path | yes |  |
+| `actor_id` | path | yes |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Responses**
+
+- `204` Successful Response
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### GET `/api/admin/csat-summary`
+
+**Aggregate answered CSAT surveys; days only bounds the per-day trend (readouts are all-history)**
+
+Aggregate answered CSAT surveys for the admin「评分汇总」card.
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/admin/qa-spot-check-summary. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `admin`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `days` | query | no |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  {
+    total: integer (required)
+    avg_rating: number (required)
+    positive_rate: number (required)
+    per_day: array (required)
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### GET `/api/admin/diagnostics`
+
+**Support diagnostics bundle (version/config/queue/audit head)**
+
+Support diagnostics bundle (Phase 30.2).
+
+Version, redacted config summary, queue state, worker snapshot,
+recent terminal failures, and the audit chain head — everything an
+on-call engineer needs to triage, without secrets.
+
+*Tags:* `admin`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  object
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### POST `/api/admin/keys`
+
+**Issue a fresh runtime API key (secret returned once)**
+
+Issue a fresh runtime API key (41.1 rotation drill).
+
+The secret is returned once in this response and is never stored — the
+database keeps only ``sha256(secret)[:12]`` as the credential id and the
+full fingerprint.  The id is the same deterministic one a re-seed of the
+deployment config would produce for the key, so promoting the issued
+key into ``API_KEYS_JSON`` (the second rotation step) keeps the same
+registry row and revocations address it by id immediately.
+
+*Tags:* `admin`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Responses**
+
+- `201` Successful Response
+
+  `application/json`
+
+  object
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### GET `/api/admin/keys`
+
+**List API-key credentials (secrets are never returned)**
+
+List the tenant's API-key credentials; never returns a secret.
+
+*Tags:* `admin`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  array of object
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### POST `/api/admin/keys/{credential_id}/revoke`
+
+**Revoke an API key by credential id**
+
+Revoke an API key by its credential id (Phase 28.2 / 41 SEC-004).
+
+The credential id is the sha256[:12] of the key, exposed via
+``GET /api/me`` (``credential_id``). Phase 41 routes the revocation
+through the credential registry — the persistent arbiter — so it takes
+effect immediately on every instance without a restart; the legacy
+revoked-keys table and in-memory set are kept in sync so an older peer
+still honours the revoke during the mixed-version window.
+
+*Tags:* `admin`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `credential_id` | path | yes |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  object
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### GET `/api/admin/qa-spot-check-summary`
+
+**Aggregate answered CSAT surveys; days only bounds the per-day trend (readouts are all-history)**
+
+Aggregate answered CSAT surveys for the admin「评分汇总」card.
+
+*Tags:* `admin`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `days` | query | no |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  {
+    total: integer (required)
+    avg_rating: number (required)
+    positive_rate: number (required)
+    per_day: array (required)
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
 
 ### GET `/api/admin/reviewer-groups`
 
@@ -250,186 +666,6 @@ Remove an agent from a group. Requires: admin:manage.
     detail: array
   }
 
-### GET `/api/admin/qa-spot-check-summary`
-
-**Aggregate answered CSAT surveys; days only bounds the per-day trend (readouts are all-history)**
-
-Aggregate answered CSAT surveys for the admin「评分汇总」card.
-
-*Tags:* `admin`
-
-**Parameters**
-
-| Name | In | Required | Description |
-|------|----|----------|-------------|
-| `days` | query | no |  |
-| `X-API-Key` | header | no |  |
-| `X-Tenant-Id` | header | no |  |
-
-**Responses**
-
-- `200` Successful Response
-
-  `application/json`
-
-  {
-    total: integer (required)
-    avg_rating: number (required)
-    positive_rate: number (required)
-    per_day: array (required)
-  }
-
-- `422` Validation Error
-
-  `application/json`
-
-  {
-    detail: array
-  }
-
-### GET `/api/admin/diagnostics`
-
-**Support diagnostics bundle (version/config/queue/audit head)**
-
-Support diagnostics bundle (Phase 30.2).
-
-Version, redacted config summary, queue state, worker snapshot,
-recent terminal failures, and the audit chain head — everything an
-on-call engineer needs to triage, without secrets.
-
-*Tags:* `admin`
-
-**Parameters**
-
-| Name | In | Required | Description |
-|------|----|----------|-------------|
-| `X-API-Key` | header | no |  |
-| `X-Tenant-Id` | header | no |  |
-
-**Responses**
-
-- `200` Successful Response
-
-  `application/json`
-
-  object
-
-- `422` Validation Error
-
-  `application/json`
-
-  {
-    detail: array
-  }
-
-### POST `/api/admin/keys`
-
-**Issue a fresh runtime API key (secret returned once)**
-
-Issue a fresh runtime API key (41.1 rotation drill).
-
-The secret is returned once in this response and is never stored — the
-database keeps only ``sha256(secret)[:12]`` as the credential id and the
-full fingerprint.  The id is the same deterministic one a re-seed of the
-deployment config would produce for the key, so promoting the issued
-key into ``API_KEYS_JSON`` (the second rotation step) keeps the same
-registry row and revocations address it by id immediately.
-
-*Tags:* `admin`
-
-**Parameters**
-
-| Name | In | Required | Description |
-|------|----|----------|-------------|
-| `X-API-Key` | header | no |  |
-| `X-Tenant-Id` | header | no |  |
-
-**Responses**
-
-- `201` Successful Response
-
-  `application/json`
-
-  object
-
-- `422` Validation Error
-
-  `application/json`
-
-  {
-    detail: array
-  }
-
-### GET `/api/admin/keys`
-
-**List API-key credentials (secrets are never returned)**
-
-List the tenant's API-key credentials; never returns a secret.
-
-*Tags:* `admin`
-
-**Parameters**
-
-| Name | In | Required | Description |
-|------|----|----------|-------------|
-| `X-API-Key` | header | no |  |
-| `X-Tenant-Id` | header | no |  |
-
-**Responses**
-
-- `200` Successful Response
-
-  `application/json`
-
-  array of object
-
-- `422` Validation Error
-
-  `application/json`
-
-  {
-    detail: array
-  }
-
-### POST `/api/admin/keys/{credential_id}/revoke`
-
-**Revoke an API key by credential id**
-
-Revoke an API key by its credential id (Phase 28.2 / 41 SEC-004).
-
-The credential id is the sha256[:12] of the key, exposed via
-``GET /api/me`` (``credential_id``). Phase 41 routes the revocation
-through the credential registry — the persistent arbiter — so it takes
-effect immediately on every instance without a restart; the legacy
-revoked-keys table and in-memory set are kept in sync so an older peer
-still honours the revoke during the mixed-version window.
-
-*Tags:* `admin`
-
-**Parameters**
-
-| Name | In | Required | Description |
-|------|----|----------|-------------|
-| `credential_id` | path | yes |  |
-| `X-API-Key` | header | no |  |
-| `X-Tenant-Id` | header | no |  |
-
-**Responses**
-
-- `200` Successful Response
-
-  `application/json`
-
-  object
-
-- `422` Validation Error
-
-  `application/json`
-
-  {
-    detail: array
-  }
-
 ### GET `/api/admin/routing-rules`
 
 **List routing rules**
@@ -473,9 +709,9 @@ List routing rules. Requires: admin:manage.
 
 ### POST `/api/admin/routing-rules`
 
-**Create a routing rule (intent/label/channel -> group)**
+**Create a routing rule (risk_category/label/channel -> group)**
 
-Create a routing rule (intent/label/channel -> group). Requires: admin:manage.
+Create a routing rule (risk_category/label/channel -> group). Requires: admin:manage.
 
 *Tags:* `admin`
 
@@ -916,6 +1152,8 @@ Read tenant model policy. Requires: admin:manage.
     allowed_models: object
     daily_turn_budget: object
     daily_turn_count: integer
+    daily_model_call_budget: object
+    daily_model_call_count: integer
   }
 
 - `422` Validation Error
@@ -949,6 +1187,7 @@ Set tenant model policy. Requires: admin:manage.
 {
   allowed_models: object
   daily_turn_budget: object
+  daily_model_call_budget: object
 }
 
 **Responses**
@@ -962,6 +1201,8 @@ Set tenant model policy. Requires: admin:manage.
     allowed_models: object
     daily_turn_budget: object
     daily_turn_count: integer
+    daily_model_call_budget: object
+    daily_model_call_count: integer
   }
 
 - `422` Validation Error
@@ -1203,6 +1444,820 @@ Set a retention policy. Requires: admin:manage.
     detail: array
   }
 
+## Analytics
+
+### GET `/api/analytics/costs/anomaly`
+
+**Report cost anomaly status vs recent baseline**
+
+Compare today's spend against the tenant's average daily cost over the baseline window (default 7 days); an anomaly fires when today exceeds the configured factor (default 2x). Requires ``admin:manage``.
+
+*Tags:* `analytics`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  object
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### GET `/api/analytics/costs/by_agent`
+
+**Break down inference cost by reviewer**
+
+Per-agent spend (triage, language_detect, language_translate, copilot_suggest, copilot_rewrite, summary) for one date, from the per-inference detail table. Requires ``admin:manage``.
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/analytics/costs/by_reviewer. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `analytics`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `date` | query | no |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  array of object
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### GET `/api/analytics/costs/by_prompt`
+
+**Break down inference cost by prompt version**
+
+Spend attributed to each prompt version (from the prompt registry) for one date. Rows without a version fall under ``unknown``. Requires ``admin:manage``.
+
+*Tags:* `analytics`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `date` | query | no |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  array of object
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### GET `/api/analytics/costs/by_reviewer`
+
+**Break down inference cost by reviewer**
+
+Per-agent spend (triage, language_detect, language_translate, copilot_suggest, copilot_rewrite, summary) for one date, from the per-inference detail table. Requires ``admin:manage``.
+
+*Tags:* `analytics`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `date` | query | no |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  array of object
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### GET `/api/analytics/costs/daily`
+
+**Summarize tenant inference cost over a date range**
+
+Aggregate the tenant's inference cost (turn count, prompt/completion tokens, USD cost) from the daily rollup. ``start_date``/``end_date`` are inclusive ISO dates; omitted ends default to the full history. Requires ``admin:manage``.
+
+*Tags:* `analytics`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `start_date` | query | no |  |
+| `end_date` | query | no |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  object
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+## Appeals
+
+### POST `/api/appeals`
+
+**Convert a conversation into a long-cycle ticket (idempotent)**
+
+Convert a conversation into a long-cycle ticket (idempotent). Requires: operator:act.
+
+*Tags:* `appeals`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Request body**
+
+`application/json`
+
+{
+  conversation_id: string (required)
+  subject: string (required)
+  description: object
+  priority: string
+}
+
+**Responses**
+
+- `201` Successful Response
+
+  `application/json`
+
+  {
+    id: string (required)
+    tenant_id: string (required)
+    subject: string (required)
+    description: object
+    status: string (required)
+    priority: string (required)
+    assigned_agent: object
+    customer_name: string (required)
+    customer_ref: object
+    source_conversation_id: object
+    created_at: string (required)
+    updated_at: string (required)
+    closed_at: object
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### GET `/api/appeals`
+
+**List appeals (filter by status or customer reference)**
+
+List appeals (filter by status or customer reference). Requires: conversation:read.
+
+*Tags:* `appeals`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `status` | query | no |  |
+| `submitter_ref` | query | no |  |
+| `limit` | query | no |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  array of:
+    {
+      id: string (required)
+      tenant_id: string (required)
+      subject: string (required)
+      description: object
+      status: string (required)
+      priority: string (required)
+      assigned_agent: object
+      customer_name: string (required)
+      customer_ref: object
+      source_conversation_id: object
+      created_at: string (required)
+      updated_at: string (required)
+      closed_at: object
+    }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### GET `/api/appeals/{appeal_id}`
+
+**Ticket detail with linked review_cases**
+
+Ticket detail with linked review_cases. Requires: conversation:read.
+
+*Tags:* `appeals`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `appeal_id` | path | yes |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  {
+    id: string (required)
+    tenant_id: string (required)
+    subject: string (required)
+    description: object
+    status: string (required)
+    priority: string (required)
+    assigned_agent: object
+    customer_name: string (required)
+    customer_ref: object
+    source_conversation_id: object
+    created_at: string (required)
+    updated_at: string (required)
+    closed_at: object
+    conversations: array
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### PATCH `/api/appeals/{appeal_id}`
+
+**Update ticket subject/description/priority/assignee**
+
+Update ticket subject/description/priority/assignee. Requires: operator:act.
+
+*Tags:* `appeals`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `appeal_id` | path | yes |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Request body**
+
+`application/json`
+
+{
+  subject: object
+  description: object
+  priority: object
+  assigned_agent: object
+}
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  {
+    id: string (required)
+    tenant_id: string (required)
+    subject: string (required)
+    description: object
+    status: string (required)
+    priority: string (required)
+    assigned_agent: object
+    customer_name: string (required)
+    customer_ref: object
+    source_conversation_id: object
+    created_at: string (required)
+    updated_at: string (required)
+    closed_at: object
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### POST `/api/appeals/{appeal_id}/link`
+
+**Link another conversation to the ticket (cross-conversation tracking)**
+
+Link another conversation to the ticket (cross-conversation tracking). Requires: operator:act.
+
+*Tags:* `appeals`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `appeal_id` | path | yes |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Request body**
+
+`application/json`
+
+{
+  conversation_id: string (required)
+}
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  {
+    id: string (required)
+    tenant_id: string (required)
+    subject: string (required)
+    description: object
+    status: string (required)
+    priority: string (required)
+    assigned_agent: object
+    customer_name: string (required)
+    customer_ref: object
+    source_conversation_id: object
+    created_at: string (required)
+    updated_at: string (required)
+    closed_at: object
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### POST `/api/appeals/{appeal_id}/transition`
+
+**Move a ticket through its state machine (open/in_progress/closed)**
+
+Move a ticket through its state machine (open/in_progress/closed). Requires: operator:act.
+
+*Tags:* `appeals`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `appeal_id` | path | yes |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Request body**
+
+`application/json`
+
+{
+  status: string (required)
+  reason: object
+}
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  {
+    id: string (required)
+    tenant_id: string (required)
+    subject: string (required)
+    description: object
+    status: string (required)
+    priority: string (required)
+    assigned_agent: object
+    customer_name: string (required)
+    customer_ref: object
+    source_conversation_id: object
+    created_at: string (required)
+    updated_at: string (required)
+    closed_at: object
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### POST `/api/tickets`
+
+**Convert a conversation into a long-cycle ticket (idempotent)**
+
+Convert a conversation into a long-cycle ticket (idempotent). Requires: operator:act.
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/appeals. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `appeals`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Request body**
+
+`application/json`
+
+{
+  conversation_id: string (required)
+  subject: string (required)
+  description: object
+  priority: string
+}
+
+**Responses**
+
+- `201` Successful Response
+
+  `application/json`
+
+  {
+    id: string (required)
+    tenant_id: string (required)
+    subject: string (required)
+    description: object
+    status: string (required)
+    priority: string (required)
+    assigned_agent: object
+    customer_name: string (required)
+    customer_ref: object
+    source_conversation_id: object
+    created_at: string (required)
+    updated_at: string (required)
+    closed_at: object
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### GET `/api/tickets`
+
+**List appeals (filter by status or customer reference)**
+
+List appeals (filter by status or customer reference). Requires: conversation:read.
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/appeals. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `appeals`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `status` | query | no |  |
+| `submitter_ref` | query | no |  |
+| `limit` | query | no |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  array of:
+    {
+      id: string (required)
+      tenant_id: string (required)
+      subject: string (required)
+      description: object
+      status: string (required)
+      priority: string (required)
+      assigned_agent: object
+      customer_name: string (required)
+      customer_ref: object
+      source_conversation_id: object
+      created_at: string (required)
+      updated_at: string (required)
+      closed_at: object
+    }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### GET `/api/tickets/{appeal_id}`
+
+**Ticket detail with linked review_cases**
+
+Ticket detail with linked review_cases. Requires: conversation:read.
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/appeals/{appeal_id}. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `appeals`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `appeal_id` | path | yes |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  {
+    id: string (required)
+    tenant_id: string (required)
+    subject: string (required)
+    description: object
+    status: string (required)
+    priority: string (required)
+    assigned_agent: object
+    customer_name: string (required)
+    customer_ref: object
+    source_conversation_id: object
+    created_at: string (required)
+    updated_at: string (required)
+    closed_at: object
+    conversations: array
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### PATCH `/api/tickets/{appeal_id}`
+
+**Update ticket subject/description/priority/assignee**
+
+Update ticket subject/description/priority/assignee. Requires: operator:act.
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/appeals/{appeal_id}. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `appeals`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `appeal_id` | path | yes |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Request body**
+
+`application/json`
+
+{
+  subject: object
+  description: object
+  priority: object
+  assigned_agent: object
+}
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  {
+    id: string (required)
+    tenant_id: string (required)
+    subject: string (required)
+    description: object
+    status: string (required)
+    priority: string (required)
+    assigned_agent: object
+    customer_name: string (required)
+    customer_ref: object
+    source_conversation_id: object
+    created_at: string (required)
+    updated_at: string (required)
+    closed_at: object
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### POST `/api/tickets/{appeal_id}/link`
+
+**Link another conversation to the ticket (cross-conversation tracking)**
+
+Link another conversation to the ticket (cross-conversation tracking). Requires: operator:act.
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/appeals/{appeal_id}/link. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `appeals`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `appeal_id` | path | yes |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Request body**
+
+`application/json`
+
+{
+  conversation_id: string (required)
+}
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  {
+    id: string (required)
+    tenant_id: string (required)
+    subject: string (required)
+    description: object
+    status: string (required)
+    priority: string (required)
+    assigned_agent: object
+    customer_name: string (required)
+    customer_ref: object
+    source_conversation_id: object
+    created_at: string (required)
+    updated_at: string (required)
+    closed_at: object
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### POST `/api/tickets/{appeal_id}/transition`
+
+**Move a ticket through its state machine (open/in_progress/closed)**
+
+Move a ticket through its state machine (open/in_progress/closed). Requires: operator:act.
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/appeals/{appeal_id}/transition. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `appeals`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `appeal_id` | path | yes |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Request body**
+
+`application/json`
+
+{
+  status: string (required)
+  reason: object
+}
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  {
+    id: string (required)
+    tenant_id: string (required)
+    subject: string (required)
+    description: object
+    status: string (required)
+    priority: string (required)
+    assigned_agent: object
+    customer_name: string (required)
+    customer_ref: object
+    source_conversation_id: object
+    created_at: string (required)
+    updated_at: string (required)
+    closed_at: object
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
 ## Attachments
 
 ### POST `/api/attachments`
@@ -1217,6 +2272,7 @@ Upload an attachment to a conversation (validated + scanned). Requires: operator
 
 | Name | In | Required | Description |
 |------|----|----------|-------------|
+| `Idempotency-Key` | header | no |  |
 | `X-API-Key` | header | no |  |
 | `X-Tenant-Id` | header | no |  |
 
@@ -1612,7 +2668,7 @@ List audit events. Requires: metrics:read.
 
 | Name | In | Required | Description |
 |------|----|----------|-------------|
-| `conversation_id` | query | no |  |
+| `review_case_id` | query | no |  |
 | `event_type` | query | no |  |
 | `since` | query | no |  |
 | `until` | query | no |  |
@@ -1801,6 +2857,204 @@ Current session. Requires: any authenticated session.
   object
 
 ## Canned-verdicts
+
+### GET `/api/canned-responses`
+
+**List canned responses**
+
+List canned responses. Requires: conversation:read.
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/canned-verdicts. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `canned-verdicts`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `search` | query | no |  |
+| `include_inactive` | query | no |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  array of object
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### POST `/api/canned-responses`
+
+**Create a canned response**
+
+Create a canned response. Requires: knowledge:write.
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/canned-verdicts. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `canned-verdicts`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Request body**
+
+`application/json`
+
+{
+  title: string (required)
+  body: string (required)
+  shortcut: object
+  tags: array
+}
+
+**Responses**
+
+- `201` Successful Response
+
+  `application/json`
+
+  {
+    id: string (required)
+    tenant_id: string (required)
+    title: string (required)
+    body: string (required)
+    shortcut: object
+    tags: array
+    active: boolean
+    usage_count: integer
+    created_by: string (required)
+    updated_by: string (required)
+    created_at: string (required)
+    updated_at: string (required)
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### PATCH `/api/canned-responses/{response_id}`
+
+**Update a canned response**
+
+Update a canned response. Requires: knowledge:write.
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/canned-verdicts/{response_id}. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `canned-verdicts`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `response_id` | path | yes |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Request body**
+
+`application/json`
+
+{
+  title: object
+  body: object
+  shortcut: object
+  tags: object
+  active: object
+}
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  {
+    id: string (required)
+    tenant_id: string (required)
+    title: string (required)
+    body: string (required)
+    shortcut: object
+    tags: array
+    active: boolean
+    usage_count: integer
+    created_by: string (required)
+    updated_by: string (required)
+    created_at: string (required)
+    updated_at: string (required)
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### POST `/api/canned-responses/{response_id}/use`
+
+**Record canned-response usage**
+
+Record canned-response usage. Requires: operator:act.
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/canned-verdicts/{response_id}/use. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `canned-verdicts`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `response_id` | path | yes |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  {
+    id: string (required)
+    tenant_id: string (required)
+    title: string (required)
+    body: string (required)
+    shortcut: object
+    tags: array
+    active: boolean
+    usage_count: integer
+    created_by: string (required)
+    updated_by: string (required)
+    created_at: string (required)
+    updated_at: string (required)
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
 
 ### GET `/api/canned-verdicts`
 
@@ -2102,7 +3356,7 @@ matches the trailing ``@token`` client-side.
     detail: array
   }
 
-### GET `/api/review-cases/{conversation_id}/events`
+### GET `/api/conversations/{review_case_id}/events`
 
 **Supervisor live view: SSE revision stream for a conversation**
 
@@ -2114,13 +3368,15 @@ latest message seq changes. ``conversation:read`` suffices (no
 ``operator:act``), so a supervisor can watch without claiming or
 touching the conversation.
 
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}/events. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
 *Tags:* `collaboration`
 
 **Parameters**
 
 | Name | In | Required | Description |
 |------|----|----------|-------------|
-| `conversation_id` | path | yes |  |
+| `review_case_id` | path | yes |  |
 | `timeout` | query | no |  |
 | `X-API-Key` | header | no |  |
 | `X-Tenant-Id` | header | no |  |
@@ -2141,11 +3397,13 @@ touching the conversation.
     detail: array
   }
 
-### GET `/api/review-cases/{conversation_id}/threads`
+### GET `/api/conversations/{review_case_id}/threads`
 
 **List internal discussion threads for a conversation**
 
 List internal discussion threads for a conversation. Requires: conversation:read.
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}/threads. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
 
 *Tags:* `collaboration`
 
@@ -2153,7 +3411,7 @@ List internal discussion threads for a conversation. Requires: conversation:read
 
 | Name | In | Required | Description |
 |------|----|----------|-------------|
-| `conversation_id` | path | yes |  |
+| `review_case_id` | path | yes |  |
 | `X-API-Key` | header | no |  |
 | `X-Tenant-Id` | header | no |  |
 
@@ -2255,20 +3513,26 @@ Mark one of my mentions as read (idempotent). Requires: conversation:read.
     detail: array
   }
 
-## Conversations
+### GET `/api/review-cases/{review_case_id}/events`
 
-### GET `/api/review-case-labels`
+**Supervisor live view: SSE revision stream for a conversation**
 
-**Label catalog with counts**
+Supervisor live view (旁观模式) for an in-progress conversation.
 
-Label catalog with counts. Requires: conversation:read.
+Read-only SSE: emits a ``snapshot`` with the current revision, then a
+``conversation`` event whenever the conversation's updated_at or the
+latest message seq changes. ``conversation:read`` suffices (no
+``operator:act``), so a supervisor can watch without claiming or
+touching the conversation.
 
-*Tags:* `conversations`
+*Tags:* `collaboration`
 
 **Parameters**
 
 | Name | In | Required | Description |
 |------|----|----------|-------------|
+| `review_case_id` | path | yes |  |
+| `timeout` | query | no |  |
 | `X-API-Key` | header | no |  |
 | `X-Tenant-Id` | header | no |  |
 
@@ -2278,11 +3542,7 @@ Label catalog with counts. Requires: conversation:read.
 
   `application/json`
 
-  array of:
-    {
-      label: string (required)
-      conversation_count: integer (required)
-    }
+
 
 - `422` Validation Error
 
@@ -2292,295 +3552,19 @@ Label catalog with counts. Requires: conversation:read.
     detail: array
   }
 
-### GET `/api/review-cases`
+### GET `/api/review-cases/{review_case_id}/threads`
 
-**List conversations**
+**List internal discussion threads for a conversation**
 
-List conversations. Requires: conversation:read.
+List internal discussion threads for a conversation. Requires: conversation:read.
 
-*Tags:* `conversations`
-
-**Parameters**
-
-| Name | In | Required | Description |
-|------|----|----------|-------------|
-| `status` | query | no |  |
-| `search` | query | no |  |
-| `label` | query | no |  |
-| `priority` | query | no |  |
-| `channel` | query | no |  |
-| `assigned_to` | query | no |  |
-| `claimed_by` | query | no |  |
-| `mine` | query | no |  |
-| `unassigned` | query | no |  |
-| `unclaimed` | query | no |  |
-| `sla_breached` | query | no |  |
-| `needs_response` | query | no |  |
-| `archived` | query | no |  |
-| `sort` | query | no |  |
-| `limit` | query | no |  |
-| `offset` | query | no |  |
-| `cursor` | query | no |  |
-| `X-API-Key` | header | no |  |
-| `X-Tenant-Id` | header | no |  |
-
-**Responses**
-
-- `200` Successful Response
-
-  `application/json`
-
-  array of:
-    {
-      id: string (required)
-      tenant_id: string (required)
-      customer_name: string (required)
-      customer_ref: object
-      channel: string (required)
-      status: string (required)
-      intent: object
-      assigned_agent: object
-      priority: string (required)
-      handoff_reason: object
-      sla_due_at: object
-      last_confidence: object
-      version: integer
-      created_at: string (required)
-      updated_at: string (required)
-      resolved_at: object
-      preview: object
-      message_count: integer
-      last_message_at: object
-      labels: array
-      claimed_by: object
-      claimed_at: object
-      claim_expires_at: object
-      claim_active: boolean
-      sla_breached: boolean
-      needs_response: boolean
-      waiting_since: object
-      first_response_at: object
-      survey_url: object
-      language: object
-      ticket_id: object
-    }
-
-- `422` Validation Error
-
-  `application/json`
-
-  {
-    detail: array
-  }
-
-### POST `/api/review-cases`
-
-**Create a conversation**
-
-Create a conversation. Requires: conversation:write.
-
-*Tags:* `conversations`
+*Tags:* `collaboration`
 
 **Parameters**
 
 | Name | In | Required | Description |
 |------|----|----------|-------------|
-| `X-API-Key` | header | no |  |
-| `X-Tenant-Id` | header | no |  |
-
-**Request body**
-
-`application/json`
-
-{
-  customer_name: string (required)
-  customer_ref: object
-  channel: string
-}
-
-**Responses**
-
-- `201` Successful Response
-
-  `application/json`
-
-  {
-    id: string (required)
-    tenant_id: string (required)
-    customer_name: string (required)
-    customer_ref: object
-    channel: string (required)
-    status: string (required)
-    intent: object
-    assigned_agent: object
-    priority: string (required)
-    handoff_reason: object
-    sla_due_at: object
-    last_confidence: object
-    version: integer
-    created_at: string (required)
-    updated_at: string (required)
-    resolved_at: object
-    preview: object
-    message_count: integer
-    last_message_at: object
-    labels: array
-    claimed_by: object
-    claimed_at: object
-    claim_expires_at: object
-    claim_active: boolean
-    sla_breached: boolean
-    needs_response: boolean
-    waiting_since: object
-    first_response_at: object
-    survey_url: object
-    language: object
-    ticket_id: object
-  }
-
-- `422` Validation Error
-
-  `application/json`
-
-  {
-    detail: array
-  }
-
-### POST `/api/review-cases/bulk-actions`
-
-**Bulk priority/label/claim actions**
-
-Bulk priority/label/claim actions. Requires: operator:act.
-
-*Tags:* `conversations`
-
-**Parameters**
-
-| Name | In | Required | Description |
-|------|----|----------|-------------|
-| `X-API-Key` | header | no |  |
-| `X-Tenant-Id` | header | no |  |
-
-**Request body**
-
-`application/json`
-
-{
-  conversation_ids: array (required)
-  action: string (required)
-  priority: object
-  labels: array
-}
-
-**Responses**
-
-- `200` Successful Response
-
-  `application/json`
-
-  {
-    requested: integer (required)
-    matched: integer (required)
-    updated: integer (required)
-    unchanged: integer (required)
-  }
-
-- `422` Validation Error
-
-  `application/json`
-
-  {
-    detail: array
-  }
-
-### PATCH `/api/review-cases/{conversation_id}`
-
-**Update conversation priority**
-
-Update conversation priority. Requires: operator:act.
-
-*Tags:* `conversations`
-
-**Parameters**
-
-| Name | In | Required | Description |
-|------|----|----------|-------------|
-| `conversation_id` | path | yes |  |
-| `X-API-Key` | header | no |  |
-| `X-Tenant-Id` | header | no |  |
-
-**Request body**
-
-`application/json`
-
-{
-  priority: string (required)
-}
-
-**Responses**
-
-- `200` Successful Response
-
-  `application/json`
-
-  {
-    id: string (required)
-    tenant_id: string (required)
-    customer_name: string (required)
-    customer_ref: object
-    channel: string (required)
-    status: string (required)
-    intent: object
-    assigned_agent: object
-    priority: string (required)
-    handoff_reason: object
-    sla_due_at: object
-    last_confidence: object
-    version: integer
-    created_at: string (required)
-    updated_at: string (required)
-    resolved_at: object
-    preview: object
-    message_count: integer
-    last_message_at: object
-    labels: array
-    claimed_by: object
-    claimed_at: object
-    claim_expires_at: object
-    claim_active: boolean
-    sla_breached: boolean
-    needs_response: boolean
-    waiting_since: object
-    first_response_at: object
-    survey_url: object
-    language: object
-    ticket_id: object
-  }
-
-- `422` Validation Error
-
-  `application/json`
-
-  {
-    detail: array
-  }
-
-### GET `/api/review-cases/{conversation_id}`
-
-**Conversation detail with messages, audit events, and summaries**
-
-Conversation detail with messages, audit events, and summaries. Requires: conversation:read.
-
-*Tags:* `conversations`
-
-**Parameters**
-
-| Name | In | Required | Description |
-|------|----|----------|-------------|
-| `conversation_id` | path | yes |  |
-| `message_limit` | query | no |  |
-| `message_cursor` | query | no |  |
-| `messages_before` | query | no |  |
+| `review_case_id` | path | yes |  |
 | `X-API-Key` | header | no |  |
 | `X-Tenant-Id` | header | no |  |
 
@@ -2591,915 +3575,7 @@ Conversation detail with messages, audit events, and summaries. Requires: conver
   `application/json`
 
   {
-    conversation: object (required)
-      {
-        id: string (required)
-        tenant_id: string (required)
-        customer_name: string (required)
-        customer_ref: object
-        channel: string (required)
-        status: string (required)
-        intent: object
-        assigned_agent: object
-        priority: string (required)
-        handoff_reason: object
-        sla_due_at: object
-        last_confidence: object
-        version: integer
-        created_at: string (required)
-        updated_at: string (required)
-        resolved_at: object
-        preview: object
-        message_count: integer
-        last_message_at: object
-        labels: array
-        claimed_by: object
-        claimed_at: object
-        claim_expires_at: object
-        claim_active: boolean
-        sla_breached: boolean
-        needs_response: boolean
-        waiting_since: object
-        first_response_at: object
-        survey_url: object
-        language: object
-        ticket_id: object
-      }
-    messages: array (required)
-    audit_events: array (required)
-    summaries: array
-  }
-
-- `422` Validation Error
-
-  `application/json`
-
-  {
-    detail: array
-  }
-
-### POST `/api/review-cases/{conversation_id}/accept`
-
-**Accept a conversation into human_active**
-
-Accept a conversation into human_active. Requires: operator:act.
-
-*Tags:* `conversations`
-
-**Parameters**
-
-| Name | In | Required | Description |
-|------|----|----------|-------------|
-| `conversation_id` | path | yes |  |
-| `X-API-Key` | header | no |  |
-| `X-Tenant-Id` | header | no |  |
-
-**Responses**
-
-- `200` Successful Response
-
-  `application/json`
-
-  {
-    id: string (required)
-    tenant_id: string (required)
-    customer_name: string (required)
-    customer_ref: object
-    channel: string (required)
-    status: string (required)
-    intent: object
-    assigned_agent: object
-    priority: string (required)
-    handoff_reason: object
-    sla_due_at: object
-    last_confidence: object
-    version: integer
-    created_at: string (required)
-    updated_at: string (required)
-    resolved_at: object
-    preview: object
-    message_count: integer
-    last_message_at: object
-    labels: array
-    claimed_by: object
-    claimed_at: object
-    claim_expires_at: object
-    claim_active: boolean
-    sla_breached: boolean
-    needs_response: boolean
-    waiting_since: object
-    first_response_at: object
-    survey_url: object
-    language: object
-    ticket_id: object
-  }
-
-- `422` Validation Error
-
-  `application/json`
-
-  {
-    detail: array
-  }
-
-### POST `/api/review-cases/{conversation_id}/assign`
-
-**Assign to an operator**
-
-Assign to an operator. Requires: operator:act.
-
-*Tags:* `conversations`
-
-**Parameters**
-
-| Name | In | Required | Description |
-|------|----|----------|-------------|
-| `conversation_id` | path | yes |  |
-| `X-API-Key` | header | no |  |
-| `X-Tenant-Id` | header | no |  |
-
-**Request body**
-
-`application/json`
-
-{
-  assignee_id: string (required)
-}
-
-**Responses**
-
-- `200` Successful Response
-
-  `application/json`
-
-  {
-    id: string (required)
-    tenant_id: string (required)
-    customer_name: string (required)
-    customer_ref: object
-    channel: string (required)
-    status: string (required)
-    intent: object
-    assigned_agent: object
-    priority: string (required)
-    handoff_reason: object
-    sla_due_at: object
-    last_confidence: object
-    version: integer
-    created_at: string (required)
-    updated_at: string (required)
-    resolved_at: object
-    preview: object
-    message_count: integer
-    last_message_at: object
-    labels: array
-    claimed_by: object
-    claimed_at: object
-    claim_expires_at: object
-    claim_active: boolean
-    sla_breached: boolean
-    needs_response: boolean
-    waiting_since: object
-    first_response_at: object
-    survey_url: object
-    language: object
-    ticket_id: object
-  }
-
-- `422` Validation Error
-
-  `application/json`
-
-  {
-    detail: array
-  }
-
-### POST `/api/review-cases/{conversation_id}/claim`
-
-**Claim a conversation**
-
-Claim a conversation. Requires: operator:act.
-
-*Tags:* `conversations`
-
-**Parameters**
-
-| Name | In | Required | Description |
-|------|----|----------|-------------|
-| `conversation_id` | path | yes |  |
-| `X-API-Key` | header | no |  |
-| `X-Tenant-Id` | header | no |  |
-
-**Responses**
-
-- `200` Successful Response
-
-  `application/json`
-
-  {
-    id: string (required)
-    tenant_id: string (required)
-    customer_name: string (required)
-    customer_ref: object
-    channel: string (required)
-    status: string (required)
-    intent: object
-    assigned_agent: object
-    priority: string (required)
-    handoff_reason: object
-    sla_due_at: object
-    last_confidence: object
-    version: integer
-    created_at: string (required)
-    updated_at: string (required)
-    resolved_at: object
-    preview: object
-    message_count: integer
-    last_message_at: object
-    labels: array
-    claimed_by: object
-    claimed_at: object
-    claim_expires_at: object
-    claim_active: boolean
-    sla_breached: boolean
-    needs_response: boolean
-    waiting_since: object
-    first_response_at: object
-    survey_url: object
-    language: object
-    ticket_id: object
-  }
-
-- `422` Validation Error
-
-  `application/json`
-
-  {
-    detail: array
-  }
-
-### POST `/api/review-cases/{conversation_id}/feedback`
-
-**Rate an assistant message**
-
-Rate an assistant message. Requires: conversation:read.
-
-*Tags:* `conversations`
-
-**Parameters**
-
-| Name | In | Required | Description |
-|------|----|----------|-------------|
-| `conversation_id` | path | yes |  |
-| `X-API-Key` | header | no |  |
-| `X-Tenant-Id` | header | no |  |
-
-**Request body**
-
-`application/json`
-
-{
-  message_id: string (required)
-  rating: integer (required)
-  reason: object
-}
-
-**Responses**
-
-- `200` Successful Response
-
-  `application/json`
-
-  {
-    id: string (required)
-    tenant_id: string (required)
-    conversation_id: string (required)
-    message_id: string (required)
-    actor: string (required)
-    rating: integer (required)
-    reason: object
-    created_at: string (required)
-    updated_at: string (required)
-  }
-
-- `422` Validation Error
-
-  `application/json`
-
-  {
-    detail: array
-  }
-
-### PUT `/api/review-cases/{conversation_id}/labels`
-
-**Replace conversation labels**
-
-Replace conversation labels. Requires: operator:act.
-
-*Tags:* `conversations`
-
-**Parameters**
-
-| Name | In | Required | Description |
-|------|----|----------|-------------|
-| `conversation_id` | path | yes |  |
-| `X-API-Key` | header | no |  |
-| `X-Tenant-Id` | header | no |  |
-
-**Request body**
-
-`application/json`
-
-{
-  labels: array
-}
-
-**Responses**
-
-- `200` Successful Response
-
-  `application/json`
-
-  {
-    id: string (required)
-    tenant_id: string (required)
-    customer_name: string (required)
-    customer_ref: object
-    channel: string (required)
-    status: string (required)
-    intent: object
-    assigned_agent: object
-    priority: string (required)
-    handoff_reason: object
-    sla_due_at: object
-    last_confidence: object
-    version: integer
-    created_at: string (required)
-    updated_at: string (required)
-    resolved_at: object
-    preview: object
-    message_count: integer
-    last_message_at: object
-    labels: array
-    claimed_by: object
-    claimed_at: object
-    claim_expires_at: object
-    claim_active: boolean
-    sla_breached: boolean
-    needs_response: boolean
-    waiting_since: object
-    first_response_at: object
-    survey_url: object
-    language: object
-    ticket_id: object
-  }
-
-- `422` Validation Error
-
-  `application/json`
-
-  {
-    detail: array
-  }
-
-### PATCH `/api/review-cases/{conversation_id}/language`
-
-**Set (or clear, with null) the manual language override for a conversation**
-
-Set (or clear) the manual language override for a conversation.
-
-Backlog (多语言审核): ``language`` null clears the override so the
-writer path re-detects automatically. The endpoint is a full upsert —
-it returns the stored row so the frontend can sync its select.
-
-*Tags:* `conversations`
-
-**Parameters**
-
-| Name | In | Required | Description |
-|------|----|----------|-------------|
-| `conversation_id` | path | yes |  |
-| `X-API-Key` | header | no |  |
-| `X-Tenant-Id` | header | no |  |
-
-**Request body**
-
-`application/json`
-
-{
-  language: object
-}
-
-**Responses**
-
-- `200` Successful Response
-
-  `application/json`
-
-  {
-    id: string (required)
-    tenant_id: string (required)
-    customer_name: string (required)
-    customer_ref: object
-    channel: string (required)
-    status: string (required)
-    intent: object
-    assigned_agent: object
-    priority: string (required)
-    handoff_reason: object
-    sla_due_at: object
-    last_confidence: object
-    version: integer
-    created_at: string (required)
-    updated_at: string (required)
-    resolved_at: object
-    preview: object
-    message_count: integer
-    last_message_at: object
-    labels: array
-    claimed_by: object
-    claimed_at: object
-    claim_expires_at: object
-    claim_active: boolean
-    sla_breached: boolean
-    needs_response: boolean
-    waiting_since: object
-    first_response_at: object
-    survey_url: object
-    language: object
-    ticket_id: object
-  }
-
-- `422` Validation Error
-
-  `application/json`
-
-  {
-    detail: array
-  }
-
-### GET `/api/review-cases/{conversation_id}/messages`
-
-**List conversation messages**
-
-List conversation messages. Requires: conversation:read.
-
-*Tags:* `conversations`
-
-**Parameters**
-
-| Name | In | Required | Description |
-|------|----|----------|-------------|
-| `conversation_id` | path | yes |  |
-| `limit` | query | no |  |
-| `cursor` | query | no |  |
-| `before` | query | no |  |
-| `X-API-Key` | header | no |  |
-| `X-Tenant-Id` | header | no |  |
-
-**Responses**
-
-- `200` Successful Response
-
-  `application/json`
-
-  array of:
-    {
-      id: string (required)
-      role: string (required)
-      author: string (required)
-      content: string (required)
-      metadata: object
-      created_at: string (required)
-      reply_to: object
-    }
-
-- `422` Validation Error
-
-  `application/json`
-
-  {
-    detail: array
-  }
-
-### POST `/api/review-cases/{conversation_id}/messages`
-
-**Send a customer turn (idempotent)**
-
-Send a customer turn (idempotent). Requires: conversation:write.
-
-*Tags:* `conversations`
-
-**Parameters**
-
-| Name | In | Required | Description |
-|------|----|----------|-------------|
-| `conversation_id` | path | yes |  |
-| `Idempotency-Key` | header | no |  |
-| `X-API-Key` | header | no |  |
-| `X-Tenant-Id` | header | no |  |
-
-**Request body**
-
-`application/json`
-
-{
-  content: string (required)
-}
-
-**Responses**
-
-- `200` Successful Response
-
-  `application/json`
-
-  {
-    customer_message: object (required)
-      {
-        id: string (required)
-        role: string (required)
-        author: string (required)
-        content: string (required)
-        metadata: object
-        created_at: string (required)
-        reply_to: object
-      }
-    assistant_message: object (required)
-    conversation: object (required)
-      {
-        id: string (required)
-        tenant_id: string (required)
-        customer_name: string (required)
-        customer_ref: object
-        channel: string (required)
-        status: string (required)
-        intent: object
-        assigned_agent: object
-        priority: string (required)
-        handoff_reason: object
-        sla_due_at: object
-        last_confidence: object
-        version: integer
-        created_at: string (required)
-        updated_at: string (required)
-        resolved_at: object
-        preview: object
-        message_count: integer
-        last_message_at: object
-        labels: array
-        claimed_by: object
-        claimed_at: object
-        claim_expires_at: object
-        claim_active: boolean
-        sla_breached: boolean
-        needs_response: boolean
-        waiting_since: object
-        first_response_at: object
-        survey_url: object
-        language: object
-        ticket_id: object
-      }
-    idempotent_replay: boolean (required)
-  }
-
-- `422` Validation Error
-
-  `application/json`
-
-  {
-    detail: array
-  }
-
-### POST `/api/review-cases/{conversation_id}/messages/{message_id}/translate`
-
-**Translate one customer message; without a provider the original text is echoed**
-
-Translate one customer message into ``target_language``.
-
-Backlog (多语言审核): never blocks on model availability — without a
-configured provider the original text is returned with
-``was_translated=False`` and ``source="rule"`` so the frontend can
-degrade gracefully.
-
-*Tags:* `conversations`
-
-**Parameters**
-
-| Name | In | Required | Description |
-|------|----|----------|-------------|
-| `conversation_id` | path | yes |  |
-| `message_id` | path | yes |  |
-| `X-API-Key` | header | no |  |
-| `X-Tenant-Id` | header | no |  |
-
-**Request body**
-
-`application/json`
-
-{
-  target_language: string (required)
-}
-
-**Responses**
-
-- `200` Successful Response
-
-  `application/json`
-
-  {
-    translated: string (required)
-    was_translated: boolean (required)
-    source: string (required)
-  }
-
-- `422` Validation Error
-
-  `application/json`
-
-  {
-    detail: array
-  }
-
-### POST `/api/review-cases/{conversation_id}/notes`
-
-**Add an internal note (supports @mention colleagues and reply threads)**
-
-Add an internal note (supports @mention colleagues and reply threads). Requires: operator:act.
-
-*Tags:* `conversations`
-
-**Parameters**
-
-| Name | In | Required | Description |
-|------|----|----------|-------------|
-| `conversation_id` | path | yes |  |
-| `X-API-Key` | header | no |  |
-| `X-Tenant-Id` | header | no |  |
-
-**Request body**
-
-`application/json`
-
-{
-  content: string (required)
-  reply_to: object
-}
-
-**Responses**
-
-- `200` Successful Response
-
-  `application/json`
-
-  {
-    id: string (required)
-    role: string (required)
-    author: string (required)
-    content: string (required)
-    metadata: object
-    created_at: string (required)
-    reply_to: object
-  }
-
-- `422` Validation Error
-
-  `application/json`
-
-  {
-    detail: array
-  }
-
-### POST `/api/review-cases/{conversation_id}/operator-messages`
-
-**Send an operator reply**
-
-Send an operator reply. Requires: operator:act.
-
-*Tags:* `conversations`
-
-**Parameters**
-
-| Name | In | Required | Description |
-|------|----|----------|-------------|
-| `conversation_id` | path | yes |  |
-| `X-API-Key` | header | no |  |
-| `X-Tenant-Id` | header | no |  |
-
-**Request body**
-
-`application/json`
-
-{
-  content: string (required)
-  attachment_ids: array
-}
-
-**Responses**
-
-- `200` Successful Response
-
-  `application/json`
-
-  {
-    id: string (required)
-    role: string (required)
-    author: string (required)
-    content: string (required)
-    metadata: object
-    created_at: string (required)
-    reply_to: object
-  }
-
-- `422` Validation Error
-
-  `application/json`
-
-  {
-    detail: array
-  }
-
-### POST `/api/review-cases/{conversation_id}/release`
-
-**Release a claim**
-
-Release a claim. Requires: operator:act.
-
-*Tags:* `conversations`
-
-**Parameters**
-
-| Name | In | Required | Description |
-|------|----|----------|-------------|
-| `conversation_id` | path | yes |  |
-| `X-API-Key` | header | no |  |
-| `X-Tenant-Id` | header | no |  |
-
-**Responses**
-
-- `200` Successful Response
-
-  `application/json`
-
-  {
-    id: string (required)
-    tenant_id: string (required)
-    customer_name: string (required)
-    customer_ref: object
-    channel: string (required)
-    status: string (required)
-    intent: object
-    assigned_agent: object
-    priority: string (required)
-    handoff_reason: object
-    sla_due_at: object
-    last_confidence: object
-    version: integer
-    created_at: string (required)
-    updated_at: string (required)
-    resolved_at: object
-    preview: object
-    message_count: integer
-    last_message_at: object
-    labels: array
-    claimed_by: object
-    claimed_at: object
-    claim_expires_at: object
-    claim_active: boolean
-    sla_breached: boolean
-    needs_response: boolean
-    waiting_since: object
-    first_response_at: object
-    survey_url: object
-    language: object
-    ticket_id: object
-  }
-
-- `422` Validation Error
-
-  `application/json`
-
-  {
-    detail: array
-  }
-
-### POST `/api/review-cases/{conversation_id}/reopen`
-
-**Reopen a resolved conversation**
-
-Reopen a resolved conversation. Requires: operator:act.
-
-*Tags:* `conversations`
-
-**Parameters**
-
-| Name | In | Required | Description |
-|------|----|----------|-------------|
-| `conversation_id` | path | yes |  |
-| `X-API-Key` | header | no |  |
-| `X-Tenant-Id` | header | no |  |
-
-**Responses**
-
-- `200` Successful Response
-
-  `application/json`
-
-  {
-    id: string (required)
-    tenant_id: string (required)
-    customer_name: string (required)
-    customer_ref: object
-    channel: string (required)
-    status: string (required)
-    intent: object
-    assigned_agent: object
-    priority: string (required)
-    handoff_reason: object
-    sla_due_at: object
-    last_confidence: object
-    version: integer
-    created_at: string (required)
-    updated_at: string (required)
-    resolved_at: object
-    preview: object
-    message_count: integer
-    last_message_at: object
-    labels: array
-    claimed_by: object
-    claimed_at: object
-    claim_expires_at: object
-    claim_active: boolean
-    sla_breached: boolean
-    needs_response: boolean
-    waiting_since: object
-    first_response_at: object
-    survey_url: object
-    language: object
-    ticket_id: object
-  }
-
-- `422` Validation Error
-
-  `application/json`
-
-  {
-    detail: array
-  }
-
-### POST `/api/review-cases/{conversation_id}/resolve`
-
-**Resolve a conversation**
-
-Resolve a conversation. Requires: operator:act.
-
-*Tags:* `conversations`
-
-**Parameters**
-
-| Name | In | Required | Description |
-|------|----|----------|-------------|
-| `conversation_id` | path | yes |  |
-| `X-API-Key` | header | no |  |
-| `X-Tenant-Id` | header | no |  |
-
-**Responses**
-
-- `200` Successful Response
-
-  `application/json`
-
-  {
-    id: string (required)
-    tenant_id: string (required)
-    customer_name: string (required)
-    customer_ref: object
-    channel: string (required)
-    status: string (required)
-    intent: object
-    assigned_agent: object
-    priority: string (required)
-    handoff_reason: object
-    sla_due_at: object
-    last_confidence: object
-    version: integer
-    created_at: string (required)
-    updated_at: string (required)
-    resolved_at: object
-    preview: object
-    message_count: integer
-    last_message_at: object
-    labels: array
-    claimed_by: object
-    claimed_at: object
-    claim_expires_at: object
-    claim_active: boolean
-    sla_breached: boolean
-    needs_response: boolean
-    waiting_since: object
-    first_response_at: object
-    survey_url: object
-    language: object
-    ticket_id: object
+    threads: array
   }
 
 - `422` Validation Error
@@ -3511,6 +3587,90 @@ Resolve a conversation. Requires: operator:act.
   }
 
 ## Copilot
+
+### POST `/api/copilot/knowledge`
+
+**Recommend knowledge articles for the latest customer message**
+
+Recommend knowledge articles for the latest customer message. Requires: operator:act.
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/copilot/policy. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `copilot`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Request body**
+
+`application/json`
+
+{
+  conversation_id: string (required)
+  query: object
+  limit: integer
+}
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  {
+    articles: array
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### POST `/api/copilot/knowledge-draft`
+
+**Draft a pending-review knowledge article (governed tool)**
+
+ROADMAP 2.5.0: the first mutating tool call. The payload runs through the orchestrator's ToolGateway — governance policy (mutating side effect), argument schema, and a short-lived capability token when CAPABILITY_SECRET is configured — and the draft lands in draft status for human review before it can ever be retrieved. Requires ``operator:act``.
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/copilot/policy-draft. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `copilot`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Request body**
+
+`application/json`
+
+object
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  object
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
 
 ### POST `/api/copilot/policy`
 
@@ -3546,6 +3706,43 @@ Recommend knowledge articles for the latest customer message. Requires: operator
   {
     articles: array
   }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### POST `/api/copilot/policy-draft`
+
+**Draft a pending-review knowledge article (governed tool)**
+
+ROADMAP 2.5.0: the first mutating tool call. The payload runs through the orchestrator's ToolGateway — governance policy (mutating side effect), argument schema, and a short-lived capability token when CAPABILITY_SECRET is configured — and the draft lands in draft status for human review before it can ever be retrieved. Requires ``operator:act``.
+
+*Tags:* `copilot`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Request body**
+
+`application/json`
+
+object
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  object
 
 - `422` Validation Error
 
@@ -3642,43 +3839,6 @@ Suggest 1-3 customer-facing reply drafts for a conversation. Requires: operator:
     detail: array
   }
 
-## Qa_spot_check
-
-### POST `/api/qa-spot-check/{token}`
-
-**Submit a one-time CSAT satisfaction rating**
-
-Record a one-time CSAT rating for a resolved conversation.
-
-Accepts either a JSON body (``{"rating": 1-5}``, the API contract) or a
-browser ``application/x-www-form-urlencoded`` submission from the survey
-form. Both are routed through the same atomic single-use write, and a
-browser submission receives a thank-you page back.
-
-*Tags:* `qa_spot_check`
-
-**Parameters**
-
-| Name | In | Required | Description |
-|------|----|----------|-------------|
-| `token` | path | yes |  |
-
-**Responses**
-
-- `200` Successful Response
-
-  `application/json`
-
-
-
-- `422` Validation Error
-
-  `application/json`
-
-  {
-    detail: array
-  }
-
 ## Dashboard
 
 ### GET `/api/dashboard`
@@ -3727,9 +3887,394 @@ Queue and quality dashboard indicators. Requires: conversation:read.
     detail: array
   }
 
+## Governance
+
+### GET `/api/admin/governance/approvals`
+
+**List tool-enablement approval requests**
+
+List maker-checker approval requests for governance subjects (tool_enablement, prompt_promotion, feedback_batch), newest first. Pass ``status=pending`` (the default) for open requests that gate tool operation. Requires ``admin:manage``.
+
+*Tags:* `governance`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `status` | query | no |  |
+| `limit` | query | no |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  array of object
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### POST `/api/admin/governance/approvals/request`
+
+**Open a maker-checker approval request**
+
+Open an approval request for a governance subject. One open request per subject at a time; the requester cannot also be the approver. Requires ``admin:manage``.
+
+*Tags:* `governance`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Request body**
+
+`application/json`
+
+object
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  object
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### POST `/api/admin/governance/approvals/{approval_id}/decide`
+
+**Approve or reject a pending request**
+
+Resolve a pending approval. The requester cannot be the approver (maker-checker, SelfApprovalError → 409). Requires ``admin:manage``.
+
+*Tags:* `governance`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `approval_id` | path | yes |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Request body**
+
+`application/json`
+
+object
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  object
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### GET `/api/admin/governance/datasets`
+
+**List eval dataset registry rows**
+
+List the tenant's eval datasets, newest version first. Requires ``admin:manage``.
+
+*Tags:* `governance`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `limit` | query | no |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  array of object
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### POST `/api/admin/governance/datasets/promote-feedback`
+
+**Fold accepted feedback into a new eval dataset version**
+
+Create the next version of a named dataset from accepted feedback rows. Any pending/rejected id in the batch aborts the whole promotion (unreviewed material cannot ride along). Requires ``admin:manage``.
+
+*Tags:* `governance`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Request body**
+
+`application/json`
+
+object
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  object
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### GET `/api/admin/governance/datasets/{dataset_id}/items`
+
+**Load one dataset version's items**
+
+Load the item list of a dataset version. Requires ``admin:manage``.
+
+*Tags:* `governance`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `dataset_id` | path | yes |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  array of object
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### GET `/api/admin/governance/eval-runs`
+
+**List evaluation runs for the tenant's datasets**
+
+List evaluation runs linked to the tenant's eval datasets (newest first; optionally filtered by dataset). Requires ``admin:manage``.
+
+*Tags:* `governance`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `dataset_id` | query | no |  |
+| `limit` | query | no |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  array of object
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### GET `/api/admin/governance/eval-runs/{run_id}`
+
+**Fetch one evaluation run with its WORM report**
+
+Run detail plus the immutable evaluation report stored in the WORM store (null when the report object is not present in this deployment's store). Requires ``admin:manage``.
+
+*Tags:* `governance`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `run_id` | path | yes |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  object
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### GET `/api/admin/governance/feedback`
+
+**List staged online feedback for review**
+
+List the governance registry's staged online feedback (customer ratings auto-ingested with redaction, pending human review by default). Requires ``admin:manage``.
+
+*Tags:* `governance`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `status` | query | no |  |
+| `limit` | query | no |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  array of object
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### POST `/api/admin/governance/feedback/{feedback_id}/review`
+
+**Accept or reject staged online feedback**
+
+Human review of one staged feedback row: only ``accepted`` rows can later be promoted into an eval dataset. Requires ``admin:manage``.
+
+*Tags:* `governance`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `feedback_id` | path | yes |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Request body**
+
+`application/json`
+
+object
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  object
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+## Internal
+
+### POST `/api/internal/replication/apply`
+
+**Apply a replicated cross-cell change**
+
+Ingress for cell-to-cell async replication (ROADMAP 2.2.2): a peer cell pushes a tenant-scoped insert/update/delete for a whitelisted table. Authenticated with the control-plane secret.
+
+*Tags:* `internal`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `X-Internal-Token` | header | no |  |
+
+**Request body**
+
+`application/json`
+
+object
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  object
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
 ## Policy
 
-### POST `/api/review-cases/{conversation_id}/messages/{message_id}/policy-draft`
+### POST `/api/conversations/{review_case_id}/messages/{message_id}/knowledge-draft`
 
 **Create a draft from a negatively-rated message**
 
@@ -3739,13 +4284,15 @@ Reflows negative feedback into the knowledge base (Phase 21.3): the
 assistant message's content seeds a draft the reviewer can edit and
 publish.  Returns 404 if the message or conversation does not exist.
 
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}/messages/{message_id}/policy-draft. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
 *Tags:* `policy`
 
 **Parameters**
 
 | Name | In | Required | Description |
 |------|----|----------|-------------|
-| `conversation_id` | path | yes |  |
+| `review_case_id` | path | yes |  |
 | `message_id` | path | yes |  |
 | `X-API-Key` | header | no |  |
 | `X-Tenant-Id` | header | no |  |
@@ -3753,6 +4300,306 @@ publish.  Returns 404 if the message or conversation does not exist.
 **Responses**
 
 - `201` Successful Response
+
+  `application/json`
+
+  {
+    id: string (required)
+    tenant_id: string (required)
+    title: string (required)
+    content: string (required)
+    tags: array (required)
+    category: string (required)
+    source_url: string (required)
+    active: boolean (required)
+    status: string
+    version: integer (required)
+    updated_at: string (required)
+    reviewed_by: object
+    reviewed_at: object
+    language: object
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### GET `/api/knowledge`
+
+**List published knowledge articles**
+
+List published knowledge articles. Requires: conversation:read.
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/policy. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `policy`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `include_inactive` | query | no |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  array of:
+    {
+      id: string (required)
+      tenant_id: string (required)
+      title: string (required)
+      content: string (required)
+      tags: array (required)
+      category: string (required)
+      source_url: string (required)
+      active: boolean (required)
+      status: string
+      version: integer (required)
+      updated_at: string (required)
+      reviewed_by: object
+      reviewed_at: object
+      language: object
+    }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### POST `/api/knowledge`
+
+**Create a published knowledge article**
+
+Create a published knowledge article. Requires: knowledge:write.
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/policy. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `policy`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Request body**
+
+`application/json`
+
+{
+  title: string (required)
+  content: string (required)
+  tags: array (required)
+  category: string
+  source_url: string (required)
+  language: object
+}
+
+**Responses**
+
+- `201` Successful Response
+
+  `application/json`
+
+  {
+    id: string (required)
+    tenant_id: string (required)
+    title: string (required)
+    content: string (required)
+    tags: array (required)
+    category: string (required)
+    source_url: string (required)
+    active: boolean (required)
+    status: string
+    version: integer (required)
+    updated_at: string (required)
+    reviewed_by: object
+    reviewed_at: object
+    language: object
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### POST `/api/knowledge/drafts`
+
+**Create a knowledge draft (invisible until approved)**
+
+Create a knowledge article in ``draft`` status (Phase 21.3).
+
+Drafts are invisible to retrieval until explicitly published through
+the review endpoint, so an approval step is mandatory.
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/policy/drafts. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `policy`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Request body**
+
+`application/json`
+
+{
+  title: string (required)
+  content: string (required)
+  tags: array (required)
+  category: string
+  source_url: string (required)
+  language: object
+}
+
+**Responses**
+
+- `201` Successful Response
+
+  `application/json`
+
+  {
+    id: string (required)
+    tenant_id: string (required)
+    title: string (required)
+    content: string (required)
+    tags: array (required)
+    category: string (required)
+    source_url: string (required)
+    active: boolean (required)
+    status: string
+    version: integer (required)
+    updated_at: string (required)
+    reviewed_by: object
+    reviewed_at: object
+    language: object
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### PATCH `/api/knowledge/{article_id}`
+
+**Update a knowledge article**
+
+Update a knowledge article. Requires: knowledge:write.
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/policy/{article_id}. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `policy`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `article_id` | path | yes |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Request body**
+
+`application/json`
+
+{
+  title: object
+  content: object
+  tags: object
+  category: object
+  source_url: object
+  active: object
+  language: object
+}
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  {
+    id: string (required)
+    tenant_id: string (required)
+    title: string (required)
+    content: string (required)
+    tags: array (required)
+    category: string (required)
+    source_url: string (required)
+    active: boolean (required)
+    status: string
+    version: integer (required)
+    updated_at: string (required)
+    reviewed_by: object
+    reviewed_at: object
+    language: object
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### POST `/api/knowledge/{article_id}/review`
+
+**Publish or retire a pending knowledge article**
+
+Approve (publish) or reject (retire) a pending knowledge article.
+
+The approval cannot be bypassed: only ``draft`` or ``pending_review``
+articles can be published, so a reviewer must act before the article
+becomes retrievable.
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/policy/{article_id}/review. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `policy`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `article_id` | path | yes |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Request body**
+
+`application/json`
+
+{
+  action: string (required)
+  notes: object
+}
+
+**Responses**
+
+- `200` Successful Response
 
   `application/json`
 
@@ -4043,6 +4890,58 @@ becomes retrievable.
 **Responses**
 
 - `200` Successful Response
+
+  `application/json`
+
+  {
+    id: string (required)
+    tenant_id: string (required)
+    title: string (required)
+    content: string (required)
+    tags: array (required)
+    category: string (required)
+    source_url: string (required)
+    active: boolean (required)
+    status: string
+    version: integer (required)
+    updated_at: string (required)
+    reviewed_by: object
+    reviewed_at: object
+    language: object
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### POST `/api/review-cases/{review_case_id}/messages/{message_id}/policy-draft`
+
+**Create a draft from a negatively-rated message**
+
+Generate a draft knowledge article from a negatively-rated message.
+
+Reflows negative feedback into the knowledge base (Phase 21.3): the
+assistant message's content seeds a draft the reviewer can edit and
+publish.  Returns 404 if the message or conversation does not exist.
+
+*Tags:* `policy`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `review_case_id` | path | yes |  |
+| `message_id` | path | yes |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Responses**
+
+- `201` Successful Response
 
   `application/json`
 
@@ -4553,16 +5452,127 @@ Activate, canary, or rollback a prompt version. Requires: admin:manage.
     detail: array
   }
 
+## Qa_spot_check
+
+### POST `/api/csat/{token}`
+
+**Submit a one-time CSAT satisfaction rating**
+
+Record a one-time spot-check rating for a decided review case.
+
+Accepts either a JSON body (``{"rating": 1-5}``, the API contract) or a
+browser ``application/x-www-form-urlencoded`` submission from the survey
+form. Both are routed through the same atomic single-use write, and a
+browser submission receives a thank-you page back.
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/qa-spot-check/{token}. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `qa_spot_check`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `token` | path | yes |  |
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### POST `/api/qa-spot-check/{token}`
+
+**Submit a one-time CSAT satisfaction rating**
+
+Record a one-time spot-check rating for a decided review case.
+
+Accepts either a JSON body (``{"rating": 1-5}``, the API contract) or a
+browser ``application/x-www-form-urlencoded`` submission from the survey
+form. Both are routed through the same atomic single-use write, and a
+browser submission receives a thank-you page back.
+
+*Tags:* `qa_spot_check`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `token` | path | yes |  |
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
 ## Quality
+
+### GET `/api/supervisor/knowledge-gaps`
+
+**Negative-feedback turns without knowledge citations**
+
+Surface negative-feedback turns with no policy citations.
+
+Used by the supervisor quality panel (Phase 21.2) to locate where the
+policy library is failing submitters and seed draft articles.
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/supervisor/policy-gaps. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `quality`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `limit` | query | no |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  array of object
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
 
 ### GET `/api/supervisor/policy-gaps`
 
 **Negative-feedback turns without knowledge citations**
 
-Surface negative-feedback turns with no knowledge citations.
+Surface negative-feedback turns with no policy citations.
 
 Used by the supervisor quality panel (Phase 21.2) to locate where the
-knowledge base is failing customers and seed draft articles.
+policy library is failing submitters and seed draft articles.
 
 *Tags:* `quality`
 
@@ -4592,9 +5602,9 @@ knowledge base is failing customers and seed draft articles.
 
 ### GET `/api/supervisor/quality`
 
-**Quality buckets by day/intent/prompt_version**
+**Quality buckets by day/risk_category/prompt_version**
 
-Quality buckets by day/intent/prompt_version. Requires: metrics:read.
+Quality buckets by day/risk_category/prompt_version. Requires: metrics:read.
 
 *Tags:* `quality`
 
@@ -4604,7 +5614,7 @@ Quality buckets by day/intent/prompt_version. Requires: metrics:read.
 |------|----|----------|-------------|
 | `since` | query | no |  |
 | `until` | query | no |  |
-| `intent` | query | no |  |
+| `risk_category` | query | no |  |
 | `prompt_version` | query | no |  |
 | `cursor` | query | no |  |
 | `limit` | query | no |  |
@@ -5086,6 +6096,2967 @@ Export a quality/usage report as CSV. Requires: admin:manage.
     detail: array
   }
 
+## Review_cases
+
+### GET `/api/conversation-labels`
+
+**Label catalog with counts**
+
+Label catalog with counts. Requires: conversation:read.
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-case-labels. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `review_cases`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  array of:
+    {
+      label: string (required)
+      conversation_count: integer (required)
+    }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### GET `/api/conversations`
+
+**List review_cases**
+
+List review_cases. Requires: conversation:read.
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `review_cases`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `status` | query | no |  |
+| `search` | query | no |  |
+| `label` | query | no |  |
+| `priority` | query | no |  |
+| `channel` | query | no |  |
+| `assigned_to` | query | no |  |
+| `claimed_by` | query | no |  |
+| `mine` | query | no |  |
+| `unassigned` | query | no |  |
+| `unclaimed` | query | no |  |
+| `sla_breached` | query | no |  |
+| `needs_response` | query | no |  |
+| `archived` | query | no |  |
+| `sort` | query | no |  |
+| `limit` | query | no |  |
+| `offset` | query | no |  |
+| `cursor` | query | no |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  array of:
+    {
+      id: string (required)
+      tenant_id: string (required)
+      customer_name: string (required)
+      customer_ref: object
+      channel: string (required)
+      status: string (required)
+      intent: object
+      assigned_agent: object
+      priority: string (required)
+      handoff_reason: object
+      sla_due_at: object
+      last_confidence: object
+      version: integer
+      created_at: string (required)
+      updated_at: string (required)
+      resolved_at: object
+      preview: object
+      message_count: integer
+      last_message_at: object
+      labels: array
+      claimed_by: object
+      claimed_at: object
+      claim_expires_at: object
+      claim_active: boolean
+      sla_breached: boolean
+      needs_response: boolean
+      waiting_since: object
+      first_response_at: object
+      survey_url: object
+      language: object
+      ticket_id: object
+    }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### POST `/api/conversations`
+
+**Create a conversation**
+
+Create a conversation. Requires: conversation:write.
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `review_cases`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Request body**
+
+`application/json`
+
+{
+  customer_name: string (required)
+  customer_ref: object
+  channel: string
+}
+
+**Responses**
+
+- `201` Successful Response
+
+  `application/json`
+
+  {
+    id: string (required)
+    tenant_id: string (required)
+    customer_name: string (required)
+    customer_ref: object
+    channel: string (required)
+    status: string (required)
+    intent: object
+    assigned_agent: object
+    priority: string (required)
+    handoff_reason: object
+    sla_due_at: object
+    last_confidence: object
+    version: integer
+    created_at: string (required)
+    updated_at: string (required)
+    resolved_at: object
+    preview: object
+    message_count: integer
+    last_message_at: object
+    labels: array
+    claimed_by: object
+    claimed_at: object
+    claim_expires_at: object
+    claim_active: boolean
+    sla_breached: boolean
+    needs_response: boolean
+    waiting_since: object
+    first_response_at: object
+    survey_url: object
+    language: object
+    ticket_id: object
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### POST `/api/conversations/bulk-actions`
+
+**Bulk priority/label/claim actions**
+
+Bulk priority/label/claim actions. Requires: operator:act.
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/bulk-actions. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `review_cases`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Request body**
+
+`application/json`
+
+{
+  conversation_ids: array (required)
+  action: string (required)
+  priority: object
+  labels: array
+}
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  {
+    requested: integer (required)
+    matched: integer (required)
+    updated: integer (required)
+    unchanged: integer (required)
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### PATCH `/api/conversations/{review_case_id}`
+
+**Update conversation priority**
+
+Update conversation priority. Requires: operator:act.
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `review_cases`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `review_case_id` | path | yes |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Request body**
+
+`application/json`
+
+{
+  priority: string (required)
+}
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  {
+    id: string (required)
+    tenant_id: string (required)
+    customer_name: string (required)
+    customer_ref: object
+    channel: string (required)
+    status: string (required)
+    intent: object
+    assigned_agent: object
+    priority: string (required)
+    handoff_reason: object
+    sla_due_at: object
+    last_confidence: object
+    version: integer
+    created_at: string (required)
+    updated_at: string (required)
+    resolved_at: object
+    preview: object
+    message_count: integer
+    last_message_at: object
+    labels: array
+    claimed_by: object
+    claimed_at: object
+    claim_expires_at: object
+    claim_active: boolean
+    sla_breached: boolean
+    needs_response: boolean
+    waiting_since: object
+    first_response_at: object
+    survey_url: object
+    language: object
+    ticket_id: object
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### GET `/api/conversations/{review_case_id}`
+
+**Conversation detail with messages, audit events, and summaries**
+
+Conversation detail with messages, audit events, and summaries. Requires: conversation:read.
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `review_cases`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `review_case_id` | path | yes |  |
+| `message_limit` | query | no |  |
+| `message_cursor` | query | no |  |
+| `messages_before` | query | no |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  {
+    conversation: object (required)
+      {
+        id: string (required)
+        tenant_id: string (required)
+        customer_name: string (required)
+        customer_ref: object
+        channel: string (required)
+        status: string (required)
+        intent: object
+        assigned_agent: object
+        priority: string (required)
+        handoff_reason: object
+        sla_due_at: object
+        last_confidence: object
+        version: integer
+        created_at: string (required)
+        updated_at: string (required)
+        resolved_at: object
+        preview: object
+        message_count: integer
+        last_message_at: object
+        labels: array
+        claimed_by: object
+        claimed_at: object
+        claim_expires_at: object
+        claim_active: boolean
+        sla_breached: boolean
+        needs_response: boolean
+        waiting_since: object
+        first_response_at: object
+        survey_url: object
+        language: object
+        ticket_id: object
+      }
+    messages: array (required)
+    audit_events: array (required)
+    summaries: array
+    pending_task: object
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### POST `/api/conversations/{review_case_id}/accept`
+
+**Accept a conversation into human_active**
+
+Accept a conversation into human_active. Requires: operator:act.
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}/accept. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `review_cases`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `review_case_id` | path | yes |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  {
+    id: string (required)
+    tenant_id: string (required)
+    customer_name: string (required)
+    customer_ref: object
+    channel: string (required)
+    status: string (required)
+    intent: object
+    assigned_agent: object
+    priority: string (required)
+    handoff_reason: object
+    sla_due_at: object
+    last_confidence: object
+    version: integer
+    created_at: string (required)
+    updated_at: string (required)
+    resolved_at: object
+    preview: object
+    message_count: integer
+    last_message_at: object
+    labels: array
+    claimed_by: object
+    claimed_at: object
+    claim_expires_at: object
+    claim_active: boolean
+    sla_breached: boolean
+    needs_response: boolean
+    waiting_since: object
+    first_response_at: object
+    survey_url: object
+    language: object
+    ticket_id: object
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### POST `/api/conversations/{review_case_id}/assign`
+
+**Assign to an operator**
+
+Assign to an operator. Requires: operator:act.
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}/assign. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `review_cases`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `review_case_id` | path | yes |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Request body**
+
+`application/json`
+
+{
+  assignee_id: string (required)
+}
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  {
+    id: string (required)
+    tenant_id: string (required)
+    customer_name: string (required)
+    customer_ref: object
+    channel: string (required)
+    status: string (required)
+    intent: object
+    assigned_agent: object
+    priority: string (required)
+    handoff_reason: object
+    sla_due_at: object
+    last_confidence: object
+    version: integer
+    created_at: string (required)
+    updated_at: string (required)
+    resolved_at: object
+    preview: object
+    message_count: integer
+    last_message_at: object
+    labels: array
+    claimed_by: object
+    claimed_at: object
+    claim_expires_at: object
+    claim_active: boolean
+    sla_breached: boolean
+    needs_response: boolean
+    waiting_since: object
+    first_response_at: object
+    survey_url: object
+    language: object
+    ticket_id: object
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### POST `/api/conversations/{review_case_id}/claim`
+
+**Claim a conversation**
+
+Claim a conversation. Requires: operator:act.
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}/claim. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `review_cases`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `review_case_id` | path | yes |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  {
+    id: string (required)
+    tenant_id: string (required)
+    customer_name: string (required)
+    customer_ref: object
+    channel: string (required)
+    status: string (required)
+    intent: object
+    assigned_agent: object
+    priority: string (required)
+    handoff_reason: object
+    sla_due_at: object
+    last_confidence: object
+    version: integer
+    created_at: string (required)
+    updated_at: string (required)
+    resolved_at: object
+    preview: object
+    message_count: integer
+    last_message_at: object
+    labels: array
+    claimed_by: object
+    claimed_at: object
+    claim_expires_at: object
+    claim_active: boolean
+    sla_breached: boolean
+    needs_response: boolean
+    waiting_since: object
+    first_response_at: object
+    survey_url: object
+    language: object
+    ticket_id: object
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### POST `/api/conversations/{review_case_id}/feedback`
+
+**Rate an assistant message**
+
+Rate an assistant message. Requires: conversation:read.
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}/feedback. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `review_cases`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `review_case_id` | path | yes |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Request body**
+
+`application/json`
+
+{
+  message_id: string (required)
+  rating: integer (required)
+  reason: object
+}
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  {
+    id: string (required)
+    tenant_id: string (required)
+    conversation_id: string (required)
+    message_id: string (required)
+    actor: string (required)
+    rating: integer (required)
+    reason: object
+    created_at: string (required)
+    updated_at: string (required)
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### PUT `/api/conversations/{review_case_id}/labels`
+
+**Replace conversation labels**
+
+Replace conversation labels. Requires: operator:act.
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}/labels. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `review_cases`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `review_case_id` | path | yes |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Request body**
+
+`application/json`
+
+{
+  labels: array
+}
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  {
+    id: string (required)
+    tenant_id: string (required)
+    customer_name: string (required)
+    customer_ref: object
+    channel: string (required)
+    status: string (required)
+    intent: object
+    assigned_agent: object
+    priority: string (required)
+    handoff_reason: object
+    sla_due_at: object
+    last_confidence: object
+    version: integer
+    created_at: string (required)
+    updated_at: string (required)
+    resolved_at: object
+    preview: object
+    message_count: integer
+    last_message_at: object
+    labels: array
+    claimed_by: object
+    claimed_at: object
+    claim_expires_at: object
+    claim_active: boolean
+    sla_breached: boolean
+    needs_response: boolean
+    waiting_since: object
+    first_response_at: object
+    survey_url: object
+    language: object
+    ticket_id: object
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### PATCH `/api/conversations/{review_case_id}/language`
+
+**Set (or clear, with null) the manual language override for a conversation**
+
+Set (or clear) the manual language override for a conversation.
+
+Backlog (多语言审核): ``language`` null clears the override so the
+writer path re-detects automatically. The endpoint is a full upsert —
+it returns the stored row so the frontend can sync its select.
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}/language. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `review_cases`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `review_case_id` | path | yes |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Request body**
+
+`application/json`
+
+{
+  language: object
+}
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  {
+    id: string (required)
+    tenant_id: string (required)
+    customer_name: string (required)
+    customer_ref: object
+    channel: string (required)
+    status: string (required)
+    intent: object
+    assigned_agent: object
+    priority: string (required)
+    handoff_reason: object
+    sla_due_at: object
+    last_confidence: object
+    version: integer
+    created_at: string (required)
+    updated_at: string (required)
+    resolved_at: object
+    preview: object
+    message_count: integer
+    last_message_at: object
+    labels: array
+    claimed_by: object
+    claimed_at: object
+    claim_expires_at: object
+    claim_active: boolean
+    sla_breached: boolean
+    needs_response: boolean
+    waiting_since: object
+    first_response_at: object
+    survey_url: object
+    language: object
+    ticket_id: object
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### GET `/api/conversations/{review_case_id}/messages`
+
+**List conversation messages**
+
+List conversation messages. Requires: conversation:read.
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}/messages. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `review_cases`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `review_case_id` | path | yes |  |
+| `limit` | query | no |  |
+| `cursor` | query | no |  |
+| `before` | query | no |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  array of object
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### POST `/api/conversations/{review_case_id}/messages`
+
+**Send a customer turn (idempotent)**
+
+Send a customer turn (idempotent). Requires: conversation:write.
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}/messages. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `review_cases`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `review_case_id` | path | yes |  |
+| `Idempotency-Key` | header | no |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Request body**
+
+`application/json`
+
+{
+  content: string (required)
+}
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  {
+    customer_message: object (required)
+      {
+        id: string (required)
+        role: string (required)
+        author: string (required)
+        content: string (required)
+        metadata: object
+        created_at: string (required)
+        reply_to: object
+      }
+    assistant_message: object (required)
+    conversation: object (required)
+      {
+        id: string (required)
+        tenant_id: string (required)
+        customer_name: string (required)
+        customer_ref: object
+        channel: string (required)
+        status: string (required)
+        intent: object
+        assigned_agent: object
+        priority: string (required)
+        handoff_reason: object
+        sla_due_at: object
+        last_confidence: object
+        version: integer
+        created_at: string (required)
+        updated_at: string (required)
+        resolved_at: object
+        preview: object
+        message_count: integer
+        last_message_at: object
+        labels: array
+        claimed_by: object
+        claimed_at: object
+        claim_expires_at: object
+        claim_active: boolean
+        sla_breached: boolean
+        needs_response: boolean
+        waiting_since: object
+        first_response_at: object
+        survey_url: object
+        language: object
+        ticket_id: object
+      }
+    idempotent_replay: boolean (required)
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### POST `/api/conversations/{review_case_id}/messages/{message_id}/translate`
+
+**Translate one customer message; without a provider the original text is echoed**
+
+Translate one customer message into ``target_language``.
+
+Backlog (多语言审核): never blocks on model availability — without a
+configured provider the original text is returned with
+``was_translated=False`` and ``source="rule"`` so the frontend can
+degrade gracefully.
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}/messages/{message_id}/translate. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `review_cases`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `review_case_id` | path | yes |  |
+| `message_id` | path | yes |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Request body**
+
+`application/json`
+
+{
+  target_language: string (required)
+}
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  {
+    translated: string (required)
+    was_translated: boolean (required)
+    source: string (required)
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### POST `/api/conversations/{review_case_id}/notes`
+
+**Add an internal note (supports @mention colleagues and reply threads)**
+
+Add an internal note (supports @mention colleagues and reply threads). Requires: operator:act.
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}/notes. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `review_cases`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `review_case_id` | path | yes |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Request body**
+
+`application/json`
+
+{
+  content: string (required)
+  reply_to: object
+}
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  {
+    id: string (required)
+    role: string (required)
+    author: string (required)
+    content: string (required)
+    metadata: object
+    created_at: string (required)
+    reply_to: object
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### POST `/api/conversations/{review_case_id}/operator-messages`
+
+**Send an operator reply (Idempotency-Key honoured)**
+
+Send an operator reply. Requires: operator:act.
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}/operator-messages. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `review_cases`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `review_case_id` | path | yes |  |
+| `Idempotency-Key` | header | no |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Request body**
+
+`application/json`
+
+{
+  content: string (required)
+  attachment_ids: array
+}
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  {
+    id: string (required)
+    role: string (required)
+    author: string (required)
+    content: string (required)
+    metadata: object
+    created_at: string (required)
+    reply_to: object
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### POST `/api/conversations/{review_case_id}/release`
+
+**Release a claim**
+
+Release a claim. Requires: operator:act.
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}/release. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `review_cases`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `review_case_id` | path | yes |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  {
+    id: string (required)
+    tenant_id: string (required)
+    customer_name: string (required)
+    customer_ref: object
+    channel: string (required)
+    status: string (required)
+    intent: object
+    assigned_agent: object
+    priority: string (required)
+    handoff_reason: object
+    sla_due_at: object
+    last_confidence: object
+    version: integer
+    created_at: string (required)
+    updated_at: string (required)
+    resolved_at: object
+    preview: object
+    message_count: integer
+    last_message_at: object
+    labels: array
+    claimed_by: object
+    claimed_at: object
+    claim_expires_at: object
+    claim_active: boolean
+    sla_breached: boolean
+    needs_response: boolean
+    waiting_since: object
+    first_response_at: object
+    survey_url: object
+    language: object
+    ticket_id: object
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### POST `/api/conversations/{review_case_id}/reopen`
+
+**Reopen a resolved conversation**
+
+Reopen a resolved conversation. Requires: operator:act.
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}/reopen. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `review_cases`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `review_case_id` | path | yes |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  {
+    id: string (required)
+    tenant_id: string (required)
+    customer_name: string (required)
+    customer_ref: object
+    channel: string (required)
+    status: string (required)
+    intent: object
+    assigned_agent: object
+    priority: string (required)
+    handoff_reason: object
+    sla_due_at: object
+    last_confidence: object
+    version: integer
+    created_at: string (required)
+    updated_at: string (required)
+    resolved_at: object
+    preview: object
+    message_count: integer
+    last_message_at: object
+    labels: array
+    claimed_by: object
+    claimed_at: object
+    claim_expires_at: object
+    claim_active: boolean
+    sla_breached: boolean
+    needs_response: boolean
+    waiting_since: object
+    first_response_at: object
+    survey_url: object
+    language: object
+    ticket_id: object
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### POST `/api/conversations/{review_case_id}/resolve`
+
+**Resolve a conversation**
+
+Resolve a conversation. Requires: operator:act.
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}/resolve. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `review_cases`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `review_case_id` | path | yes |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  {
+    id: string (required)
+    tenant_id: string (required)
+    customer_name: string (required)
+    customer_ref: object
+    channel: string (required)
+    status: string (required)
+    intent: object
+    assigned_agent: object
+    priority: string (required)
+    handoff_reason: object
+    sla_due_at: object
+    last_confidence: object
+    version: integer
+    created_at: string (required)
+    updated_at: string (required)
+    resolved_at: object
+    preview: object
+    message_count: integer
+    last_message_at: object
+    labels: array
+    claimed_by: object
+    claimed_at: object
+    claim_expires_at: object
+    claim_active: boolean
+    sla_breached: boolean
+    needs_response: boolean
+    waiting_since: object
+    first_response_at: object
+    survey_url: object
+    language: object
+    ticket_id: object
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### GET `/api/review-case-labels`
+
+**Label catalog with counts**
+
+Label catalog with counts. Requires: conversation:read.
+
+*Tags:* `review_cases`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  array of:
+    {
+      label: string (required)
+      conversation_count: integer (required)
+    }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### GET `/api/review-cases`
+
+**List review_cases**
+
+List review_cases. Requires: conversation:read.
+
+*Tags:* `review_cases`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `status` | query | no |  |
+| `search` | query | no |  |
+| `label` | query | no |  |
+| `priority` | query | no |  |
+| `channel` | query | no |  |
+| `assigned_to` | query | no |  |
+| `claimed_by` | query | no |  |
+| `mine` | query | no |  |
+| `unassigned` | query | no |  |
+| `unclaimed` | query | no |  |
+| `sla_breached` | query | no |  |
+| `needs_response` | query | no |  |
+| `archived` | query | no |  |
+| `sort` | query | no |  |
+| `limit` | query | no |  |
+| `offset` | query | no |  |
+| `cursor` | query | no |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  array of:
+    {
+      id: string (required)
+      tenant_id: string (required)
+      customer_name: string (required)
+      customer_ref: object
+      channel: string (required)
+      status: string (required)
+      intent: object
+      assigned_agent: object
+      priority: string (required)
+      handoff_reason: object
+      sla_due_at: object
+      last_confidence: object
+      version: integer
+      created_at: string (required)
+      updated_at: string (required)
+      resolved_at: object
+      preview: object
+      message_count: integer
+      last_message_at: object
+      labels: array
+      claimed_by: object
+      claimed_at: object
+      claim_expires_at: object
+      claim_active: boolean
+      sla_breached: boolean
+      needs_response: boolean
+      waiting_since: object
+      first_response_at: object
+      survey_url: object
+      language: object
+      ticket_id: object
+    }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### POST `/api/review-cases`
+
+**Create a conversation**
+
+Create a conversation. Requires: conversation:write.
+
+*Tags:* `review_cases`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Request body**
+
+`application/json`
+
+{
+  customer_name: string (required)
+  customer_ref: object
+  channel: string
+}
+
+**Responses**
+
+- `201` Successful Response
+
+  `application/json`
+
+  {
+    id: string (required)
+    tenant_id: string (required)
+    customer_name: string (required)
+    customer_ref: object
+    channel: string (required)
+    status: string (required)
+    intent: object
+    assigned_agent: object
+    priority: string (required)
+    handoff_reason: object
+    sla_due_at: object
+    last_confidence: object
+    version: integer
+    created_at: string (required)
+    updated_at: string (required)
+    resolved_at: object
+    preview: object
+    message_count: integer
+    last_message_at: object
+    labels: array
+    claimed_by: object
+    claimed_at: object
+    claim_expires_at: object
+    claim_active: boolean
+    sla_breached: boolean
+    needs_response: boolean
+    waiting_since: object
+    first_response_at: object
+    survey_url: object
+    language: object
+    ticket_id: object
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### POST `/api/review-cases/bulk-actions`
+
+**Bulk priority/label/claim actions**
+
+Bulk priority/label/claim actions. Requires: operator:act.
+
+*Tags:* `review_cases`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Request body**
+
+`application/json`
+
+{
+  conversation_ids: array (required)
+  action: string (required)
+  priority: object
+  labels: array
+}
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  {
+    requested: integer (required)
+    matched: integer (required)
+    updated: integer (required)
+    unchanged: integer (required)
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### PATCH `/api/review-cases/{review_case_id}`
+
+**Update conversation priority**
+
+Update conversation priority. Requires: operator:act.
+
+*Tags:* `review_cases`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `review_case_id` | path | yes |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Request body**
+
+`application/json`
+
+{
+  priority: string (required)
+}
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  {
+    id: string (required)
+    tenant_id: string (required)
+    customer_name: string (required)
+    customer_ref: object
+    channel: string (required)
+    status: string (required)
+    intent: object
+    assigned_agent: object
+    priority: string (required)
+    handoff_reason: object
+    sla_due_at: object
+    last_confidence: object
+    version: integer
+    created_at: string (required)
+    updated_at: string (required)
+    resolved_at: object
+    preview: object
+    message_count: integer
+    last_message_at: object
+    labels: array
+    claimed_by: object
+    claimed_at: object
+    claim_expires_at: object
+    claim_active: boolean
+    sla_breached: boolean
+    needs_response: boolean
+    waiting_since: object
+    first_response_at: object
+    survey_url: object
+    language: object
+    ticket_id: object
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### GET `/api/review-cases/{review_case_id}`
+
+**Conversation detail with messages, audit events, and summaries**
+
+Conversation detail with messages, audit events, and summaries. Requires: conversation:read.
+
+*Tags:* `review_cases`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `review_case_id` | path | yes |  |
+| `message_limit` | query | no |  |
+| `message_cursor` | query | no |  |
+| `messages_before` | query | no |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  {
+    conversation: object (required)
+      {
+        id: string (required)
+        tenant_id: string (required)
+        customer_name: string (required)
+        customer_ref: object
+        channel: string (required)
+        status: string (required)
+        intent: object
+        assigned_agent: object
+        priority: string (required)
+        handoff_reason: object
+        sla_due_at: object
+        last_confidence: object
+        version: integer
+        created_at: string (required)
+        updated_at: string (required)
+        resolved_at: object
+        preview: object
+        message_count: integer
+        last_message_at: object
+        labels: array
+        claimed_by: object
+        claimed_at: object
+        claim_expires_at: object
+        claim_active: boolean
+        sla_breached: boolean
+        needs_response: boolean
+        waiting_since: object
+        first_response_at: object
+        survey_url: object
+        language: object
+        ticket_id: object
+      }
+    messages: array (required)
+    audit_events: array (required)
+    summaries: array
+    pending_task: object
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### POST `/api/review-cases/{review_case_id}/accept`
+
+**Accept a conversation into human_active**
+
+Accept a conversation into human_active. Requires: operator:act.
+
+*Tags:* `review_cases`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `review_case_id` | path | yes |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  {
+    id: string (required)
+    tenant_id: string (required)
+    customer_name: string (required)
+    customer_ref: object
+    channel: string (required)
+    status: string (required)
+    intent: object
+    assigned_agent: object
+    priority: string (required)
+    handoff_reason: object
+    sla_due_at: object
+    last_confidence: object
+    version: integer
+    created_at: string (required)
+    updated_at: string (required)
+    resolved_at: object
+    preview: object
+    message_count: integer
+    last_message_at: object
+    labels: array
+    claimed_by: object
+    claimed_at: object
+    claim_expires_at: object
+    claim_active: boolean
+    sla_breached: boolean
+    needs_response: boolean
+    waiting_since: object
+    first_response_at: object
+    survey_url: object
+    language: object
+    ticket_id: object
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### POST `/api/review-cases/{review_case_id}/assign`
+
+**Assign to an operator**
+
+Assign to an operator. Requires: operator:act.
+
+*Tags:* `review_cases`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `review_case_id` | path | yes |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Request body**
+
+`application/json`
+
+{
+  assignee_id: string (required)
+}
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  {
+    id: string (required)
+    tenant_id: string (required)
+    customer_name: string (required)
+    customer_ref: object
+    channel: string (required)
+    status: string (required)
+    intent: object
+    assigned_agent: object
+    priority: string (required)
+    handoff_reason: object
+    sla_due_at: object
+    last_confidence: object
+    version: integer
+    created_at: string (required)
+    updated_at: string (required)
+    resolved_at: object
+    preview: object
+    message_count: integer
+    last_message_at: object
+    labels: array
+    claimed_by: object
+    claimed_at: object
+    claim_expires_at: object
+    claim_active: boolean
+    sla_breached: boolean
+    needs_response: boolean
+    waiting_since: object
+    first_response_at: object
+    survey_url: object
+    language: object
+    ticket_id: object
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### POST `/api/review-cases/{review_case_id}/claim`
+
+**Claim a conversation**
+
+Claim a conversation. Requires: operator:act.
+
+*Tags:* `review_cases`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `review_case_id` | path | yes |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  {
+    id: string (required)
+    tenant_id: string (required)
+    customer_name: string (required)
+    customer_ref: object
+    channel: string (required)
+    status: string (required)
+    intent: object
+    assigned_agent: object
+    priority: string (required)
+    handoff_reason: object
+    sla_due_at: object
+    last_confidence: object
+    version: integer
+    created_at: string (required)
+    updated_at: string (required)
+    resolved_at: object
+    preview: object
+    message_count: integer
+    last_message_at: object
+    labels: array
+    claimed_by: object
+    claimed_at: object
+    claim_expires_at: object
+    claim_active: boolean
+    sla_breached: boolean
+    needs_response: boolean
+    waiting_since: object
+    first_response_at: object
+    survey_url: object
+    language: object
+    ticket_id: object
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### POST `/api/review-cases/{review_case_id}/feedback`
+
+**Rate an assistant message**
+
+Rate an assistant message. Requires: conversation:read.
+
+*Tags:* `review_cases`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `review_case_id` | path | yes |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Request body**
+
+`application/json`
+
+{
+  message_id: string (required)
+  rating: integer (required)
+  reason: object
+}
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  {
+    id: string (required)
+    tenant_id: string (required)
+    conversation_id: string (required)
+    message_id: string (required)
+    actor: string (required)
+    rating: integer (required)
+    reason: object
+    created_at: string (required)
+    updated_at: string (required)
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### PUT `/api/review-cases/{review_case_id}/labels`
+
+**Replace conversation labels**
+
+Replace conversation labels. Requires: operator:act.
+
+*Tags:* `review_cases`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `review_case_id` | path | yes |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Request body**
+
+`application/json`
+
+{
+  labels: array
+}
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  {
+    id: string (required)
+    tenant_id: string (required)
+    customer_name: string (required)
+    customer_ref: object
+    channel: string (required)
+    status: string (required)
+    intent: object
+    assigned_agent: object
+    priority: string (required)
+    handoff_reason: object
+    sla_due_at: object
+    last_confidence: object
+    version: integer
+    created_at: string (required)
+    updated_at: string (required)
+    resolved_at: object
+    preview: object
+    message_count: integer
+    last_message_at: object
+    labels: array
+    claimed_by: object
+    claimed_at: object
+    claim_expires_at: object
+    claim_active: boolean
+    sla_breached: boolean
+    needs_response: boolean
+    waiting_since: object
+    first_response_at: object
+    survey_url: object
+    language: object
+    ticket_id: object
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### PATCH `/api/review-cases/{review_case_id}/language`
+
+**Set (or clear, with null) the manual language override for a conversation**
+
+Set (or clear) the manual language override for a conversation.
+
+Backlog (多语言审核): ``language`` null clears the override so the
+writer path re-detects automatically. The endpoint is a full upsert —
+it returns the stored row so the frontend can sync its select.
+
+*Tags:* `review_cases`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `review_case_id` | path | yes |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Request body**
+
+`application/json`
+
+{
+  language: object
+}
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  {
+    id: string (required)
+    tenant_id: string (required)
+    customer_name: string (required)
+    customer_ref: object
+    channel: string (required)
+    status: string (required)
+    intent: object
+    assigned_agent: object
+    priority: string (required)
+    handoff_reason: object
+    sla_due_at: object
+    last_confidence: object
+    version: integer
+    created_at: string (required)
+    updated_at: string (required)
+    resolved_at: object
+    preview: object
+    message_count: integer
+    last_message_at: object
+    labels: array
+    claimed_by: object
+    claimed_at: object
+    claim_expires_at: object
+    claim_active: boolean
+    sla_breached: boolean
+    needs_response: boolean
+    waiting_since: object
+    first_response_at: object
+    survey_url: object
+    language: object
+    ticket_id: object
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### GET `/api/review-cases/{review_case_id}/messages`
+
+**List conversation messages**
+
+List conversation messages. Requires: conversation:read.
+
+*Tags:* `review_cases`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `review_case_id` | path | yes |  |
+| `limit` | query | no |  |
+| `cursor` | query | no |  |
+| `before` | query | no |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  array of:
+    {
+      id: string (required)
+      role: string (required)
+      author: string (required)
+      content: string (required)
+      metadata: object
+      created_at: string (required)
+      reply_to: object
+    }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### POST `/api/review-cases/{review_case_id}/messages`
+
+**Send a customer turn (idempotent)**
+
+Send a customer turn (idempotent). Requires: conversation:write.
+
+*Tags:* `review_cases`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `review_case_id` | path | yes |  |
+| `Idempotency-Key` | header | no |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Request body**
+
+`application/json`
+
+{
+  content: string (required)
+}
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  {
+    customer_message: object (required)
+      {
+        id: string (required)
+        role: string (required)
+        author: string (required)
+        content: string (required)
+        metadata: object
+        created_at: string (required)
+        reply_to: object
+      }
+    assistant_message: object (required)
+    conversation: object (required)
+      {
+        id: string (required)
+        tenant_id: string (required)
+        customer_name: string (required)
+        customer_ref: object
+        channel: string (required)
+        status: string (required)
+        intent: object
+        assigned_agent: object
+        priority: string (required)
+        handoff_reason: object
+        sla_due_at: object
+        last_confidence: object
+        version: integer
+        created_at: string (required)
+        updated_at: string (required)
+        resolved_at: object
+        preview: object
+        message_count: integer
+        last_message_at: object
+        labels: array
+        claimed_by: object
+        claimed_at: object
+        claim_expires_at: object
+        claim_active: boolean
+        sla_breached: boolean
+        needs_response: boolean
+        waiting_since: object
+        first_response_at: object
+        survey_url: object
+        language: object
+        ticket_id: object
+      }
+    idempotent_replay: boolean (required)
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### POST `/api/review-cases/{review_case_id}/messages/{message_id}/translate`
+
+**Translate one customer message; without a provider the original text is echoed**
+
+Translate one customer message into ``target_language``.
+
+Backlog (多语言审核): never blocks on model availability — without a
+configured provider the original text is returned with
+``was_translated=False`` and ``source="rule"`` so the frontend can
+degrade gracefully.
+
+*Tags:* `review_cases`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `review_case_id` | path | yes |  |
+| `message_id` | path | yes |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Request body**
+
+`application/json`
+
+{
+  target_language: string (required)
+}
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  {
+    translated: string (required)
+    was_translated: boolean (required)
+    source: string (required)
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### POST `/api/review-cases/{review_case_id}/notes`
+
+**Add an internal note (supports @mention colleagues and reply threads)**
+
+Add an internal note (supports @mention colleagues and reply threads). Requires: operator:act.
+
+*Tags:* `review_cases`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `review_case_id` | path | yes |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Request body**
+
+`application/json`
+
+{
+  content: string (required)
+  reply_to: object
+}
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  {
+    id: string (required)
+    role: string (required)
+    author: string (required)
+    content: string (required)
+    metadata: object
+    created_at: string (required)
+    reply_to: object
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### POST `/api/review-cases/{review_case_id}/operator-messages`
+
+**Send an operator reply (Idempotency-Key honoured)**
+
+Stores the operator's reply and, when an Idempotency-Key is supplied, records it as the send receipt for that attempt. Replaying the same key returns the original message with X-Idempotent-Replay: true instead of creating a second reply.
+
+*Tags:* `review_cases`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `review_case_id` | path | yes |  |
+| `Idempotency-Key` | header | no |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Request body**
+
+`application/json`
+
+{
+  content: string (required)
+  attachment_ids: array
+}
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  {
+    id: string (required)
+    role: string (required)
+    author: string (required)
+    content: string (required)
+    metadata: object
+    created_at: string (required)
+    reply_to: object
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### POST `/api/review-cases/{review_case_id}/release`
+
+**Release a claim**
+
+Release a claim. Requires: operator:act.
+
+*Tags:* `review_cases`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `review_case_id` | path | yes |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  {
+    id: string (required)
+    tenant_id: string (required)
+    customer_name: string (required)
+    customer_ref: object
+    channel: string (required)
+    status: string (required)
+    intent: object
+    assigned_agent: object
+    priority: string (required)
+    handoff_reason: object
+    sla_due_at: object
+    last_confidence: object
+    version: integer
+    created_at: string (required)
+    updated_at: string (required)
+    resolved_at: object
+    preview: object
+    message_count: integer
+    last_message_at: object
+    labels: array
+    claimed_by: object
+    claimed_at: object
+    claim_expires_at: object
+    claim_active: boolean
+    sla_breached: boolean
+    needs_response: boolean
+    waiting_since: object
+    first_response_at: object
+    survey_url: object
+    language: object
+    ticket_id: object
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### POST `/api/review-cases/{review_case_id}/reopen`
+
+**Reopen a resolved conversation**
+
+Reopen a resolved conversation. Requires: operator:act.
+
+*Tags:* `review_cases`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `review_case_id` | path | yes |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  {
+    id: string (required)
+    tenant_id: string (required)
+    customer_name: string (required)
+    customer_ref: object
+    channel: string (required)
+    status: string (required)
+    intent: object
+    assigned_agent: object
+    priority: string (required)
+    handoff_reason: object
+    sla_due_at: object
+    last_confidence: object
+    version: integer
+    created_at: string (required)
+    updated_at: string (required)
+    resolved_at: object
+    preview: object
+    message_count: integer
+    last_message_at: object
+    labels: array
+    claimed_by: object
+    claimed_at: object
+    claim_expires_at: object
+    claim_active: boolean
+    sla_breached: boolean
+    needs_response: boolean
+    waiting_since: object
+    first_response_at: object
+    survey_url: object
+    language: object
+    ticket_id: object
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### POST `/api/review-cases/{review_case_id}/resolve`
+
+**Resolve a conversation**
+
+Resolve a conversation. Requires: operator:act.
+
+*Tags:* `review_cases`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `review_case_id` | path | yes |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  {
+    id: string (required)
+    tenant_id: string (required)
+    customer_name: string (required)
+    customer_ref: object
+    channel: string (required)
+    status: string (required)
+    intent: object
+    assigned_agent: object
+    priority: string (required)
+    handoff_reason: object
+    sla_due_at: object
+    last_confidence: object
+    version: integer
+    created_at: string (required)
+    updated_at: string (required)
+    resolved_at: object
+    preview: object
+    message_count: integer
+    last_message_at: object
+    labels: array
+    claimed_by: object
+    claimed_at: object
+    claim_expires_at: object
+    claim_active: boolean
+    sla_breached: boolean
+    needs_response: boolean
+    waiting_since: object
+    first_response_at: object
+    survey_url: object
+    language: object
+    ticket_id: object
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+## Submission_portal
+
+### POST `/api/submission-portal/sessions`
+
+**Open a widget chat session (signed token)**
+
+Open a widget chat session bound to the token's tenant.
+
+*Tags:* `submission_portal`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `X-Widget-Token` | header | no |  |
+
+**Request body**
+
+`application/json`
+
+{
+  customer_name: object
+  channel: string
+}
+
+**Responses**
+
+- `201` Successful Response
+
+  `application/json`
+
+  {
+    conversation: object (required)
+      {
+        id: string (required)
+        tenant_id: string (required)
+        customer_name: string (required)
+        customer_ref: object
+        channel: string (required)
+        status: string (required)
+        intent: object
+        assigned_agent: object
+        priority: string (required)
+        handoff_reason: object
+        sla_due_at: object
+        last_confidence: object
+        version: integer
+        created_at: string (required)
+        updated_at: string (required)
+        resolved_at: object
+        preview: object
+        message_count: integer
+        last_message_at: object
+        labels: array
+        claimed_by: object
+        claimed_at: object
+        claim_expires_at: object
+        claim_active: boolean
+        sla_breached: boolean
+        needs_response: boolean
+        waiting_since: object
+        first_response_at: object
+        survey_url: object
+        language: object
+        ticket_id: object
+      }
+    widget_token: string (required)
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### POST `/api/submission-portal/sessions/{review_case_id}/messages`
+
+**Send a widget message (channel-id idempotent)**
+
+Send a customer message; channel_message_id replays are idempotent.
+
+Default (sync) returns the completed ``TurnResponse``. With
+``async_mode=true`` the message is enqueued as a turn job and the
+response is ``{"job_id": ..., "status": "queued"}``; the client then
+streams progressive output from ``GET /stream``. Either way, replaying
+the same ``channel_message_id`` never creates a second turn.
+
+*Tags:* `submission_portal`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `review_case_id` | path | yes |  |
+| `async_mode` | query | no |  |
+| `X-Widget-Token` | header | no |  |
+
+**Request body**
+
+`application/json`
+
+{
+  content: string (required)
+  channel_message_id: object
+}
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  object
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### GET `/api/submission-portal/sessions/{review_case_id}/messages`
+
+**List widget conversation messages**
+
+List the customer-visible transcript, resumable through ``cursor``.
+
+Responses carry ``X-Conversation-Status`` (and ``X-CSAT-Survey-URL`` once a
+survey is pending) alongside the shared opaque pagination headers
+``X-Next-Cursor`` / ``X-Has-More``, so a client can poll for the delta and
+resume a dropped read instead of re-fetching the whole transcript.
+
+*Tags:* `submission_portal`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `review_case_id` | path | yes |  |
+| `limit` | query | no |  |
+| `cursor` | query | no |  |
+| `X-Widget-Token` | header | no |  |
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  array of:
+    {
+      id: string (required)
+      role: string (required)
+      author: string (required)
+      content: string (required)
+      metadata: object
+      created_at: string (required)
+      reply_to: object
+    }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### GET `/api/submission-portal/sessions/{review_case_id}/stream`
+
+**SSE stream for the widget conversation's latest turn**
+
+SSE stream of the conversation's latest turn job (Phase 23.1).
+
+Reuses the same token/job events as the operator turn-job stream so the
+widget gets progressive output without holding an API key.
+
+*Tags:* `submission_portal`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `review_case_id` | path | yes |  |
+| `timeout` | query | no |  |
+| `X-Widget-Token` | header | no |  |
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### POST `/api/widget/sessions`
+
+**Open a widget chat session (signed token)**
+
+Open a widget chat session bound to the token's tenant.
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/submission-portal/sessions. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `submission_portal`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `X-Widget-Token` | header | no |  |
+
+**Request body**
+
+`application/json`
+
+{
+  customer_name: object
+  channel: string
+}
+
+**Responses**
+
+- `201` Successful Response
+
+  `application/json`
+
+  {
+    conversation: object (required)
+      {
+        id: string (required)
+        tenant_id: string (required)
+        customer_name: string (required)
+        customer_ref: object
+        channel: string (required)
+        status: string (required)
+        intent: object
+        assigned_agent: object
+        priority: string (required)
+        handoff_reason: object
+        sla_due_at: object
+        last_confidence: object
+        version: integer
+        created_at: string (required)
+        updated_at: string (required)
+        resolved_at: object
+        preview: object
+        message_count: integer
+        last_message_at: object
+        labels: array
+        claimed_by: object
+        claimed_at: object
+        claim_expires_at: object
+        claim_active: boolean
+        sla_breached: boolean
+        needs_response: boolean
+        waiting_since: object
+        first_response_at: object
+        survey_url: object
+        language: object
+        ticket_id: object
+      }
+    widget_token: string (required)
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### POST `/api/widget/sessions/{review_case_id}/messages`
+
+**Send a widget message (channel-id idempotent)**
+
+Send a customer message; channel_message_id replays are idempotent.
+
+Default (sync) returns the completed ``TurnResponse``. With
+``async_mode=true`` the message is enqueued as a turn job and the
+response is ``{"job_id": ..., "status": "queued"}``; the client then
+streams progressive output from ``GET /stream``. Either way, replaying
+the same ``channel_message_id`` never creates a second turn.
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/submission-portal/sessions/{review_case_id}/messages. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `submission_portal`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `review_case_id` | path | yes |  |
+| `async_mode` | query | no |  |
+| `X-Widget-Token` | header | no |  |
+
+**Request body**
+
+`application/json`
+
+{
+  content: string (required)
+  channel_message_id: object
+}
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  object
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### GET `/api/widget/sessions/{review_case_id}/messages`
+
+**List widget conversation messages**
+
+List the customer-visible transcript, resumable through ``cursor``.
+
+Responses carry ``X-Conversation-Status`` (and ``X-CSAT-Survey-URL`` once a
+survey is pending) alongside the shared opaque pagination headers
+``X-Next-Cursor`` / ``X-Has-More``, so a client can poll for the delta and
+resume a dropped read instead of re-fetching the whole transcript.
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/submission-portal/sessions/{review_case_id}/messages. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `submission_portal`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `review_case_id` | path | yes |  |
+| `limit` | query | no |  |
+| `cursor` | query | no |  |
+| `X-Widget-Token` | header | no |  |
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  array of:
+    {
+      id: string (required)
+      role: string (required)
+      author: string (required)
+      content: string (required)
+      metadata: object
+      created_at: string (required)
+      reply_to: object
+    }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### GET `/api/widget/sessions/{review_case_id}/stream`
+
+**SSE stream for the widget conversation's latest turn**
+
+SSE stream of the conversation's latest turn job (Phase 23.1).
+
+Reuses the same token/job events as the operator turn-job stream so the
+widget gets progressive output without holding an API key.
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/submission-portal/sessions/{review_case_id}/stream. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `submission_portal`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `review_case_id` | path | yes |  |
+| `timeout` | query | no |  |
+| `X-Widget-Token` | header | no |  |
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
 ## System
 
 ### GET `/api/system/metrics`
@@ -5187,329 +9158,67 @@ readiness=ok while it initializes.
 
 
 
-## Appeals
-
-### POST `/api/appeals`
-
-**Convert a conversation into a long-cycle ticket (idempotent)**
-
-Convert a conversation into a long-cycle ticket (idempotent). Requires: operator:act.
-
-*Tags:* `appeals`
-
-**Parameters**
-
-| Name | In | Required | Description |
-|------|----|----------|-------------|
-| `X-API-Key` | header | no |  |
-| `X-Tenant-Id` | header | no |  |
-
-**Request body**
-
-`application/json`
-
-{
-  conversation_id: string (required)
-  subject: string (required)
-  description: object
-  priority: string
-}
-
-**Responses**
-
-- `201` Successful Response
-
-  `application/json`
-
-  {
-    id: string (required)
-    tenant_id: string (required)
-    subject: string (required)
-    description: object
-    status: string (required)
-    priority: string (required)
-    assigned_agent: object
-    customer_name: string (required)
-    customer_ref: object
-    source_conversation_id: object
-    created_at: string (required)
-    updated_at: string (required)
-    closed_at: object
-  }
-
-- `422` Validation Error
-
-  `application/json`
-
-  {
-    detail: array
-  }
-
-### GET `/api/appeals`
-
-**List tickets (filter by status or customer reference)**
-
-List tickets (filter by status or customer reference). Requires: conversation:read.
-
-*Tags:* `appeals`
-
-**Parameters**
-
-| Name | In | Required | Description |
-|------|----|----------|-------------|
-| `status` | query | no |  |
-| `customer_ref` | query | no |  |
-| `limit` | query | no |  |
-| `X-API-Key` | header | no |  |
-| `X-Tenant-Id` | header | no |  |
-
-**Responses**
-
-- `200` Successful Response
-
-  `application/json`
-
-  array of:
-    {
-      id: string (required)
-      tenant_id: string (required)
-      subject: string (required)
-      description: object
-      status: string (required)
-      priority: string (required)
-      assigned_agent: object
-      customer_name: string (required)
-      customer_ref: object
-      source_conversation_id: object
-      created_at: string (required)
-      updated_at: string (required)
-      closed_at: object
-    }
-
-- `422` Validation Error
-
-  `application/json`
-
-  {
-    detail: array
-  }
-
-### GET `/api/appeals/{appeal_id}`
-
-**Ticket detail with linked conversations**
-
-Ticket detail with linked conversations. Requires: conversation:read.
-
-*Tags:* `appeals`
-
-**Parameters**
-
-| Name | In | Required | Description |
-|------|----|----------|-------------|
-| `ticket_id` | path | yes |  |
-| `X-API-Key` | header | no |  |
-| `X-Tenant-Id` | header | no |  |
-
-**Responses**
-
-- `200` Successful Response
-
-  `application/json`
-
-  {
-    id: string (required)
-    tenant_id: string (required)
-    subject: string (required)
-    description: object
-    status: string (required)
-    priority: string (required)
-    assigned_agent: object
-    customer_name: string (required)
-    customer_ref: object
-    source_conversation_id: object
-    created_at: string (required)
-    updated_at: string (required)
-    closed_at: object
-    conversations: array
-  }
-
-- `422` Validation Error
-
-  `application/json`
-
-  {
-    detail: array
-  }
-
-### PATCH `/api/appeals/{appeal_id}`
-
-**Update ticket subject/description/priority/assignee**
-
-Update ticket subject/description/priority/assignee. Requires: operator:act.
-
-*Tags:* `appeals`
-
-**Parameters**
-
-| Name | In | Required | Description |
-|------|----|----------|-------------|
-| `ticket_id` | path | yes |  |
-| `X-API-Key` | header | no |  |
-| `X-Tenant-Id` | header | no |  |
-
-**Request body**
-
-`application/json`
-
-{
-  subject: object
-  description: object
-  priority: object
-  assigned_agent: object
-}
-
-**Responses**
-
-- `200` Successful Response
-
-  `application/json`
-
-  {
-    id: string (required)
-    tenant_id: string (required)
-    subject: string (required)
-    description: object
-    status: string (required)
-    priority: string (required)
-    assigned_agent: object
-    customer_name: string (required)
-    customer_ref: object
-    source_conversation_id: object
-    created_at: string (required)
-    updated_at: string (required)
-    closed_at: object
-  }
-
-- `422` Validation Error
-
-  `application/json`
-
-  {
-    detail: array
-  }
-
-### POST `/api/appeals/{appeal_id}/link`
-
-**Link another conversation to the ticket (cross-conversation tracking)**
-
-Link another conversation to the ticket (cross-conversation tracking). Requires: operator:act.
-
-*Tags:* `appeals`
-
-**Parameters**
-
-| Name | In | Required | Description |
-|------|----|----------|-------------|
-| `ticket_id` | path | yes |  |
-| `X-API-Key` | header | no |  |
-| `X-Tenant-Id` | header | no |  |
-
-**Request body**
-
-`application/json`
-
-{
-  conversation_id: string (required)
-}
-
-**Responses**
-
-- `200` Successful Response
-
-  `application/json`
-
-  {
-    id: string (required)
-    tenant_id: string (required)
-    subject: string (required)
-    description: object
-    status: string (required)
-    priority: string (required)
-    assigned_agent: object
-    customer_name: string (required)
-    customer_ref: object
-    source_conversation_id: object
-    created_at: string (required)
-    updated_at: string (required)
-    closed_at: object
-  }
-
-- `422` Validation Error
-
-  `application/json`
-
-  {
-    detail: array
-  }
-
-### POST `/api/appeals/{appeal_id}/transition`
-
-**Move a ticket through its state machine (open/in_progress/closed)**
-
-Move a ticket through its state machine (open/in_progress/closed). Requires: operator:act.
-
-*Tags:* `appeals`
-
-**Parameters**
-
-| Name | In | Required | Description |
-|------|----|----------|-------------|
-| `ticket_id` | path | yes |  |
-| `X-API-Key` | header | no |  |
-| `X-Tenant-Id` | header | no |  |
-
-**Request body**
-
-`application/json`
-
-{
-  status: string (required)
-  reason: object
-}
-
-**Responses**
-
-- `200` Successful Response
-
-  `application/json`
-
-  {
-    id: string (required)
-    tenant_id: string (required)
-    subject: string (required)
-    description: object
-    status: string (required)
-    priority: string (required)
-    assigned_agent: object
-    customer_name: string (required)
-    customer_ref: object
-    source_conversation_id: object
-    created_at: string (required)
-    updated_at: string (required)
-    closed_at: object
-  }
-
-- `422` Validation Error
-
-  `application/json`
-
-  {
-    detail: array
-  }
-
 ## Turn-jobs
 
-### POST `/api/review-cases/{conversation_id}/turn-jobs`
+### POST `/api/conversations/{review_case_id}/turn-jobs`
+
+**Enqueue an async turn**
+
+Enqueue an async turn. Requires: conversation:write.
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}/turn-jobs. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `turn-jobs`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `review_case_id` | path | yes |  |
+| `Idempotency-Key` | header | no |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Request body**
+
+`application/json`
+
+{
+  content: string (required)
+}
+
+**Responses**
+
+- `202` Successful Response
+
+  `application/json`
+
+  {
+    id: string (required)
+    tenant_id: string (required)
+    conversation_id: string (required)
+    status: string (required)
+    attempts: integer (required)
+    max_attempts: integer (required)
+    available_at: string (required)
+    locked_at: object
+    error_code: object
+    created_at: string (required)
+    updated_at: string (required)
+    completed_at: object
+    idempotent_replay: boolean
+    result: object
+  }
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### POST `/api/review-cases/{review_case_id}/turn-jobs`
 
 **Enqueue an async turn**
 
@@ -5521,7 +9230,7 @@ Enqueue an async turn. Requires: conversation:write.
 
 | Name | In | Required | Description |
 |------|----|----------|-------------|
-| `conversation_id` | path | yes |  |
+| `review_case_id` | path | yes |  |
 | `Idempotency-Key` | header | no |  |
 | `X-API-Key` | header | no |  |
 | `X-Tenant-Id` | header | no |  |
@@ -5760,15 +9469,154 @@ Operator workspace. Requires: none (unauthenticated).
 
   string
 
-## V2:conversations
+## V2:review-cases
+
+### GET `/api/v2/conversations`
+
+**List review_cases (cursor-paginated)**
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/v2/review-cases. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `v2:review-cases`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `cursor` | query | no |  |
+| `limit` | query | no |  |
+| `sort` | query | no |  |
+| `status` | query | no |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  object
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### POST `/api/v2/conversations`
+
+**Create a conversation (Idempotency-Key honoured)**
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/v2/review-cases. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `v2:review-cases`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `Idempotency-Key` | header | no |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Request body**
+
+`application/json`
+
+object
+
+**Responses**
+
+- `201` Successful Response
+
+  `application/json`
+
+  object
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### GET `/api/v2/conversations/{review_case_id}`
+
+**Fetch one conversation**
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/v2/review-cases/{review_case_id}. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `v2:review-cases`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `review_case_id` | path | yes |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  object
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
+
+### GET `/api/v2/conversations/{review_case_id}/messages`
+
+**List messages (keyset-paginated)**
+
+Deprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/v2/review-cases/{review_case_id}/messages. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).
+
+*Tags:* `v2:review-cases`
+
+**Parameters**
+
+| Name | In | Required | Description |
+|------|----|----------|-------------|
+| `review_case_id` | path | yes |  |
+| `cursor` | query | no |  |
+| `limit` | query | no |  |
+| `X-API-Key` | header | no |  |
+| `X-Tenant-Id` | header | no |  |
+
+**Responses**
+
+- `200` Successful Response
+
+  `application/json`
+
+  object
+
+- `422` Validation Error
+
+  `application/json`
+
+  {
+    detail: array
+  }
 
 ### GET `/api/v2/review-cases`
 
-**List conversations (cursor-paginated)**
+**List review_cases (cursor-paginated)**
 
 Keyset-paginated queue listing. Cursors are opaque and live in the response body next_cursor field; core fields match v1 exactly (shadow-read contract).
 
-*Tags:* `v2:conversations`
+*Tags:* `v2:review-cases`
 
 **Parameters**
 
@@ -5803,7 +9651,7 @@ Keyset-paginated queue listing. Cursors are opaque and live in the response body
 
 Creates a conversation and records its domain event in the same transaction (transactional outbox). Replaying the same Idempotency-Key returns the original resource with X-Idempotent-Replay: true.
 
-*Tags:* `v2:conversations`
+*Tags:* `v2:review-cases`
 
 **Parameters**
 
@@ -5835,19 +9683,19 @@ object
     detail: array
   }
 
-### GET `/api/v2/review-cases/{conversation_id}`
+### GET `/api/v2/review-cases/{review_case_id}`
 
 **Fetch one conversation**
 
-Single conversation by id; archived conversations resolve transparently, mirroring v1 semantics.
+Single conversation by id; archived review_cases resolve transparently, mirroring v1 semantics.
 
-*Tags:* `v2:conversations`
+*Tags:* `v2:review-cases`
 
 **Parameters**
 
 | Name | In | Required | Description |
 |------|----|----------|-------------|
-| `conversation_id` | path | yes |  |
+| `review_case_id` | path | yes |  |
 | `X-API-Key` | header | no |  |
 | `X-Tenant-Id` | header | no |  |
 
@@ -5867,19 +9715,19 @@ Single conversation by id; archived conversations resolve transparently, mirrori
     detail: array
   }
 
-### GET `/api/v2/review-cases/{conversation_id}/messages`
+### GET `/api/v2/review-cases/{review_case_id}/messages`
 
 **List messages (keyset-paginated)**
 
 Stable keyset pagination over (created_at, seq) so equal-timestamp messages never skip or repeat.
 
-*Tags:* `v2:conversations`
+*Tags:* `v2:review-cases`
 
 **Parameters**
 
 | Name | In | Required | Description |
 |------|----|----------|-------------|
-| `conversation_id` | path | yes |  |
+| `review_case_id` | path | yes |  |
 | `cursor` | query | no |  |
 | `limit` | query | no |  |
 | `X-API-Key` | header | no |  |
@@ -6059,206 +9907,6 @@ Delete a webhook endpoint. Requires: admin:manage.
 **Responses**
 
 - `204` Successful Response
-
-- `422` Validation Error
-
-  `application/json`
-
-  {
-    detail: array
-  }
-
-## Submission_portal
-
-### POST `/api/submission-portal/sessions`
-
-**Open a widget chat session (signed token)**
-
-Open a widget chat session bound to the token's tenant.
-
-*Tags:* `submission_portal`
-
-**Parameters**
-
-| Name | In | Required | Description |
-|------|----|----------|-------------|
-| `X-Widget-Token` | header | no |  |
-
-**Request body**
-
-`application/json`
-
-{
-  customer_name: object
-  channel: string
-}
-
-**Responses**
-
-- `201` Successful Response
-
-  `application/json`
-
-  {
-    conversation: object (required)
-      {
-        id: string (required)
-        tenant_id: string (required)
-        customer_name: string (required)
-        customer_ref: object
-        channel: string (required)
-        status: string (required)
-        intent: object
-        assigned_agent: object
-        priority: string (required)
-        handoff_reason: object
-        sla_due_at: object
-        last_confidence: object
-        version: integer
-        created_at: string (required)
-        updated_at: string (required)
-        resolved_at: object
-        preview: object
-        message_count: integer
-        last_message_at: object
-        labels: array
-        claimed_by: object
-        claimed_at: object
-        claim_expires_at: object
-        claim_active: boolean
-        sla_breached: boolean
-        needs_response: boolean
-        waiting_since: object
-        first_response_at: object
-        survey_url: object
-        language: object
-        ticket_id: object
-      }
-    widget_token: string (required)
-  }
-
-- `422` Validation Error
-
-  `application/json`
-
-  {
-    detail: array
-  }
-
-### POST `/api/submission-portal/sessions/{conversation_id}/messages`
-
-**Send a widget message (channel-id idempotent)**
-
-Send a customer message; channel_message_id replays are idempotent.
-
-Default (sync) returns the completed ``TurnResponse``. With
-``async_mode=true`` the message is enqueued as a turn job and the
-response is ``{"job_id": ..., "status": "queued"}``; the client then
-streams progressive output from ``GET /stream``. Either way, replaying
-the same ``channel_message_id`` never creates a second turn.
-
-*Tags:* `submission_portal`
-
-**Parameters**
-
-| Name | In | Required | Description |
-|------|----|----------|-------------|
-| `conversation_id` | path | yes |  |
-| `async_mode` | query | no |  |
-| `X-Widget-Token` | header | no |  |
-
-**Request body**
-
-`application/json`
-
-{
-  content: string (required)
-  channel_message_id: object
-}
-
-**Responses**
-
-- `200` Successful Response
-
-  `application/json`
-
-  object
-
-- `422` Validation Error
-
-  `application/json`
-
-  {
-    detail: array
-  }
-
-### GET `/api/submission-portal/sessions/{conversation_id}/messages`
-
-**List widget conversation messages**
-
-List widget conversation messages. Requires: X-Widget-Token (signed, no API key).
-
-*Tags:* `submission_portal`
-
-**Parameters**
-
-| Name | In | Required | Description |
-|------|----|----------|-------------|
-| `conversation_id` | path | yes |  |
-| `limit` | query | no |  |
-| `X-Widget-Token` | header | no |  |
-
-**Responses**
-
-- `200` Successful Response
-
-  `application/json`
-
-  array of:
-    {
-      id: string (required)
-      role: string (required)
-      author: string (required)
-      content: string (required)
-      metadata: object
-      created_at: string (required)
-      reply_to: object
-    }
-
-- `422` Validation Error
-
-  `application/json`
-
-  {
-    detail: array
-  }
-
-### GET `/api/submission-portal/sessions/{conversation_id}/stream`
-
-**SSE stream for the widget conversation's latest turn**
-
-SSE stream of the conversation's latest turn job (Phase 23.1).
-
-Reuses the same token/job events as the operator turn-job stream so the
-widget gets progressive output without holding an API key.
-
-*Tags:* `submission_portal`
-
-**Parameters**
-
-| Name | In | Required | Description |
-|------|----|----------|-------------|
-| `conversation_id` | path | yes |  |
-| `timeout` | query | no |  |
-| `X-Widget-Token` | header | no |  |
-
-**Responses**
-
-- `200` Successful Response
-
-  `application/json`
-
-
 
 - `422` Validation Error
 
