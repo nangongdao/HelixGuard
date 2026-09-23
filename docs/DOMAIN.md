@@ -194,7 +194,7 @@ P4/P5（2.29.0）按计划把「数据库对象 + 测试/基线」迁完。当�
 
 这两项与 §4「明确不动的标识符」性质不同：§4 是**判定为不改**，本节是**判定为改、但排在域迁移之后**。
 
-**P6 收口后仍为旧域词、且判定为「改但另起批次」的面**：测试/harness 的**文件名**与视觉/截图的**场景名**——`tests/ui_knowledge.py`、`tests/ui_knowledge_island.py`（CI 引用）、`tests/frontend/knowledge*.test.js`、`desktop/verify_knowledge_island_desktop.py`、`tests/baselines/knowledge-view.png`、`scripts/visual_gate.py` 的 `"knowledge-view"`、`scripts/readme_screenshots.py` 的 `operator-workspace` / `knowledge-operations` / `operator-handoff`。它们属 P5 的「测试/基线面」，但改名会牵动**基线 PNG 的文件名**，等于强制重锚一次视觉门禁——与 P6 追求的「像素中性」直接冲突，故独立成批。
+**测试/harness 文件名与视觉/截图场景名（2.31.0 已收口）。** 原登记为「改但另起批次」，理由是「改名会牵动基线 PNG 的文件名 = 强制重锚一次视觉门禁」。**该前提经实测为误判**：`visual_gate.py:103` 用 `BASELINES / f"{name}.png"` 推出基线路径，所以**场景名与 PNG 同步 `git mv` 是纯粹的名义操作**——字节不变、像素不变。本轮 8 个文件 `git mv` + 3 张截图与 1 张基线 PNG 重命名，`visual_gate` 四面仍 **0.00%**，且 `policy-view.png` 的 blob 哈希与 `origin/main:tests/baselines/knowledge-view.png` **完全相同**（`c64bce83…`），从二进制层面证明确实没有重锚。改名面：`tests/{ui_policy,ui_policy_island}.py`、`tests/frontend/policy{,-view}.test.js`、`tests/test_policy_search_cache.py`、`desktop/verify_{policy_island,review_case_dialog}_desktop.py`、`tests/baselines/policy-view.png`、`scripts/visual_gate.py` 的 `"policy-view"`、`scripts/readme_screenshots.py` 与 `docs/assets/screenshots/` 的 `reviewer-workspace` / `reviewer-handoff` / `policy-operations`（这三张是**用户可见产物**，同时更新 `README.md` 的图片引用）。**刻意保留**：`helix-knowledge-*` 事件名（`app/static/js/policy-view.js:23-24` 是真事件桥，非散文）与 `"conversation:read"/"conversation:write"` 权限串（`app/security.py:28,47,54`）——这正是 R8⑥ 的判据，改名时只动散文与文件名，不动契约串。
 
 **P2 的两条方法学教训**（后续阶段直接复用）：
 

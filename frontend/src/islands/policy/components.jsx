@@ -6,7 +6,7 @@
  * data/query lifecycle and the legacy write bridge.
  *
  * The legacy DOM id + class contract (policyEditor/policyTitle/…) is
- * preserved so the ui_knowledge and axe keyboard-path locators resolve.
+ * preserved so the ui_policy and axe keyboard-path locators resolve.
  */
 
 import React, { useEffect, useRef } from "react";

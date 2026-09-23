@@ -2,6 +2,51 @@
 
 所有版本遵循[语义化版本](https://semver.org)。API 变更遵循 `docs/API_POLICY.md`(响应体只增不改、弃用需 `Deprecation`/`Sunset` 头 + 至少一个次版本过渡、每次变更记录于此)。
 
+## 2.31.0 — 域迁移 P7：测试/harness 文件名与视觉场景名收口 (2026-09-23)
+
+本版收口域迁移的**最后一项登记面**：测试与 harness 的**文件名**、以及视觉/截图的**场景名**仍是旧域词。此项此前被推迟两个版本，登记理由是「改名会牵动基线 PNG 的文件名，等于强制重锚一次视觉门禁，与像素中性的目标冲突」。
+
+**该前提经实测证伪。** `scripts/visual_gate.py:103` 把基线路径推成 `BASELINES / f"{name}.png"`，所以**场景名与其 PNG 同步 `git mv` 是纯粹的名义操作**——字节不变、像素不变。四面跑下来 **0.00%**，且 `policy-view.png` 的 `git hash-object` 与旧 `knowledge-view.png` 逐一相同（`c64bce839ba71f8de48b5d446e27a521a24c4c82`）。这比「像素差 0」更强：它证明磁盘上的字节从未被重写。据此新增机制教训 **R8⑦**。
+
+### 改名面（8 文件 `git mv`）
+
+| 旧 | 新 |
+| --- | --- |
+| `tests/ui_knowledge.py` | `tests/ui_policy.py` |
+| `tests/ui_knowledge_island.py` | `tests/ui_policy_island.py` |
+| `tests/frontend/knowledge.test.js` | `tests/frontend/policy.test.js` |
+| `tests/frontend/knowledge-view.test.js` | `tests/frontend/policy-view.test.js` |
+| `tests/test_knowledge_search_cache.py` | `tests/test_policy_search_cache.py` |
+| `desktop/verify_knowledge_island_desktop.py` | `desktop/verify_policy_island_desktop.py` |
+| `desktop/verify_conversation_dialog_desktop.py` | `desktop/verify_review_case_dialog_desktop.py` |
+| `tests/baselines/knowledge-view.png` | `tests/baselines/policy-view.png` |
+
+引用同步：`.github/workflows/ci.yml:386,394`（CI 实际调用这两个 suite）、`scripts/visual_gate.py` 的场景名 `"knowledge-view"` → `"policy-view"`、被改名文件的自引用 docstring/注释、`frontend/src/islands/policy-island.jsx` 与 `policy/components.jsx` 里指向 harness 的注释。
+
+### 用户可见产物同步改名（含 README 引用）
+
+`scripts/readme_screenshots.py` 的三处场景名及其产物：`operator-workspace` → `reviewer-workspace`、`operator-handoff` → `reviewer-handoff`、`knowledge-operations` → `policy-operations`，`docs/assets/screenshots/` 下三张 PNG 同步 `git mv`，并更新 `README.md` 的三处 `<img>`／Markdown 引用（`artifacts/readme_link_check.py` 复核 44 个相对目标全部存在）。
+
+### 刻意不改（R8⑥ 判据：这个名字有没有外部消费者）
+
+- **`helix-knowledge-*` 事件名**（`app/static/js/policy-view.js:23-24` 的 `helix-knowledge-refresh` / `-new` / `-save` / `-saved` / `-action`）：这是 legacy 与 React 岛之间的**真实事件桥**，岛在 `frontend/src/islands/policy/domain.js:44-46` 监听同名。改名会让写桥断开，且属 wire 契约，须走弃用窗口。
+- **`"conversation:read"` / `"conversation:write"` 权限串**（`app/security.py:28,47,54`）：契约常量，`tests/test_wire_contract_constants.py` 正是为此设。
+
+这两者与散文、注释在**同一批文件里相邻出现**，所以本轮只动散文、注释、文件名与输出串（如 `ui_policy.py` 的 `print("Policy operations browser acceptance passed")`），不动任何契约串。
+
+### 验证
+
+- `scripts/visual_gate.py`（干净库）**4/4 面 0.00%**，含改名后的 `policy-view`。
+- `policy-view.png` blob 哈希 == `origin/main:tests/baselines/knowledge-view.png`（`c64bce83…`）→ **未重锚**，二进制级证明。
+- `tests/ui_policy.py`、`tests/ui_policy_island.py` 实跑 exit 0。
+- `pytest tests/test_domain_path_renames.py tests/test_api_docs.py tests/test_wire_contract_constants.py tests/test_policy_search_cache.py tests/test_readme_claims.py` → 28 例全绿。
+- `ruff check app tests scripts desktop clients` + `ruff format --check app tests scripts`（钉版 0.9.9）全绿。
+- `artifacts/readme_link_check.py` → 44 个相对目标全部存在。
+
+### 未覆盖（有意为之）
+
+`docs/` 下的**日期化历史档案**（`CHANGELOG.md` 历史条目、`docs/RELEASE_*.md`、`docs/PHASE_21_COMPLETION.md`）中出现的旧文件名**不改写**——按 `docs/DOMAIN.md` §6 的约定，它们记录的是发布当时的事实，改掉反而失真。
+
 ## 2.30.0 — 域迁移 P6：DOM/标识符面收口与契约常量守护 (2026-09-23)
 
 本版把 [`docs/DOMAIN.md`](docs/DOMAIN.md) §5.1 登记的第一处**未收口面**（DOM id / class / 模块名 / i18n 键）迁到审核域，并顺带实施 §7.3 登记的 **R8④ 契约常量守护**（此前「建议补一条断言，本版未实施」）。**wire 契约不变**：HTTP 路径、响应体键、请求模型字段、权限串、webhook 事件名、请求头一律保持旧名——OpenAPI 快照的 diff **只有版本号一行**，这一点本身就是「API 面零改动」的实证。

@@ -1,6 +1,6 @@
 # Helix Guard API Reference
 
-Version: `2.30.0`
+Version: `2.31.0`
 
 This reference is generated from the OpenAPI contract snapshot (`api/openapi.json`) by `scripts/api_docs.py`. The error contract is documented in [ERRORS.md](../ERRORS.md); versioning and deprecation policy in [API_POLICY.md](../API_POLICY.md).
 

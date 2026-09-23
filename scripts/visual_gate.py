@@ -213,7 +213,7 @@ def main(argv: list[str] | None = None) -> int:
 
         page.locator('.nav-item[data-view="policy"]').click()
         page.wait_for_selector("#policyList[aria-busy='false']", timeout=15000)
-        results.append(compare("knowledge-view", capture(page, "knowledge-view"), update))
+        results.append(compare("policy-view", capture(page, "policy-view"), update))
 
         mobile = context.new_page()
         mobile.set_viewport_size({"width": 390, "height": 844})

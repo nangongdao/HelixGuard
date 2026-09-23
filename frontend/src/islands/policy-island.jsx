@@ -10,7 +10,7 @@
  * Editor writes go through legacy via helix-knowledge-save/-review so the
  * api()/showToast()/reload lifecycle stays in one place; the island keeps
  * the legacy DOM id + label contract (policyEditor/policyTitle/…) so
- * the ui_knowledge and axe keyboard-path locators keep resolving.
+ * the ui_policy and axe keyboard-path locators keep resolving.
  *
  * This file is the composition root: the pure domain helpers, the reducer
  * and the presentational components live under ./policy/ (the domain

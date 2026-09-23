@@ -1,5 +1,5 @@
 // Helix Guard — policy view lifecycle unit tests (D3 long tail slice 17)
-// Run: node --test tests/frontend/knowledge-view.test.js
+// Run: node --test tests/frontend/policy-view.test.js
 
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";

@@ -1,6 +1,6 @@
-"""Knowledge authoring journey in the DESKTOP SHELL (islands mounted).
+"""Policy authoring journey in the DESKTOP SHELL (islands mounted).
 
-ui_knowledge.py drives the same journey in web mode against the legacy
+ui_policy.py drives the same journey in web mode against the legacy
 renderer; this variant boots the shell so the policy island owns the
 whole surface (summary, filter toolbar, article list, draft editor) and
 proves the authoring loop against the real backend: create draft →
@@ -69,7 +69,7 @@ def open_view(page: Page, view: str, view_id: str) -> None:
         raise last_error
 
 
-def open_knowledge_island(page: Page) -> None:
+def open_policy_island(page: Page) -> None:
     """Click the policy nav item and wait for the island's own list.
 
     The island fetches /api/policy at boot (before the nav click), so
@@ -104,7 +104,7 @@ def main() -> None:
         page.goto(BASE_URL, wait_until="domcontentloaded")
         page.evaluate("() => window.dispatchEvent(new Event('helix-backend-ready'))")
         expect(page.get_by_text("demo.admin", exact=False).first).to_be_visible(timeout=30000)
-        open_knowledge_island(page)
+        open_policy_island(page)
 
         island = page.locator("#policyReactIsland")
 
