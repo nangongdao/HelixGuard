@@ -115,7 +115,7 @@ class GateCoverageTests(unittest.TestCase):
 
     def test_entry_points_are_scanned(self) -> None:
         names = {path.name for path in frontend_gate._entry_point_paths()}
-        self.assertEqual(names, {"app.js", "widget-app.js"})
+        self.assertEqual(names, {"app.js", "submission-portal-app.js"})
 
     def test_entry_point_ceiling_is_enforced(self) -> None:
         # app.js is 477 lines against a 500 ceiling. Tightening below its

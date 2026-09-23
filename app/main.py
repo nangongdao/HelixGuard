@@ -36,7 +36,7 @@ configure_logging()
 configure_tracing()
 logger = logging.getLogger("helix")
 IDEMPOTENCY_KEY_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{8,128}$")
-APP_VERSION = "2.28.0"
+APP_VERSION = "2.30.0"
 
 
 def _conversation_quota_exceeded(database: Any, tenant_id: str) -> str | None:
@@ -54,7 +54,7 @@ def _conversation_quota_exceeded(database: Any, tenant_id: str) -> str | None:
         return None
     with database.connect() as conn:
         row = conn.execute(
-            "SELECT COUNT(*) AS n FROM conversations WHERE tenant_id = ? AND status != 'resolved'",
+            "SELECT COUNT(*) AS n FROM review_cases WHERE tenant_id = ? AND status != 'resolved'",
             (tenant_id,),
         ).fetchone()
     count = int(row["n"]) if row else 0
@@ -203,16 +203,17 @@ def message_out(row: dict[str, Any]) -> MessageOut:
     payload.pop("seq", None)
     payload.pop("channel_message_id", None)
     payload.pop("operator_idempotency_key", None)
+    payload.pop("reviewer_idempotency_key", None)
     return MessageOut(**payload)
 
 
-def _message_intent_for_quality(
-    database: Any, tenant_id: str, conversation_id: str, message_id: str
+def _message_risk_category_for_quality(
+    database: Any, tenant_id: str, review_case_id: str, message_id: str
 ) -> str | None:
-    """Best-effort intent lookup for a feedback-rated message.
+    """Best-effort risk-category lookup for a feedback-rated message.
 
-    The assistant message's metadata carries the turn's intent (written by the
-    orchestrator during routing).  Returns ``None`` when the metadata is
+    The assistant message's metadata carries the routed risk category under the
+    existing ``intent`` wire key.  Returns ``None`` when the metadata is
     missing so the aggregator falls back to the ``unknown`` bucket.
     """
     try:
@@ -227,7 +228,7 @@ def _message_intent_for_quality(
         intent = metadata.get("intent")
         return str(intent) if intent else None
     except Exception:
-        logger.exception("failed to resolve intent for quality feedback")
+        logger.exception("failed to resolve risk category for quality feedback")
         return None
 
 

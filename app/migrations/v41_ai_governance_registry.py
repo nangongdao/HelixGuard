@@ -102,7 +102,7 @@ def migrate(connection: sqlite3.Connection) -> None:
         CREATE TABLE IF NOT EXISTS ai_online_feedback (
             id TEXT PRIMARY KEY,
             tenant_id TEXT NOT NULL REFERENCES tenants(id),
-            conversation_id TEXT,
+            review_case_id TEXT,
             source TEXT NOT NULL,
             redacted_json TEXT NOT NULL,
             review_status TEXT NOT NULL DEFAULT 'pending_review',

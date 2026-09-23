@@ -1,0 +1,268 @@
+"""Backlog 申诉单化 — 列表 / 详情 / 状态机前端闭环(浏览器验收)。
+
+后端 `POST/GET /api/appeals`、`GET/PATCH /api/appeals/{id}`、
+`POST /api/appeals/{id}/transition|link` 已就绪;本轮把"仅单向创建"升级为
+生命周期 UI:workspace「队列/申诉单」tab、申诉单列表(状态过滤)、申诉单详情
+(字段/关联审核单/状态机按钮)、transition 状态机(open→in_progress/closed、→
+closed、closed→open)、关联当前审核单。
+
+本测在真实审核单里闭环验证:
+1. 打开审核单 → 点「转申诉单」(接受 prompt 主题)→ 申诉单徽章出现;
+2. 切到「申诉单」tab → 列表含该申诉单;点击进详情;
+3. 状态机:待处理 →「开始处理」→ 处理中 →「关闭」→ 已关闭 →「重开」→ 待处理;
+4. 「关联当前审核单」把另一个审核单挂到本申诉单,详情关联列表出现;
+5. 全程无 console/page/HTTP 4xx+ 错误。
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import re
+import urllib.request
+from pathlib import Path
+from uuid import uuid4
+
+from playwright.sync_api import Error as PlaywrightError
+from playwright.sync_api import Page, expect, sync_playwright
+
+BASE_URL = os.getenv("HELIX_BASE_URL", "http://127.0.0.1:8765").rstrip("/")
+ARTIFACTS = Path(__file__).resolve().parents[1] / "artifacts"
+
+
+def open_new_conversation(page: Page, name: str) -> None:
+    page.get_by_role("button", name="新建").click()
+    expect(page.get_by_role("heading", name="新建审核单")).to_be_visible()
+    page.get_by_label("提交方名称").fill(name)
+    with page.expect_response(
+        lambda response: (
+            response.url.endswith("/api/review-cases") and response.request.method == "POST"
+        )
+    ) as response_info:
+        page.get_by_role("button", name="创建审核单").click()
+    assert response_info.value.ok, f"审核单创建失败: {response_info.value.status}"
+    conv_id = response_info.value.json()["id"]
+    # Wait for the UI to finish selecting the new conversation BEFORE promoting
+    # priority.  The newReviewCaseForm submit handler calls loadDetail then
+    # refreshAll; if we PATCH mid-flight, the background refresh can re-select
+    # a different top row and overwrite the title.
+    expect(page.locator("#reviewCaseTitle")).to_have_text(name)
+    # Promote to high priority so the seeded conversation stays at the top of
+    # the queue regardless of how many open rows the shared scratch DB already
+    # holds (load-test seeding promotes rows to high).
+    api_patch(f"/api/review-cases/{conv_id}", {"priority": "high"})
+
+
+def api_patch(path: str, body: dict) -> dict:
+    """PATCH helper — used to promote a conversation to high priority."""
+    request = urllib.request.Request(
+        f"{BASE_URL}{path}",
+        data=json.dumps(body).encode("utf-8"),
+        headers={"Content-Type": "application/json", "X-API-Key": "helix-demo-key"},
+        method="PATCH",
+    )
+    with urllib.request.urlopen(request, timeout=15) as response:
+        return json.loads(response.read().decode("utf-8"))
+
+
+def main() -> None:
+    ARTIFACTS.mkdir(parents=True, exist_ok=True)
+    console_errors: list[str] = []
+    page_errors: list[str] = []
+    http_errors: list[str] = []
+    failed_requests: list[str] = []
+
+    def record_console(message) -> None:
+        if message.type == "error":
+            console_errors.append(f"{message.text} @ {message.location}")
+
+    def record_failed_request(request) -> None:
+        failure = request.failure or ""
+        if request.url.startswith(f"{BASE_URL}/api/events/queue") and "ERR_ABORTED" in failure:
+            return
+        failed_requests.append(f"{request.method} {request.url} {failure}")
+
+    def on_dialog(dialog) -> None:
+        if dialog.type == "prompt":
+            dialog.accept("退款单提交失败申诉单")
+        else:
+            dialog.dismiss()
+
+    with sync_playwright() as playwright:
+        try:
+            browser = playwright.chromium.launch(headless=True)
+        except PlaywrightError:
+            browser = playwright.chromium.launch(channel="msedge", headless=True)
+        context = browser.new_context(viewport={"width": 1440, "height": 900})
+        page = context.new_page()
+        page.on("console", record_console)
+        page.on("pageerror", lambda error: page_errors.append(str(error)))
+        page.on("requestfailed", record_failed_request)
+        page.on("dialog", on_dialog)
+        page.on(
+            "response",
+            lambda response: (
+                http_errors.append(f"{response.request.method} {response.status} {response.url}")
+                if response.status >= 400
+                else None
+            ),
+        )
+        page.goto(BASE_URL)
+        expect(page.locator("#reviewerIdentity")).to_contain_text("demo.admin")
+        expect(page.get_by_role("heading", name="审核队列")).to_be_visible()
+
+        run_id = uuid4().hex[:6]
+        open_new_conversation(page, f"申诉单验收-{run_id}")
+
+        # 打开审核单后「转申诉单」可用 → 创建,徽章出现。
+        ticket_button = page.locator("#appealBtn")
+        expect(ticket_button).to_be_visible()
+        with page.expect_response(
+            lambda response: (
+                response.url.endswith("/api/appeals") and response.request.method == "POST"
+            )
+        ) as create_info:
+            ticket_button.click()
+        create_response = create_info.value
+        assert create_response.ok, (
+            f"转申诉单失败: {create_response.status} {create_response.text()}"
+        )
+        appeal_id = create_response.json()["id"]
+        expect(page.locator("#appealBadge")).to_be_visible()
+        expect(page.locator("#appealBadge")).to_contain_text(appeal_id)
+
+        # 切到「申诉单」tab → 列表含该申诉单。matcher 收紧为列表 URL(/api/appeals
+        # 或 ?status= 查询),避免命中 enrichTicketBadge 安排的 GET /api/appeals/{id}。
+        with page.expect_response(
+            lambda response: (
+                bool(re.search(r"/api/appeals(?:\?|$)", response.url))
+                and response.request.method == "GET"
+            )
+        ):
+            page.get_by_role("tab", name="申诉单").click()
+        expect(page.locator("#appealPane")).to_be_visible()
+        ticket_row = page.locator(f".appeal-row[data-appeal-id='{appeal_id}']")
+        expect(ticket_row).to_contain_text("退款单提交失败申诉单")
+        page.screenshot(path=ARTIFACTS / "ui-ticket-list.png", full_page=True)
+
+        # 进详情:待处理 →「开始处理」。
+        with page.expect_response(
+            lambda response: (
+                response.url.endswith(f"/api/appeals/{appeal_id}")
+                and response.request.method == "GET"
+            )
+        ):
+            ticket_row.click()
+        expect(page.locator("#appealDetailView")).to_be_visible()
+        expect(page.locator("#appealDetailStatus")).to_have_text("待处理")
+        expect(page.locator("#appealDetailTitle")).to_contain_text(appeal_id)
+        expect(page.get_by_role("button", name="开始处理")).to_be_visible()
+
+        with page.expect_response(
+            lambda response: (
+                response.url.endswith(f"/api/appeals/{appeal_id}/transition")
+                and response.request.method == "POST"
+            )
+        ) as transition_info:
+            page.get_by_role("button", name="开始处理").click()
+        assert transition_info.value.ok, transition_info.value.text()
+        assert transition_info.value.json()["status"] == "in_progress", transition_info.value.json()
+        expect(page.locator("#appealDetailStatus")).to_have_text("处理中")
+        expect(page.get_by_role("button", name="关闭")).to_be_visible()
+
+        # 关闭 → 已关闭 → 重开。
+        with page.expect_response(
+            lambda response: (
+                response.url.endswith(f"/api/appeals/{appeal_id}/transition")
+                and response.request.method == "POST"
+            )
+        ) as close_info:
+            page.get_by_role("button", name="关闭").click()
+        assert close_info.value.json()["status"] == "closed", close_info.value.json()
+        expect(page.locator("#appealDetailStatus")).to_have_text("已关闭")
+        expect(page.get_by_role("button", name="重开")).to_be_visible()
+        page.screenshot(path=ARTIFACTS / "ui-ticket-closed.png", full_page=True)
+
+        with page.expect_response(
+            lambda response: (
+                response.url.endswith(f"/api/appeals/{appeal_id}/transition")
+                and response.request.method == "POST"
+            )
+        ) as reopen_info:
+            page.get_by_role("button", name="重开").click()
+        assert reopen_info.value.json()["status"] == "open", reopen_info.value.json()
+        expect(page.locator("#appealDetailStatus")).to_have_text("待处理")
+
+        # 切回队列 tab(关闭申诉单详情)→ 打开第二个审核单。
+        page.get_by_role("tab", name="队列").click()
+        expect(page.locator("#appealDetailView")).to_be_hidden()
+        expect(page.locator("#appealPane")).to_be_hidden()
+        open_new_conversation(page, f"申诉单关联-{run_id}")
+
+        # 再切申诉单 tab 进详情:selectedId=第二个审核单(未关联)→「关联当前审核单」可见。
+        page.get_by_role("tab", name="申诉单").click()
+        expect(page.locator("#appealPane")).to_be_visible()
+        with page.expect_response(
+            lambda response: (
+                response.url.endswith(f"/api/appeals/{appeal_id}")
+                and response.request.method == "GET"
+            )
+        ):
+            page.locator(f".appeal-row[data-appeal-id='{appeal_id}']").click()
+        expect(page.locator("#appealDetailView")).to_be_visible()
+        expect(page.get_by_role("button", name="关联当前审核单")).to_be_visible()
+        with page.expect_response(
+            lambda response: (
+                response.url.endswith(f"/api/appeals/{appeal_id}/link")
+                and response.request.method == "POST"
+            )
+        ) as link_info:
+            page.get_by_role("button", name="关联当前审核单").click()
+        assert link_info.value.ok, f"关联失败: {link_info.value.status} {link_info.value.text()}"
+        expect(page.locator("#appealDetailConvs")).to_contain_text("申诉单关联")
+        expect(page.locator("#appealDetailConvs .appeal-conv-row")).to_have_count(2)
+
+        # 点详情关联列表中「申诉单验收」那行 → 跳回队列并打开该审核单(回归
+        # jumpToTicketConversation:不得因 selectedId 为空抢开队列第一条,
+        # 也不得停在详情)。has_text 按提交方名锁定行,不依赖后端排序。
+        with page.expect_response(
+            lambda response: (
+                response.url.startswith(f"{BASE_URL}/api/review-cases/")
+                and response.request.method == "GET"
+            )
+        ):
+            page.locator("#appealDetailConvs .appeal-conv-row", has_text="申诉单验收").click()
+        expect(page.locator("#appealDetailView")).to_be_hidden()
+        expect(page.locator("#appealPane")).to_be_hidden()
+        expect(page.get_by_role("heading", name="审核队列")).to_be_visible()
+        expect(page.locator("#reviewCaseTitle")).to_contain_text("申诉单验收")
+
+        # 切回队列 tab:申诉单详情视图被关闭,队列恢复。
+        page.get_by_role("tab", name="队列").click()
+        expect(page.locator("#appealDetailView")).to_be_hidden()
+        expect(page.locator("#appealPane")).to_be_hidden()
+        expect(page.get_by_role("heading", name="审核队列")).to_be_visible()
+        page.screenshot(path=ARTIFACTS / "ui-ticket-detail.png", full_page=True)
+
+        browser.close()
+
+    assert not console_errors, f"控制台错误: {console_errors}"
+    assert not page_errors, f"未捕获页面错误: {page_errors}"
+    assert not http_errors, f"HTTP 4xx+ 错误: {http_errors}"
+    assert not failed_requests, f"失败请求: {failed_requests}"
+    print(
+        json.dumps(
+            {
+                "status": "ok",
+                "ticket_id": appeal_id,
+                "list": str(ARTIFACTS / "ui-ticket-list.png"),
+                "closed": str(ARTIFACTS / "ui-ticket-closed.png"),
+                "detail": str(ARTIFACTS / "ui-ticket-detail.png"),
+            },
+            ensure_ascii=False,
+        )
+    )
+
+
+if __name__ == "__main__":
+    main()

@@ -91,7 +91,7 @@ class Settings:
     webhook_delivery_interval_seconds: int = 30
     claim_ttl_seconds: int = 900
     # ROADMAP 18.3: conversation archiving. The turn worker moves resolved
-    # conversations closed more than ``conversation_archive_after_days`` ago
+    # review_cases closed more than ``conversation_archive_after_days`` ago
     # into the read-only archive tier, bounded per run by the batch size.
     conversation_archive_enabled: bool = True
     conversation_archive_after_days: int = 180
@@ -127,7 +127,7 @@ class Settings:
     channel_webhooks_file: Path | None = None
     channel_webhook_replay_window_seconds: int = 300
     # Backlog (CSAT): public base URL prefix used to build absolute customer
-    # survey links. When empty, resolution surfaces a relative path
+    # survey links. When empty, verdict surfaces a relative path
     # (``/api/qa-spot-check/{token}``); production should set this so emailed
     # survey links point at the right host.
     csat_base_url: str = ""

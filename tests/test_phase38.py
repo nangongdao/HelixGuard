@@ -23,7 +23,7 @@ from app.channel_webhooks import (
 )
 from app.config import Settings
 from app.database import Database
-from app.domain import ConversationStatus
+from app.domain import ReviewCaseStatus
 from app.main import create_app
 from app.migrations import all_migrations, migration_schema_version
 
@@ -152,9 +152,9 @@ class ChannelPersistenceTests(unittest.TestCase):
         self.database.close()
         self._tmp.cleanup()
 
-    def test_concurrent_first_delivery_maps_to_one_conversation(self) -> None:
+    def test_concurrent_first_delivery_maps_to_one_review_case(self) -> None:
         def create() -> tuple[str, bool]:
-            conversation, created = self.database.get_or_create_channel_conversation(
+            review_case, created = self.database.get_or_create_channel_conversation(
                 "channel-concurrency",
                 "account-1",
                 "thread-1",
@@ -164,11 +164,11 @@ class ChannelPersistenceTests(unittest.TestCase):
                 "channel:account-1",
                 120,
             )
-            return conversation["id"], created
+            return review_case["id"], created
 
         with ThreadPoolExecutor(max_workers=8) as executor:
             results = list(executor.map(lambda _index: create(), range(8)))
-        self.assertEqual(len({conversation_id for conversation_id, _ in results}), 1)
+        self.assertEqual(len({review_case_id for review_case_id, _ in results}), 1)
         self.assertEqual(sum(1 for _, created in results if created), 1)
         with self.database.connect() as connection:
             row = connection.execute(
@@ -178,7 +178,7 @@ class ChannelPersistenceTests(unittest.TestCase):
         self.assertEqual(row["n"], 1)
 
     def test_channel_thread_tenant_guard_rejects_cross_tenant_reference(self) -> None:
-        conversation = self.database.create_conversation(
+        review_case = self.database.create_review_case(
             "channel-concurrency", "Guarded", "CUST-G", "formal_chat", "test", 120
         )
         self.database.ensure_tenant("other-channel-tenant")
@@ -186,14 +186,14 @@ class ChannelPersistenceTests(unittest.TestCase):
             with self.database.connect() as connection:
                 connection.execute(
                     """INSERT INTO channel_threads
-                    (tenant_id, account_id, external_thread_id, conversation_id,
+                    (tenant_id, account_id, external_thread_id, review_case_id,
                      created_at, updated_at)
                     VALUES (?, ?, ?, ?, ?, ?)""",
                     (
                         "other-channel-tenant",
                         "account-1",
                         "thread-guard",
-                        conversation["id"],
+                        review_case["id"],
                         "2026-08-18T00:00:00+00:00",
                         "2026-08-18T00:00:00+00:00",
                     ),
@@ -274,15 +274,15 @@ class ChannelWebhookEndToEndTests(unittest.TestCase):
         self.assertEqual(completed.json()["status"], "completed")
         self.assertTrue(completed.json()["idempotent_replay"])
 
-        conversation_id = first_body["conversation_id"]
-        messages = self.services.database.list_messages("demo", conversation_id)
+        review_case_id = first_body["conversation_id"]
+        messages = self.services.database.list_messages("demo", review_case_id)
         customer_messages = [row for row in messages if row["role"] == "customer"]
         self.assertEqual(len(customer_messages), 1)
         self.assertEqual(customer_messages[0]["channel_message_id"], payload["message_id"])
         with self.services.database.connect() as connection:
             jobs = connection.execute(
-                "SELECT COUNT(*) AS n FROM turn_jobs WHERE tenant_id=? AND conversation_id=?",
-                ("demo", conversation_id),
+                "SELECT COUNT(*) AS n FROM turn_jobs WHERE tenant_id=? AND review_case_id=?",
+                ("demo", review_case_id),
             ).fetchone()
         self.assertEqual(jobs["n"], 1)
 
@@ -293,13 +293,13 @@ class ChannelWebhookEndToEndTests(unittest.TestCase):
         changed_thread = self._post(_payload(thread_id="provider-thread-2"))
         self.assertEqual(changed_thread.status_code, 409, changed_thread.text)
 
-    def test_thread_cannot_change_customer_identity(self) -> None:
+    def test_thread_cannot_change_submitter_identity(self) -> None:
         first = self._post(_payload())
         self.assertEqual(first.status_code, 202, first.text)
         second = self._post(_payload(message_id="provider-message-2", customer_id="CUST-OTHER"))
         self.assertEqual(second.status_code, 409, second.text)
 
-    def test_bad_unknown_and_stale_auth_create_no_conversation(self) -> None:
+    def test_bad_unknown_and_stale_auth_create_no_review_case(self) -> None:
         payload = _payload()
         bad = self._post(payload, secret=OTHER_SECRET)
         unknown = self._post(payload, account_id="not-configured")
@@ -342,55 +342,55 @@ class ChannelWebhookEndToEndTests(unittest.TestCase):
         self.assertEqual(first.status_code, 202, first.text)
         self.assertEqual(second.status_code, 202, second.text)
         self.assertNotEqual(first.json()["conversation_id"], second.json()["conversation_id"])
-        first_conversation = self.services.database.get_conversation(
+        first_conversation = self.services.database.get_review_case(
             "demo", first.json()["conversation_id"]
         )
-        second_conversation = self.services.database.get_conversation(
+        second_conversation = self.services.database.get_review_case(
             "other-tenant", second.json()["conversation_id"]
         )
         self.assertIsNotNone(first_conversation)
         self.assertIsNotNone(second_conversation)
 
-    def test_new_message_reopens_mapped_resolved_conversation(self) -> None:
+    def test_new_message_reopens_mapped_resolved_review_case(self) -> None:
         first = self._post(_payload())
-        conversation_id = first.json()["conversation_id"]
-        resolved = self.services.database.transition_conversation(
+        review_case_id = first.json()["conversation_id"]
+        resolved = self.services.database.transition_review_case(
             "demo",
-            conversation_id,
-            [ConversationStatus.OPEN],
-            ConversationStatus.RESOLVED,
+            review_case_id,
+            [ReviewCaseStatus.OPEN],
+            ReviewCaseStatus.RESOLVED,
         )
         self.assertIsNotNone(resolved)
         second = self._post(_payload(message_id="provider-message-2"))
         self.assertEqual(second.status_code, 202, second.text)
-        self.assertEqual(second.json()["conversation_id"], conversation_id)
-        conversation = self.services.database.get_conversation("demo", conversation_id)
-        self.assertEqual(conversation["status"], "open")
+        self.assertEqual(second.json()["conversation_id"], review_case_id)
+        review_case = self.services.database.get_review_case("demo", review_case_id)
+        self.assertEqual(review_case["status"], "open")
 
-    def test_reopening_a_thread_respects_active_conversation_quota(self) -> None:
+    def test_reopening_a_thread_respects_active_review_case_quota(self) -> None:
         first = self._post(_payload())
         self.assertEqual(first.status_code, 202, first.text)
-        conversation_id = first.json()["conversation_id"]
-        conversation = self.services.database.get_conversation("demo", conversation_id)
-        assert conversation is not None
-        resolved = self.services.database.transition_conversation(
+        review_case_id = first.json()["conversation_id"]
+        review_case = self.services.database.get_review_case("demo", review_case_id)
+        assert review_case is not None
+        resolved = self.services.database.transition_review_case(
             "demo",
-            conversation_id,
-            [conversation["status"]],
-            ConversationStatus.RESOLVED,
+            review_case_id,
+            [review_case["status"]],
+            ReviewCaseStatus.RESOLVED,
         )
         self.assertIsNotNone(resolved)
         self.services.database.set_tenant_quota("demo", conversation_quota=1)
-        self.services.database.create_conversation(
+        self.services.database.create_review_case(
             "demo", "Active Customer", "CUST-ACTIVE", "web", "test", 120
         )
 
         blocked = self._post(_payload(message_id="provider-message-2"))
         self.assertEqual(blocked.status_code, 429, blocked.text)
         self.assertIn("Conversation quota exceeded", blocked.json()["detail"])
-        unchanged = self.services.database.get_conversation("demo", conversation_id)
+        unchanged = self.services.database.get_review_case("demo", review_case_id)
         assert unchanged is not None
-        self.assertEqual(unchanged["status"], ConversationStatus.RESOLVED)
+        self.assertEqual(unchanged["status"], ReviewCaseStatus.RESOLVED)
         self.assertIsNone(
             self.services.database.get_channel_webhook_receipt(
                 "demo", "support-main", "provider-message-2"

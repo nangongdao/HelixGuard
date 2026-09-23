@@ -2,7 +2,7 @@
 
 Covers the roadmap acceptance:
 - policies are configured per tenant/priority/channel;
-- resolution falls back exact -> tenant default -> global default -> builtin;
+- verdict falls back exact -> tenant default -> global default -> builtin;
 - create_conversation applies the resolved deadline;
 - a pre-breach warning (conversation.sla_impending) is emitted before the
   deadline passes, and the breach fires after.
@@ -80,7 +80,7 @@ class SlaPolicyEngineTests(unittest.TestCase):
         self.assertEqual(len(listed), 1)
         self.assertEqual(listed[0]["priority"], "high")
 
-    def test_resolution_fallback_chain(self) -> None:
+    def test_verdict_fallback_chain(self) -> None:
         db = self.database
         # Global default applies.
         self.assertEqual(db.resolve_sla_policy("demo", "normal", "web", 120), 120)
@@ -104,7 +104,7 @@ class SlaPolicyEngineTests(unittest.TestCase):
         self.assertEqual(db.resolve_sla_policy("demo", "high", "web", 120), 5)
         self.assertEqual(db.resolve_sla_policy("demo", "high", "email", 120), 30)
 
-    def test_create_conversation_applies_resolve_policy(self) -> None:
+    def test_create_review_case_applies_resolve_policy(self) -> None:
         self.database.set_sla_policy(
             tenant_id="demo",
             priority="normal",
@@ -125,7 +125,7 @@ class SlaPolicyEngineTests(unittest.TestCase):
         delta_minutes = (due - created).total_seconds() / 60
         self.assertAlmostEqual(delta_minutes, 3, delta=0.5)
 
-    def test_operator_cannot_manage_policies(self) -> None:
+    def test_reviewer_cannot_manage_policies(self) -> None:
         op_key = "sla-op-key-000001"
         principals = {
             ADMIN_KEY: {"tenant_id": "demo", "actor_id": "admin", "role": "admin"},
@@ -331,11 +331,11 @@ class SlaImpendingTests(unittest.TestCase):
         self._tmp.cleanup()
 
     def test_impending_then_breach(self) -> None:
-        conv = self.database.create_conversation("demo", "C", None, "web", "admin", 120)
+        conv = self.database.create_review_case("demo", "C", None, "web", "admin", 120)
         # Due in 3 minutes -> within the 5-minute warning window.
         with self.database.connect() as conn:
             conn.execute(
-                "UPDATE conversations SET sla_due_at = ? WHERE id = ?",
+                "UPDATE review_cases SET sla_due_at = ? WHERE id = ?",
                 (utc_after(3), conv["id"]),
             )
             conn.commit()
@@ -347,7 +347,7 @@ class SlaImpendingTests(unittest.TestCase):
         # Past due -> breach fires after.
         with self.database.connect() as conn:
             conn.execute(
-                "UPDATE conversations SET sla_due_at = '2020-01-01T00:00:00+00:00' WHERE id = ?",
+                "UPDATE review_cases SET sla_due_at = '2020-01-01T00:00:00+00:00' WHERE id = ?",
                 (conv["id"],),
             )
             conn.commit()

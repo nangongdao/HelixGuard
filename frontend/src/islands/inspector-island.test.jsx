@@ -18,7 +18,7 @@ import { InspectorIsland, INSPECTOR_EVENTS } from "./inspector-island.jsx";
 const QUALITY_HTML = {
   bucketsHtml: '<section class="quality-charts"></section><article class="quality-card"><h4>退款</h4></article>',
   gapsHtml:
-    '<article class="quality-gap"><button class="quality-gap-draft" data-conversation-id="conv-1" data-message-id="msg-1" type="button">生成策略草稿</button></article>',
+    '<article class="quality-gap"><button class="quality-gap-draft" data-review-case-id="conv-1" data-message-id="msg-1" type="button">生成策略草稿</button></article>',
 };
 
 const COLLABORATORS = [

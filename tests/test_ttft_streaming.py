@@ -35,7 +35,7 @@ class TtftStreamingTests(unittest.TestCase):
         self.database = Database(self.db_path)
         self.database.initialize()
         self.database.ensure_tenant("demo")
-        self.database.create_knowledge(
+        self.database.create_policy_article(
             "demo",
             "Shipping policy",
             "Packages ship within 24 hours",
@@ -51,10 +51,10 @@ class TtftStreamingTests(unittest.TestCase):
             stream_enabled=True,
             stream_pacing_ms=0,
         )
-        conversation = self.database.create_conversation(
+        review_case = self.database.create_review_case(
             "demo", "Customer", None, "web", "admin", 120
         )
-        self.conversation_id = conversation["id"]
+        self.review_case_id = review_case["id"]
 
     def tearDown(self) -> None:
         self.database.close()
@@ -67,7 +67,7 @@ class TtftStreamingTests(unittest.TestCase):
     def _enqueue(self) -> dict:
         job, _ = self.worker.queue.enqueue(
             "demo",
-            self.conversation_id,
+            self.review_case_id,
             f"idem-ttft-{self._testMethodName}",
             "admin",
             "违规内容怎么分级？",
@@ -92,7 +92,7 @@ class TtftStreamingTests(unittest.TestCase):
         chunks = self.database.list_turn_job_chunks("demo", job["id"])
         reply = next(
             m["content"]
-            for m in self.database.list_messages("demo", self.conversation_id)
+            for m in self.database.list_messages("demo", self.review_case_id)
             if m["role"] == "assistant"
         )
         # The sink wrote every token during ``handle_customer_message`` and the
@@ -147,7 +147,7 @@ class TtftStreamingTests(unittest.TestCase):
         job = self._enqueue()
         response = self.orchestrator.handle_customer_message(
             "demo",
-            self.conversation_id,
+            self.review_case_id,
             "违规内容怎么分级？",
             "admin",
             "idem-ttft-nosink",

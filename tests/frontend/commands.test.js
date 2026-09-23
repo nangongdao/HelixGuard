@@ -20,7 +20,7 @@ test("static commands cover five views and six actions", () => {
   assert.deepEqual(all.slice(0, 5).map((c) => c.run), [
     "view:workspace",
     "view:quality",
-    "view:knowledge",
+    "view:policy",
     "view:admin",
     "view:settings",
   ]);

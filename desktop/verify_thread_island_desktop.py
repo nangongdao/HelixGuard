@@ -37,9 +37,15 @@ def wait_for_cdp(deadline_s: float = 90.0) -> list[dict]:
     deadline = time.time() + deadline_s
     while time.time() < deadline:
         try:
-            with urllib.request.urlopen(f"http://127.0.0.1:{DEBUG_PORT}/json/list", timeout=2) as res:
+            with urllib.request.urlopen(
+                f"http://127.0.0.1:{DEBUG_PORT}/json/list", timeout=2
+            ) as res:
                 targets = json.loads(res.read().decode("utf-8"))
-            pages = [t for t in targets if t.get("type") == "page" and "127.0.0.1" in (t.get("url") or "")]
+            pages = [
+                t
+                for t in targets
+                if t.get("type") == "page" and "127.0.0.1" in (t.get("url") or "")
+            ]
             if pages:
                 return targets
         except Exception:
@@ -78,7 +84,7 @@ def main() -> int:
                 print("FAIL: no console page found over CDP")
                 return 1
 
-            page.wait_for_selector("#operatorIdentity", state="attached", timeout=30000)
+            page.wait_for_selector("#reviewerIdentity", state="attached", timeout=30000)
             page.wait_for_selector("#threadReactIsland", state="attached", timeout=30000)
             checks: dict[str, object] = {}
             checks["island_mode"] = page.evaluate("() => window.__HELIX_ISLAND_MODE__ === true")
@@ -133,9 +139,15 @@ def main() -> int:
 
             # Select the seeded conversation from the queue island.
             page.locator("#refreshList").click()
-            page.wait_for_selector("#queueReactIsland .conversation-item", state="visible", timeout=30000)
-            page.locator(f"#queueReactIsland .conversation-item[data-id='{seeded['conversationId']}']").click()
-            page.wait_for_selector("#threadReactIsland .message-row", state="attached", timeout=15000)
+            page.wait_for_selector(
+                "#queueReactIsland .review-case-item", state="visible", timeout=30000
+            )
+            page.locator(
+                f"#queueReactIsland .review-case-item[data-id='{seeded['conversationId']}']"
+            ).click()
+            page.wait_for_selector(
+                "#threadReactIsland .message-row", state="attached", timeout=15000
+            )
             checks["island_thread_rows"] = page.evaluate(
                 "() => document.querySelectorAll('#threadReactIsland .message-row').length"
             )
@@ -154,7 +166,9 @@ def main() -> int:
             )
 
             # Empty conversation → island empty state (legacy copy).
-            page.locator(f"#queueReactIsland .conversation-item[data-id='{seeded['emptyId']}']").click()
+            page.locator(
+                f"#queueReactIsland .review-case-item[data-id='{seeded['emptyId']}']"
+            ).click()
             page.wait_for_function(
                 "() => document.querySelector('#threadReactIsland')?.textContent.includes('等待第一条待审内容')",
                 timeout=15000,
@@ -162,8 +176,12 @@ def main() -> int:
             checks["island_empty_state"] = True
 
             # Back to the data conversation for interaction journeys.
-            page.locator(f"#queueReactIsland .conversation-item[data-id='{seeded['conversationId']}']").click()
-            page.wait_for_selector("#threadReactIsland .message-row", state="attached", timeout=15000)
+            page.locator(
+                f"#queueReactIsland .review-case-item[data-id='{seeded['conversationId']}']"
+            ).click()
+            page.wait_for_selector(
+                "#threadReactIsland .message-row", state="attached", timeout=15000
+            )
 
             # ── Feedback: island click → legacy bridge → real POST ──
             with page.expect_response(
@@ -199,7 +217,9 @@ def main() -> int:
             rows_before = page.evaluate(
                 "() => document.querySelectorAll('#threadReactIsland .message-row').length"
             )
-            page.locator("#composerReactIsland .customer-composer textarea").fill("线程岛补发一条消息")
+            page.locator("#composerReactIsland .submitter-composer textarea").fill(
+                "线程岛补发一条消息"
+            )
             page.locator("#composerReactIsland button[aria-label='发送待审内容']").click()
             page.wait_for_function(
                 "(before) => document.querySelectorAll('#threadReactIsland .message-row').length > before",
@@ -209,7 +229,9 @@ def main() -> int:
             checks["composer_send_grew_thread"] = True
 
             # ── Upward pagination: island affordance → legacy keyset bridge ──
-            page.locator(f"#queueReactIsland .conversation-item[data-id='{seeded['longId']}']").click()
+            page.locator(
+                f"#queueReactIsland .review-case-item[data-id='{seeded['longId']}']"
+            ).click()
             page.wait_for_function(
                 "() => document.querySelectorAll('#threadReactIsland .message-row').length >= 100",
                 timeout=20000,

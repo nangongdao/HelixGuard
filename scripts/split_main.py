@@ -1,6 +1,6 @@
 """Generate app/routers/conversations.py and slim main.py (Phase 27.2).
 
-Extracts the conversations-domain route block (lines 670-1670 of the backup
+Extracts the review_cases-domain route block (lines 670-1670 of the backup
 main.py) into a router factory using the RouteDeps pattern, and removes those
 lines from main.py, replacing them with an include_router call.
 """
@@ -18,7 +18,7 @@ sys.path.insert(0, str(ROOT))
 from scripts._console import use_utf8_console
 
 MAIN_BAK = ROOT / "app" / "main.py.bak"
-ROUTER = ROOT / "app" / "routers" / "conversations.py"
+ROUTER = ROOT / "app" / "routers" / "review_cases.py"
 
 START = 669  # 0-based: line 670
 END = 1670  # 0-based exclusive: up to line 1670 (empty line before knowledge-gaps)
@@ -72,7 +72,7 @@ from app.main import (
     TurnResponse,
     _conversation_quota_exceeded,
     _message_date_for_quality,
-    _message_intent_for_quality,
+    _message_risk_category_for_quality,
     _message_prompt_version_for_quality,
     canned_response_out,
     conversation_out,
@@ -114,11 +114,11 @@ def slim_main() -> None:
     # Insert the include_router call before the quality router mount comment.
     marker = "    # Phase 21.1: mount the supervisor quality aggregator router."
     insertion = (
-        "    # Phase 27.2: conversations-domain router (extracted from create_app).\n"
-        "    from app.routers.conversations import build_router as build_conversations_router\n"
+        "    # Phase 27.2: review_cases-domain router (extracted from create_app).\n"
+        "    from app.routers.conversations import build_router as build_review_cases_router\n"
         "    from app.routers.common import RouteDeps\n"
         "    app.include_router(\n"
-        "        build_conversations_router(\n"
+        "        build_review_cases_router(\n"
         "            RouteDeps(\n"
         "                settings=settings,\n"
         "                database=database,\n"

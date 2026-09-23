@@ -16,11 +16,11 @@ from uuid import uuid4
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response
 from fastapi.responses import StreamingResponse
 
-from app.labels import normalize_conversation_labels
+from app.labels import normalize_review_case_labels
 from app.main import (
     _conversation_quota_exceeded,
     _message_date_for_quality,
-    _message_intent_for_quality,
+    _message_risk_category_for_quality,
     _message_prompt_version_for_quality,
     conversation_out,
     message_out,
@@ -115,7 +115,7 @@ def build_router(deps: RouteDeps) -> APIRouter:
     @legacy_route(
         router, "/api/conversations", methods=["GET"], response_model=list[ConversationOut]
     )
-    def list_conversations(
+    def list_review_cases(
         principal: Annotated[Principal, Depends(require_permission("conversation:read"))],
         response: Response,
         status: Annotated[
@@ -161,12 +161,12 @@ def build_router(deps: RouteDeps) -> APIRouter:
         if decoded_cursor is not None and decoded_cursor[0] != sort:
             raise HTTPException(status_code=400, detail="cursor sort does not match requested sort")
         try:
-            normalized_label = normalize_conversation_labels([label])[0] if label else None
+            normalized_label = normalize_review_case_labels([label])[0] if label else None
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         resolved_assigned = principal.actor_id if mine else assigned_to
         try:
-            rows = database.list_conversations(
+            rows = database.list_review_cases(
                 principal.tenant_id,
                 status=status,
                 search=search,
@@ -308,12 +308,12 @@ def build_router(deps: RouteDeps) -> APIRouter:
         methods=["GET"],
         response_model=list[ConversationLabelOut],
     )
-    def list_conversation_labels(
+    def list_review_case_labels(
         principal: Annotated[Principal, Depends(require_permission("conversation:read"))],
     ) -> list[ConversationLabelOut]:
         return [
             ConversationLabelOut(**row)
-            for row in database.list_conversation_labels(principal.tenant_id)
+            for row in database.list_review_case_labels(principal.tenant_id)
         ]
 
     @router.post(
@@ -353,7 +353,7 @@ def build_router(deps: RouteDeps) -> APIRouter:
         response_model=ConversationOut,
         status_code=201,
     )
-    def create_conversation(
+    def create_review_case(
         payload: CreateConversationRequest,
         principal: Annotated[Principal, Depends(require_permission("conversation:write"))],
     ) -> ConversationOut:
@@ -365,7 +365,7 @@ def build_router(deps: RouteDeps) -> APIRouter:
                 detail=quota_error,
                 headers={"Retry-After": "3600"},
             )
-        row = database.create_conversation(
+        row = database.create_review_case(
             principal.tenant_id,
             payload.customer_name,
             payload.customer_ref,
@@ -419,7 +419,7 @@ def build_router(deps: RouteDeps) -> APIRouter:
         methods=["PUT"],
         response_model=ConversationOut,
     )
-    def replace_conversation_labels(
+    def replace_review_case_labels(
         review_case_id: str,
         payload: ConversationLabelsRequest,
         principal: Annotated[Principal, Depends(require_permission("operator:act"))],
@@ -440,7 +440,7 @@ def build_router(deps: RouteDeps) -> APIRouter:
         methods=["GET"],
         response_model=ConversationDetail,
     )
-    def get_conversation(
+    def get_review_case(
         review_case_id: str,
         principal: Annotated[Principal, Depends(require_permission("conversation:read"))],
         response: Response,
@@ -448,7 +448,7 @@ def build_router(deps: RouteDeps) -> APIRouter:
         message_cursor: Annotated[str | None, Query(max_length=512)] = None,
         messages_before: Annotated[bool, Query()] = False,
     ) -> ConversationDetail:
-        conversation = database.get_conversation(principal.tenant_id, review_case_id)
+        conversation = database.get_review_case(principal.tenant_id, review_case_id)
         if not conversation:
             raise LookupError("Conversation not found")
         try:
@@ -496,9 +496,7 @@ def build_router(deps: RouteDeps) -> APIRouter:
                     source=item["source"],
                     updated_at=item["updated_at"],
                 )
-                for item in database.list_conversation_summaries(
-                    principal.tenant_id, review_case_id
-                )
+                for item in database.list_review_case_summaries(principal.tenant_id, review_case_id)
             ],
             # ROADMAP H03: the active pending clarification task, if any. The
             # stored row also carries its tenant/conversation keys; project
@@ -536,7 +534,7 @@ def build_router(deps: RouteDeps) -> APIRouter:
         cursor: Annotated[str | None, Query(max_length=512)] = None,
         before: Annotated[bool, Query()] = False,
     ) -> list[MessageOut]:
-        if not database.get_conversation(principal.tenant_id, review_case_id):
+        if not database.get_review_case(principal.tenant_id, review_case_id):
             raise LookupError("Conversation not found")
         try:
             decoded_cursor = decode_message_cursor(cursor) if cursor else None
@@ -574,7 +572,7 @@ def build_router(deps: RouteDeps) -> APIRouter:
         methods=["POST"],
         response_model=ConversationOut,
     )
-    def claim_conversation(
+    def claim_review_case(
         review_case_id: str,
         principal: Annotated[Principal, Depends(require_permission("operator:act"))],
     ) -> ConversationOut:
@@ -614,7 +612,7 @@ def build_router(deps: RouteDeps) -> APIRouter:
         methods=["POST"],
         response_model=ConversationOut,
     )
-    def assign_conversation(
+    def assign_review_case(
         review_case_id: str,
         payload: AssignConversationRequest,
         principal: Annotated[Principal, Depends(require_permission("operator:act"))],
@@ -849,7 +847,7 @@ def build_router(deps: RouteDeps) -> APIRouter:
                     actor=principal.actor_id,
                     new_rating=payload.rating,
                     previous_rating=previous_rating,
-                    intent=_message_intent_for_quality(
+                    risk_category=_message_risk_category_for_quality(
                         database, principal.tenant_id, review_case_id, payload.message_id
                     ),
                     prompt_version=_message_prompt_version_for_quality(
@@ -874,7 +872,7 @@ def build_router(deps: RouteDeps) -> APIRouter:
                 )
                 services.ai_governance.ingest_online_feedback(
                     tenant_id=principal.tenant_id,
-                    conversation_id=review_case_id,
+                    review_case_id=review_case_id,
                     source="negative_rating",
                     payload={
                         "message_id": payload.message_id,
@@ -901,7 +899,7 @@ def build_router(deps: RouteDeps) -> APIRouter:
         review_case_id: str,
         principal: Annotated[Principal, Depends(require_permission("conversation:read"))],
     ) -> ConversationThreadsOut:
-        if not database.get_conversation(principal.tenant_id, review_case_id):
+        if not database.get_review_case(principal.tenant_id, review_case_id):
             raise LookupError("Conversation not found")
         notes = database.list_notes(principal.tenant_id, review_case_id)
         by_id = {note["id"]: note for note in notes}

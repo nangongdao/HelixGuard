@@ -53,11 +53,11 @@ def api_patch(path: str, body: dict) -> dict:
         return json.loads(response.read().decode("utf-8"))
 
 
-def select_conversation(page: Page, customer: str) -> None:
+def select_conversation(page: Page, submitter: str) -> None:
     """Click the queue row whose customer name matches (independent of order)."""
-    row = page.locator(".conversation-row", has_text=customer).first
+    row = page.locator(".review-case-row", has_text=submitter).first
     row.click()
-    expect(page.locator("#conversationTitle")).to_contain_text(customer)
+    expect(page.locator("#reviewCaseTitle")).to_contain_text(submitter)
     expect(page.locator("#noteForm")).to_be_visible()
 
 
@@ -80,7 +80,7 @@ def main() -> None:
 
     run_id = uuid4().hex[:6]
     mentor = f"mentor-{run_id}"
-    customer = f"mention-{run_id}"
+    submitter = f"mention-{run_id}"
     status, _ = api_post(
         "/api/admin/tenants/demo/members",
         {"actor_id": mentor, "role": "operator"},
@@ -88,9 +88,9 @@ def main() -> None:
     assert status == 201, f"预建协作审核员失败: {mentor}"
     status, conv = api_post(
         "/api/review-cases",
-        {"customer_name": customer, "channel": "web"},
+        {"customer_name": submitter, "channel": "web"},
     )
-    assert status == 201, f"预建审核单失败: {customer}"
+    assert status == 201, f"预建审核单失败: {conv}"
     conv_id = conv["id"]
     # Promote to high priority so the seeded conversation sorts to the top of
     # the queue regardless of how many open rows the shared scratch DB already
@@ -116,8 +116,8 @@ def main() -> None:
             ),
         )
         page.goto(BASE_URL)
-        expect(page.locator("#operatorIdentity")).to_contain_text("demo.admin")
-        select_conversation(page, customer)
+        expect(page.locator("#reviewerIdentity")).to_contain_text("demo.admin")
+        select_conversation(page, submitter)
         note_input = page.locator("#noteInput")
         suggest = page.locator("#mentionSuggest")
 
@@ -171,7 +171,7 @@ def main() -> None:
             {
                 "status": "ok",
                 "mentor": mentor,
-                "customer": customer,
+                "customer": submitter,
                 "roster": str(ARTIFACTS / "ui-mention-roster.png"),
                 "submitted": str(ARTIFACTS / "ui-mention-submitted.png"),
             },

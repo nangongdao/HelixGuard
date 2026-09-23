@@ -45,7 +45,7 @@ class _AlwaysTransientOrderConn:
     def __init__(self) -> None:
         self.calls = 0
 
-    def lookup_order(self, tenant_id, customer_ref, order_id):
+    def lookup_order(self, tenant_id, submitter_ref, source_record_id):
         self.calls += 1
         raise TransientConnectorError("timeout")
 
@@ -54,7 +54,7 @@ class _AlwaysTransientCRMConn:
     def __init__(self) -> None:
         self.calls = 0
 
-    def resolve_customer(self, tenant_id, customer_ref):
+    def resolve_customer(self, tenant_id, submitter_ref):
         self.calls += 1
         raise TransientConnectorError("timeout")
 
@@ -118,9 +118,9 @@ class OrchestratorFaultInjectionTests(unittest.TestCase):
         self.db.close()
         self._tmp.cleanup()
 
-    def _conversation(self, customer_ref: str | None = "CUST-1001") -> str:
-        return self.db.create_conversation(
-            "demo", "Fault Customer", customer_ref, "web", "admin", 120
+    def _review_case(self, submitter_ref: str | None = "CUST-1001") -> str:
+        return self.db.create_review_case(
+            "demo", "Fault Customer", submitter_ref, "web", "admin", 120
         )["id"]
 
     def test_knowledge_golden_path_survives_open_breaker(self) -> None:
@@ -130,7 +130,7 @@ class OrchestratorFaultInjectionTests(unittest.TestCase):
         breaker.record_failure()
         breaker.record_failure()
         breaker.record_failure()
-        conv_id = self._conversation(None)
+        conv_id = self._review_case(None)
         response = self.orchestrator.handle_customer_message(
             "demo", conv_id, "违规内容怎么分级？", "admin", "idem-kb-fault"
         )
@@ -150,7 +150,7 @@ class OrchestratorFaultInjectionTests(unittest.TestCase):
             crm_connector=self.orchestrator.tools._crm_connector,
         )
         self.orchestrator.order = OrderAgent(self.orchestrator.tools)
-        conv_id = self._conversation("CUST-1001")
+        conv_id = self._review_case("CUST-1001")
         response = self.orchestrator.handle_customer_message(
             "demo", conv_id, "帮我查一下 ORD-10482 来源", "admin", "idem-ord-fault"
         )
@@ -160,7 +160,7 @@ class OrchestratorFaultInjectionTests(unittest.TestCase):
         order_call = next(
             call
             for call in assistant["metadata"]["tool_calls"]
-            if call.get("tool") == "orders.lookup"
+            if call.get("tool") == "source_lookups.lookup"
         )
         self.assertEqual(order_call["code"], "unavailable")
         self.assertNotIn("已核验", assistant["content"])
@@ -175,7 +175,7 @@ class OrchestratorFaultInjectionTests(unittest.TestCase):
             ),
         )
         self.orchestrator.order = OrderAgent(self.orchestrator.tools)
-        conv_id = self._conversation("CUST-1001")
+        conv_id = self._review_case("CUST-1001")
         response = self.orchestrator.handle_customer_message(
             "demo", conv_id, "帮我查一下 ORD-10482 来源", "admin", "idem-crm-fault"
         )

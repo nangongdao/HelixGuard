@@ -153,7 +153,7 @@ export async function loadAdminView() {
 export async function saveQuota(event) {
   event.preventDefault();
   const body = {};
-  if (ctx.els.quotaConversations?.value !== "") body.conversation_quota = Number(ctx.els.quotaConversations.value);
+  if (ctx.els.quotaReviewCases?.value !== "") body.conversation_quota = Number(ctx.els.quotaReviewCases.value);
   if (ctx.els.quotaStorageMb?.value !== "") body.storage_quota_bytes = Number(ctx.els.quotaStorageMb.value) * 1024 * 1024;
   if (!Object.keys(body).length) return;
   try {
@@ -162,7 +162,7 @@ export async function saveQuota(event) {
       body: JSON.stringify(body),
     });
     renderQuota(quota);
-    if (ctx.els.quotaConversations) ctx.els.quotaConversations.value = "";
+    if (ctx.els.quotaReviewCases) ctx.els.quotaReviewCases.value = "";
     if (ctx.els.quotaStorageMb) ctx.els.quotaStorageMb.value = "";
     ctx.showToast("配额已更新");
   } catch (error) {
@@ -372,7 +372,7 @@ export async function registerWebhookFromIsland({ url, secret, events } = {}) {
 export async function deleteWebhookFromIsland({ id } = {}) {
   if (!id) return;
   // Phase 32.1 audit: the confirm() prompt stays in legacy, exactly like
-  // the knowledge island's retire flow.
+  // the policy island's retire flow.
   if (!window.confirm("确认删除该 Webhook 端点？已注册的待投递事件将进入死信。")) return;
   let ok = false;
   try {

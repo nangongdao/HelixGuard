@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 
-def normalize_conversation_labels(values: Sequence[str], max_labels: int = 20) -> list[str]:
+def normalize_review_case_labels(values: Sequence[str], max_labels: int = 20) -> list[str]:
     normalized: list[str] = []
     for value in values:
         label = value.strip().casefold()

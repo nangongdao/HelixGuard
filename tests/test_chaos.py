@@ -70,7 +70,7 @@ class ChaosInvariantTests(unittest.TestCase):
         self._tmp.cleanup()
 
     def _conv(self) -> str:
-        return self.database.create_conversation("demo", "C", None, "web", "admin", 120)["id"]
+        return self.database.create_review_case("demo", "C", None, "web", "admin", 120)["id"]
 
     def test_worker_crash_mid_claim_recovers_without_loss(self) -> None:
         """A claimed-then-crashed job is recovered and completes exactly once."""
@@ -125,12 +125,12 @@ class ChaosInvariantTests(unittest.TestCase):
         with self.database.connect() as conn:
             count = conn.execute(
                 "SELECT COUNT(*) AS n FROM turn_jobs "
-                "WHERE tenant_id='demo' AND conversation_id=? AND idempotency_key='chaos-key-1'",
+                "WHERE tenant_id='demo' AND review_case_id=? AND idempotency_key='chaos-key-1'",
                 (conv,),
             ).fetchone()["n"]
         self.assertEqual(count, 1)
 
-    def test_per_conversation_serialization(self) -> None:
+    def test_per_review_case_serialization(self) -> None:
         """Two concurrent claims on the same conversation never both succeed."""
         conv = self._conv()
         self.database.enqueue_turn_job("demo", conv, "chaos-ser-1", "admin", "a", 3)

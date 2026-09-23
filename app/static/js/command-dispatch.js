@@ -2,8 +2,8 @@
  * Helix Guard — palette command dispatcher (app.js <500 campaign slice 22).
  *
  * Consumes the command-palette island's helix-command events and routes each
- * action key to its handler: nav view switches, the conversation-dialog and
- * terminal bridges, refresh, ticket conversion, and the backend health
+ * action key to its handler: nav view switches, the review-case-dialog and
+ * terminal bridges, refresh, appeal conversion, and the backend health
  * check. Extracted from the legacy app.js; the handlers arrive through
  * configure because switchAppView/refreshAll are app.js-scoped.
  */
@@ -157,7 +157,7 @@ export function bindCommandDispatch() {
     switch (id) {
       case "nav:workspace":
       case "nav:quality":
-      case "nav:knowledge":
+      case "nav:policy":
       case "nav:admin":
       case "nav:settings":
         ctx.switchAppView(id.slice("nav:".length));
@@ -203,7 +203,7 @@ export function runCommand(command) {
     return;
   }
   const actions = {
-    "action:new_conversation": () => ctx.els.newConversation?.click(),
+    "action:new_conversation": () => ctx.els.newReviewCase?.click(),
     "action:refresh": () => ctx.refreshAll(),
     "action:toggle_theme": () => document.getElementById("themeToggle")?.click(),
     "action:toggle_lowperf": () => ctx.els.lowPerfToggle?.click(),

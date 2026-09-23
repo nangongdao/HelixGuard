@@ -7,7 +7,7 @@ window to the deep rows, selection still works, and no console/page errors
 surface.
 
 Server is expected to already run on HELIX_BASE_URL backed by a throwaway
-SQLite database; the script seeds N=230 conversations up front and paginates
+SQLite database; the script seeds N=230 review_cases up front and paginates
 the UI until the queue count reports them all.
 
 Run:
@@ -49,8 +49,8 @@ def api_post(path: str, body: dict) -> int:
         return error.code
 
 
-def count_conversations() -> int:
-    """Total open conversations by walking X-Next-Cursor pages."""
+def count_review_cases() -> int:
+    """Total open review_cases by walking X-Next-Cursor pages."""
     total = 0
     cursor: str | None = None
     while True:
@@ -69,7 +69,7 @@ def count_conversations() -> int:
                 return total
 
 
-def queue_last_conversation_id() -> str:
+def queue_last_review_case_id() -> str:
     """Id of the queue's final (oldest-open) row, per the API sort order.
 
     Queried via API rather than hard-coded: the shared scratch DB accumulates
@@ -90,17 +90,17 @@ def queue_last_conversation_id() -> str:
             cursor = response.headers.get("X-Next-Cursor")
             if not cursor or response.headers.get("X-Has-More") != "true":
                 break
-    assert last_page, "queue returned no conversations"
+    assert last_page, "queue returned no review_cases"
     return str(last_page[-1]["id"])
 
 
-def seed_conversations() -> int:
+def seed_review_cases() -> int:
     """Top the queue up to SEED_COUNT total rows; return the target count.
 
     Idempotent: keeps the scratch DB reusable across reruns instead of
     stacking extra rows each time.
     """
-    existing = count_conversations()
+    existing = count_review_cases()
     if existing >= SEED_COUNT:
         return existing
     needed = SEED_COUNT - existing
@@ -146,7 +146,7 @@ def main() -> None:
             return
         failed_requests.append(f"{request.method} {request.url} {failure}")
 
-    target = seed_conversations()
+    target = seed_review_cases()
     assert target > VIRTUAL_THRESHOLD, (
         f"need more than {VIRTUAL_THRESHOLD} rows for virtual mode (have {target})"
     )
@@ -170,21 +170,21 @@ def main() -> None:
             ),
         )
         page.goto(BASE_URL)
-        expect(page.locator("#conversationList .conversation-item").first).to_be_visible()
+        expect(page.locator("#reviewCaseList .review-case-item").first).to_be_visible()
 
         paginate_until_full(page, target)
         count_text = (page.locator("#queueCount").text_content() or "").strip()
         assert count_text.startswith(f"{target}"), count_text
 
-        list_element = page.locator("#conversationList")
-        rows = page.locator("#conversationList .conversation-row")
+        list_element = page.locator("#reviewCaseList")
+        rows = page.locator("#reviewCaseList .review-case-row")
         rendered_count = rows.count()
         assert 0 < rendered_count < 60, (
             f"virtual mode should render a window, got {rendered_count} rows"
         )
         assert rows.count() > 0
 
-        pads = page.locator("#conversationList .vqueue-pad")
+        pads = page.locator("#reviewCaseList .vqueue-pad")
         assert pads.count() >= 1, "expected at least the top spacer pad"
 
         pad_heights = list_element.evaluate(
@@ -199,12 +199,12 @@ def main() -> None:
         # the toolbar all stay consistent while only the visible band is in
         # the DOM. A windowed re-render can swap the node mid-click, so the
         # uncheck retries against the freshly re-resolved `:checked` input.
-        page.locator("#conversationList .conversation-checkbox").first.check()
+        page.locator("#reviewCaseList .review-case-checkbox").first.check()
         expect(page.locator("#bulkToolbar")).to_be_visible()
         bulk_cleared = False
         for _ in range(12):
             try:
-                page.locator("#conversationList .conversation-checkbox:checked").first.uncheck()
+                page.locator("#reviewCaseList .review-case-checkbox:checked").first.uncheck()
             except PlaywrightError:
                 page.wait_for_timeout(120)
                 continue
@@ -215,13 +215,13 @@ def main() -> None:
         assert bulk_cleared, "bulk toolbar stayed visible after unchecking the selected row"
 
         # Deep-scroll to the bottom of the list; the window must follow.
-        first_band_ids = page.locator("#conversationList .conversation-row").evaluate_all(
-            "nodes => nodes.map(n => n.querySelector('.conversation-item')?.dataset?.id)"
+        first_band_ids = page.locator("#reviewCaseList .review-case-row").evaluate_all(
+            "nodes => nodes.map(n => n.querySelector('.review-case-item')?.dataset?.id)"
         )
         list_element.evaluate("el => { el.scrollTop = el.scrollHeight; }")
         page.wait_for_timeout(500)
-        bottom_band_ids = page.locator("#conversationList .conversation-row").evaluate_all(
-            "nodes => nodes.map(n => n.querySelector('.conversation-item')?.dataset?.id)"
+        bottom_band_ids = page.locator("#reviewCaseList .review-case-row").evaluate_all(
+            "nodes => nodes.map(n => n.querySelector('.review-case-item')?.dataset?.id)"
         )
         assert len(set(bottom_band_ids)) == len(bottom_band_ids), "duplicate ids in window"
         assert set(bottom_band_ids) != set(first_band_ids), (
@@ -229,7 +229,7 @@ def main() -> None:
         )
         # 断言滚动到底后窗口包含队列真实末行(经 API 取,兼容共享 DB 上更老
         # 的测试审核单占据底部)——而不是写死 vq-slot-0001。
-        last_id = queue_last_conversation_id()
+        last_id = queue_last_review_case_id()
         assert last_id in bottom_band_ids, (
             f"deep-most row {last_id} not rendered after scrolling to bottom "
             f"(window has {len(bottom_band_ids)} ids)"
@@ -241,11 +241,11 @@ def main() -> None:
         # above), so retry until the loaded title matches the clicked row.
         selected = False
         for _ in range(12):
-            first_visible = page.locator("#conversationList .conversation-item").first
-            chosen_name = page.locator("#conversationList .item-name").first.text_content() or ""
+            first_visible = page.locator("#reviewCaseList .review-case-item").first
+            chosen_name = page.locator("#reviewCaseList .item-name").first.text_content() or ""
             first_visible.click()
             try:
-                expect(page.locator("#conversationTitle")).to_have_text(chosen_name, timeout=2000)
+                expect(page.locator("#reviewCaseTitle")).to_have_text(chosen_name, timeout=2000)
                 selected = True
                 break
             except AssertionError:

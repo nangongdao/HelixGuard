@@ -38,7 +38,7 @@ def build_router(deps: RouteDeps) -> APIRouter:
 
     @router.get("/api/canned-verdicts", response_model=list[CannedResponseOut])
     @legacy_route(router, "/api/canned-responses", methods=["GET"], response_model=list)
-    def list_canned_responses(
+    def list_canned_verdicts(
         principal: Annotated[Principal, Depends(require_permission("conversation:read"))],
         search: Annotated[str | None, Query(max_length=120)] = None,
         include_inactive: bool = False,
@@ -47,7 +47,7 @@ def build_router(deps: RouteDeps) -> APIRouter:
             raise HTTPException(status_code=403, detail="Insufficient permissions")
         return [
             canned_response_out(row)
-            for row in database.list_canned_responses(
+            for row in database.list_canned_verdicts(
                 principal.tenant_id,
                 include_inactive=include_inactive,
                 search=search,
@@ -62,12 +62,12 @@ def build_router(deps: RouteDeps) -> APIRouter:
         response_model=CannedResponseOut,
         status_code=201,
     )
-    def create_canned_response(
+    def create_canned_verdict(
         payload: CannedResponseCreateRequest,
         principal: Annotated[Principal, Depends(require_permission("knowledge:write"))],
     ) -> CannedResponseOut:
         try:
-            row = database.create_canned_response(
+            row = database.create_canned_verdict(
                 principal.tenant_id,
                 title=payload.title,
                 body=payload.body,
@@ -93,13 +93,13 @@ def build_router(deps: RouteDeps) -> APIRouter:
         methods=["PATCH"],
         response_model=CannedResponseOut,
     )
-    def update_canned_response(
+    def update_canned_verdict(
         response_id: str,
         payload: CannedResponseUpdateRequest,
         principal: Annotated[Principal, Depends(require_permission("knowledge:write"))],
     ) -> CannedResponseOut:
         try:
-            row = database.update_canned_response(
+            row = database.update_canned_verdict(
                 principal.tenant_id,
                 response_id,
                 payload.model_dump(exclude_unset=True),
@@ -141,7 +141,7 @@ def build_router(deps: RouteDeps) -> APIRouter:
     def export_audit_events(
         principal: Annotated[Principal, Depends(require_permission("metrics:read"))],
         response: Response,
-        conversation_id: Annotated[str | None, Query(max_length=160)] = None,
+        review_case_id: Annotated[str | None, Query(max_length=160)] = None,
         event_type: Annotated[str | None, Query(max_length=80)] = None,
         since: Annotated[str | None, Query(max_length=40)] = None,
         until: Annotated[str | None, Query(max_length=40)] = None,
@@ -150,7 +150,7 @@ def build_router(deps: RouteDeps) -> APIRouter:
     ) -> list[AuditEventOut]:
         rows = database.export_audit_events(
             principal.tenant_id,
-            conversation_id=conversation_id,
+            review_case_id=review_case_id,
             event_type=event_type,
             since=since,
             until=until,
@@ -199,7 +199,7 @@ def build_router(deps: RouteDeps) -> APIRouter:
     @legacy_route(
         router, "/api/knowledge", methods=["GET"], response_model=list[KnowledgeArticleOut]
     )
-    def list_knowledge(
+    def list_policy_articles(
         principal: Annotated[Principal, Depends(require_permission("conversation:read"))],
         include_inactive: bool = False,
     ) -> list[KnowledgeArticleOut]:
@@ -207,7 +207,7 @@ def build_router(deps: RouteDeps) -> APIRouter:
             raise HTTPException(status_code=403, detail="Insufficient permissions")
         return [
             knowledge_out(row)
-            for row in database.list_knowledge(principal.tenant_id, include_inactive)
+            for row in database.list_policy_articles(principal.tenant_id, include_inactive)
         ]
 
     @router.post("/api/policy", response_model=KnowledgeArticleOut, status_code=201)
@@ -218,11 +218,11 @@ def build_router(deps: RouteDeps) -> APIRouter:
         response_model=KnowledgeArticleOut,
         status_code=201,
     )
-    def create_knowledge(
+    def create_policy_article(
         payload: KnowledgeCreateRequest,
         principal: Annotated[Principal, Depends(require_permission("knowledge:write"))],
     ) -> KnowledgeArticleOut:
-        article = database.create_knowledge(
+        article = database.create_policy_article(
             principal.tenant_id,
             payload.title,
             payload.content,
@@ -247,13 +247,13 @@ def build_router(deps: RouteDeps) -> APIRouter:
         methods=["PATCH"],
         response_model=KnowledgeArticleOut,
     )
-    def update_knowledge(
+    def update_policy_article(
         article_id: str,
         payload: KnowledgeUpdateRequest,
         principal: Annotated[Principal, Depends(require_permission("knowledge:write"))],
     ) -> KnowledgeArticleOut:
         changes = payload.model_dump(exclude_unset=True)
-        article = database.update_knowledge(principal.tenant_id, article_id, changes)
+        article = database.update_policy_article(principal.tenant_id, article_id, changes)
         if not article:
             raise LookupError("Knowledge article not found")
         database.audit(
@@ -387,17 +387,17 @@ def build_router(deps: RouteDeps) -> APIRouter:
         message = database.get_message(principal.tenant_id, review_case_id, message_id)
         if not message:
             raise LookupError("Message not found")
-        conversation = database.get_conversation(principal.tenant_id, review_case_id)
+        conversation = database.get_review_case(principal.tenant_id, review_case_id)
         if not conversation:
             raise LookupError("Conversation not found")
-        intent = (conversation.get("intent") or "unknown")[:80]
-        title = f"Draft from feedback: {intent}"
+        risk_category = (conversation.get("intent") or "unknown")[:80]
+        title = f"Draft from feedback: {risk_category}"
         content = message["content"]
         article = database.create_knowledge_draft(
             tenant_id=principal.tenant_id,
             title=title,
             content=content,
-            tags=[intent],
+            tags=[risk_category],
             category="feedback_draft",
             source_url=f"conversation:{review_case_id}",
             actor_id=principal.actor_id,

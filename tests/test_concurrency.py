@@ -32,10 +32,10 @@ class ConcurrencySafetyTests(unittest.TestCase):
         self.db = Database(Path(self._tmp.name))
         self.db.initialize()
         self.db.ensure_tenant("conc-tenant")
-        self.db.create_conversation("conc-tenant", "Customer", None, "web", "admin", 120)
+        self.db.create_review_case("conc-tenant", "Customer", None, "web", "admin", 120)
         with self.db.connect() as conn:
             self.conv_id = conn.execute(
-                "SELECT id FROM conversations WHERE tenant_id = 'conc-tenant' LIMIT 1"
+                "SELECT id FROM review_cases WHERE tenant_id = 'conc-tenant' LIMIT 1"
             ).fetchone()[0]
 
     def tearDown(self) -> None:
@@ -99,7 +99,7 @@ class ConcurrencySafetyTests(unittest.TestCase):
 
         with self.db.connect() as conn:
             row = conn.execute(
-                "SELECT message_count, version FROM conversations WHERE id = ?", (self.conv_id,)
+                "SELECT message_count, version FROM review_cases WHERE id = ?", (self.conv_id,)
             ).fetchone()
         # 5 messages + 1 initial (from create_conversation has 0, so just 5)
         self.assertEqual(row[0], 5, f"Expected message_count=5, got {row[0]}")
@@ -168,10 +168,10 @@ class IdempotencyEdgeCases(unittest.TestCase):
         self.db = Database(Path(self._tmp.name))
         self.db.initialize()
         self.db.ensure_tenant("idem-tenant")
-        self.db.create_conversation("idem-tenant", "Customer", None, "web", "admin", 120)
+        self.db.create_review_case("idem-tenant", "Customer", None, "web", "admin", 120)
         with self.db.connect() as conn:
             self.conv_id = conn.execute(
-                "SELECT id FROM conversations WHERE tenant_id = 'idem-tenant' LIMIT 1"
+                "SELECT id FROM review_cases WHERE tenant_id = 'idem-tenant' LIMIT 1"
             ).fetchone()[0]
 
     def tearDown(self) -> None:

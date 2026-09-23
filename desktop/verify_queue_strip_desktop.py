@@ -1,7 +1,7 @@
 """Desktop-shell real-machine verification for the queue island strip (D3 long tail).
 
 Launches the release helix-desktop.exe with a WebView2 remote-debugging port,
-seeds enough conversations to overflow the first queue page, and drives the
+seeds enough review_cases to overflow the first queue page, and drives the
 island's footer strip end-to-end: count with the "+" suffix, the 加载更多
 button bridging to legacy loadMoreConversations (a cursor request), and the
 legacy #queueCount/#loadMore staying yielded.
@@ -30,9 +30,15 @@ def wait_for_cdp(deadline_s: float = 90.0) -> list[dict]:
     deadline = time.time() + deadline_s
     while time.time() < deadline:
         try:
-            with urllib.request.urlopen(f"http://127.0.0.1:{DEBUG_PORT}/json/list", timeout=2) as res:
+            with urllib.request.urlopen(
+                f"http://127.0.0.1:{DEBUG_PORT}/json/list", timeout=2
+            ) as res:
                 targets = json.loads(res.read().decode("utf-8"))
-            pages = [t for t in targets if t.get("type") == "page" and "127.0.0.1" in (t.get("url") or "")]
+            pages = [
+                t
+                for t in targets
+                if t.get("type") == "page" and "127.0.0.1" in (t.get("url") or "")
+            ]
             if pages:
                 return targets
         except Exception:
@@ -68,7 +74,7 @@ def main() -> int:
                 print("FAIL: no console page found over CDP")
                 return 1
 
-            page.wait_for_selector("#operatorIdentity", timeout=30000)
+            page.wait_for_selector("#reviewerIdentity", timeout=30000)
             checks: dict[str, object] = {}
             checks["island_mode"] = page.evaluate("() => window.__HELIX_ISLAND_MODE__ === true")
             checks["legacy_queue_count_hidden"] = page.evaluate(
@@ -83,7 +89,7 @@ def main() -> int:
             )
             checks["initial_count_format"] = initial_count.endswith("个审核单")
 
-            # Seed enough conversations to overflow the first page (50 rows).
+            # Seed enough review_cases to overflow the first page (50 rows).
             uuid4().hex[:6]
             seeded = page.evaluate(
                 """async (count) => {
@@ -103,7 +109,7 @@ def main() -> int:
                 }""",
                 SEED_COUNT,
             )
-            checks["seeded_conversations"] = seeded
+            checks["seeded_review_cases"] = seeded
 
             # A foreground refresh (header button) picks up the new rows.
             page.locator("#refreshList").click()
@@ -122,7 +128,7 @@ def main() -> int:
                 " return b && b.hidden === true; }"
             )
             rows_before = page.evaluate(
-                "() => document.querySelectorAll('#queueReactIsland .conversation-item').length"
+                "() => document.querySelectorAll('#queueReactIsland .review-case-item').length"
             )
 
             # The island's 加载更多 bridges to legacy loadMoreConversations —
@@ -133,13 +139,13 @@ def main() -> int:
                 page.locator("#queueReactIsland .queue-more").click()
             page.wait_for_function(
                 """(before) => document.querySelectorAll(
-                       '#queueReactIsland .conversation-item').length > before""",
+                       '#queueReactIsland .review-case-item').length > before""",
                 arg=rows_before,
                 timeout=30000,
             )
             checks["load_more_cursor_request"] = True
             checks["rows_after_load_more"] = page.evaluate(
-                "() => document.querySelectorAll('#queueReactIsland .conversation-item').length"
+                "() => document.querySelectorAll('#queueReactIsland .review-case-item').length"
             )
 
             print(json.dumps(checks, ensure_ascii=False, indent=2))

@@ -23,13 +23,13 @@ export function renderDetail(detail) {
   const conversation = detail.conversation;
   const sla = actions.formatSla(conversation);
   els.emptyState.hidden = true;
-  els.conversationView.hidden = false;
-  els.conversationTitle.textContent = conversation.customer_name;
-  els.conversationStatus.textContent = actions.statusLabel(conversation.status);
-  els.conversationStatus.className = `status-pill ${conversation.status}`;
+  els.reviewCaseView.hidden = false;
+  els.reviewCaseTitle.textContent = conversation.customer_name;
+  els.reviewCaseStatus.textContent = actions.statusLabel(conversation.status);
+  els.reviewCaseStatus.className = `status-pill ${conversation.status}`;
   actions.renderSubtitle(conversation);
   actions.renderLanguagePicker(conversation);
-  els.customerAvatar.textContent = [...conversation.customer_name][0]?.toUpperCase() || "?";
+  els.submitterAvatar.textContent = [...conversation.customer_name][0]?.toUpperCase() || "?";
   els.threadContext.textContent = `${conversation.intent || "待识别"} · ${conversation.assigned_agent || "未分配"}`;
   els.threadSla.textContent = sla.text;
   els.threadSla.classList.toggle("is-breached", sla.breached);
@@ -44,27 +44,27 @@ export function renderDetail(detail) {
   els.resolveBtn.hidden = resolved;
   els.reopenBtn.hidden = !resolved;
   // Backlog (申诉单化): convert button hides once the conversation belongs to
-  // a ticket; the badge shows the ticket id and, once fetched, its status.
-  if (els.ticketBtn) els.ticketBtn.hidden = !ctx.canOperate() || Boolean(conversation.ticket_id);
-  if (els.ticketBadge) {
+  // a appeal; the badge shows the appeal id and, once fetched, its status.
+  if (els.appealBtn) els.appealBtn.hidden = !ctx.canOperate() || Boolean(conversation.ticket_id);
+  if (els.appealBadge) {
     if (conversation.ticket_id) {
-      els.ticketBadge.textContent = `申诉单 ${conversation.ticket_id}`;
-      els.ticketBadge.hidden = false;
+      els.appealBadge.textContent = `申诉单 ${conversation.ticket_id}`;
+      els.appealBadge.hidden = false;
       actions.scheduleIdle(() => actions.enrichTicketBadge(conversation.ticket_id));
     } else {
-      els.ticketBadge.hidden = true;
+      els.appealBadge.hidden = true;
     }
   }
   if (els.watchBtn) els.watchBtn.hidden = resolved || !ctx.canReadConversations();
   if (resolved || !ctx.canReadConversations()) actions.stopWatching();
-  // Island mode: #operatorForm is yielded (hidden by the loader) and the
+  // Island mode: #reviewerForm is yielded (hidden by the loader) and the
   // canned chips render island-side from the state snapshot — only the
   // not-yielded legacy surfaces (composer notice) toggle here. #noteForm
   // is island-owned too (inspector domain), so it never toggles here.
   if (window.__HELIX_ISLAND_MODE__) {
     els.composerNotice.hidden = !human;
   } else {
-    els.operatorForm.hidden = !human;
+    els.reviewerForm.hidden = !human;
     els.composerNotice.hidden = !human;
     els.cannedBar.hidden = !human || !ctx.canOperate();
     els.noteForm.hidden = resolved;
@@ -72,15 +72,15 @@ export function renderDetail(detail) {
   actions.renderCannedResponses();
   if (human && ctx.canOperate()) {
     const draft = actions.loadDraft(conversation.id);
-    if (!els.operatorInput.value || els.operatorInput.dataset.conversationId !== conversation.id) {
-      els.operatorInput.value = draft;
+    if (!els.reviewerInput.value || els.reviewerInput.dataset.reviewCaseId !== conversation.id) {
+      els.reviewerInput.value = draft;
     }
-    els.operatorInput.dataset.conversationId = conversation.id;
+    els.reviewerInput.dataset.reviewCaseId = conversation.id;
   }
-  const customerBusy = els.customerForm.dataset.busy === "true";
-  els.customerInput.disabled = resolved || customerBusy;
-  els.customerForm.querySelector("button").disabled = resolved || customerBusy;
-  els.customerInput.placeholder = resolved ? "审核单已判定，请先重开" : "输入一条模拟待审内容…";
+  const customerBusy = els.submitterForm.dataset.busy === "true";
+  els.submitterInput.disabled = resolved || customerBusy;
+  els.submitterForm.querySelector("button").disabled = resolved || customerBusy;
+  els.submitterInput.placeholder = resolved ? "审核单已判定，请先重开" : "输入一条模拟待审内容…";
   actions.renderMessages(detail.messages);
   actions.renderInspector(detail);
   actions.renderSummaries(detail);

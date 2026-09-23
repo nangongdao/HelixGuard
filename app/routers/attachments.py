@@ -52,16 +52,18 @@ _UPLOAD_RECEIPT_MISMATCH = (
     "Idempotency-Key was already used for a different upload attempt in this conversation"
 )
 
-# ``storage_key`` is the internal disk filename and ``operator_idempotency_key``
+# ``storage_key`` is the internal disk filename and ``reviewer_idempotency_key``
 # is the receipt; neither is part of the API contract. ``_out`` filters rather
 # than whitelists, so every column that must stay private has to be named here.
-_PRIVATE_ATTACHMENT_COLUMNS = frozenset({"storage_key", "operator_idempotency_key"})
+_PRIVATE_ATTACHMENT_COLUMNS = frozenset(
+    {"storage_key", "reviewer_idempotency_key", "operator_idempotency_key"}
+)
 
 
 def _attachment_upload_receipt(
     database: Any,
     principal: Principal,
-    conversation_id: str,
+    review_case_id: str,
     filename: str,
     content_type: str,
     data: bytes,
@@ -76,7 +78,7 @@ def _attachment_upload_receipt(
     if not idempotency_key:
         return None
     stored = database.get_attachment_by_operator_key(
-        principal.tenant_id, conversation_id, idempotency_key
+        principal.tenant_id, review_case_id, idempotency_key
     )
     if stored is None:
         return None

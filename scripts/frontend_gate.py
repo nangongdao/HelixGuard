@@ -58,7 +58,7 @@ MAX_LINES = 400
 # a "< 500" target, so it gets that documented ceiling rather than the module
 # limit; it is a script entry point, not a domain module. The budget is a
 # ratchet: it may fall as slices continue, never rise.
-ENTRY_POINTS = ("app.js", "widget-app.js")
+ENTRY_POINTS = ("app.js", "submission-portal-app.js")
 ENTRY_MAX_LINES = 500
 MIN_TESTS = 30
 # Vitest runs 16 island suites; a healthy run finishes well under a minute.

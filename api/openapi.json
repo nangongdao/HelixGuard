@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Helix Guard",
-    "version": "2.28.0"
+    "version": "2.30.0"
   },
   "paths": {
     "/api/supervisor/knowledge-gaps": {
@@ -619,11 +619,11 @@
     "/api/conversations": {
       "get": {
         "tags": [
-          "conversations"
+          "review_cases"
         ],
-        "summary": "List conversations",
-        "description": "List conversations. Requires: conversation:read.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
-        "operationId": "list_conversations_api_conversations_get",
+        "summary": "List review_cases",
+        "description": "List review_cases. Requires: conversation:read.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
+        "operationId": "list_review_cases_api_conversations_get",
         "deprecated": true,
         "parameters": [
           {
@@ -913,7 +913,7 @@
                   "items": {
                     "$ref": "#/components/schemas/ConversationOut"
                   },
-                  "title": "Response List Conversations Api Conversations Get"
+                  "title": "Response List Review Cases Api Conversations Get"
                 }
               }
             }
@@ -932,11 +932,11 @@
       },
       "post": {
         "tags": [
-          "conversations"
+          "review_cases"
         ],
         "summary": "Create a conversation",
         "description": "Create a conversation. Requires: conversation:write.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
-        "operationId": "create_conversation_api_conversations_post",
+        "operationId": "create_review_case_api_conversations_post",
         "deprecated": true,
         "parameters": [
           {
@@ -1009,11 +1009,11 @@
     "/api/review-cases": {
       "get": {
         "tags": [
-          "conversations"
+          "review_cases"
         ],
-        "summary": "List conversations",
-        "description": "List conversations. Requires: conversation:read.",
-        "operationId": "list_conversations_api_review_cases_get",
+        "summary": "List review_cases",
+        "description": "List review_cases. Requires: conversation:read.",
+        "operationId": "list_review_cases_api_review_cases_get",
         "parameters": [
           {
             "name": "status",
@@ -1302,7 +1302,7 @@
                   "items": {
                     "$ref": "#/components/schemas/ConversationOut"
                   },
-                  "title": "Response List Conversations Api Review Cases Get"
+                  "title": "Response List Review Cases Api Review Cases Get"
                 }
               }
             }
@@ -1321,11 +1321,11 @@
       },
       "post": {
         "tags": [
-          "conversations"
+          "review_cases"
         ],
         "summary": "Create a conversation",
         "description": "Create a conversation. Requires: conversation:write.",
-        "operationId": "create_conversation_api_review_cases_post",
+        "operationId": "create_review_case_api_review_cases_post",
         "parameters": [
           {
             "name": "X-API-Key",
@@ -1685,11 +1685,11 @@
     "/api/conversation-labels": {
       "get": {
         "tags": [
-          "conversations"
+          "review_cases"
         ],
         "summary": "Label catalog with counts",
         "description": "Label catalog with counts. Requires: conversation:read.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-case-labels. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
-        "operationId": "list_conversation_labels_api_conversation_labels_get",
+        "operationId": "list_review_case_labels_api_conversation_labels_get",
         "deprecated": true,
         "parameters": [
           {
@@ -1735,7 +1735,7 @@
                   "items": {
                     "$ref": "#/components/schemas/ConversationLabelOut"
                   },
-                  "title": "Response List Conversation Labels Api Conversation Labels Get"
+                  "title": "Response List Review Case Labels Api Conversation Labels Get"
                 }
               }
             }
@@ -1756,11 +1756,11 @@
     "/api/review-case-labels": {
       "get": {
         "tags": [
-          "conversations"
+          "review_cases"
         ],
         "summary": "Label catalog with counts",
         "description": "Label catalog with counts. Requires: conversation:read.",
-        "operationId": "list_conversation_labels_api_review_case_labels_get",
+        "operationId": "list_review_case_labels_api_review_case_labels_get",
         "parameters": [
           {
             "name": "X-API-Key",
@@ -1805,7 +1805,7 @@
                   "items": {
                     "$ref": "#/components/schemas/ConversationLabelOut"
                   },
-                  "title": "Response List Conversation Labels Api Review Case Labels Get"
+                  "title": "Response List Review Case Labels Api Review Case Labels Get"
                 }
               }
             }
@@ -1826,7 +1826,7 @@
     "/api/conversations/bulk-actions": {
       "post": {
         "tags": [
-          "conversations"
+          "review_cases"
         ],
         "summary": "Bulk priority/label/claim actions",
         "description": "Bulk priority/label/claim actions. Requires: operator:act.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/bulk-actions. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
@@ -1903,7 +1903,7 @@
     "/api/review-cases/bulk-actions": {
       "post": {
         "tags": [
-          "conversations"
+          "review_cases"
         ],
         "summary": "Bulk priority/label/claim actions",
         "description": "Bulk priority/label/claim actions. Requires: operator:act.",
@@ -1979,7 +1979,7 @@
     "/api/conversations/{review_case_id}": {
       "patch": {
         "tags": [
-          "conversations"
+          "review_cases"
         ],
         "summary": "Update conversation priority",
         "description": "Update conversation priority. Requires: operator:act.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
@@ -2063,11 +2063,11 @@
       },
       "get": {
         "tags": [
-          "conversations"
+          "review_cases"
         ],
         "summary": "Conversation detail with messages, audit events, and summaries",
         "description": "Conversation detail with messages, audit events, and summaries. Requires: conversation:read.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
-        "operationId": "get_conversation_api_conversations__review_case_id__get",
+        "operationId": "get_review_case_api_conversations__review_case_id__get",
         "deprecated": true,
         "parameters": [
           {
@@ -2184,7 +2184,7 @@
     "/api/review-cases/{review_case_id}": {
       "patch": {
         "tags": [
-          "conversations"
+          "review_cases"
         ],
         "summary": "Update conversation priority",
         "description": "Update conversation priority. Requires: operator:act.",
@@ -2267,11 +2267,11 @@
       },
       "get": {
         "tags": [
-          "conversations"
+          "review_cases"
         ],
         "summary": "Conversation detail with messages, audit events, and summaries",
         "description": "Conversation detail with messages, audit events, and summaries. Requires: conversation:read.",
-        "operationId": "get_conversation_api_review_cases__review_case_id__get",
+        "operationId": "get_review_case_api_review_cases__review_case_id__get",
         "parameters": [
           {
             "name": "review_case_id",
@@ -2387,11 +2387,11 @@
     "/api/conversations/{review_case_id}/labels": {
       "put": {
         "tags": [
-          "conversations"
+          "review_cases"
         ],
         "summary": "Replace conversation labels",
         "description": "Replace conversation labels. Requires: operator:act.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}/labels. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
-        "operationId": "replace_conversation_labels_api_conversations__review_case_id__labels_put",
+        "operationId": "replace_review_case_labels_api_conversations__review_case_id__labels_put",
         "deprecated": true,
         "parameters": [
           {
@@ -2473,11 +2473,11 @@
     "/api/review-cases/{review_case_id}/labels": {
       "put": {
         "tags": [
-          "conversations"
+          "review_cases"
         ],
         "summary": "Replace conversation labels",
         "description": "Replace conversation labels. Requires: operator:act.",
-        "operationId": "replace_conversation_labels_api_review_cases__review_case_id__labels_put",
+        "operationId": "replace_review_case_labels_api_review_cases__review_case_id__labels_put",
         "parameters": [
           {
             "name": "review_case_id",
@@ -2558,7 +2558,7 @@
     "/api/conversations/{review_case_id}/messages": {
       "get": {
         "tags": [
-          "conversations"
+          "review_cases"
         ],
         "summary": "List conversation messages",
         "description": "List conversation messages. Requires: conversation:read.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}/messages. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
@@ -2673,7 +2673,7 @@
       },
       "post": {
         "tags": [
-          "conversations"
+          "review_cases"
         ],
         "summary": "Send a customer turn (idempotent)",
         "description": "Send a customer turn (idempotent). Requires: conversation:write.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}/messages. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
@@ -2775,7 +2775,7 @@
     "/api/review-cases/{review_case_id}/messages": {
       "get": {
         "tags": [
-          "conversations"
+          "review_cases"
         ],
         "summary": "List conversation messages",
         "description": "List conversation messages. Requires: conversation:read.",
@@ -2891,7 +2891,7 @@
       },
       "post": {
         "tags": [
-          "conversations"
+          "review_cases"
         ],
         "summary": "Send a customer turn (idempotent)",
         "description": "Send a customer turn (idempotent). Requires: conversation:write.",
@@ -2992,11 +2992,11 @@
     "/api/conversations/{review_case_id}/claim": {
       "post": {
         "tags": [
-          "conversations"
+          "review_cases"
         ],
         "summary": "Claim a conversation",
         "description": "Claim a conversation. Requires: operator:act.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}/claim. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
-        "operationId": "claim_conversation_api_conversations__review_case_id__claim_post",
+        "operationId": "claim_review_case_api_conversations__review_case_id__claim_post",
         "deprecated": true,
         "parameters": [
           {
@@ -3068,11 +3068,11 @@
     "/api/review-cases/{review_case_id}/claim": {
       "post": {
         "tags": [
-          "conversations"
+          "review_cases"
         ],
         "summary": "Claim a conversation",
         "description": "Claim a conversation. Requires: operator:act.",
-        "operationId": "claim_conversation_api_review_cases__review_case_id__claim_post",
+        "operationId": "claim_review_case_api_review_cases__review_case_id__claim_post",
         "parameters": [
           {
             "name": "review_case_id",
@@ -3143,7 +3143,7 @@
     "/api/conversations/{review_case_id}/release": {
       "post": {
         "tags": [
-          "conversations"
+          "review_cases"
         ],
         "summary": "Release a claim",
         "description": "Release a claim. Requires: operator:act.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}/release. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
@@ -3219,7 +3219,7 @@
     "/api/review-cases/{review_case_id}/release": {
       "post": {
         "tags": [
-          "conversations"
+          "review_cases"
         ],
         "summary": "Release a claim",
         "description": "Release a claim. Requires: operator:act.",
@@ -3294,11 +3294,11 @@
     "/api/conversations/{review_case_id}/assign": {
       "post": {
         "tags": [
-          "conversations"
+          "review_cases"
         ],
         "summary": "Assign to an operator",
         "description": "Assign to an operator. Requires: operator:act.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}/assign. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
-        "operationId": "assign_conversation_api_conversations__review_case_id__assign_post",
+        "operationId": "assign_review_case_api_conversations__review_case_id__assign_post",
         "deprecated": true,
         "parameters": [
           {
@@ -3380,11 +3380,11 @@
     "/api/review-cases/{review_case_id}/assign": {
       "post": {
         "tags": [
-          "conversations"
+          "review_cases"
         ],
         "summary": "Assign to an operator",
         "description": "Assign to an operator. Requires: operator:act.",
-        "operationId": "assign_conversation_api_review_cases__review_case_id__assign_post",
+        "operationId": "assign_review_case_api_review_cases__review_case_id__assign_post",
         "parameters": [
           {
             "name": "review_case_id",
@@ -4084,7 +4084,7 @@
     "/api/conversations/{review_case_id}/language": {
       "patch": {
         "tags": [
-          "conversations"
+          "review_cases"
         ],
         "summary": "Set (or clear, with null) the manual language override for a conversation",
         "description": "Set (or clear) the manual language override for a conversation.\n\nBacklog (多语言审核): ``language`` null clears the override so the\nwriter path re-detects automatically. The endpoint is a full upsert —\nit returns the stored row so the frontend can sync its select.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}/language. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
@@ -4170,7 +4170,7 @@
     "/api/review-cases/{review_case_id}/language": {
       "patch": {
         "tags": [
-          "conversations"
+          "review_cases"
         ],
         "summary": "Set (or clear, with null) the manual language override for a conversation",
         "description": "Set (or clear) the manual language override for a conversation.\n\nBacklog (多语言审核): ``language`` null clears the override so the\nwriter path re-detects automatically. The endpoint is a full upsert —\nit returns the stored row so the frontend can sync its select.",
@@ -4255,7 +4255,7 @@
     "/api/conversations/{review_case_id}/messages/{message_id}/translate": {
       "post": {
         "tags": [
-          "conversations"
+          "review_cases"
         ],
         "summary": "Translate one customer message; without a provider the original text is echoed",
         "description": "Translate one customer message into ``target_language``.\n\nBacklog (多语言审核): never blocks on model availability — without a\nconfigured provider the original text is returned with\n``was_translated=False`` and ``source=\"rule\"`` so the frontend can\ndegrade gracefully.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}/messages/{message_id}/translate. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
@@ -4350,7 +4350,7 @@
     "/api/review-cases/{review_case_id}/messages/{message_id}/translate": {
       "post": {
         "tags": [
-          "conversations"
+          "review_cases"
         ],
         "summary": "Translate one customer message; without a provider the original text is echoed",
         "description": "Translate one customer message into ``target_language``.\n\nBacklog (多语言审核): never blocks on model availability — without a\nconfigured provider the original text is returned with\n``was_translated=False`` and ``source=\"rule\"`` so the frontend can\ndegrade gracefully.",
@@ -4618,7 +4618,7 @@
     "/api/conversations/{review_case_id}/accept": {
       "post": {
         "tags": [
-          "conversations"
+          "review_cases"
         ],
         "summary": "Accept a conversation into human_active",
         "description": "Accept a conversation into human_active. Requires: operator:act.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}/accept. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
@@ -4694,7 +4694,7 @@
     "/api/review-cases/{review_case_id}/accept": {
       "post": {
         "tags": [
-          "conversations"
+          "review_cases"
         ],
         "summary": "Accept a conversation into human_active",
         "description": "Accept a conversation into human_active. Requires: operator:act.",
@@ -4769,7 +4769,7 @@
     "/api/conversations/{review_case_id}/operator-messages": {
       "post": {
         "tags": [
-          "conversations"
+          "review_cases"
         ],
         "summary": "Send an operator reply (Idempotency-Key honoured)",
         "description": "Send an operator reply. Requires: operator:act.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}/operator-messages. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
@@ -4872,7 +4872,7 @@
     "/api/review-cases/{review_case_id}/operator-messages": {
       "post": {
         "tags": [
-          "conversations"
+          "review_cases"
         ],
         "summary": "Send an operator reply (Idempotency-Key honoured)",
         "description": "Stores the operator's reply and, when an Idempotency-Key is supplied, records it as the send receipt for that attempt. Replaying the same key returns the original message with X-Idempotent-Replay: true instead of creating a second reply.",
@@ -4974,7 +4974,7 @@
     "/api/conversations/{review_case_id}/notes": {
       "post": {
         "tags": [
-          "conversations"
+          "review_cases"
         ],
         "summary": "Add an internal note (supports @mention colleagues and reply threads)",
         "description": "Add an internal note (supports @mention colleagues and reply threads). Requires: operator:act.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}/notes. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
@@ -5060,7 +5060,7 @@
     "/api/review-cases/{review_case_id}/notes": {
       "post": {
         "tags": [
-          "conversations"
+          "review_cases"
         ],
         "summary": "Add an internal note (supports @mention colleagues and reply threads)",
         "description": "Add an internal note (supports @mention colleagues and reply threads). Requires: operator:act.",
@@ -5145,7 +5145,7 @@
     "/api/conversations/{review_case_id}/resolve": {
       "post": {
         "tags": [
-          "conversations"
+          "review_cases"
         ],
         "summary": "Resolve a conversation",
         "description": "Resolve a conversation. Requires: operator:act.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}/resolve. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
@@ -5221,7 +5221,7 @@
     "/api/review-cases/{review_case_id}/resolve": {
       "post": {
         "tags": [
-          "conversations"
+          "review_cases"
         ],
         "summary": "Resolve a conversation",
         "description": "Resolve a conversation. Requires: operator:act.",
@@ -5296,7 +5296,7 @@
     "/api/conversations/{review_case_id}/reopen": {
       "post": {
         "tags": [
-          "conversations"
+          "review_cases"
         ],
         "summary": "Reopen a resolved conversation",
         "description": "Reopen a resolved conversation. Requires: operator:act.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}/reopen. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
@@ -5372,7 +5372,7 @@
     "/api/review-cases/{review_case_id}/reopen": {
       "post": {
         "tags": [
-          "conversations"
+          "review_cases"
         ],
         "summary": "Reopen a resolved conversation",
         "description": "Reopen a resolved conversation. Requires: operator:act.",
@@ -5447,7 +5447,7 @@
     "/api/conversations/{review_case_id}/feedback": {
       "post": {
         "tags": [
-          "conversations"
+          "review_cases"
         ],
         "summary": "Rate an assistant message",
         "description": "Rate an assistant message. Requires: conversation:read.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/review-cases/{review_case_id}/feedback. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
@@ -5533,7 +5533,7 @@
     "/api/review-cases/{review_case_id}/feedback": {
       "post": {
         "tags": [
-          "conversations"
+          "review_cases"
         ],
         "summary": "Rate an assistant message",
         "description": "Rate an assistant message. Requires: conversation:read.",
@@ -5944,7 +5944,7 @@
         ],
         "summary": "List canned responses",
         "description": "List canned responses. Requires: conversation:read.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/canned-verdicts. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
-        "operationId": "list_canned_responses_api_canned_responses_get",
+        "operationId": "list_canned_verdicts_api_canned_responses_get",
         "deprecated": true,
         "parameters": [
           {
@@ -6015,7 +6015,7 @@
                 "schema": {
                   "type": "array",
                   "items": {},
-                  "title": "Response List Canned Responses Api Canned Responses Get"
+                  "title": "Response List Canned Verdicts Api Canned Responses Get"
                 }
               }
             }
@@ -6038,7 +6038,7 @@
         ],
         "summary": "Create a canned response",
         "description": "Create a canned response. Requires: knowledge:write.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/canned-verdicts. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
-        "operationId": "create_canned_response_api_canned_responses_post",
+        "operationId": "create_canned_verdict_api_canned_responses_post",
         "deprecated": true,
         "parameters": [
           {
@@ -6115,7 +6115,7 @@
         ],
         "summary": "List canned responses",
         "description": "List canned responses. Requires: conversation:read.",
-        "operationId": "list_canned_responses_api_canned_verdicts_get",
+        "operationId": "list_canned_verdicts_api_canned_verdicts_get",
         "parameters": [
           {
             "name": "search",
@@ -6187,7 +6187,7 @@
                   "items": {
                     "$ref": "#/components/schemas/CannedResponseOut"
                   },
-                  "title": "Response List Canned Responses Api Canned Verdicts Get"
+                  "title": "Response List Canned Verdicts Api Canned Verdicts Get"
                 }
               }
             }
@@ -6210,7 +6210,7 @@
         ],
         "summary": "Create a canned response",
         "description": "Create a canned response. Requires: knowledge:write.",
-        "operationId": "create_canned_response_api_canned_verdicts_post",
+        "operationId": "create_canned_verdict_api_canned_verdicts_post",
         "parameters": [
           {
             "name": "X-API-Key",
@@ -6286,7 +6286,7 @@
         ],
         "summary": "Update a canned response",
         "description": "Update a canned response. Requires: knowledge:write.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/canned-verdicts/{response_id}. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
-        "operationId": "update_canned_response_api_canned_responses__response_id__patch",
+        "operationId": "update_canned_verdict_api_canned_responses__response_id__patch",
         "deprecated": true,
         "parameters": [
           {
@@ -6372,7 +6372,7 @@
         ],
         "summary": "Update a canned response",
         "description": "Update a canned response. Requires: knowledge:write.",
-        "operationId": "update_canned_response_api_canned_verdicts__response_id__patch",
+        "operationId": "update_canned_verdict_api_canned_verdicts__response_id__patch",
         "parameters": [
           {
             "name": "response_id",
@@ -6611,7 +6611,7 @@
         "operationId": "export_audit_events_api_audit_events_get",
         "parameters": [
           {
-            "name": "conversation_id",
+            "name": "review_case_id",
             "in": "query",
             "required": false,
             "schema": {
@@ -6624,7 +6624,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Conversation Id"
+              "title": "Review Case Id"
             }
           },
           {
@@ -6939,7 +6939,7 @@
         ],
         "summary": "List published knowledge articles",
         "description": "List published knowledge articles. Requires: conversation:read.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/policy. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
-        "operationId": "list_knowledge_api_knowledge_get",
+        "operationId": "list_policy_articles_api_knowledge_get",
         "deprecated": true,
         "parameters": [
           {
@@ -6995,7 +6995,7 @@
                   "items": {
                     "$ref": "#/components/schemas/KnowledgeArticleOut"
                   },
-                  "title": "Response List Knowledge Api Knowledge Get"
+                  "title": "Response List Policy Articles Api Knowledge Get"
                 }
               }
             }
@@ -7018,7 +7018,7 @@
         ],
         "summary": "Create a published knowledge article",
         "description": "Create a published knowledge article. Requires: knowledge:write.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/policy. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
-        "operationId": "create_knowledge_api_knowledge_post",
+        "operationId": "create_policy_article_api_knowledge_post",
         "deprecated": true,
         "parameters": [
           {
@@ -7095,7 +7095,7 @@
         ],
         "summary": "List published knowledge articles",
         "description": "List published knowledge articles. Requires: conversation:read.",
-        "operationId": "list_knowledge_api_policy_get",
+        "operationId": "list_policy_articles_api_policy_get",
         "parameters": [
           {
             "name": "include_inactive",
@@ -7150,7 +7150,7 @@
                   "items": {
                     "$ref": "#/components/schemas/KnowledgeArticleOut"
                   },
-                  "title": "Response List Knowledge Api Policy Get"
+                  "title": "Response List Policy Articles Api Policy Get"
                 }
               }
             }
@@ -7173,7 +7173,7 @@
         ],
         "summary": "Create a published knowledge article",
         "description": "Create a published knowledge article. Requires: knowledge:write.",
-        "operationId": "create_knowledge_api_policy_post",
+        "operationId": "create_policy_article_api_policy_post",
         "parameters": [
           {
             "name": "X-API-Key",
@@ -7249,7 +7249,7 @@
         ],
         "summary": "Update a knowledge article",
         "description": "Update a knowledge article. Requires: knowledge:write.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/policy/{article_id}. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
-        "operationId": "update_knowledge_api_knowledge__article_id__patch",
+        "operationId": "update_policy_article_api_knowledge__article_id__patch",
         "deprecated": true,
         "parameters": [
           {
@@ -7335,7 +7335,7 @@
         ],
         "summary": "Update a knowledge article",
         "description": "Update a knowledge article. Requires: knowledge:write.",
-        "operationId": "update_knowledge_api_policy__article_id__patch",
+        "operationId": "update_policy_article_api_policy__article_id__patch",
         "parameters": [
           {
             "name": "article_id",
@@ -10397,7 +10397,7 @@
         ],
         "summary": "List agent groups (skills + capacity)",
         "description": "List agent groups (skills + capacity). Requires: admin:manage.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/admin/reviewer-groups. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
-        "operationId": "list_agent_groups_api_admin_agent_groups_get",
+        "operationId": "list_reviewer_groups_api_admin_agent_groups_get",
         "deprecated": true,
         "parameters": [
           {
@@ -10443,7 +10443,7 @@
                   "items": {
                     "$ref": "#/components/schemas/AgentGroupOut"
                   },
-                  "title": "Response List Agent Groups Api Admin Agent Groups Get"
+                  "title": "Response List Reviewer Groups Api Admin Agent Groups Get"
                 }
               }
             }
@@ -10466,7 +10466,7 @@
         ],
         "summary": "Create an agent group",
         "description": "Create an agent group. Requires: admin:manage.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/admin/reviewer-groups. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
-        "operationId": "create_agent_group_api_admin_agent_groups_post",
+        "operationId": "create_reviewer_group_api_admin_agent_groups_post",
         "deprecated": true,
         "parameters": [
           {
@@ -10543,7 +10543,7 @@
         ],
         "summary": "List agent groups (skills + capacity)",
         "description": "List agent groups (skills + capacity). Requires: admin:manage.",
-        "operationId": "list_agent_groups_api_admin_reviewer_groups_get",
+        "operationId": "list_reviewer_groups_api_admin_reviewer_groups_get",
         "parameters": [
           {
             "name": "X-API-Key",
@@ -10588,7 +10588,7 @@
                   "items": {
                     "$ref": "#/components/schemas/AgentGroupOut"
                   },
-                  "title": "Response List Agent Groups Api Admin Reviewer Groups Get"
+                  "title": "Response List Reviewer Groups Api Admin Reviewer Groups Get"
                 }
               }
             }
@@ -10611,7 +10611,7 @@
         ],
         "summary": "Create an agent group",
         "description": "Create an agent group. Requires: admin:manage.",
-        "operationId": "create_agent_group_api_admin_reviewer_groups_post",
+        "operationId": "create_reviewer_group_api_admin_reviewer_groups_post",
         "parameters": [
           {
             "name": "X-API-Key",
@@ -10687,7 +10687,7 @@
         ],
         "summary": "Delete an agent group",
         "description": "Delete an agent group. Requires: admin:manage.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/admin/reviewer-groups/{group_id}. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
-        "operationId": "delete_agent_group_api_admin_agent_groups__group_id__delete",
+        "operationId": "delete_reviewer_group_api_admin_agent_groups__group_id__delete",
         "deprecated": true,
         "parameters": [
           {
@@ -10756,7 +10756,7 @@
         ],
         "summary": "Delete an agent group",
         "description": "Delete an agent group. Requires: admin:manage.",
-        "operationId": "delete_agent_group_api_admin_reviewer_groups__group_id__delete",
+        "operationId": "delete_reviewer_group_api_admin_reviewer_groups__group_id__delete",
         "parameters": [
           {
             "name": "group_id",
@@ -11220,8 +11220,8 @@
         "tags": [
           "admin"
         ],
-        "summary": "Create a routing rule (intent/label/channel -> group)",
-        "description": "Create a routing rule (intent/label/channel -> group). Requires: admin:manage.",
+        "summary": "Create a routing rule (risk_category/label/channel -> group)",
+        "description": "Create a routing rule (risk_category/label/channel -> group). Requires: admin:manage.",
         "operationId": "create_routing_rule_api_admin_routing_rules_post",
         "parameters": [
           {
@@ -12654,7 +12654,7 @@
         ],
         "summary": "Convert a conversation into a long-cycle ticket (idempotent)",
         "description": "Convert a conversation into a long-cycle ticket (idempotent). Requires: operator:act.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/appeals. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
-        "operationId": "create_ticket_api_tickets_post",
+        "operationId": "create_appeal_api_tickets_post",
         "deprecated": true,
         "parameters": [
           {
@@ -12727,9 +12727,9 @@
         "tags": [
           "appeals"
         ],
-        "summary": "List tickets (filter by status or customer reference)",
-        "description": "List tickets (filter by status or customer reference). Requires: conversation:read.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/appeals. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
-        "operationId": "list_tickets_api_tickets_get",
+        "summary": "List appeals (filter by status or customer reference)",
+        "description": "List appeals (filter by status or customer reference). Requires: conversation:read.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/appeals. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
+        "operationId": "list_appeals_api_tickets_get",
         "deprecated": true,
         "parameters": [
           {
@@ -12750,7 +12750,7 @@
             }
           },
           {
-            "name": "customer_ref",
+            "name": "submitter_ref",
             "in": "query",
             "required": false,
             "schema": {
@@ -12763,7 +12763,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Customer Ref"
+              "title": "Submitter Ref"
             }
           },
           {
@@ -12821,7 +12821,7 @@
                   "items": {
                     "$ref": "#/components/schemas/TicketOut"
                   },
-                  "title": "Response List Tickets Api Tickets Get"
+                  "title": "Response List Appeals Api Tickets Get"
                 }
               }
             }
@@ -12846,7 +12846,7 @@
         ],
         "summary": "Convert a conversation into a long-cycle ticket (idempotent)",
         "description": "Convert a conversation into a long-cycle ticket (idempotent). Requires: operator:act.",
-        "operationId": "create_ticket_api_appeals_post",
+        "operationId": "create_appeal_api_appeals_post",
         "parameters": [
           {
             "name": "X-API-Key",
@@ -12918,9 +12918,9 @@
         "tags": [
           "appeals"
         ],
-        "summary": "List tickets (filter by status or customer reference)",
-        "description": "List tickets (filter by status or customer reference). Requires: conversation:read.",
-        "operationId": "list_tickets_api_appeals_get",
+        "summary": "List appeals (filter by status or customer reference)",
+        "description": "List appeals (filter by status or customer reference). Requires: conversation:read.",
+        "operationId": "list_appeals_api_appeals_get",
         "parameters": [
           {
             "name": "status",
@@ -12940,7 +12940,7 @@
             }
           },
           {
-            "name": "customer_ref",
+            "name": "submitter_ref",
             "in": "query",
             "required": false,
             "schema": {
@@ -12953,7 +12953,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Customer Ref"
+              "title": "Submitter Ref"
             }
           },
           {
@@ -13011,7 +13011,7 @@
                   "items": {
                     "$ref": "#/components/schemas/TicketOut"
                   },
-                  "title": "Response List Tickets Api Appeals Get"
+                  "title": "Response List Appeals Api Appeals Get"
                 }
               }
             }
@@ -13034,9 +13034,9 @@
         "tags": [
           "appeals"
         ],
-        "summary": "Ticket detail with linked conversations",
-        "description": "Ticket detail with linked conversations. Requires: conversation:read.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/appeals/{appeal_id}. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
-        "operationId": "get_ticket_api_tickets__appeal_id__get",
+        "summary": "Ticket detail with linked review_cases",
+        "description": "Ticket detail with linked review_cases. Requires: conversation:read.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/appeals/{appeal_id}. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
+        "operationId": "get_appeal_api_tickets__appeal_id__get",
         "deprecated": true,
         "parameters": [
           {
@@ -13110,7 +13110,7 @@
         ],
         "summary": "Update ticket subject/description/priority/assignee",
         "description": "Update ticket subject/description/priority/assignee. Requires: operator:act.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/appeals/{appeal_id}. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
-        "operationId": "update_ticket_api_tickets__appeal_id__patch",
+        "operationId": "update_appeal_api_tickets__appeal_id__patch",
         "deprecated": true,
         "parameters": [
           {
@@ -13194,9 +13194,9 @@
         "tags": [
           "appeals"
         ],
-        "summary": "Ticket detail with linked conversations",
-        "description": "Ticket detail with linked conversations. Requires: conversation:read.",
-        "operationId": "get_ticket_api_appeals__appeal_id__get",
+        "summary": "Ticket detail with linked review_cases",
+        "description": "Ticket detail with linked review_cases. Requires: conversation:read.",
+        "operationId": "get_appeal_api_appeals__appeal_id__get",
         "parameters": [
           {
             "name": "appeal_id",
@@ -13269,7 +13269,7 @@
         ],
         "summary": "Update ticket subject/description/priority/assignee",
         "description": "Update ticket subject/description/priority/assignee. Requires: operator:act.",
-        "operationId": "update_ticket_api_appeals__appeal_id__patch",
+        "operationId": "update_appeal_api_appeals__appeal_id__patch",
         "parameters": [
           {
             "name": "appeal_id",
@@ -13354,7 +13354,7 @@
         ],
         "summary": "Move a ticket through its state machine (open/in_progress/closed)",
         "description": "Move a ticket through its state machine (open/in_progress/closed). Requires: operator:act.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/appeals/{appeal_id}/transition. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
-        "operationId": "transition_ticket_api_tickets__appeal_id__transition_post",
+        "operationId": "transition_appeal_api_tickets__appeal_id__transition_post",
         "deprecated": true,
         "parameters": [
           {
@@ -13440,7 +13440,7 @@
         ],
         "summary": "Move a ticket through its state machine (open/in_progress/closed)",
         "description": "Move a ticket through its state machine (open/in_progress/closed). Requires: operator:act.",
-        "operationId": "transition_ticket_api_appeals__appeal_id__transition_post",
+        "operationId": "transition_appeal_api_appeals__appeal_id__transition_post",
         "parameters": [
           {
             "name": "appeal_id",
@@ -13525,7 +13525,7 @@
         ],
         "summary": "Link another conversation to the ticket (cross-conversation tracking)",
         "description": "Link another conversation to the ticket (cross-conversation tracking). Requires: operator:act.\n\nDeprecated since 2026-09-21; removed on 2027-09-21. Migrate to /api/appeals/{appeal_id}/link. Domain migration: the customer-support shell became content review (docs/DOMAIN.md).",
-        "operationId": "link_ticket_conversation_api_tickets__appeal_id__link_post",
+        "operationId": "link_appeal_review_case_api_tickets__appeal_id__link_post",
         "deprecated": true,
         "parameters": [
           {
@@ -13611,7 +13611,7 @@
         ],
         "summary": "Link another conversation to the ticket (cross-conversation tracking)",
         "description": "Link another conversation to the ticket (cross-conversation tracking). Requires: operator:act.",
-        "operationId": "link_ticket_conversation_api_appeals__appeal_id__link_post",
+        "operationId": "link_appeal_review_case_api_appeals__appeal_id__link_post",
         "parameters": [
           {
             "name": "appeal_id",
@@ -15991,8 +15991,8 @@
         "tags": [
           "v2:review-cases"
         ],
-        "summary": "List conversations (cursor-paginated)",
-        "operationId": "list_conversations_v2_api_v2_conversations_get",
+        "summary": "List review_cases (cursor-paginated)",
+        "operationId": "list_review_cases_v2_api_v2_conversations_get",
         "deprecated": true,
         "parameters": [
           {
@@ -16091,7 +16091,7 @@
                 "schema": {
                   "type": "object",
                   "additionalProperties": true,
-                  "title": "Response List Conversations V2 Api V2 Conversations Get"
+                  "title": "Response List Review Cases V2 Api V2 Conversations Get"
                 }
               }
             }
@@ -16211,9 +16211,9 @@
         "tags": [
           "v2:review-cases"
         ],
-        "summary": "List conversations (cursor-paginated)",
+        "summary": "List review_cases (cursor-paginated)",
         "description": "Keyset-paginated queue listing. Cursors are opaque and live in the response body next_cursor field; core fields match v1 exactly (shadow-read contract).",
-        "operationId": "list_conversations_v2_api_v2_review_cases_get",
+        "operationId": "list_review_cases_v2_api_v2_review_cases_get",
         "parameters": [
           {
             "name": "cursor",
@@ -16311,7 +16311,7 @@
                 "schema": {
                   "type": "object",
                   "additionalProperties": true,
-                  "title": "Response List Conversations V2 Api V2 Review Cases Get"
+                  "title": "Response List Review Cases V2 Api V2 Review Cases Get"
                 }
               }
             }
@@ -16508,7 +16508,7 @@
           "v2:review-cases"
         ],
         "summary": "Fetch one conversation",
-        "description": "Single conversation by id; archived conversations resolve transparently, mirroring v1 semantics.",
+        "description": "Single conversation by id; archived review_cases resolve transparently, mirroring v1 semantics.",
         "operationId": "get_conversation_v2_api_v2_review_cases__review_case_id__get",
         "parameters": [
           {
@@ -16901,8 +16901,8 @@
         "tags": [
           "quality"
         ],
-        "summary": "Quality buckets by day/intent/prompt_version",
-        "description": "Quality buckets by day/intent/prompt_version. Requires: metrics:read.",
+        "summary": "Quality buckets by day/risk_category/prompt_version",
+        "description": "Quality buckets by day/risk_category/prompt_version. Requires: metrics:read.",
         "operationId": "list_quality_buckets_api_supervisor_quality_get",
         "parameters": [
           {
@@ -16940,7 +16940,7 @@
             }
           },
           {
-            "name": "intent",
+            "name": "risk_category",
             "in": "query",
             "required": false,
             "schema": {
@@ -16953,7 +16953,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Intent"
+              "title": "Risk Category"
             }
           },
           {

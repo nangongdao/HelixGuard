@@ -32,7 +32,7 @@ export function bindShortcuts() {
       els.searchInput.focus();
     } else if (event.key === "c") {
       event.preventDefault();
-      els.newConversation.click();
+      els.newReviewCase.click();
     } else if (event.key === "r") {
       event.preventDefault();
       refreshAll();

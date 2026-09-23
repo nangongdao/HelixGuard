@@ -16,7 +16,7 @@ import { create } from "zustand";
  * @property {Array<object>} conversations - queue list
  * @property {string|null} activeId - selected conversation id
  * @property {string} queueSignature - stable signature for skip-re-render
- * @property {"workspace"|"quality"|"knowledge"|"admin"|"settings"} view
+ * @property {"workspace"|"quality"|"policy"|"admin"|"settings"} view
  * @property {"dark"|"light"} theme
  * @property {boolean} lowPerf - low-performance mode flag
  * @property {boolean} inspectorOpen

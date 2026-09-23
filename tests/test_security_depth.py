@@ -22,13 +22,13 @@ from app.config import Settings
 from app.main import create_app
 
 ADMIN_KEY = "sec-depth-admin-001"
-OPERATOR_KEY = "sec-depth-op-key-001"
+REVIEWER_KEY = "sec-depth-op-key-001"
 
 
 def _settings(db_path: Path, **overrides: Any) -> Settings:
     principals = {
         ADMIN_KEY: {"tenant_id": "demo", "actor_id": "admin.user", "role": "admin"},
-        OPERATOR_KEY: {"tenant_id": "demo", "actor_id": "op.user", "role": "operator"},
+        REVIEWER_KEY: {"tenant_id": "demo", "actor_id": "op.user", "role": "operator"},
     }
     defaults: dict[str, Any] = {
         "database_path": db_path,
@@ -50,30 +50,30 @@ class ApiKeyRevocationTests(unittest.TestCase):
         self.client = TestClient(create_app(_settings(self.db_path)))
         self.services = cast(Any, self.client.app).state.services
         self.admin = {"X-API-Key": ADMIN_KEY, "X-Tenant-Id": "demo"}
-        self.operator = {"X-API-Key": OPERATOR_KEY, "X-Tenant-Id": "demo"}
+        self.reviewer = {"X-API-Key": REVIEWER_KEY, "X-Tenant-Id": "demo"}
 
     def tearDown(self) -> None:
         self.services.database.close()
         self.client.close()
         self._tmp.cleanup()
 
-    def _operator_credential(self) -> str:
-        return self.client.get("/api/me", headers=self.operator).json()["credential_id"]
+    def _reviewer_credential(self) -> str:
+        return self.client.get("/api/me", headers=self.reviewer).json()["credential_id"]
 
     def test_revoke_disables_key_immediately(self) -> None:
-        credential = self._operator_credential()
+        credential = self._reviewer_credential()
         self.assertEqual(
-            self.client.get("/api/review-cases", headers=self.operator).status_code, 200
+            self.client.get("/api/review-cases", headers=self.reviewer).status_code, 200
         )
         revoked = self.client.post(f"/api/admin/keys/{credential}/revoke", headers=self.admin)
         self.assertEqual(revoked.status_code, 200)
         self.assertTrue(revoked.json()["revoked"])
         self.assertEqual(
-            self.client.get("/api/review-cases", headers=self.operator).status_code, 401
+            self.client.get("/api/review-cases", headers=self.reviewer).status_code, 401
         )
 
     def test_revoke_is_audited(self) -> None:
-        credential = self._operator_credential()
+        credential = self._reviewer_credential()
         self.client.post(f"/api/admin/keys/{credential}/revoke", headers=self.admin)
         with self.services.database.connect() as conn:
             rows = conn.execute(
@@ -82,7 +82,7 @@ class ApiKeyRevocationTests(unittest.TestCase):
         self.assertEqual(len(rows), 1)
 
     def test_revocation_persists_across_restart(self) -> None:
-        credential = self._operator_credential()
+        credential = self._reviewer_credential()
         self.client.post(f"/api/admin/keys/{credential}/revoke", headers=self.admin)
         self.services.database.close()
         self.client.close()
@@ -90,12 +90,12 @@ class ApiKeyRevocationTests(unittest.TestCase):
         self.client = TestClient(create_app(_settings(self.db_path)))
         self.services = cast(Any, self.client.app).state.services
         self.assertEqual(
-            self.client.get("/api/review-cases", headers=self.operator).status_code, 401
+            self.client.get("/api/review-cases", headers=self.reviewer).status_code, 401
         )
 
-    def test_operator_cannot_revoke(self) -> None:
+    def test_reviewer_cannot_revoke(self) -> None:
         response = self.client.post(
-            "/api/admin/keys/some-credential-id/revoke", headers=self.operator
+            "/api/admin/keys/some-credential-id/revoke", headers=self.reviewer
         )
         self.assertEqual(response.status_code, 403)
 

@@ -14,7 +14,7 @@
  * never issue a privileged request, matching tests/ui_admin.py). Writes
  * bridge back to legacy via helix-admin-* events so api()/showToast()/
  * window.confirm() and the reload lifecycle stay in app.js, exactly like
- * the knowledge island's save bridge.
+ * the policy island's save bridge.
  *
  * The island keeps the legacy class contract (.admin-card/.admin-member/
  * .admin-webhook/…) so the desktop axe pass and any class-based desktop

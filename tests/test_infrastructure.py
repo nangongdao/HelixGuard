@@ -93,7 +93,7 @@ class MigrationFrameworkTests(unittest.TestCase):
             tables = {
                 r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
             }
-            self.assertIn("conversations", tables)
+            self.assertIn("review_cases", tables)
             self.assertIn("schema_migrations", tables)
             self.assertIn("retention_policies", tables)
             conn.close()
@@ -108,7 +108,7 @@ class MigrationFrameworkTests(unittest.TestCase):
             conn.row_factory = sqlite3.Row
             conn.execute("CREATE TABLE tenants (id TEXT PRIMARY KEY, name TEXT, created_at TEXT)")
             conn.execute(
-                "CREATE TABLE conversations (id TEXT, tenant_id TEXT, customer_name TEXT, "
+                "CREATE TABLE review_cases (id TEXT, tenant_id TEXT, submitter_name TEXT, "
                 "channel TEXT, status TEXT, priority TEXT DEFAULT 'normal', "
                 "first_response_at TEXT, created_at TEXT, updated_at TEXT)"
             )
@@ -136,9 +136,9 @@ class MigrationFrameworkTests(unittest.TestCase):
                 """
                 CREATE TABLE tenants (id TEXT PRIMARY KEY, name TEXT NOT NULL,
                     created_at TEXT NOT NULL);
-                CREATE TABLE conversations (
+                CREATE TABLE review_cases (
                     id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL,
-                    customer_name TEXT NOT NULL, channel TEXT NOT NULL,
+                    submitter_name TEXT NOT NULL, channel TEXT NOT NULL,
                     status TEXT NOT NULL, priority TEXT NOT NULL DEFAULT 'normal',
                     version INTEGER NOT NULL DEFAULT 1, preview TEXT,
                     message_count INTEGER NOT NULL DEFAULT 0,
@@ -148,13 +148,13 @@ class MigrationFrameworkTests(unittest.TestCase):
                 );
                 CREATE TABLE messages (
                     id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL,
-                    conversation_id TEXT NOT NULL, turn_id TEXT, role TEXT NOT NULL,
+                    review_case_id TEXT NOT NULL, turn_id TEXT, role TEXT NOT NULL,
                     author TEXT NOT NULL, content TEXT NOT NULL,
                     metadata_json TEXT NOT NULL DEFAULT '{}', created_at TEXT NOT NULL
                 );
                 CREATE TABLE audit_events (
                     id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL,
-                    conversation_id TEXT, request_id TEXT, actor TEXT NOT NULL,
+                    review_case_id TEXT, request_id TEXT, actor TEXT NOT NULL,
                     event_type TEXT NOT NULL, payload_json TEXT NOT NULL,
                     created_at TEXT NOT NULL
                 );
@@ -162,12 +162,12 @@ class MigrationFrameworkTests(unittest.TestCase):
             )
             # Same-instant inserts; only rowid (insertion order) can break the tie.
             conn.execute(
-                "INSERT INTO messages (id, tenant_id, conversation_id, role, author, "
+                "INSERT INTO messages (id, tenant_id, review_case_id, role, author, "
                 "content, created_at) VALUES ('m1','t','c','customer','C','first',"
                 "'2026-01-01T00:00:00Z')"
             )
             conn.execute(
-                "INSERT INTO messages (id, tenant_id, conversation_id, role, author, "
+                "INSERT INTO messages (id, tenant_id, review_case_id, role, author, "
                 "content, created_at) VALUES ('m2','t','c','customer','C','second',"
                 "'2026-01-01T00:00:00Z')"
             )
@@ -178,7 +178,7 @@ class MigrationFrameworkTests(unittest.TestCase):
             self.assertEqual([r["seq"] for r in rows], [1, 2])
             # The installed trigger keeps new rows monotonic.
             conn.execute(
-                "INSERT INTO messages (id, tenant_id, conversation_id, role, author, "
+                "INSERT INTO messages (id, tenant_id, review_case_id, role, author, "
                 "content, created_at) VALUES ('m3','t','c','customer','C','third',"
                 "'2026-01-01T00:00:01Z')"
             )
@@ -295,17 +295,17 @@ class RetentionServiceTests(unittest.TestCase):
         self.assertEqual(days, DEFAULT_RETENTION_DAYS["messages"])
 
     def test_enforce_retention_deletes_old_records(self) -> None:
-        self.db.create_conversation("test-tenant", "Customer", None, "web", "admin", 120)
+        self.db.create_review_case("test-tenant", "Customer", None, "web", "admin", 120)
         with self.db.connect() as conn:
             conv_id = conn.execute(
-                "SELECT id FROM conversations WHERE tenant_id = 'test-tenant' LIMIT 1"
+                "SELECT id FROM review_cases WHERE tenant_id = 'test-tenant' LIMIT 1"
             ).fetchone()[0]
         self.db.add_message("test-tenant", conv_id, "customer", "Customer", "old")
         # Manually backdate the message
         with self.db.connect() as conn:
             conn.execute(
                 "UPDATE messages SET created_at = '2020-01-01T00:00:00+00:00' "
-                "WHERE conversation_id = ?",
+                "WHERE review_case_id = ?",
                 (conv_id,),
             )
         deleted = self.service.enforce_retention("test-tenant", "messages", retention_days=30)
@@ -423,14 +423,14 @@ class RetentionServiceTests(unittest.TestCase):
         self.assertEqual(archive_count, 0)
 
     def test_data_subject_deletion(self) -> None:
-        self.db.create_conversation("test-tenant", "Customer A", "CUST-DSR-1", "web", "admin", 120)
-        self.db.create_conversation("test-tenant", "Customer A", "CUST-DSR-1", "web", "admin", 120)
-        self.db.create_conversation("test-tenant", "Customer B", "CUST-DSR-2", "web", "admin", 120)
+        self.db.create_review_case("test-tenant", "Customer A", "CUST-DSR-1", "web", "admin", 120)
+        self.db.create_review_case("test-tenant", "Customer A", "CUST-DSR-1", "web", "admin", 120)
+        self.db.create_review_case("test-tenant", "Customer B", "CUST-DSR-2", "web", "admin", 120)
         with self.db.connect() as conn:
             conv_ids = [
                 row[0]
                 for row in conn.execute(
-                    "SELECT id FROM conversations WHERE tenant_id = 'test-tenant' AND customer_ref = 'CUST-DSR-1'"
+                    "SELECT id FROM review_cases WHERE tenant_id = 'test-tenant' AND submitter_ref = 'CUST-DSR-1'"
                 ).fetchall()
             ]
         self.db.add_message("test-tenant", conv_ids[0], "customer", "Customer A", "hi")
@@ -443,7 +443,7 @@ class RetentionServiceTests(unittest.TestCase):
         )
         self.service.enforce_retention("test-tenant", "audit_events", retention_days=-1)
         counts = self.service.execute_data_subject_deletion("test-tenant", "CUST-DSR-1")
-        self.assertEqual(counts["conversations"], 2)
+        self.assertEqual(counts["review_cases"], 2)
         self.assertEqual(counts["messages"], 1)
         self.assertEqual(counts["audit_events"], 0)
         self.assertEqual(counts["audit_archives"], 0)
@@ -460,19 +460,19 @@ class RetentionServiceTests(unittest.TestCase):
         # Customer B's conversation is untouched
         with self.db.connect() as conn:
             remaining = conn.execute(
-                "SELECT COUNT(*) FROM conversations WHERE tenant_id = 'test-tenant' AND customer_ref = 'CUST-DSR-2'"
+                "SELECT COUNT(*) FROM review_cases WHERE tenant_id = 'test-tenant' AND submitter_ref = 'CUST-DSR-2'"
             ).fetchone()[0]
         self.assertEqual(remaining, 1)
 
     def test_data_subject_export(self) -> None:
-        self.db.create_conversation("test-tenant", "Customer C", "CUST-EXP", "web", "admin", 120)
+        self.db.create_review_case("test-tenant", "Customer C", "CUST-EXP", "web", "admin", 120)
         with self.db.connect() as conn:
             conv_id = conn.execute(
-                "SELECT id FROM conversations WHERE tenant_id = 'test-tenant' AND customer_ref = 'CUST-EXP'"
+                "SELECT id FROM review_cases WHERE tenant_id = 'test-tenant' AND submitter_ref = 'CUST-EXP'"
             ).fetchone()[0]
         self.db.add_message("test-tenant", conv_id, "customer", "Customer C", "data")
         export = self.service.execute_data_subject_export("test-tenant", "CUST-EXP")
-        self.assertEqual(len(export["conversations"]), 1)
+        self.assertEqual(len(export["review_cases"]), 1)
         self.assertEqual(len(export["messages"]), 1)
 
     def test_invalid_data_type_rejected(self) -> None:
@@ -746,10 +746,10 @@ class QueueAbstractionTests(unittest.TestCase):
 
     def test_sqlite_queue_protocol(self) -> None:
         queue = SQLiteTaskQueue(self.db)
-        self.db.create_conversation("test-tenant", "Customer", None, "web", "admin", 120)
+        self.db.create_review_case("test-tenant", "Customer", None, "web", "admin", 120)
         with self.db.connect() as conn:
             conv_id = conn.execute(
-                "SELECT id FROM conversations WHERE tenant_id = 'test-tenant' LIMIT 1"
+                "SELECT id FROM review_cases WHERE tenant_id = 'test-tenant' LIMIT 1"
             ).fetchone()[0]
         job, _ = queue.enqueue("test-tenant", conv_id, "idem-q-1", "actor-1", "test", 3)
         self.assertTrue(job["id"].startswith("job_"))
@@ -790,7 +790,7 @@ class RepositoryProtocolTests(unittest.TestCase):
         self.db.close()
         Path(self._tmp.name).unlink(missing_ok=True)
 
-    def test_database_satisfies_conversation_repository(self) -> None:
+    def test_database_satisfies_review_case_repository(self) -> None:
         from app.repositories import ConversationRepository
 
         self.assertIsInstance(self.db, ConversationRepository)

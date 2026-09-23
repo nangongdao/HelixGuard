@@ -2,7 +2,7 @@
 
 The composer island originally mirrored only the two send forms — the copilot
 bar, canned-response chips, macro suggest and attachment upload lived inside
-the yielded (hidden) legacy #operatorForm and were unreachable in the desktop
+the yielded (hidden) legacy #reviewerForm and were unreachable in the desktop
 shell. This slice rehomes them island-side. The journey drives each tool
 end-to-end against the real sidecar:
 
@@ -82,7 +82,7 @@ def main() -> int:
                 print("FAIL: no console page found over CDP")
                 return 1
 
-            page.wait_for_selector("#operatorIdentity", state="attached", timeout=30000)
+            page.wait_for_selector("#reviewerIdentity", state="attached", timeout=30000)
             page.wait_for_selector("#composerReactIsland", state="attached", timeout=30000)
             checks: dict[str, object] = {}
             checks["island_mode"] = page.evaluate("() => window.__HELIX_ISLAND_MODE__ === true")
@@ -130,10 +130,10 @@ def main() -> int:
             # Select the conversation from the queue island.
             page.locator("#refreshList").click()
             page.wait_for_selector(
-                "#queueReactIsland .conversation-item", state="visible", timeout=30000
+                "#queueReactIsland .review-case-item", state="visible", timeout=30000
             )
             page.locator(
-                f"#queueReactIsland .conversation-item[data-id='{seeded['conversationId']}']"
+                f"#queueReactIsland .review-case-item[data-id='{seeded['conversationId']}']"
             ).click()
 
             # Tool surfaces visible in the island (legacy forms stay yielded).
@@ -152,19 +152,21 @@ def main() -> int:
                 "() => document.querySelector('#composerReactIsland #attachmentBar')?.hidden === false"
             )
             checks["legacy_operator_form_hidden"] = page.evaluate(
-                "() => { const f = document.getElementById('operatorForm'); return f && f.hidden === true; }"
+                "() => { const f = document.getElementById('reviewerForm'); return f && f.hidden === true; }"
             )
 
             # ── Canned chip → island insertion + real /use POST ──
             with page.expect_response(
-                lambda r: "/canned-verdicts/" in r.url
-                and r.url.endswith("/use")
-                and r.request.method == "POST"
+                lambda r: (
+                    "/canned-verdicts/" in r.url
+                    and r.url.endswith("/use")
+                    and r.request.method == "POST"
+                )
             ) as use_info:
                 page.locator("#composerReactIsland #cannedList .canned-chip").first.click()
             checks["macro_use_post_status"] = use_info.value.status
             checks["canned_chip_inserted"] = page.evaluate(
-                "() => document.getElementById('operatorInputReact').value.length > 0"
+                "() => document.getElementById('reviewerInputReact').value.length > 0"
             )
 
             # ── Macro suggest: type a trailing /token, pick the option ──
@@ -180,21 +182,23 @@ def main() -> int:
             )
             checks["chip_shortcut_found"] = bool(chip_shortcut)
             token = chip_shortcut[:4] if chip_shortcut else ""
-            page.locator("#operatorInputReact").fill("")
-            page.locator("#operatorInputReact").fill(f"请查收 /{token}")
+            page.locator("#reviewerInputReact").fill("")
+            page.locator("#reviewerInputReact").fill(f"请查收 /{token}")
             page.wait_for_function(
                 "() => document.querySelectorAll('#composerReactIsland #macroSuggest .macro-option').length > 0",
                 timeout=10000,
             )
             with page.expect_response(
-                lambda r: "/canned-verdicts/" in r.url
-                and r.url.endswith("/use")
-                and r.request.method == "POST"
+                lambda r: (
+                    "/canned-verdicts/" in r.url
+                    and r.url.endswith("/use")
+                    and r.request.method == "POST"
+                )
             ) as use_info2:
                 page.locator("#composerReactIsland #macroSuggest .macro-option").first.click()
             checks["macro_pick_post_status"] = use_info2.value.status
             checks["macro_token_replaced"] = page.evaluate(
-                "() => !document.getElementById('operatorInputReact').value.includes('请查收 /')"
+                "() => !document.getElementById('reviewerInputReact').value.includes('请查收 /')"
             )
 
             # ── 智能建议: island draft → real POST → template chips ──
@@ -206,7 +210,7 @@ def main() -> int:
                     return (chip?.getAttribute('title') || '').slice(0, 3);
                 }"""
             )
-            page.locator("#operatorInputReact").fill(draft_snippet)
+            page.locator("#reviewerInputReact").fill(draft_snippet)
             with page.expect_response(
                 lambda r: r.url.endswith("/api/copilot/suggest") and r.request.method == "POST"
             ) as suggest_info:
@@ -228,7 +232,7 @@ def main() -> int:
                 "#composerReactIsland #copilotSuggestions .copilot-suggestion"
             ).first.click()
             checks["suggestion_applied"] = page.evaluate(
-                "() => document.getElementById('operatorInputReact').value.length > 0"
+                "() => document.getElementById('reviewerInputReact').value.length > 0"
             )
 
             # ── Tone rewrite: real POST, rewritten text + status in island ──
@@ -246,7 +250,7 @@ def main() -> int:
             )
 
             # ── Attachment: island file input → real upload → operator send ──
-            page.locator("#operatorInputReact").fill("附上凭证文件")
+            page.locator("#reviewerInputReact").fill("附上凭证文件")
             try:
                 with page.expect_response(
                     lambda r: r.url.endswith("/api/attachments") and r.request.method == "POST",

@@ -53,7 +53,7 @@ class TurnJobChunkDatabaseTests(unittest.TestCase):
         self.db = Database(Path(self._tmp.name))
         self.db.initialize()
         self.db.ensure_tenant("t-ench")
-        conv = self.db.create_conversation("t-ench", "Customer", None, "web", "admin", 120)
+        conv = self.db.create_review_case("t-ench", "Customer", None, "web", "admin", 120)
         self.conv_id = conv["id"]
         job = self.db.enqueue_turn_job(
             "t-ench", self.conv_id, "chunk-key-1", "actor-1", "content", 3
@@ -106,15 +106,15 @@ class Migration005Tests(unittest.TestCase):
                 """
                 CREATE TABLE tenants (id TEXT PRIMARY KEY, name TEXT NOT NULL,
                     created_at TEXT NOT NULL);
-                CREATE TABLE conversations (
+                CREATE TABLE review_cases (
                     id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL,
-                    customer_name TEXT NOT NULL, channel TEXT NOT NULL,
+                    submitter_name TEXT NOT NULL, channel TEXT NOT NULL,
                     status TEXT NOT NULL, priority TEXT NOT NULL DEFAULT 'normal',
                     created_at TEXT NOT NULL, updated_at TEXT NOT NULL
                 );
                 CREATE TABLE turn_jobs (
                     id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL,
-                    conversation_id TEXT NOT NULL, content TEXT NOT NULL,
+                    review_case_id TEXT NOT NULL, content TEXT NOT NULL,
                     status TEXT NOT NULL DEFAULT 'queued',
                     created_at TEXT NOT NULL, updated_at TEXT NOT NULL
                 );
@@ -181,17 +181,17 @@ class Migration005Tests(unittest.TestCase):
                 "VALUES ('t', 'T', '2026-01-01T00:00:00+00:00')"
             )
             connection.execute(
-                "INSERT INTO conversations (id, tenant_id, customer_name, channel, status, "
+                "INSERT INTO review_cases (id, tenant_id, submitter_name, channel, status, "
                 "created_at, updated_at) VALUES ('c','t','C','web','open',"
                 "'2026-01-01T00:00:00+00:00','2026-01-01T00:00:00+00:00')"
             )
             connection.execute(
-                "INSERT INTO turn_jobs (id, tenant_id, conversation_id, content, created_at, "
+                "INSERT INTO turn_jobs (id, tenant_id, review_case_id, content, created_at, "
                 "updated_at) VALUES ('j1','t','c','h','2026-01-01T00:00:00+00:00',"
                 "'2026-01-01T00:00:00+00:00')"
             )
             connection.execute(
-                "INSERT INTO turn_job_chunks (id, tenant_id, conversation_id, job_id, seq, "
+                "INSERT INTO turn_job_chunks (id, tenant_id, review_case_id, job_id, seq, "
                 "content, created_at) VALUES ('chk1','t','c','j1',0,'你',"
                 "'2026-01-01T00:00:00+00:00')"
             )
@@ -229,7 +229,7 @@ class StreamWorkerTests(unittest.TestCase):
         self.services.database.close()
         self._tmp.cleanup()
 
-    def create_conversation(self, name: str = "Stream Customer") -> dict:
+    def create_review_case(self, name: str = "Stream Customer") -> dict:
         response = self.client.post(
             "/api/review-cases",
             json={"customer_name": name, "channel": "web"},
@@ -256,9 +256,9 @@ class StreamWorkerTests(unittest.TestCase):
         return events
 
     def test_sse_stream_emits_tokens_then_completed_job(self) -> None:
-        conversation = self.create_conversation()
+        review_case = self.create_review_case()
         job = self.client.post(
-            f"/api/review-cases/{conversation['id']}/turn-jobs",
+            f"/api/review-cases/{review_case['id']}/turn-jobs",
             json={"content": "帮我查一下我的订单"},
             headers={**self.headers, "Idempotency-Key": "sse-token-0001"},
         )
@@ -284,7 +284,7 @@ class StreamWorkerTests(unittest.TestCase):
         streamed = "".join(payload["content"] for _, payload in token_events)
         assistant = next(
             m
-            for m in self.services.database.list_messages("t1", conversation["id"])
+            for m in self.services.database.list_messages("t1", review_case["id"])
             if m["role"] == "assistant"
         )
         self.assertEqual(streamed, " ".join(assistant["content"].split()))
@@ -296,10 +296,10 @@ class StreamWorkerTests(unittest.TestCase):
         self.assertEqual(job_events[0][1]["status"], "completed")
 
     def test_idempotent_replay_does_not_duplicate_chunks(self) -> None:
-        conversation = self.create_conversation()
+        review_case = self.create_review_case()
         key = "sse-replay-0001"
         first = self.client.post(
-            f"/api/review-cases/{conversation['id']}/turn-jobs",
+            f"/api/review-cases/{review_case['id']}/turn-jobs",
             json={"content": "订单丢了"},
             headers={**self.headers, "Idempotency-Key": key},
         )
@@ -313,7 +313,7 @@ class StreamWorkerTests(unittest.TestCase):
 
         # Re-submitting the same idempotency key returns the same job as a replay.
         replay = self.client.post(
-            f"/api/review-cases/{conversation['id']}/turn-jobs",
+            f"/api/review-cases/{review_case['id']}/turn-jobs",
             json={"content": "订单丢了"},
             headers={**self.headers, "Idempotency-Key": key},
         )
@@ -338,20 +338,20 @@ class StreamWorkerTests(unittest.TestCase):
         first run and must not be duplicated.
         """
         worker = self.services.turn_worker
-        conversation = self.create_conversation("Replay Guard")
+        review_case = self.create_review_case("Replay Guard")
         job = self.services.database.enqueue_turn_job(
-            "t1", conversation["id"], "replay-guard-key", "agent.admin", "退款", 3
+            "t1", review_case["id"], "replay-guard-key", "agent.admin", "退款", 3
         )
         job_id = job[0]["id"]
         worker._write_stream_chunks(
-            {"tenant_id": "t1", "conversation_id": conversation["id"], "id": job_id},
+            {"tenant_id": "t1", "conversation_id": review_case["id"], "id": job_id},
             {"idempotent_replay": True, "assistant_message": {"content": "no stream"}},
         )
         self.assertEqual(worker.database.list_turn_job_chunks("t1", job_id), [])
 
         # A normal (non-replay) response does write chunks for the same job.
         worker._write_stream_chunks(
-            {"tenant_id": "t1", "conversation_id": conversation["id"], "id": job_id},
+            {"tenant_id": "t1", "conversation_id": review_case["id"], "id": job_id},
             {"idempotent_replay": False, "assistant_message": {"content": "你好"}},
         )
         chunks = worker.database.list_turn_job_chunks("t1", job_id)

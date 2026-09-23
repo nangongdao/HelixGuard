@@ -2,9 +2,9 @@
  * Helix Guard — workspace tabs island (D3 long tail).
  *
  * Owns the workspace tablist (队列/申诉单) in the desktop shell. The pane
- * switching itself — queuePane dataset.mode, ticketPane visibility, ticket
+ * switching itself — queuePane dataset.mode, appealPane visibility, appeal
  * loading and the queue refresh — stays in legacy switchWorkspaceTab
- * (js/ticket-view.js); the island renders the two tabs and bridges clicks:
+ * (js/appeal-view.js); the island renders the two tabs and bridges clicks:
  *   helix-workspace-tab          {field} → legacy switchWorkspaceTab(field)
  *   helix-workspace-tab-changed  {field} ← legacy reports the new active tab
  * (the island applies clicks optimistically and reconciles on the changed
@@ -28,7 +28,7 @@ export const WORKSPACE_TAB_EVENTS = Object.freeze({
 
 const TABS = [
   { field: "queue", label: "队列" },
-  { field: "tickets", label: "申诉单" },
+  { field: "appeals", label: "申诉单" },
 ];
 
 /** Pure state transition for the tablist. */
@@ -42,7 +42,7 @@ export function WorkspaceTabsIsland() {
   useEffect(() => {
     const onChanged = (event) => {
       const { field } = event.detail || {};
-      if (field === "queue" || field === "tickets") setActive(field);
+      if (field === "queue" || field === "appeals") setActive(field);
     };
     window.addEventListener(WORKSPACE_TAB_EVENTS.CHANGED, onChanged);
     return () => window.removeEventListener(WORKSPACE_TAB_EVENTS.CHANGED, onChanged);

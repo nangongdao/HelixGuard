@@ -128,7 +128,7 @@ function MessageRow({ message, isReply, snapshot, feedbackRating, translateHtml,
         <div className="message-meta">
           <span>{role}</span>
           {message.role === "assistant" && metadata.agent ? (
-            <span className="agent-chip">{metadata.agent}</span>
+            <span className="reviewer-chip">{metadata.agent}</span>
           ) : null}
           {isReply ? (
             <span className="note-reply-mark" title={`回复了 ${message.reply_to}`}>

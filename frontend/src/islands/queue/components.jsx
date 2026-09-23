@@ -82,11 +82,11 @@ export const QueueRow = memo(function QueueRow({ conversation, active, selected,
   );
 
   return (
-    <div className={`conversation-row${canOperate ? " has-selection" : ""}${selected ? " is-selected" : ""}`}>
+    <div className={`review-case-row${canOperate ? " has-selection" : ""}${selected ? " is-selected" : ""}`}>
       {canOperate && (
-        <label className="conversation-select" title={`选择 ${conversation.customer_name}`}>
+        <label className="review-case-select" title={`选择 ${conversation.customer_name}`}>
           <input
-            className="conversation-checkbox"
+            className="review-case-checkbox"
             type="checkbox"
             data-select-id={conversation.id}
             aria-label={`选择 ${conversation.customer_name}`}
@@ -100,7 +100,7 @@ export const QueueRow = memo(function QueueRow({ conversation, active, selected,
         </label>
       )}
       <button
-        className={`conversation-item${active ? " is-active" : ""}`}
+        className={`review-case-item${active ? " is-active" : ""}`}
         type="button"
         data-id={conversation.id}
         aria-pressed={active}

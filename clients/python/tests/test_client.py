@@ -49,7 +49,7 @@ def test_create_conversation_sends_auth_and_tenant_headers() -> None:
     call_log: list = []
     client = _client(_handler(201, {"id": "conv-1", "status": "open"}, call_log=call_log))
     with client:
-        body = client.create_conversation("Ada", customer_ref="CUST-1")
+        body = client.create_review_case("Ada", submitter_ref="CUST-1")
     assert body["id"] == "conv-1"
     request = call_log[0]
     assert request.headers["X-API-Key"] == "test-key-12345678"
@@ -79,7 +79,7 @@ def test_not_found_raises_typed_error() -> None:
     }
     client = _client(_handler(404, body))
     with client, pytest.raises(HelixNotFoundError) as exc_info:
-        client.get_conversation("conv-nope")
+        client.get_review_case("conv-nope")
     assert exc_info.value.code == "not_found"
     assert exc_info.value.status == 404
     assert exc_info.value.request_id == "req_123"
@@ -103,7 +103,7 @@ def test_validation_422_raises_typed_error() -> None:
     }
     client = _client(_handler(422, body))
     with client, pytest.raises(HelixValidationError) as exc_info:
-        client.create_conversation("")
+        client.create_review_case("")
     assert exc_info.value.body["errors"][0]["loc"] == ["body", "customer_name"]
 
 
@@ -111,7 +111,7 @@ def test_rate_limit_429_carries_retry_after() -> None:
     body = {"detail": "rate limited", "code": "rate_limited", "status": 429}
     client = _client(_handler(429, body))
     with client, pytest.raises(HelixRateLimitError) as exc_info:
-        client.list_conversations()
+        client.list_review_cases()
     assert exc_info.value.retry_after == 2
 
 
@@ -130,7 +130,7 @@ def test_transient_5xx_is_retried() -> None:
         transport=httpx.MockTransport(flaky),
     )
     with client:
-        result = client.list_conversations()
+        result = client.list_review_cases()
     assert result == []
     assert len(call_log) == 2
 

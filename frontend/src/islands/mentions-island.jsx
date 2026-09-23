@@ -175,7 +175,7 @@ export function MentionsIsland() {
                   <button
                     className="mention-link"
                     type="button"
-                    data-mention-conversation={mention.conversation_id}
+                    data-mention-review-case={mention.conversation_id}
                     onClick={() => jump(mention.conversation_id)}
                   >
                     <strong>{mention.conversation_customer}</strong>

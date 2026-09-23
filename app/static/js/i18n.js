@@ -86,7 +86,7 @@ const ZH_CN = {
   // misc
   "misc.vip_high_risk": "VIP, 高风险",
   "misc.supervisor": "主管",
-  "misc.internal_knowledge": "内部策略",
+  "misc.internal_policy": "内部策略",
   "misc.tool_execution": "工具执行",
   "misc.risk_labels": "风险标签",
   "misc.quality_gate": "质量门",
@@ -131,12 +131,12 @@ const ZH_CN = {
   "copilot.failed": "生成失败",
   "copilot.no_suggestions": "暂无建议",
   // tickets (backlog: 申诉单化)
-  "ticket.convert": "转申诉单",
-  "ticket.subject_prompt": "转申诉单主题（长周期问题描述）",
-  "ticket.convert_failed": "转申诉单失败",
-  "ticket.status.open": "待处理",
-  "ticket.status.in_progress": "处理中",
-  "ticket.status.closed": "已关闭",
+  "appeal.convert": "转申诉单",
+  "appeal.subject_prompt": "转申诉单主题（长周期问题描述）",
+  "appeal.convert_failed": "转申诉单失败",
+  "appeal.status.open": "待处理",
+  "appeal.status.in_progress": "处理中",
+  "appeal.status.closed": "已关闭",
   // attachments (backlog: 语音/富媒体消息)
   "attachment.upload": "附件",
   "attachment.upload_failed": "附件上传失败",
@@ -144,7 +144,7 @@ const ZH_CN = {
   // global nav (UI 升级 §17.1)
   "nav.workspace": "工作台",
   "nav.quality": "质量看板",
-  "nav.knowledge": "策略库",
+  "nav.policy": "策略库",
   "nav.admin": "管理",
   "nav.settings": "设置",
   // command palette (UI 升级 §17.1 Ctrl+K)

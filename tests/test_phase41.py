@@ -38,7 +38,7 @@ from app.db._util import utc_now
 from app.main import create_app
 
 ADMIN_KEY = "phase41-admin-key-001"
-OPERATOR_KEY = "phase41-op-key-001"
+REVIEWER_KEY = "phase41-op-key-001"
 CHANNEL_SECRET = "phase41-channel-secret-with-at-least-32-bytes"
 OTHER_SECRET = "phase41-other-secret-with-at-least-32-bytes"
 
@@ -46,7 +46,7 @@ OTHER_SECRET = "phase41-other-secret-with-at-least-32-bytes"
 def _settings(db_path: Path, **overrides: Any) -> Settings:
     principals = {
         ADMIN_KEY: {"tenant_id": "demo", "actor_id": "admin.user", "role": "admin"},
-        OPERATOR_KEY: {"tenant_id": "demo", "actor_id": "op.user", "role": "operator"},
+        REVIEWER_KEY: {"tenant_id": "demo", "actor_id": "op.user", "role": "operator"},
     }
     defaults: dict[str, Any] = {
         "database_path": db_path,
@@ -314,7 +314,7 @@ class ChannelKeyIdTests(unittest.TestCase):
 
     def test_key_id_of_wrong_type_fails_closed(self) -> None:
         # An api_key credential id presented as a channel key id.
-        api_row = self.store.get_by_fingerprint("api_key", key_ref_for(OPERATOR_KEY))
+        api_row = self.store.get_by_fingerprint("api_key", key_ref_for(REVIEWER_KEY))
         assert api_row is not None
         response = self._post(secret=CHANNEL_SECRET, key_id=api_row["credential_id"])
         self.assertEqual(response.status_code, 401, response.text)

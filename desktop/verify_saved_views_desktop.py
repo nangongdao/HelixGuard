@@ -29,9 +29,15 @@ def wait_for_cdp(deadline_s: float = 90.0) -> list[dict]:
     deadline = time.time() + deadline_s
     while time.time() < deadline:
         try:
-            with urllib.request.urlopen(f"http://127.0.0.1:{DEBUG_PORT}/json/list", timeout=2) as res:
+            with urllib.request.urlopen(
+                f"http://127.0.0.1:{DEBUG_PORT}/json/list", timeout=2
+            ) as res:
                 targets = json.loads(res.read().decode("utf-8"))
-            pages = [t for t in targets if t.get("type") == "page" and "127.0.0.1" in (t.get("url") or "")]
+            pages = [
+                t
+                for t in targets
+                if t.get("type") == "page" and "127.0.0.1" in (t.get("url") or "")
+            ]
             if pages:
                 return targets
         except Exception:
@@ -67,8 +73,10 @@ def main() -> int:
                 print("FAIL: no console page found over CDP")
                 return 1
 
-            page.wait_for_selector("#operatorIdentity", state="attached", timeout=30000)
-            page.wait_for_selector("#queueReactIsland .conversation-item", state="attached", timeout=30000)
+            page.wait_for_selector("#reviewerIdentity", state="attached", timeout=30000)
+            page.wait_for_selector(
+                "#queueReactIsland .review-case-item", state="attached", timeout=30000
+            )
             checks: dict[str, object] = {}
             checks["island_mode"] = page.evaluate("() => window.__HELIX_ISLAND_MODE__ === true")
             checks["legacy_field_hidden"] = page.evaluate(
@@ -110,7 +118,9 @@ def main() -> int:
             # Apply journey: dirty the legacy status filter, then selecting
             # the saved view (stored with clean filters) must rewrite it via
             # the apply bridge and fire a fresh queue request.
-            page.evaluate("() => { document.querySelector('#statusFilter').value = 'waiting_human'; }")
+            page.evaluate(
+                "() => { document.querySelector('#statusFilter').value = 'waiting_human'; }"
+            )
             with page.expect_response(lambda r: "/api/review-cases?" in r.url):
                 page.select_option("#savedViewSelectReact", view_id)
             checks["apply_rewrites_filters"] = page.evaluate(

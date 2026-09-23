@@ -214,7 +214,7 @@ function configureModules(b) {
   m("queueHelpers")?.configure?.({ state: b.state, els: b.els, api: b.api, queuePageSize: b.queuePageSize });
   m("queueFilters")?.configure?.({ state: b.state, els: b.els, refreshAll: b.refreshAll, escapeHtml: b.escapeHtml });
   m("shortcuts")?.configure?.({ state: b.state, els: b.els, refreshAll: b.refreshAll, selectConversation: b.selectConversation });
-  m("knowledgeView")?.configure?.({
+  m("policyView")?.configure?.({
     state: b.state,
     els: b.els,
     api: b.api,

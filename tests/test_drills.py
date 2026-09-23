@@ -47,12 +47,12 @@ def _integrity_consistent(db_path: Path) -> tuple[bool, list[str]]:
         issues.append(f"integrity_check = {integrity!r}")
 
     try:
-        conversations = conn.execute(
-            "SELECT id, message_count, preview FROM conversations"
+        review_cases = conn.execute(
+            "SELECT id, message_count, preview FROM review_cases"
         ).fetchall()
-        for conv in conversations:
+        for conv in review_cases:
             count = conn.execute(
-                "SELECT COUNT(*) AS n FROM messages WHERE conversation_id = ?",
+                "SELECT COUNT(*) AS n FROM messages WHERE review_case_id = ?",
                 (conv["id"],),
             ).fetchone()["n"]
             if conv["message_count"] != count:
@@ -78,7 +78,7 @@ class BackupConsistencyTests(unittest.TestCase):
 
     def _seed_db(self, db: Database) -> str:
         db.ensure_tenant("drill-tenant")
-        conv = db.create_conversation(
+        conv = db.create_review_case(
             "drill-tenant", "Drill Customer", "CUST-DRILL", "web", "admin", 120
         )
         return conv["id"]
@@ -211,7 +211,7 @@ class PostgresRestoreDrillTests(unittest.TestCase):
         cls.db = PostgresDatabase(cls.url)
         cls.db.initialize()
         cls.db.ensure_tenant("drill-tenant")
-        cls.conv = cls.db.create_conversation(
+        cls.conv = cls.db.create_review_case(
             "drill-tenant", "PG Drill", "CUST-PGDRILL", "web", "admin", 120
         )
         for i in range(3):
@@ -286,7 +286,7 @@ class PostgresRestoreDrillTests(unittest.TestCase):
         try:
             cur = connection.cursor()
             cur.execute(
-                "SELECT content FROM messages WHERE conversation_id = %s ORDER BY created_at, seq",
+                "SELECT content FROM messages WHERE review_case_id = %s ORDER BY created_at, seq",
                 (self.conv["id"],),
             )
             messages = cur.fetchall()

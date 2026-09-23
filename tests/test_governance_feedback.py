@@ -51,7 +51,7 @@ class OnlineFeedbackPipelineTests(unittest.TestCase):
         self.viewer = {"X-API-Key": VIEWER_KEY, "X-Tenant-Id": "demo"}
         # A knowledge article so the turn answers from the knowledge agent
         # (deterministic assistant reply to rate against).
-        self.services.database.create_knowledge(
+        self.services.database.create_policy_article(
             "demo",
             "配送时效",
             "首单配送时效承诺为 48 小时，偏远地区顺延两个工作日。",
@@ -65,24 +65,24 @@ class OnlineFeedbackPipelineTests(unittest.TestCase):
         self._tmp.cleanup()
 
     def _rate_assistant_message(self, rating: int, reason: str = "") -> str:
-        conversation = self.client.post(
+        review_case = self.client.post(
             "/api/review-cases",
             headers=self.admin,
             json={"customer_name": f"提交方-{self.id()[-4:]}", "channel": "web"},
         ).json()
-        conversation_id = conversation["id"]
+        review_case_id = review_case["id"]
         send = self.client.post(
-            f"/api/review-cases/{conversation_id}/messages",
+            f"/api/review-cases/{review_case_id}/messages",
             headers=self.admin,
             json={"content": "违规内容怎么分级？"},
         )
         assert send.status_code == 200, send.text
         messages = self.client.get(
-            f"/api/review-cases/{conversation_id}/messages", headers=self.admin
+            f"/api/review-cases/{review_case_id}/messages", headers=self.admin
         ).json()
         assistant = next(m for m in messages if m["role"] == "assistant")
         feedback = self.client.post(
-            f"/api/review-cases/{conversation_id}/feedback",
+            f"/api/review-cases/{review_case_id}/feedback",
             headers=self.admin,
             json={
                 "message_id": assistant["id"],
@@ -91,7 +91,7 @@ class OnlineFeedbackPipelineTests(unittest.TestCase):
             },
         )
         assert feedback.status_code == 200, feedback.text
-        return conversation_id
+        return review_case_id
 
     def _pending(self) -> list[dict[str, Any]]:
         response = self.client.get(
@@ -101,11 +101,11 @@ class OnlineFeedbackPipelineTests(unittest.TestCase):
         return response.json()
 
     def test_negative_rating_flip_auto_stages_redacted(self) -> None:
-        conversation_id = self._rate_assistant_message(-1, "答非所问")
+        review_case_id = self._rate_assistant_message(-1, "答非所问")
         pending = self._pending()
         self.assertEqual(len(pending), 1)
         row = pending[0]
-        self.assertEqual(row["conversation_id"], conversation_id)
+        self.assertEqual(row["conversation_id"], review_case_id)
         self.assertEqual(row["review_status"], "pending_review")
         # The staged document is the REDACTED one — the raw customer text is
         # only reachable through the redaction-verified stored copy.
@@ -113,14 +113,14 @@ class OnlineFeedbackPipelineTests(unittest.TestCase):
         self.assertEqual(document["rating"], -1)
 
     def test_exactly_once_per_flip(self) -> None:
-        conversation_id = self._rate_assistant_message(-1, "第一次")
+        review_case_id = self._rate_assistant_message(-1, "第一次")
         # Re-submitting the same -1 must not duplicate the staged row.
         messages = self.client.get(
-            f"/api/review-cases/{conversation_id}/messages", headers=self.admin
+            f"/api/review-cases/{review_case_id}/messages", headers=self.admin
         ).json()
         assistant = next(m for m in messages if m["role"] == "assistant")
         again = self.client.post(
-            f"/api/review-cases/{conversation_id}/feedback",
+            f"/api/review-cases/{review_case_id}/feedback",
             headers=self.admin,
             json={"message_id": assistant["id"], "rating": -1, "reason": "重复"},
         )

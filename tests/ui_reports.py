@@ -95,7 +95,7 @@ def main() -> None:
             ),
         )
         page.goto(BASE_URL)
-        expect(page.locator("#operatorIdentity")).to_contain_text("demo.admin")
+        expect(page.locator("#reviewerIdentity")).to_contain_text("demo.admin")
 
         # 切到管理视图:报表订阅/导出卡可见,Webhook 下拉含预建端点。
         with page.expect_response(

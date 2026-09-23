@@ -156,12 +156,12 @@ def load_adversarial_set(path: Path) -> list[dict[str, Any]]:
         if attachment_seed is not None and not isinstance(attachment_seed, dict):
             _fail(f"adversarial case '{case_id}' attachment_seed must be an object")
 
-        conversation = case["conversation"]
-        if set(conversation) - _CONVERSATION_KEYS:
+        review_case = case["conversation"]
+        if set(review_case) - _CONVERSATION_KEYS:
             _fail(f"adversarial case '{case_id}' has unknown conversation keys")
-        if not isinstance(conversation.get("customer_ref"), (str, type(None))):
-            _fail(f"adversarial case '{case_id}' customer_ref must be a string or null")
-        if not isinstance(conversation.get("channel"), str):
+        if not isinstance(review_case.get("customer_ref"), (str, type(None))):
+            _fail(f"adversarial case '{case_id}' submitter_ref must be a string or null")
+        if not isinstance(review_case.get("channel"), str):
             _fail(f"adversarial case '{case_id}' channel must be a string")
 
         tenant_id = case.get("tenant_id")

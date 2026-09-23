@@ -10,6 +10,7 @@ from typing import Any
 from uuid import uuid4
 
 from app.db._util import (
+    to_wire_row,
     utc_after_seconds,
     utc_now,
 )
@@ -19,7 +20,7 @@ class DatabaseJobsMixin:
     def claim_turn(
         self,
         tenant_id: str,
-        conversation_id: str,
+        review_case_id: str,
         idempotency_key: str,
         processing_timeout_seconds: int,
     ) -> tuple[str, dict[str, Any] | None]:
@@ -29,16 +30,16 @@ class DatabaseJobsMixin:
             try:
                 connection.execute(
                     """INSERT INTO turn_requests
-                    (tenant_id, conversation_id, idempotency_key, status, created_at, updated_at)
+                    (tenant_id, review_case_id, idempotency_key, status, created_at, updated_at)
                     VALUES (?, ?, ?, 'processing', ?, ?)""",
-                    (tenant_id, conversation_id, idempotency_key, now_text, now_text),
+                    (tenant_id, review_case_id, idempotency_key, now_text, now_text),
                 )
                 return "new", None
             except sqlite3.IntegrityError:
                 row = connection.execute(
                     """SELECT * FROM turn_requests
-                    WHERE tenant_id = ? AND conversation_id = ? AND idempotency_key = ?""",
-                    (tenant_id, conversation_id, idempotency_key),
+                    WHERE tenant_id = ? AND review_case_id = ? AND idempotency_key = ?""",
+                    (tenant_id, review_case_id, idempotency_key),
                 ).fetchone()
                 if row is None:
                     raise
@@ -51,14 +52,14 @@ class DatabaseJobsMixin:
                         """UPDATE turn_requests
                         SET status = 'processing', response_json = NULL, error_code = NULL,
                             updated_at = ?
-                        WHERE tenant_id = ? AND conversation_id = ? AND idempotency_key = ?""",
-                        (now_text, tenant_id, conversation_id, idempotency_key),
+                        WHERE tenant_id = ? AND review_case_id = ? AND idempotency_key = ?""",
+                        (now_text, tenant_id, review_case_id, idempotency_key),
                     )
                     return "new", None
                 return "processing", None
 
     def get_turn_by_message_id(
-        self, tenant_id: str, conversation_id: str, message_id: str
+        self, tenant_id: str, review_case_id: str, message_id: str
     ) -> dict[str, Any] | None:
         """Return a completed turn whose response contains ``message_id``.
 
@@ -70,24 +71,24 @@ class DatabaseJobsMixin:
         with self.connect() as connection:
             rows = connection.execute(
                 """SELECT response_json FROM turn_requests
-                WHERE tenant_id = ? AND conversation_id = ? AND status = 'completed'
+                WHERE tenant_id = ? AND review_case_id = ? AND status = 'completed'
                   AND response_json LIKE ?""",
-                (tenant_id, conversation_id, f"%{message_id}%"),
+                (tenant_id, review_case_id, f"%{message_id}%"),
             ).fetchall()
         for row in rows:
             try:
                 response = json.loads(row["response_json"])
             except (TypeError, ValueError):
                 continue
-            customer = response.get("customer_message") or {}
-            if customer.get("id") == message_id:
+            submitter = response.get("customer_message") or {}
+            if submitter.get("id") == message_id:
                 return response
         return None
 
     def complete_turn(
         self,
         tenant_id: str,
-        conversation_id: str,
+        review_case_id: str,
         idempotency_key: str,
         response: dict[str, Any],
     ) -> None:
@@ -95,12 +96,12 @@ class DatabaseJobsMixin:
             connection.execute(
                 """UPDATE turn_requests
                 SET status = 'completed', response_json = ?, error_code = NULL, updated_at = ?
-                WHERE tenant_id = ? AND conversation_id = ? AND idempotency_key = ?""",
+                WHERE tenant_id = ? AND review_case_id = ? AND idempotency_key = ?""",
                 (
                     json.dumps(response, ensure_ascii=False),
                     utc_now(),
                     tenant_id,
-                    conversation_id,
+                    review_case_id,
                     idempotency_key,
                 ),
             )
@@ -108,7 +109,7 @@ class DatabaseJobsMixin:
     def fail_turn(
         self,
         tenant_id: str,
-        conversation_id: str,
+        review_case_id: str,
         idempotency_key: str,
         error_code: str,
     ) -> None:
@@ -116,14 +117,14 @@ class DatabaseJobsMixin:
             connection.execute(
                 """UPDATE turn_requests
                 SET status = 'failed', error_code = ?, updated_at = ?
-                WHERE tenant_id = ? AND conversation_id = ? AND idempotency_key = ?""",
-                (error_code[:80], utc_now(), tenant_id, conversation_id, idempotency_key),
+                WHERE tenant_id = ? AND review_case_id = ? AND idempotency_key = ?""",
+                (error_code[:80], utc_now(), tenant_id, review_case_id, idempotency_key),
             )
 
     def enqueue_turn_job(
         self,
         tenant_id: str,
-        conversation_id: str,
+        review_case_id: str,
         idempotency_key: str,
         actor_id: str,
         content: str,
@@ -146,14 +147,14 @@ class DatabaseJobsMixin:
             try:
                 connection.execute(
                     """INSERT INTO turn_jobs
-                    (id, tenant_id, conversation_id, idempotency_key, actor_id, content,
+                    (id, tenant_id, review_case_id, idempotency_key, actor_id, content,
                      channel_message_id, request_id,
                      status, attempts, max_attempts, available_at, created_at, updated_at)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'queued', 0, ?, ?, ?, ?)""",
                     (
                         job_id,
                         tenant_id,
-                        conversation_id,
+                        review_case_id,
                         idempotency_key,
                         actor_id,
                         content,
@@ -170,27 +171,27 @@ class DatabaseJobsMixin:
                 ).fetchone()
                 if row is None:
                     raise RuntimeError("Queued turn job could not be read back")
-                return dict(row), False
+                return to_wire_row(row), False
             except sqlite3.IntegrityError:
                 row = connection.execute(
                     """SELECT * FROM turn_jobs
-                    WHERE tenant_id = ? AND conversation_id = ? AND idempotency_key = ?""",
-                    (tenant_id, conversation_id, idempotency_key),
+                    WHERE tenant_id = ? AND review_case_id = ? AND idempotency_key = ?""",
+                    (tenant_id, review_case_id, idempotency_key),
                 ).fetchone()
                 if row is None:
                     raise
-                return dict(row), True
+                return to_wire_row(row), True
 
     def get_turn_job_by_idempotency(
-        self, tenant_id: str, conversation_id: str, idempotency_key: str
+        self, tenant_id: str, review_case_id: str, idempotency_key: str
     ) -> dict[str, Any] | None:
         with self.connect() as connection:
             row = connection.execute(
                 """SELECT * FROM turn_jobs
-                WHERE tenant_id = ? AND conversation_id = ? AND idempotency_key = ?""",
-                (tenant_id, conversation_id, idempotency_key),
+                WHERE tenant_id = ? AND review_case_id = ? AND idempotency_key = ?""",
+                (tenant_id, review_case_id, idempotency_key),
             ).fetchone()
-        return dict(row) if row else None
+        return to_wire_row(row) if row else None
 
     def get_turn_job(self, tenant_id: str, job_id: str) -> dict[str, Any] | None:
         with self.connect() as connection:
@@ -198,17 +199,17 @@ class DatabaseJobsMixin:
                 "SELECT * FROM turn_jobs WHERE tenant_id = ? AND id = ?",
                 (tenant_id, job_id),
             ).fetchone()
-        return dict(row) if row else None
+        return to_wire_row(row) if row else None
 
-    def get_latest_turn_job(self, tenant_id: str, conversation_id: str) -> dict[str, Any] | None:
+    def get_latest_turn_job(self, tenant_id: str, review_case_id: str) -> dict[str, Any] | None:
         """Return the most recently created turn job for a conversation (23.1)."""
         with self.connect() as connection:
             row = connection.execute(
-                "SELECT * FROM turn_jobs WHERE tenant_id = ? AND conversation_id = ? "
+                "SELECT * FROM turn_jobs WHERE tenant_id = ? AND review_case_id = ? "
                 "ORDER BY created_at DESC, id DESC LIMIT 1",
-                (tenant_id, conversation_id),
+                (tenant_id, review_case_id),
             ).fetchone()
-        return dict(row) if row else None
+        return to_wire_row(row) if row else None
 
     def list_turn_jobs(
         self,
@@ -226,19 +227,19 @@ class DatabaseJobsMixin:
             values.append(status)
         with self.connect() as connection:
             rows = connection.execute(
-                f"""SELECT id, tenant_id, conversation_id, status, attempts, max_attempts,
+                f"""SELECT id, tenant_id, review_case_id, status, attempts, max_attempts,
                     available_at, locked_at, error_code, created_at, updated_at, completed_at
                 FROM turn_jobs
                 WHERE {" AND ".join(clauses)}
                 ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?""",
                 [*values, limit, offset],
             ).fetchall()
-        return [dict(row) for row in rows]
+        return [to_wire_row(row) for row in rows]
 
     def append_turn_job_chunk(
         self,
         tenant_id: str,
-        conversation_id: str,
+        review_case_id: str,
         job_id: str,
         content: str,
     ) -> dict[str, Any]:
@@ -258,16 +259,16 @@ class DatabaseJobsMixin:
         with self.connect() as connection:
             connection.execute(
                 """INSERT INTO turn_job_chunks
-                (id, tenant_id, conversation_id, job_id, content, created_at)
+                (id, tenant_id, review_case_id, job_id, content, created_at)
                 VALUES (?, ?, ?, ?, ?, ?)""",
-                (chunk_id, tenant_id, conversation_id, job_id, content, now),
+                (chunk_id, tenant_id, review_case_id, job_id, content, now),
             )
             row = connection.execute(
                 "SELECT * FROM turn_job_chunks WHERE id = ?", (chunk_id,)
             ).fetchone()
         if row is None:
             raise RuntimeError("Appended turn job chunk could not be read back")
-        return dict(row)
+        return to_wire_row(row)
 
     def delete_turn_job_chunks(self, job_id: str) -> int:
         """Remove a job's streamed chunks (re-run cleanup).
@@ -294,13 +295,13 @@ class DatabaseJobsMixin:
         after_seq = max(0, after_seq)
         with self.connect() as connection:
             rows = connection.execute(
-                """SELECT id, tenant_id, conversation_id, job_id, seq, content, created_at
+                """SELECT id, tenant_id, review_case_id, job_id, seq, content, created_at
                 FROM turn_job_chunks
                 WHERE tenant_id = ? AND job_id = ? AND seq > ?
                 ORDER BY seq""",
                 (tenant_id, job_id, after_seq),
             ).fetchall()
-        return [dict(row) for row in rows]
+        return [to_wire_row(row) for row in rows]
 
     def claim_next_turn_job(
         self,
@@ -324,8 +325,8 @@ class DatabaseJobsMixin:
             row = connection.execute(
                 """SELECT j.*
                 FROM turn_jobs j
-                JOIN conversations c
-                  ON c.id = j.conversation_id AND c.tenant_id = j.tenant_id
+                JOIN review_cases c
+                  ON c.id = j.review_case_id AND c.tenant_id = j.tenant_id
                 WHERE j.attempts < j.max_attempts
                   AND (
                     (j.status = 'queued' AND j.available_at <= ?)
@@ -334,7 +335,7 @@ class DatabaseJobsMixin:
                   AND NOT EXISTS (
                     SELECT 1 FROM turn_jobs active
                     WHERE active.tenant_id = j.tenant_id
-                      AND active.conversation_id = j.conversation_id
+                      AND active.review_case_id = j.review_case_id
                       AND active.id != j.id
                       AND active.status = 'processing'
                       AND active.locked_at > ?
@@ -356,7 +357,7 @@ class DatabaseJobsMixin:
             claimed = connection.execute(
                 "SELECT * FROM turn_jobs WHERE id = ?", (row["id"],)
             ).fetchone()
-        return dict(claimed) if claimed else None
+        return to_wire_row(claimed) if claimed else None
 
     def claim_turn_job_by_id(
         self, job_id: str, worker_id: str, lease_seconds: int
@@ -387,7 +388,7 @@ class DatabaseJobsMixin:
                   AND NOT EXISTS (
                     SELECT 1 FROM turn_jobs active
                     WHERE active.tenant_id = turn_jobs.tenant_id
-                      AND active.conversation_id = turn_jobs.conversation_id
+                      AND active.review_case_id = turn_jobs.review_case_id
                       AND active.id != turn_jobs.id
                       AND active.status = 'processing'
                       AND active.locked_at > ?
@@ -398,7 +399,7 @@ class DatabaseJobsMixin:
                 "SELECT * FROM turn_jobs WHERE id = ? AND status = 'processing' AND locked_by = ?",
                 (job_id, worker_id),
             ).fetchone()
-        return dict(claimed) if claimed else None
+        return to_wire_row(claimed) if claimed else None
 
     def complete_turn_job(
         self,
@@ -493,7 +494,7 @@ class DatabaseJobsMixin:
             result = connection.execute(
                 "SELECT * FROM turn_jobs WHERE id = ?", (job_id,)
             ).fetchone()
-        return dict(result) if result else None
+        return to_wire_row(result) if result else None
 
     def retry_turn_job(self, tenant_id: str, job_id: str) -> dict[str, Any] | None:
         now = utc_now()
@@ -512,7 +513,7 @@ class DatabaseJobsMixin:
                 "SELECT * FROM turn_jobs WHERE tenant_id = ? AND id = ?",
                 (tenant_id, job_id),
             ).fetchone()
-        return dict(row) if row else None
+        return to_wire_row(row) if row else None
 
     def recover_turn_jobs(self, lease_seconds: int) -> dict[str, int]:
         """Re-queue (or fail) jobs whose claims are stale.
@@ -559,13 +560,13 @@ class DatabaseJobsMixin:
         now = utc_now()
         with self.connect() as connection:
             rows = connection.execute(
-                """SELECT id, tenant_id, conversation_id FROM turn_jobs
+                """SELECT id, tenant_id, review_case_id FROM turn_jobs
                 WHERE status = 'queued' AND attempts < max_attempts
                   AND available_at <= ?
                 ORDER BY available_at LIMIT ?""",
                 (now, limit),
             ).fetchall()
-        return [dict(row) for row in rows]
+        return [to_wire_row(row) for row in rows]
 
     def prune_turn_jobs(self, retention_days: int, batch_size: int = 5000) -> int:
         if retention_days < 1:

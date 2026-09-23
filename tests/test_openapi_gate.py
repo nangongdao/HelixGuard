@@ -94,7 +94,7 @@ class OpenApiComparatorRedLightTests(unittest.TestCase):
         breaking = _breaking_changes(baseline, current)
         self.assertTrue(
             any("customer_name" in b for b in breaking),
-            f"expected customer_name removal to be breaking, got {breaking}",
+            f"expected submitter_name removal to be breaking, got {breaking}",
         )
 
     def test_removed_endpoint_is_breaking(self) -> None:

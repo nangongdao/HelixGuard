@@ -98,7 +98,7 @@ class OrchestratorBudgetTests(unittest.TestCase):
         self.tenant_id = "demo"
         self.settings = Settings(database_path=self.db_path, auth_mode="demo")
         self.orchestrator = ConversationOrchestrator(self.database, self.settings)
-        conv = self.database.create_conversation(
+        conv = self.database.create_review_case(
             self.tenant_id, "Customer", None, "web", "admin", 120
         )
         self.conv_id = conv["id"]

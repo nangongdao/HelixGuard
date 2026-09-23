@@ -147,7 +147,7 @@ const FULL_ROUTES = {
     {
       id: "apr_gov1",
       subject_kind: "tool_enablement",
-      subject_id: "knowledge.publish_bulk",
+      subject_id: "policy.publish_bulk",
       requested_by: "supervisor-1",
       reason: "supervisor bulk publishing",
       decision: "pending",
@@ -511,7 +511,7 @@ describe("cards render legacy contracts", () => {
   it("renders the governance card rows and readout", async () => {
     await renderIsland();
     const approvals = document.getElementById(CARD_IDS.governanceApprovalsList);
-    expect(approvals.textContent).toContain("tool_enablement:knowledge.publish_bulk");
+    expect(approvals.textContent).toContain("tool_enablement:policy.publish_bulk");
     expect(approvals.textContent).toContain("请求人 supervisor-1");
     const feedback = document.getElementById(CARD_IDS.governanceFeedbackList);
     expect(feedback.textContent).toContain("-1 评分 · 答非所问");
@@ -525,7 +525,7 @@ describe("cards render legacy contracts", () => {
     const spy = bridgeSpy();
     // Approve via the pending-approvals row's 批准 button.
     const row = screen
-      .getByText("tool_enablement:knowledge.publish_bulk")
+      .getByText("tool_enablement:policy.publish_bulk")
       .closest(".governance-row");
     const approve = [...row.querySelectorAll("button")].find((b) => b.textContent === "批准");
     fireEvent.click(approve);
@@ -557,7 +557,7 @@ describe("cards render legacy contracts", () => {
     const anomaly = document.getElementById(CARD_IDS.costAnomalyReadout);
     expect(anomaly.textContent).toContain("$2.50");
     expect(anomaly.textContent).toContain("2.50×");
-    const agentList = document.getElementById(CARD_IDS.costAgentList);
+    const agentList = document.getElementById(CARD_IDS.costReviewerList);
     expect(agentList.textContent).toContain("语义路由");
     expect(agentList.textContent).toContain("700 次 · $0.90");
     const promptList = document.getElementById(CARD_IDS.costPromptList);
@@ -571,7 +571,7 @@ describe("write bridge contracts", () => {
   it("bridges a quota save with backend field names and clears on saved", async () => {
     await renderIsland();
     const spy = bridgeSpy();
-    fireEvent.change(document.getElementById(CARD_IDS.quotaConversations), {
+    fireEvent.change(document.getElementById(CARD_IDS.quotaReviewCases), {
       target: { value: "2500" },
     });
     fireEvent.change(document.getElementById(CARD_IDS.quotaStorageMb), {
@@ -589,7 +589,7 @@ describe("write bridge contracts", () => {
         new CustomEvent(ADMIN_EVENTS.SAVED, { detail: { ok: true, domains: ["quota"] } }),
       );
     });
-    expect(document.getElementById(CARD_IDS.quotaConversations).value).toBe("");
+    expect(document.getElementById(CARD_IDS.quotaReviewCases).value).toBe("");
   });
 
   it("bridges member invite / role change / deactivate", async () => {

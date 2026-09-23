@@ -12,7 +12,7 @@ import {
 } from "../../app/static/js/nav.js";
 
 test("NAV_VIEWS lists the five top-level mount points", () => {
-  assert.deepEqual(NAV_VIEWS, ["workspace", "quality", "knowledge", "admin", "settings"]);
+  assert.deepEqual(NAV_VIEWS, ["workspace", "quality", "policy", "admin", "settings"]);
 });
 
 test("isNavView accepts every registered view", () => {
@@ -29,8 +29,8 @@ test("isPlaceholderView is empty now that settings is a real view (D1)", () => {
   assert.equal(isPlaceholderView("admin"), false); // 17.3 admin page is real
 });
 
-test("real views are workspace, quality, knowledge, admin, and settings", () => {
-  for (const view of ["workspace", "quality", "knowledge", "admin", "settings"]) {
+test("real views are workspace, quality, policy, admin, and settings", () => {
+  for (const view of ["workspace", "quality", "policy", "admin", "settings"]) {
     assert.equal(isPlaceholderView(view), false, `${view} must not be a placeholder`);
   }
 });

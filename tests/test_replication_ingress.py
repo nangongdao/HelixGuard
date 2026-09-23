@@ -106,7 +106,7 @@ class _ReplicationApplyContract:
         database.ensure_tenant(tenant_id)
         with database.connect() as conn:
             conn.execute(
-                "INSERT INTO conversations (id, tenant_id, customer_name, status,"
+                "INSERT INTO review_cases (id, tenant_id, submitter_name, status,"
                 " preview, channel, version, last_message_at, first_response_at,"
                 " created_at, updated_at)"
                 " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -127,7 +127,7 @@ class _ReplicationApplyContract:
 
     def _row(self, row_id: str) -> dict[str, Any]:
         with self._services().database.connect() as conn:
-            row = conn.execute("SELECT * FROM conversations WHERE id = ?", (row_id,)).fetchone()
+            row = conn.execute("SELECT * FROM review_cases WHERE id = ?", (row_id,)).fetchone()
         assert row is not None, f"conversation {row_id} is missing"
         return dict(row)
 
@@ -137,17 +137,17 @@ class _ReplicationApplyContract:
 
         response = self._apply(
             {
-                "table_name": "conversations",
+                "table_name": "review_cases",
                 "row_id": "conv-repl-1",
                 "operation": "update",
                 "tenant_id": "demo",
-                "payload": {"customer_name": "Acme Renamed"},
+                "payload": {"submitter_name": "Acme Renamed"},
             }
         )
         self.assertEqual(response.status_code, 200)
 
         row = self._row("conv-repl-1")
-        self.assertEqual(row["customer_name"], "Acme Renamed")
+        self.assertEqual(row["submitter_name"], "Acme Renamed")
         self.assertEqual(row["status"], "resolved")
         self.assertEqual(row["version"], 7)
         self.assertEqual(row["preview"], "the real preview")
@@ -168,7 +168,7 @@ class _ReplicationApplyContract:
 
         response = self._apply(
             {
-                "table_name": "conversations",
+                "table_name": "review_cases",
                 "row_id": "conv-repl-2",
                 "operation": "update",
                 "tenant_id": "demo",
@@ -181,13 +181,13 @@ class _ReplicationApplyContract:
         self.assertEqual(row["preview"], "replicated preview")
         self.assertEqual(row["status"], "resolved")
         self.assertEqual(row["channel"], "web")
-        self.assertEqual(row["customer_name"], "Acme")
+        self.assertEqual(row["submitter_name"], "Acme")
 
     def test_fresh_row_still_gets_synthetic_defaults(self) -> None:
         """The insert path keeps working: a brand-new row must satisfy NOT NULL."""
         response = self._apply(
             {
-                "table_name": "conversations",
+                "table_name": "review_cases",
                 "row_id": "conv-repl-new",
                 "operation": "insert",
                 "tenant_id": "demo",
@@ -200,7 +200,7 @@ class _ReplicationApplyContract:
         self.assertEqual(row["preview"], "first sighting")
         self.assertEqual(row["status"], "open")
         self.assertEqual(row["channel"], "replicated")
-        self.assertEqual(row["customer_name"], "Replicated")
+        self.assertEqual(row["submitter_name"], "Replicated")
 
     def test_conflict_on_another_tenants_row_is_refused(self) -> None:
         """A peer must not be able to rename a row into its own tenant.
@@ -213,18 +213,18 @@ class _ReplicationApplyContract:
 
         response = self._apply(
             {
-                "table_name": "conversations",
+                "table_name": "review_cases",
                 "row_id": "conv-repl-3",
                 "operation": "update",
                 "tenant_id": OTHER_TENANT,
-                "payload": {"customer_name": "Stolen"},
+                "payload": {"submitter_name": "Stolen"},
             }
         )
         self.assertEqual(response.status_code, 409)
 
         row = self._row("conv-repl-3")
         self.assertEqual(row["tenant_id"], "demo")
-        self.assertEqual(row["customer_name"], "Acme")
+        self.assertEqual(row["submitter_name"], "Acme")
         self.assertEqual(row["status"], "resolved")
 
 
@@ -239,11 +239,11 @@ class TestReplicationIngress(unittest.TestCase, _ReplicationApplyContract):
         response = self.client.post(
             "/api/internal/replication/apply",
             json={
-                "table_name": "conversations",
+                "table_name": "review_cases",
                 "row_id": "conv-1",
                 "operation": "insert",
                 "tenant_id": "demo",
-                "payload": {"customer_name": "A"},
+                "payload": {"submitter_name": "A"},
             },
         )
         self.assertEqual(response.status_code, 401)
@@ -251,11 +251,11 @@ class TestReplicationIngress(unittest.TestCase, _ReplicationApplyContract):
     def test_apply_insert_with_synthetic_defaults(self) -> None:
         response = self._apply(
             {
-                "table_name": "conversations",
+                "table_name": "review_cases",
                 "row_id": "conv-2",
                 "operation": "insert",
                 "tenant_id": "demo",
-                "payload": {"customer_name": "Replicated", "preview": "p"},
+                "payload": {"submitter_name": "Replicated", "preview": "p"},
             }
         )
         self.assertEqual(response.status_code, 200)
@@ -269,7 +269,7 @@ class TestReplicationIngress(unittest.TestCase, _ReplicationApplyContract):
                 "row_id": "x",
                 "operation": "insert",
                 "tenant_id": "demo",
-                "payload": {"customer_name": "A"},
+                "payload": {"submitter_name": "A"},
             }
         )
         self.assertEqual(response.status_code, 400)
@@ -277,7 +277,7 @@ class TestReplicationIngress(unittest.TestCase, _ReplicationApplyContract):
     def test_apply_rejects_invalid_operation(self) -> None:
         response = self._apply(
             {
-                "table_name": "conversations",
+                "table_name": "review_cases",
                 "row_id": "x",
                 "operation": "drop",
                 "tenant_id": "demo",
@@ -289,7 +289,7 @@ class TestReplicationIngress(unittest.TestCase, _ReplicationApplyContract):
     def test_apply_delete(self) -> None:
         response = self._apply(
             {
-                "table_name": "conversations",
+                "table_name": "review_cases",
                 "row_id": "conv-3",
                 "operation": "delete",
                 "tenant_id": "demo",
@@ -303,11 +303,11 @@ class TestReplicationIngress(unittest.TestCase, _ReplicationApplyContract):
             "/api/internal/replication/apply",
             headers={"X-Internal-Token": "wrong"},
             json={
-                "table_name": "conversations",
+                "table_name": "review_cases",
                 "row_id": "x",
                 "operation": "insert",
                 "tenant_id": "demo",
-                "payload": {"customer_name": "A"},
+                "payload": {"submitter_name": "A"},
             },
         )
         self.assertEqual(response.status_code, 401)

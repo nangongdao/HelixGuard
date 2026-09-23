@@ -48,7 +48,7 @@ class OutboxTests(unittest.TestCase):
             self.outbox.record(
                 "t1",
                 "helix.conversation.created",
-                {"conversation_id": "conv_1"},  # channel/customer_name/… missing
+                {"conversation_id": "conv_1"},  # channel/submitter_name/… missing
             )
 
     def test_drain_delivers_each_event_exactly_once_across_replays(self) -> None:

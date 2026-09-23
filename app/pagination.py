@@ -41,7 +41,7 @@ SUPPORTED_QUEUE_SORTS = frozenset({"priority", "waiting", "sla", "updated"})
 def encode_conversation_cursor(
     priority_rank: int,
     updated_at: str,
-    conversation_id: str,
+    review_case_id: str,
     *,
     sort: str = "priority",
     sort_key: str | None = None,
@@ -50,7 +50,7 @@ def encode_conversation_cursor(
         raise InvalidCursorError("Unsupported conversation cursor sort")
     if sort == "priority":
         return _encode_cursor_payload(
-            {"v": 1, "p": priority_rank, "u": updated_at, "i": conversation_id}
+            {"v": 1, "p": priority_rank, "u": updated_at, "i": review_case_id}
         )
     return _encode_cursor_payload(
         {
@@ -58,7 +58,7 @@ def encode_conversation_cursor(
             "s": sort,
             "k": sort_key or "",
             "u": updated_at,
-            "i": conversation_id,
+            "i": review_case_id,
         }
     )
 
@@ -66,12 +66,12 @@ def encode_conversation_cursor(
 def decode_conversation_cursor(
     value: str,
 ) -> tuple[str, int | None, str | None, str, str]:
-    """Return (sort, priority_rank, sort_key, updated_at, conversation_id)."""
+    """Return (sort, priority_rank, sort_key, updated_at, review_case_id)."""
     payload = _decode_cursor_payload(value, label="conversation cursor")
     version = payload.get("v")
-    conversation_id = payload.get("i")
+    review_case_id = payload.get("i")
     updated_at = payload.get("u")
-    if not isinstance(conversation_id, str) or not conversation_id or len(conversation_id) > 160:
+    if not isinstance(review_case_id, str) or not review_case_id or len(review_case_id) > 160:
         raise InvalidCursorError("Invalid conversation cursor")
     if version == 1:
         priority_rank = payload.get("p")
@@ -83,7 +83,7 @@ def decode_conversation_cursor(
             or not updated_at
         ):
             raise InvalidCursorError("Invalid conversation cursor")
-        return "priority", priority_rank, None, updated_at, conversation_id
+        return "priority", priority_rank, None, updated_at, review_case_id
     if version == 2:
         sort = payload.get("s")
         sort_key = payload.get("k")
@@ -95,7 +95,7 @@ def decode_conversation_cursor(
             or not updated_at
         ):
             raise InvalidCursorError("Invalid conversation cursor")
-        return str(sort), None, sort_key, updated_at, conversation_id
+        return str(sort), None, sort_key, updated_at, review_case_id
     raise InvalidCursorError("Unsupported conversation cursor")
 
 

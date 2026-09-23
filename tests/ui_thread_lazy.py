@@ -128,8 +128,8 @@ def main() -> None:
     seed_tag = f"thread-{int(time.time())}"
 
     # Seed a conversation whose transcript outgrows the tail page.
-    conversation = api_post("/api/review-cases", {"customer_name": seed_tag, "channel": "web"})
-    conv_id = conversation["id"]
+    review_case = api_post("/api/review-cases", {"customer_name": seed_tag, "channel": "web"})
+    conv_id = review_case["id"]
     for index in range(SEED_TURNS):
         api_post(
             f"/api/review-cases/{conv_id}/messages",
@@ -163,7 +163,7 @@ def main() -> None:
         search = page.locator("#searchInput")
         search.fill(seed_tag)
         search.dispatch_event("input")
-        item = page.locator(".conversation-item", has_text=seed_tag)
+        item = page.locator(".review-case-item", has_text=seed_tag)
         deadline = time.monotonic() + 15
         while time.monotonic() < deadline and item.count() == 0:
             page.wait_for_timeout(250)

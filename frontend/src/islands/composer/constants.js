@@ -25,10 +25,10 @@ export const COMPOSER_EVENTS = Object.freeze({
 });
 
 export const INPUT_IDS = Object.freeze({
-  customerForm: "composerFormReact",
-  operatorForm: "operatorFormReact",
-  customerInput: "composerInputReact",
-  operatorInput: "operatorInputReact",
+  submitterForm: "composerFormReact",
+  reviewerForm: "reviewerFormReact",
+  submitterInput: "composerInputReact",
+  reviewerInput: "reviewerInputReact",
   // The file input MUST carry a distinct id. `<label for>` binds to the first
   // element in tree order with that id, and the yielded legacy #attachmentFile
   // (hidden, not removed) comes first — so a bare "attachmentFile" here made

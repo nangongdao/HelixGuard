@@ -3,7 +3,7 @@
 Provides eventual consistency across regions:
 - ReplicationLog: records data changes to be replicated
 - ReplicationWorker: background task that pushes changes to target regions
-- Conflict resolution: last-write-wins based on timestamp
+- Conflict verdict: last-write-wins based on timestamp
 """
 
 from __future__ import annotations

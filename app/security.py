@@ -54,7 +54,7 @@ ROLE_PERMISSIONS: dict[Role, frozenset[str]] = {
     Role.OPERATOR: frozenset({"conversation:read", "conversation:write", "operator:act"}),
     Role.CHANNEL: frozenset({"conversation:write"}),
     Role.VIEWER: frozenset({"conversation:read", "metrics:read"}),
-    # Phase 22.3: read-only auditor — sees conversations, metrics, and the
+    # Phase 22.3: read-only auditor — sees review_cases, metrics, and the
     # audit trail, but cannot act on anything.
     Role.AUDITOR: frozenset({"conversation:read", "metrics:read", "audit:read"}),
 }

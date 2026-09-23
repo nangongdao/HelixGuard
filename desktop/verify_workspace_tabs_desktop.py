@@ -27,9 +27,15 @@ def wait_for_cdp(deadline_s: float = 90.0) -> list[dict]:
     deadline = time.time() + deadline_s
     while time.time() < deadline:
         try:
-            with urllib.request.urlopen(f"http://127.0.0.1:{DEBUG_PORT}/json/list", timeout=2) as res:
+            with urllib.request.urlopen(
+                f"http://127.0.0.1:{DEBUG_PORT}/json/list", timeout=2
+            ) as res:
                 targets = json.loads(res.read().decode("utf-8"))
-            pages = [t for t in targets if t.get("type") == "page" and "127.0.0.1" in (t.get("url") or "")]
+            pages = [
+                t
+                for t in targets
+                if t.get("type") == "page" and "127.0.0.1" in (t.get("url") or "")
+            ]
             if pages:
                 return targets
         except Exception:
@@ -65,8 +71,10 @@ def main() -> int:
                 print("FAIL: no console page found over CDP")
                 return 1
 
-            page.wait_for_selector("#operatorIdentity", state="attached", timeout=30000)
-            page.wait_for_selector("#queueReactIsland .conversation-item", state="attached", timeout=30000)
+            page.wait_for_selector("#reviewerIdentity", state="attached", timeout=30000)
+            page.wait_for_selector(
+                "#queueReactIsland .review-case-item", state="attached", timeout=30000
+            )
             checks: dict[str, object] = {}
             checks["island_mode"] = page.evaluate("() => window.__HELIX_ISLAND_MODE__ === true")
             checks["legacy_tablist_hidden"] = page.evaluate(
@@ -80,14 +88,14 @@ def main() -> int:
             # Click 申诉单 in the island: optimistic active state…
             page.locator("#workspaceTabsReactIsland button", has_text="申诉单").click()
             page.wait_for_function(
-                "() => document.querySelector('#workspaceTabsReactIsland button[data-wstab=tickets]')"
+                "() => document.querySelector('#workspaceTabsReactIsland button[data-wstab=appeals]')"
                 ".classList.contains('is-active')",
                 timeout=10000,
             )
-            checks["island_switches_to_tickets"] = True
-            # …and the legacy pane follows (dataset.mode + ticket pane shown).
+            checks["island_switches_to_appeals"] = True
+            # …and the legacy pane follows (dataset.mode + appeal pane shown).
             page.wait_for_function(
-                "() => document.querySelector('#queuePane')?.dataset.mode === 'tickets'",
+                "() => document.querySelector('#queuePane')?.dataset.mode === 'appeals'",
                 timeout=10000,
             )
             checks["legacy_pane_follows"] = True
@@ -102,11 +110,9 @@ def main() -> int:
 
             # Programmatic reconciliation: fire the legacy switch directly and
             # let the changed event drive the island.
-            page.evaluate(
-                "() => window.HelixModules?.ticketView?.switchWorkspaceTab?.('tickets')"
-            )
+            page.evaluate("() => window.HelixModules?.ticketView?.switchWorkspaceTab?.('appeals')")
             page.wait_for_function(
-                "() => document.querySelector('#workspaceTabsReactIsland button[data-wstab=tickets]')"
+                "() => document.querySelector('#workspaceTabsReactIsland button[data-wstab=appeals]')"
                 ".classList.contains('is-active')",
                 timeout=10000,
             )

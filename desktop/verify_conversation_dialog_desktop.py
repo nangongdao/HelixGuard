@@ -29,9 +29,15 @@ def wait_for_cdp(deadline_s: float = 90.0) -> list[dict]:
     deadline = time.time() + deadline_s
     while time.time() < deadline:
         try:
-            with urllib.request.urlopen(f"http://127.0.0.1:{DEBUG_PORT}/json/list", timeout=2) as res:
+            with urllib.request.urlopen(
+                f"http://127.0.0.1:{DEBUG_PORT}/json/list", timeout=2
+            ) as res:
                 targets = json.loads(res.read().decode("utf-8"))
-            pages = [t for t in targets if t.get("type") == "page" and "127.0.0.1" in (t.get("url") or "")]
+            pages = [
+                t
+                for t in targets
+                if t.get("type") == "page" and "127.0.0.1" in (t.get("url") or "")
+            ]
             if pages:
                 return targets
         except Exception:
@@ -69,51 +75,56 @@ def main() -> int:
 
             # The legacy span is yielded, so wait for attachment not visibility;
             # rows live in the island list in island mode.
-            page.wait_for_selector("#operatorIdentity", state="attached", timeout=30000)
-            page.wait_for_selector("#queueReactIsland .conversation-item", state="attached", timeout=30000)
+            page.wait_for_selector("#reviewerIdentity", state="attached", timeout=30000)
+            page.wait_for_selector(
+                "#queueReactIsland .review-case-item", state="attached", timeout=30000
+            )
             checks: dict[str, object] = {}
             checks["island_mode"] = page.evaluate("() => window.__HELIX_ISLAND_MODE__ === true")
             checks["legacy_dialog_hidden"] = page.evaluate(
-                "() => { const d = document.querySelector('#newConversationDialog');"
+                "() => { const d = document.querySelector('#newReviewCaseDialog');"
                 " return d && d.hidden === true; }"
             )
             checks["island_dialog_present"] = page.evaluate(
-                "() => Boolean(document.querySelector('#conversationDialogReactIsland dialog.dialog'))"
+                "() => Boolean(document.querySelector('#reviewCaseDialogReactIsland dialog.dialog'))"
             )
 
             # Open the dialog via the legacy header button (island branch).
-            page.locator("#newConversation").click()
+            page.locator("#newReviewCase").click()
             page.wait_for_function(
-                "() => document.querySelector('#conversationDialogReactIsland dialog')?.open === true",
+                "() => document.querySelector('#reviewCaseDialogReactIsland dialog')?.open === true",
                 timeout=10000,
             )
             checks["island_dialog_opens"] = True
             checks["name_field_focused"] = page.evaluate(
-                "() => document.activeElement?.id === 'newCustomerNameReact'"
+                "() => document.activeElement?.id === 'newSubmitterNameReact'"
             )
 
             # Fill and submit — a real POST through the create bridge.
             run_id = uuid4().hex[:6]
-            customer = f"对话框验证 {run_id}"
-            page.fill("#newCustomerNameReact", customer)
+            submitter = f"对话框验证 {run_id}"
+            page.fill("#newSubmitterNameReact", submitter)
             page.select_option("#newChannelReact", "messaging")
             with page.expect_response(
                 lambda r: r.url.endswith("/api/review-cases") and r.request.method == "POST"
             ) as created_info:
-                page.locator("#newConversationFormReact button[type='submit']").click()
+                page.locator("#newReviewCaseFormReact button[type='submit']").click()
             checks["post_status"] = created_info.value.status
-            checks["dialog_closes_on_success"] = page.wait_for_function(
-                "() => document.querySelector('#conversationDialogReactIsland dialog')?.open === false",
-                timeout=10000,
-            ) is not None
+            checks["dialog_closes_on_success"] = (
+                page.wait_for_function(
+                    "() => document.querySelector('#reviewCaseDialogReactIsland dialog')?.open === false",
+                    timeout=10000,
+                )
+                is not None
+            )
             # The created conversation is prepended to the island queue and
             # selected (is-selected row) by the create lifecycle.
             page.wait_for_selector(
-                f"#queueReactIsland .conversation-item:has-text('{customer}')",
+                f"#queueReactIsland .review-case-item:has-text('{submitter}')",
                 timeout=20000,
             )
             selected_row = page.locator(
-                "#queueReactIsland .conversation-item", has_text=customer
+                "#queueReactIsland .review-case-item", has_text=submitter
             ).first
             checks["created_in_queue_selected"] = "is-active" in (
                 selected_row.get_attribute("class") or ""

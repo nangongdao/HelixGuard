@@ -93,7 +93,7 @@ def _hmac_sign(
 ) -> str:
     """HMAC-SHA256 over method/path/canonical-query/timestamp/body.
 
-    Query parameters (tenant_id, customer_ref, q) are part of the signed
+    Query parameters (tenant_id, submitter_ref, q) are part of the signed
     message so a relay cannot swap them without invalidating the signature.
     """
     message = f"{method}\n{path}\n{_canonical_query(params)}\n{timestamp}\n".encode() + body
@@ -103,23 +103,25 @@ def _hmac_sign(
 class HttpOrderConnector:
     """Reference OrderConnector backed by an HTTP order system (Phase 20.3).
 
-    GET {base_url}/orders/{order_id}?tenant_id=&customer_ref=
+    GET {base_url}/source_lookups/{source_record_id}?tenant_id=&submitter_ref=
     - 200 -> OrderLookup(ok, code=ok, order=...)
     - 404 -> not_found
     - 429/5xx / timeout / network -> TransientConnectorError (retryable)
     - other 4xx -> HttpConnectorError (non-transient)
-    - missing customer_ref -> identity_required (local, no call made)
+    - missing submitter_ref -> identity_required (local, no call made)
     """
 
     def __init__(self, config: HttpConnectorConfig, *, transport: Transport | None = None) -> None:
         self.config = config
         self._transport = transport or _default_transport
 
-    def lookup_order(self, tenant_id: str, customer_ref: str | None, order_id: str) -> OrderLookup:
-        if not customer_ref:
+    def lookup_order(
+        self, tenant_id: str, submitter_ref: str | None, source_record_id: str
+    ) -> OrderLookup:
+        if not submitter_ref:
             return OrderLookup(ok=False, code="identity_required")
-        path = f"/orders/{order_id}"
-        params = {"tenant_id": tenant_id, "customer_ref": customer_ref}
+        path = f"/source_lookups/{source_record_id}"
+        params = {"tenant_id": tenant_id, "customer_ref": submitter_ref}
         timestamp = str(int(time.time()))
         signature = _hmac_sign(self.config.signature_secret, "GET", path, timestamp, params=params)
         headers = {
@@ -142,7 +144,7 @@ class HttpOrderConnector:
                 ok=True,
                 code="ok",
                 order=OrderDetails(
-                    id=str(order.get("id", order_id)),
+                    id=str(order.get("id", source_record_id)),
                     status=str(order.get("status", "")),
                     eta=order.get("eta"),
                     tracking_code=order.get("tracking_code"),
@@ -158,7 +160,7 @@ class HttpOrderConnector:
 class HttpCRMConnector:
     """Reference CRMConnector backed by an HTTP customer profile system.
 
-    GET {base_url}/customers/{customer_ref}?tenant_id=
+    GET {base_url}/customers/{submitter_ref}?tenant_id=
     - 200 -> CustomerLookup(ok, code=ok, profile=...)
     - 404 -> CustomerLookup(ok=False, code=not_found)
     - 429/5xx / timeout / network -> TransientConnectorError
@@ -169,8 +171,8 @@ class HttpCRMConnector:
         self.config = config
         self._transport = transport or _default_transport
 
-    def resolve_customer(self, tenant_id: str, customer_ref: str) -> CustomerLookup:
-        path = f"/customers/{customer_ref}"
+    def resolve_customer(self, tenant_id: str, submitter_ref: str) -> CustomerLookup:
+        path = f"/customers/{submitter_ref}"
         params = {"tenant_id": tenant_id}
         timestamp = str(int(time.time()))
         signature = _hmac_sign(self.config.signature_secret, "GET", path, timestamp, params=params)
@@ -192,7 +194,7 @@ class HttpCRMConnector:
                 ok=True,
                 code="ok",
                 profile=CustomerProfile(
-                    customer_ref=str(payload.get("customer_ref", customer_ref)),
+                    submitter_ref=str(payload.get("customer_ref", submitter_ref)),
                     name=str(payload.get("name", "")),
                 ),
             )

@@ -4,7 +4,7 @@
  * Owns the header identity readout in the desktop shell: "actor · role"
  * (the only data-derived element in the header; the surrounding toggles
  * stay legacy with their own preference lifecycles). Mounts into
- * #identityReactIsland; the legacy #operatorIdentity span is yielded.
+ * #identityReactIsland; the legacy #reviewerIdentity span is yielded.
  *
  * Data source: app.js publishes window.__HELIX_ROLE__/__HELIX_ACTOR__ and
  * dispatches helix-identity {role, permissions, actorId, tenantId} after
@@ -39,7 +39,7 @@ export const PENDING_TEXT = "正在验证";
 
 /**
  * Pure model behind the readout — parity with legacy
- * `els.operatorIdentity.textContent = \`${me.actor_id} · ${roleLabel(me.role)}\``.
+ * `els.reviewerIdentity.textContent = \`${me.actor_id} · ${roleLabel(me.role)}\``.
  * @param {{actorId: string, role: string}|null} identity
  * @returns {string} readout text; PENDING_TEXT before identity is known
  */
@@ -80,7 +80,7 @@ export function useIdentity() {
 
 export function IdentityIsland() {
   const identity = useIdentity();
-  return <span className="operator-identity">{identityModel(identity)}</span>;
+  return <span className="reviewer-identity">{identityModel(identity)}</span>;
 }
 
 /**

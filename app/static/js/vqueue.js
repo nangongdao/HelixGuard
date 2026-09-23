@@ -12,7 +12,7 @@ export const VIRTUAL_THRESHOLD = 200;
 
 /**
  * Conservative per-density row estimates (px) used before a live measurement
- * exists; the top edge of these match `.conversation-row` min-heights plus
+ * exists; the top edge of these match `.review-case-row` min-heights plus
  * the 8px row margin. `lowPerf` forces the compact profile.
  * @type {{normal: number, compact: number, dense: number}}
  */

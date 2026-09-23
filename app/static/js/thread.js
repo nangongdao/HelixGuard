@@ -93,7 +93,7 @@ export function renderMessages(messages, { preserveAnchor = false } = {}) {
     const message = visibleMessages[index];
     const metadata = message.metadata || {};
     const agent = message.role === "assistant" && metadata.agent
-      ? `<span class="agent-chip">${ctx.escapeHtml(metadata.agent)}</span>`
+      ? `<span class="reviewer-chip">${ctx.escapeHtml(metadata.agent)}</span>`
       : "";
     const feedback = message.role === "assistant"
       ? `<div class="feedback-actions" aria-label="回答反馈">

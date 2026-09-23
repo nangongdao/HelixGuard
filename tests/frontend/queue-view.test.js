@@ -19,8 +19,8 @@ test("QUEUE_ROW_PARTS pins the stable class names a row is built from", () => {
     "ROW",
     "SELECT",
   ]);
-  assert.equal(QUEUE_ROW_PARTS.ROW, "conversation-row");
-  assert.equal(QUEUE_ROW_PARTS.SELECT, "conversation-checkbox");
+  assert.equal(QUEUE_ROW_PARTS.ROW, "review-case-row");
+  assert.equal(QUEUE_ROW_PARTS.SELECT, "review-case-checkbox");
 });
 
 test("createQueueViewState starts in full mode with no window", () => {
@@ -130,7 +130,7 @@ function installDrawerWindow({ drawerMode }) {
     activeElement: null,
     getElementById: () => null,
     querySelector: (selector) => {
-      if (selector === ".conversation-pane") {
+      if (selector === ".review-case-pane") {
         return {
           attrs: {},
           setAttribute(name, value) { this.attrs[name] = value; inertTargets.push({ name, value }); },

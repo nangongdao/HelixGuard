@@ -35,7 +35,7 @@ function stubEls() {
     quotaReadout: el(),
     memberList: el(),
     webhookList: el(),
-    quotaConversations: el(),
+    quotaReviewCases: el(),
     quotaStorageMb: el(),
   };
 }

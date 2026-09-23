@@ -7,7 +7,7 @@ tampering.
 
 Canonical row for hashing:
 
-    f"{prev_hash}\n{id}\n{tenant_id}\n{conversation_id or ''}\n"
+    f"{prev_hash}\n{id}\n{tenant_id}\n{review_case_id or ''}\n"
     f"{request_id or ''}\n{actor}\n{event_type}\n{payload_json}\n{created_at}"
 
 ``prev_hash`` of the first event is the empty string.
@@ -26,7 +26,7 @@ def event_hash(
     prev_hash: str,
     event_id: str,
     tenant_id: str,
-    conversation_id: str | None,
+    review_case_id: str | None,
     request_id: str | None,
     actor: str,
     event_type: str,
@@ -34,7 +34,7 @@ def event_hash(
     created_at: str,
 ) -> str:
     canonical = (
-        f"{prev_hash}\n{event_id}\n{tenant_id}\n{conversation_id or ''}\n"
+        f"{prev_hash}\n{event_id}\n{tenant_id}\n{review_case_id or ''}\n"
         f"{request_id or ''}\n{actor}\n{event_type}\n{payload_json}\n{created_at}"
     )
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
@@ -53,7 +53,7 @@ def verify_chain(rows: list[dict[str, Any]]) -> list[str]:
             prev_hash=expected_prev,
             event_id=event_id,
             tenant_id=str(row["tenant_id"]),
-            conversation_id=row.get("conversation_id"),
+            review_case_id=row.get("review_case_id", row.get("conversation_id")),
             request_id=row.get("request_id"),
             actor=str(row.get("actor", "")),
             event_type=str(row.get("event_type", "")),
@@ -149,7 +149,7 @@ def validate_audit_archive(archive: Mapping[str, Any]) -> list[dict[str, Any]]:
             prev_hash=str(event.get("prev_hash") or ""),
             event_id=str(event["id"]),
             tenant_id=str(event["tenant_id"]),
-            conversation_id=event.get("conversation_id"),
+            review_case_id=event.get("review_case_id", event.get("conversation_id")),
             request_id=event.get("request_id"),
             actor=str(event["actor"]),
             event_type=str(event["event_type"]),
@@ -239,7 +239,7 @@ def validate_audit_archive_stream(
             prev_hash=str(event.get("prev_hash") or ""),
             event_id=event_id,
             tenant_id=str(event["tenant_id"]),
-            conversation_id=event.get("conversation_id"),
+            review_case_id=event.get("review_case_id", event.get("conversation_id")),
             request_id=event.get("request_id"),
             actor=str(event["actor"]),
             event_type=str(event["event_type"]),

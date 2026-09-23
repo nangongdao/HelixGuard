@@ -1,0 +1,488 @@
+import {
+  advanceCursor,
+  clearSession,
+  conversationSignals,
+  copy,
+  makeChannelMessageId,
+  mergeMessages,
+  mergePolledMessages,
+  messageTone,
+  nextPollDelayMs,
+  nextSendAttempt,
+  parseSseFrames,
+  readWidgetConfig,
+  restoreSessionForLaunch,
+  saveSession,
+  sessionKey,
+  shouldPoll,
+} from "/static/js/submission-portal-core.js?v=1.4.0";
+
+const config = readWidgetConfig();
+const storage = globalThis.sessionStorage;
+let requestController = new AbortController();
+const state = {
+  token: config.token,
+  conversationId: null,
+  messages: [],
+  resolved: false,
+  resolvedSurveyUrl: "",
+  pendingAssistant: "",
+  busy: false,
+  handoff: false,
+  // H01: the in-flight send attempt (kept across a failure so a retry reuses
+  // its channel id) and the read cursor the idle poll resumes from.
+  pendingAttempt: null,
+  cursor: "",
+  pollFailures: 0,
+  pollTimer: null,
+};
+
+const $ = (id) => document.getElementById(id);
+const prechatView = $("prechatView");
+const chatView = $("chatView");
+const fatalState = $("fatalState");
+const messageLog = $("messageLog");
+const scroller = $("messageScroller");
+const messageInput = $("messageInput");
+const sendButton = $("sendButton");
+const messageForm = $("messageForm");
+const resolvedBanner = $("resolvedBanner");
+const qaSpotCheckLink = $("qaSpotCheckLink");
+const connectionBanner = $("connectionBanner");
+
+function setText(id, value) {
+  const element = $(id);
+  if (element) element.textContent = value;
+}
+
+function applyCopy() {
+  document.documentElement.lang = config.locale === "en" ? "en" : "zh-CN";
+  document.body.dataset.accent = config.accent;
+  document.title = config.brand;
+  setText("submissionPortalBrand", config.brand);
+  setText("headerKicker", copy(config.locale, "eyebrow"));
+  setText("onlineLabel", copy(config.locale, "online"));
+  setText("welcomeEyebrow", copy(config.locale, "eyebrow"));
+  setText("welcomeTitle", config.locale === "en" ? "Start here" : "欢迎使用提交入口");
+  setText("welcomeCopy", config.greeting);
+  setText("nameLabel", copy(config.locale, "nameLabel"));
+  $("submitterName").placeholder = copy(config.locale, "namePlaceholder");
+  setText("startButton", copy(config.locale, "start"));
+  setText("introCopy", copy(config.locale, "intro"));
+  setText("inputLabel", copy(config.locale, "inputLabel"));
+  setText("chatTitle", copy(config.locale, "chatTitle"));
+  messageInput.placeholder = copy(config.locale, "inputPlaceholder");
+  sendButton.title = copy(config.locale, "send");
+  sendButton.setAttribute("aria-label", copy(config.locale, "send"));
+  setText("poweredLabel", copy(config.locale, "powered"));
+  setText("fatalTitle", copy(config.locale, "fatalTitle"));
+  setText("fatalCopy", copy(config.locale, "expired"));
+}
+
+function showFatal(message = copy(config.locale, "expired")) {
+  prechatView.hidden = true;
+  chatView.hidden = true;
+  fatalState.hidden = false;
+  setText("fatalCopy", message);
+}
+
+function expireSession(message = copy(config.locale, "expired")) {
+  stopPolling();
+  clearSession(storage, sessionKey());
+  state.token = "";
+  state.conversationId = null;
+  showFatal(message);
+}
+
+function showBanner(message = "", visible = Boolean(message)) {
+  connectionBanner.hidden = !visible;
+  connectionBanner.textContent = message;
+}
+
+function setChatVisible() {
+  prechatView.hidden = true;
+  fatalState.hidden = true;
+  chatView.hidden = false;
+  messageInput.focus({ preventScroll: true });
+}
+
+async function request(path, options = {}) {
+  const headers = new Headers(options.headers || {});
+  headers.set("X-Widget-Token", state.token);
+  if (options.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+  const response = await fetch(path, {
+    ...options,
+    headers,
+    cache: "no-store",
+    signal: options.signal || requestController.signal,
+  });
+  if (!response.ok) {
+    let detail = `${response.status}`;
+    try {
+      const body = await response.json();
+      detail = body.detail || body.title || detail;
+    } catch (_error) {
+      // Keep the status when an upstream response is not JSON.
+    }
+    const error = new Error(detail);
+    error.status = response.status;
+    throw error;
+  }
+  return response;
+}
+
+function formatTime(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  return Number.isNaN(date.valueOf()) ? "" : date.toLocaleTimeString(config.locale === "en" ? "en-US" : "zh-CN", { hour: "2-digit", minute: "2-digit" });
+}
+
+function appendMessageElement(message, pending = false) {
+  const row = document.createElement("article");
+  const role = messageTone(message.role);
+  row.className = `message-row ${role}${pending ? " pending" : ""}`;
+  if (message.id) row.dataset.messageId = message.id;
+  const bubble = document.createElement("div");
+  bubble.className = "message-bubble";
+  bubble.textContent = message.content || "";
+  row.appendChild(bubble);
+  if (message.created_at && !pending) {
+    const meta = document.createElement("div");
+    meta.className = "message-meta";
+    meta.textContent = formatTime(message.created_at);
+    row.appendChild(meta);
+  }
+  messageLog.appendChild(row);
+}
+
+function appendSystemNote(text) {
+  const note = document.createElement("p");
+  note.className = "system-note";
+  note.textContent = text;
+  messageLog.appendChild(note);
+}
+
+function renderResolvedBanner() {
+  resolvedBanner.hidden = !state.resolved;
+  if (state.resolved && qaSpotCheckLink.getAttribute("href") !== state.resolvedSurveyUrl) {
+    qaSpotCheckLink.href = state.resolvedSurveyUrl;
+  }
+}
+
+function renderMessages() {
+  messageLog.replaceChildren();
+  if (!state.messages.length) appendSystemNote(copy(config.locale, "intro"));
+  state.messages.forEach((message) => appendMessageElement(message));
+  if (state.pendingAssistant) {
+    appendMessageElement({ role: "assistant", content: state.pendingAssistant }, true);
+  }
+  if (state.handoff) appendSystemNote(copy(config.locale, "handoff"));
+  scroller.scrollTop = scroller.scrollHeight;
+}
+
+function setBusy(value) {
+  state.busy = value;
+  messageForm.setAttribute("aria-busy", String(value));
+  sendButton.disabled = value;
+  messageInput.disabled = value;
+  setText("composerState", value ? copy(config.locale, "sending") : "");
+}
+
+function saveCurrentSession() {
+  saveSession(storage, { conversationId: state.conversationId, token: state.token }, sessionKey());
+}
+
+function applySignals(signals) {
+  state.handoff = signals.handoff;
+  state.resolved = signals.resolved;
+  state.resolvedSurveyUrl = signals.resolvedSurveyUrl;
+  renderResolvedBanner();
+}
+
+async function loadHistory() {
+  // H01: with a cursor this reads only what arrived since the last page, so the
+  // idle poll stays cheap and a dropped connection resumes where it stopped
+  // instead of re-reading (and possibly skipping) the transcript.
+  const query = state.cursor ? `?limit=200&cursor=${encodeURIComponent(state.cursor)}` : "?limit=200";
+  const response = await request(
+    `/api/submission-portal/sessions/${encodeURIComponent(state.conversationId)}/messages${query}`,
+  );
+  // ROADMAP 2.10.0: when the operator resolved the conversation, surface
+  // the resolved banner and the CSAT rating link — the customer side of
+  // the CSAT loop was previously unreachable in the widget channel.
+  applySignals(
+    conversationSignals(
+      response.headers.get("X-Conversation-Status") || "",
+      response.headers.get("X-CSAT-Survey-URL") || "",
+    ),
+  );
+  state.cursor = advanceCursor(state.cursor, response.headers.get("X-Next-Cursor"));
+  state.messages = mergePolledMessages(state.messages, await response.json());
+  renderMessages();
+}
+
+function stopPolling() {
+  if (state.pollTimer !== null) {
+    clearTimeout(state.pollTimer);
+    state.pollTimer = null;
+  }
+}
+
+function schedulePoll(delay = nextPollDelayMs(state.pollFailures)) {
+  stopPolling();
+  state.pollTimer = setTimeout(pollOnce, delay);
+}
+
+async function pollOnce() {
+  state.pollTimer = null;
+  if (
+    !shouldPoll({
+      conversationId: state.conversationId,
+      resolved: state.resolved,
+      busy: state.busy,
+      hidden: document.hidden,
+    })
+  ) {
+    // A turn in flight or a hidden tab is a reason to wait, not to stop: the
+    // operator may still be typing a reply.
+    if (state.conversationId && !state.resolved) schedulePoll();
+    return;
+  }
+  try {
+    await loadHistory();
+    state.pollFailures = 0;
+    showBanner("", false);
+  } catch (error) {
+    if (error.name === "AbortError") return;
+    if (error.status === 401 || error.status === 404) {
+      stopPolling();
+      expireSession();
+      return;
+    }
+    state.pollFailures += 1;
+    showBanner(copy(config.locale, "reconnecting"), true);
+  }
+  if (state.resolved) {
+    stopPolling();
+    return;
+  }
+  schedulePoll();
+}
+
+function parseJobData(data) {
+  try { return JSON.parse(data); } catch (_error) { return {}; }
+}
+
+async function readStream(response) {
+  if (!response.body?.getReader) return { completed: false, reconnect: true };
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let completed = false;
+  let reconnect = false;
+  while (true) {
+    const { value, done } = await reader.read();
+    buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+    const parsed = parseSseFrames(buffer, done);
+    buffer = parsed.remainder;
+    for (const frame of parsed.events) {
+      if (frame.event === "token") {
+        const token = parseJobData(frame.data);
+        state.pendingAssistant += String(token.content || "");
+        renderMessages();
+      } else if (frame.event === "job") {
+        const job = parseJobData(frame.data);
+        completed = job.status === "completed";
+        if (job.status === "failed") throw new Error(job.error_message || copy(config.locale, "error"));
+        if (job.result_json) {
+          const result = parseJobData(job.result_json);
+          state.handoff = ["waiting_human", "human_active"].includes(
+            result?.conversation?.status,
+          );
+        }
+      } else if (frame.event === "timeout") {
+        showBanner(copy(config.locale, "timeout"), true);
+        reconnect = true;
+      } else if (frame.event === "shutdown") {
+        showBanner(copy(config.locale, "reconnecting"), true);
+        reconnect = true;
+      } else if (frame.event === "error") {
+        throw new Error(copy(config.locale, "error"));
+      }
+    }
+    if (done) break;
+  }
+  return { completed, reconnect: reconnect || !completed };
+}
+
+async function streamLatestTurn() {
+  let completed = false;
+  for (let attempt = 0; attempt < 3 && !completed; attempt += 1) {
+    if (attempt > 0) {
+      showBanner(copy(config.locale, "reconnecting"), true);
+      await new Promise((resolve) => setTimeout(resolve, 400 * attempt));
+    }
+    state.pendingAssistant = "";
+    const response = await request(`/api/submission-portal/sessions/${encodeURIComponent(state.conversationId)}/stream?timeout=20`);
+    const result = await readStream(response);
+    completed = result.completed;
+    if (!result.reconnect) break;
+  }
+  await loadHistory();
+  state.pendingAssistant = "";
+  showBanner(completed ? "" : copy(config.locale, "timeout"), !completed);
+  renderMessages();
+  // The turn is over: from here the reply may come from a human, so keep
+  // reading until the conversation is resolved.
+  schedulePoll();
+  return completed;
+}
+
+async function startSession(event) {
+  event.preventDefault();
+  if (!state.token) return showFatal();
+  const button = $("startButton");
+  button.disabled = true;
+  try {
+    const submitterName = $("submitterName").value.trim();
+    const response = await request("/api/submission-portal/sessions", {
+      method: "POST",
+      body: JSON.stringify(submitterName ? { customer_name: submitterName } : {}),
+    });
+    const session = await response.json();
+    state.conversationId = session.conversation.id;
+    state.token = session.widget_token;
+    state.resolved = false;
+    state.cursor = "";
+    state.pendingAttempt = null;
+    state.pollFailures = 0;
+    renderResolvedBanner();
+    saveCurrentSession();
+    history.replaceState({}, document.title, `${location.pathname}${location.search}`);
+    setChatVisible();
+    await loadHistory();
+    schedulePoll();
+  } catch (error) {
+    if (error.name === "AbortError") return;
+    if (error.status === 401 || error.status === 404) expireSession();
+    else showFatal(copy(config.locale, "error"));
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function sendMessage(event) {
+  event.preventDefault();
+  if (state.busy || !state.conversationId) return;
+  // H01: the attempt survives a failure. Retrying the same text reuses its
+  // channel id, so a confirmation lost in transit replays instead of becoming a
+  // second customer message; a fresh draft gets a fresh id.
+  const attempt = nextSendAttempt(state.pendingAttempt, messageInput.value, makeChannelMessageId);
+  if (!attempt) return;
+  state.pendingAttempt = attempt;
+  state.messages = mergeMessages(state.messages, [{
+    id: `local-${attempt.channelMessageId}`,
+    role: "customer",
+    content: attempt.content,
+    created_at: new Date().toISOString(),
+  }]);
+  messageInput.value = "";
+  state.pendingAssistant = "";
+  renderMessages();
+  setBusy(true);
+  showBanner("", false);
+  try {
+    const queued = await request(`/api/submission-portal/sessions/${encodeURIComponent(state.conversationId)}/messages?async_mode=true`, {
+      method: "POST",
+      body: JSON.stringify({ content: attempt.content, channel_message_id: attempt.channelMessageId }),
+    });
+    await queued.json();
+    state.pendingAttempt = null;
+    await streamLatestTurn();
+  } catch (error) {
+    if (error.name === "AbortError") return;
+    state.pendingAttempt = attempt;
+    messageInput.value = attempt.content;
+    state.pendingAssistant = "";
+    if (error.status === 401 || error.status === 404) {
+      expireSession();
+      return;
+    }
+    try { await loadHistory(); } catch (_historyError) { /* Keep the original user-facing error. */ }
+    showBanner(copy(config.locale, "error"), true);
+  } finally {
+    setBusy(false);
+    renderMessages();
+  }
+}
+
+function handleInputKey(event) {
+  if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
+    event.preventDefault();
+    messageForm.requestSubmit();
+  }
+}
+
+function handleBootstrapNavigation() {
+  const next = readWidgetConfig();
+  if (!next.token) return;
+  stopPolling();
+  requestController.abort();
+  requestController = new AbortController();
+  clearSession(storage, sessionKey());
+  state.token = next.token;
+  state.conversationId = null;
+  state.messages = [];
+  state.pendingAssistant = "";
+  state.handoff = false;
+  state.pendingAttempt = null;
+  state.cursor = "";
+  state.pollFailures = 0;
+  $("submitterName").value = "";
+  messageInput.value = "";
+  setBusy(false);
+  showBanner("", false);
+  messageLog.replaceChildren();
+  chatView.hidden = true;
+  fatalState.hidden = true;
+  prechatView.hidden = false;
+  $("submitterName").focus({ preventScroll: true });
+}
+
+async function restoreOrPrepare() {
+  const restored = restoreSessionForLaunch(storage, config.token, sessionKey());
+  if (restored) {
+    state.conversationId = restored.conversationId;
+    state.token = restored.token;
+    history.replaceState({}, document.title, `${location.pathname}${location.search}`);
+    setChatVisible();
+    setBusy(true);
+    showBanner(copy(config.locale, "loading"), true);
+    try {
+      await loadHistory();
+      showBanner("", false);
+      schedulePoll();
+    } catch (error) {
+      if (error.name === "AbortError") return;
+      if (error.status === 401 || error.status === 404) expireSession();
+      else showBanner(copy(config.locale, "error"), true);
+    } finally {
+      setBusy(false);
+    }
+    return;
+  }
+  if (!state.token) return showFatal();
+}
+
+applyCopy();
+$("startForm").addEventListener("submit", startSession);
+messageForm.addEventListener("submit", sendMessage);
+messageInput.addEventListener("keydown", handleInputKey);
+window.addEventListener("online", () => showBanner("", false));
+window.addEventListener("offline", () => showBanner(copy(config.locale, "reconnecting"), true));
+window.addEventListener("hashchange", handleBootstrapNavigation);
+// A tab that comes back to the foreground should not wait out the backoff.
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) schedulePoll(0);
+});
+restoreOrPrepare();

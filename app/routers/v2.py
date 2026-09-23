@@ -64,7 +64,7 @@ def build_router(deps: RouteDeps) -> APIRouter:
 
     @router.get(
         "/review-cases",
-        summary="List conversations (cursor-paginated)",
+        summary="List review_cases (cursor-paginated)",
         description=(
             "Keyset-paginated queue listing. Cursors are opaque and live in "
             "the response body next_cursor field; core fields match v1 "
@@ -76,10 +76,10 @@ def build_router(deps: RouteDeps) -> APIRouter:
         router,
         "/conversations",
         methods=["GET"],
-        summary="List conversations (cursor-paginated)",
+        summary="List review_cases (cursor-paginated)",
         tags=["v2:review-cases"],
     )
-    def list_conversations_v2(
+    def list_review_cases_v2(
         response: Response,
         principal: Annotated[Principal, Depends(require_permission("conversation:read"))],
         cursor: Annotated[str | None, Query(max_length=512)] = None,
@@ -95,7 +95,7 @@ def build_router(deps: RouteDeps) -> APIRouter:
             except InvalidCursorError as exc:
                 raise HTTPException(status_code=400, detail=str(exc)) from exc
         try:
-            rows = database.list_conversations(
+            rows = database.list_review_cases(
                 principal.tenant_id,
                 status=status_filter,
                 sort=sort if sort != "updated" else "updated",
@@ -134,7 +134,7 @@ def build_router(deps: RouteDeps) -> APIRouter:
         "/review-cases/{review_case_id}",
         summary="Fetch one conversation",
         description=(
-            "Single conversation by id; archived conversations resolve "
+            "Single conversation by id; archived review_cases resolve "
             "transparently, mirroring v1 semantics."
         ),
         tags=["v2:review-cases"],
@@ -152,7 +152,7 @@ def build_router(deps: RouteDeps) -> APIRouter:
         principal: Annotated[Principal, Depends(require_permission("conversation:read"))],
     ) -> dict[str, Any]:
         _v2_response(response)
-        conversation = database.get_conversation(principal.tenant_id, review_case_id)
+        conversation = database.get_review_case(principal.tenant_id, review_case_id)
         if conversation is None:
             raise HTTPException(status_code=404, detail="Conversation not found")
         return _conversation_out(conversation)
@@ -239,11 +239,11 @@ def build_router(deps: RouteDeps) -> APIRouter:
         ] = None,
     ) -> dict[str, Any]:
         _v2_response(response)
-        customer_name = str(payload.get("customer_name") or "").strip()
+        submitter_name = str(payload.get("customer_name") or "").strip()
         channel = str(payload.get("channel") or "web").strip()
-        customer_ref = payload.get("customer_ref")
-        if not customer_name or len(customer_name) > 120:
-            raise HTTPException(status_code=422, detail="customer_name is required (<=120)")
+        submitter_ref = payload.get("customer_ref")
+        if not submitter_name or len(submitter_name) > 120:
+            raise HTTPException(status_code=422, detail="submitter_name is required (<=120)")
         if len(channel) > 40:
             raise HTTPException(status_code=422, detail="channel too long")
 
@@ -256,9 +256,7 @@ def build_router(deps: RouteDeps) -> APIRouter:
                     (scope, principal.tenant_id, idempotency_key),
                 ).fetchone()
             if existing is not None:
-                stored = database.get_conversation(
-                    principal.tenant_id, str(existing["resource_id"])
-                )
+                stored = database.get_review_case(principal.tenant_id, str(existing["resource_id"]))
                 if stored is not None:
                     response.headers["X-Idempotent-Replay"] = "true"
                     response.status_code = int(existing["status_code"])
@@ -268,10 +266,10 @@ def build_router(deps: RouteDeps) -> APIRouter:
         # event commit together — the transactional-outbox guarantee.
 
         with database.connect() as connection:
-            conversation = database.create_conversation(
+            conversation = database.create_review_case(
                 principal.tenant_id,
-                customer_name,
-                str(customer_ref) if customer_ref else None,
+                submitter_name,
+                str(submitter_ref) if submitter_ref else None,
                 channel,
                 principal.actor_id,
                 deps.settings.normal_sla_minutes,
@@ -291,8 +289,8 @@ def build_router(deps: RouteDeps) -> APIRouter:
                 {
                     "conversation_id": review_case_id,
                     "channel": channel,
-                    "customer_name": customer_name,
-                    "customer_verified": bool(customer_ref),
+                    "customer_name": submitter_name,
+                    "customer_verified": bool(submitter_ref),
                     "source_api": "v2",
                 },
                 connection=connection,
@@ -300,16 +298,16 @@ def build_router(deps: RouteDeps) -> APIRouter:
 
         # Post-steps run after the outbox transaction commits — they open
         # their own connections and would deadlock inside it.
-        database.increment_tenant_usage_conversations(principal.tenant_id, utc_now()[:10])
+        database.increment_tenant_usage_review_cases(principal.tenant_id, utc_now()[:10])
         database.audit(
             principal.tenant_id,
             review_case_id,
             principal.actor_id,
             "conversation.created",
-            {"channel": channel, "customer_verified": bool(customer_ref), "source_api": "v2"},
+            {"channel": channel, "customer_verified": bool(submitter_ref), "source_api": "v2"},
         )
         return _conversation_out(
-            database.get_conversation(principal.tenant_id, review_case_id) or {}
+            database.get_review_case(principal.tenant_id, review_case_id) or {}
         )
 
     return router

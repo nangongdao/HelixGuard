@@ -34,7 +34,7 @@ export function SummaryIsland() {
 
   return (
     <div className="summary-banner" hidden={!model.visible}>
-      <span className="csat-label">
+      <span className="qa-spot-check-label">
         <svg className="icon"><use href="/static/icons.svg?v=1.4.0#file-text" /></svg>
         <span>{model.title}</span>
       </span>

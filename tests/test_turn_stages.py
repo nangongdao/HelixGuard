@@ -17,7 +17,7 @@ from typing import Any
 
 from app.agents import AgentResult
 from app.config import Settings
-from app.domain import AgentName, ConversationStatus, TriageDecision
+from app.domain import AgentName, ReviewCaseStatus, TriageDecision
 from app.turn_persist import TurnPersistInputs, TurnPersistStage
 from app.turn_policy import TurnPolicyContext, TurnPolicyStage
 
@@ -69,7 +69,7 @@ class TurnStageContractTests(unittest.TestCase):
 
         self.database = Database(Path(self._tmp.name) / "stage.db")
         self.database.initialize()
-        self._seed_conv = self.database.create_conversation(
+        self._seed_conv = self.database.create_review_case(
             "demo", "测试顾客", None, "web", "seed", 60
         )
         self._seed_id_ = self._seed_conv["id"]
@@ -81,7 +81,7 @@ class TurnStageContractTests(unittest.TestCase):
     def test_turn_policy_context_is_frozen(self) -> None:
         ctx = TurnPolicyContext(
             tenant_id="demo",
-            conversation={"id": "conv_1", "status": ConversationStatus.OPEN},
+            review_case={"id": "conv_1", "status": ReviewCaseStatus.OPEN},
             content="hi",
             actor_id="a",
             turn_id="t1",
@@ -94,21 +94,21 @@ class TurnStageContractTests(unittest.TestCase):
         so the orchestrator stops before the specialist."""
         svc = _MonkeyServices(self.database)
         stage = TurnPolicyStage(svc)
-        conversations = (
-            self.database.list_conversations("demo")
-            if hasattr(self.database, "list_conversations")
+        review_cases = (
+            self.database.list_review_cases("demo")
+            if hasattr(self.database, "list_review_cases")
             else []
         )
-        if not conversations:
+        if not review_cases:
             self.skipTest("no conversation available")
-        conv = conversations[0]
-        self.database.transition_conversation(
-            "demo", conv["id"], [ConversationStatus.OPEN], ConversationStatus.WAITING_HUMAN
+        conv = review_cases[0]
+        self.database.transition_review_case(
+            "demo", conv["id"], [ReviewCaseStatus.OPEN], ReviewCaseStatus.WAITING_HUMAN
         )
         result = stage.ingest(
             TurnPolicyContext(
                 tenant_id="demo",
-                conversation=self.database.get_conversation("demo", conv["id"]) or conv,
+                review_case=self.database.get_review_case("demo", conv["id"]) or conv,
                 content="补充说明",
                 actor_id="customer",
                 turn_id="t-hold",
@@ -124,7 +124,7 @@ class TurnStageContractTests(unittest.TestCase):
         svc = _MonkeyServices(self.database)
         decision = TriageDecision(
             route=AgentName.ESCALATION,
-            intent="policy_risk",
+            risk_category="policy_risk",
             confidence=1.0,
             urgency="high",
             reasons=["Sensitive request"],
@@ -137,11 +137,11 @@ class TurnStageContractTests(unittest.TestCase):
             requires_human=True,
             handoff_reason="Sensitive request requires human authorization",
         )
-        conv = self.database.get_conversation("demo", self._seed_id_)
+        conv = self.database.get_review_case("demo", self._seed_id_)
         self.assertIsNotNone(conv, "seed conversation must exist")
         inputs = TurnPersistInputs(
             tenant_id="demo",
-            conversation=conv,
+            review_case=conv,
             customer_message={"id": "m1"},
             decision=decision,
             result=result,

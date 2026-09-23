@@ -173,8 +173,8 @@ TRIGGER_DDL: tuple[str, ...] = (
     RETURNS trigger AS $$
     BEGIN
         IF NOT EXISTS (
-            SELECT 1 FROM conversations c
-            WHERE c.id = NEW.conversation_id AND c.tenant_id = NEW.tenant_id
+            SELECT 1 FROM review_cases c
+            WHERE c.id = NEW.review_case_id AND c.tenant_id = NEW.tenant_id
         ) THEN
             RAISE EXCEPTION 'conversation tenant mismatch';
         END IF;
@@ -188,7 +188,7 @@ TRIGGER_DDL: tuple[str, ...] = (
         IF NOT EXISTS (
             SELECT 1 FROM messages m
             WHERE m.id = NEW.message_id
-              AND m.conversation_id = NEW.conversation_id
+              AND m.review_case_id = NEW.review_case_id
               AND m.tenant_id = NEW.tenant_id
         ) THEN
             RAISE EXCEPTION 'message tenant mismatch';
@@ -201,7 +201,7 @@ TRIGGER_DDL: tuple[str, ...] = (
     CREATE OR REPLACE FUNCTION hx_messages_after_insert()
     RETURNS trigger AS $$
     BEGIN
-        UPDATE conversations SET
+        UPDATE review_cases SET
             message_count = message_count + 1,
             preview = CASE
                 WHEN last_message_at IS NULL OR NEW.created_at >= last_message_at
@@ -212,10 +212,10 @@ TRIGGER_DDL: tuple[str, ...] = (
             updated_at = CASE
                 WHEN NEW.created_at >= updated_at THEN NEW.created_at ELSE updated_at END,
             version = version + 1
-        WHERE tenant_id = NEW.tenant_id AND id = NEW.conversation_id;
+        WHERE tenant_id = NEW.tenant_id AND id = NEW.review_case_id;
 
         IF NEW.role IN ('customer', 'assistant', 'operator') THEN
-            UPDATE conversations SET
+            UPDATE review_cases SET
                 needs_response = CASE WHEN NEW.role = 'customer' THEN 1 ELSE 0 END,
                 waiting_since = CASE
                     WHEN NEW.role = 'customer' THEN NEW.created_at ELSE NULL END,
@@ -223,7 +223,7 @@ TRIGGER_DDL: tuple[str, ...] = (
                     WHEN NEW.role IN ('assistant', 'operator')
                     THEN COALESCE(first_response_at, NEW.created_at)
                     ELSE first_response_at END
-            WHERE tenant_id = NEW.tenant_id AND id = NEW.conversation_id;
+            WHERE tenant_id = NEW.tenant_id AND id = NEW.review_case_id;
         END IF;
         RETURN NULL;
     END $$ LANGUAGE plpgsql
@@ -232,39 +232,39 @@ TRIGGER_DDL: tuple[str, ...] = (
     CREATE OR REPLACE FUNCTION hx_messages_after_delete()
     RETURNS trigger AS $$
     BEGIN
-        UPDATE conversations SET
+        UPDATE review_cases SET
             message_count = GREATEST(0, message_count - 1),
             preview = (
                 SELECT content FROM messages
                 WHERE tenant_id = OLD.tenant_id
-                  AND conversation_id = OLD.conversation_id
+                  AND review_case_id = OLD.review_case_id
                 ORDER BY created_at DESC, seq DESC LIMIT 1
             ),
             last_message_at = (
                 SELECT created_at FROM messages
                 WHERE tenant_id = OLD.tenant_id
-                  AND conversation_id = OLD.conversation_id
+                  AND review_case_id = OLD.review_case_id
                 ORDER BY created_at DESC, seq DESC LIMIT 1
             ),
             version = version + 1
-        WHERE tenant_id = OLD.tenant_id AND id = OLD.conversation_id;
+        WHERE tenant_id = OLD.tenant_id AND id = OLD.review_case_id;
 
         IF OLD.role IN ('customer', 'assistant', 'operator') THEN
-            UPDATE conversations SET
+            UPDATE review_cases SET
                 needs_response = CASE WHEN (
                     SELECT role FROM messages
                     WHERE tenant_id = OLD.tenant_id
-                      AND conversation_id = OLD.conversation_id
+                      AND review_case_id = OLD.review_case_id
                     ORDER BY created_at DESC, seq DESC LIMIT 1
                 ) = 'customer' THEN 1 ELSE 0 END,
                 waiting_since = (
                     SELECT created_at FROM messages
                     WHERE tenant_id = OLD.tenant_id
-                      AND conversation_id = OLD.conversation_id
+                      AND review_case_id = OLD.review_case_id
                       AND role = 'customer'
                     ORDER BY created_at DESC, seq DESC LIMIT 1
                 )
-            WHERE tenant_id = OLD.tenant_id AND id = OLD.conversation_id;
+            WHERE tenant_id = OLD.tenant_id AND id = OLD.review_case_id;
         END IF;
         RETURN NULL;
     END $$ LANGUAGE plpgsql
@@ -288,8 +288,8 @@ _TRIGGER_BINDINGS: tuple[tuple[str, str, str, str], ...] = (
         "hx_conversation_tenant_guard",
     ),
     (
-        "conversation_labels_tenant_guard",
-        "conversation_labels",
+        "review_case_labels_tenant_guard",
+        "review_case_labels",
         "BEFORE INSERT",
         "hx_conversation_tenant_guard",
     ),
@@ -303,7 +303,7 @@ _TRIGGER_BINDINGS: tuple[tuple[str, str, str, str], ...] = (
 # Monotonic ordering columns
 # ---------------------------------------------------------------------------
 
-# SQLite orders ``ORDER BY ... rowid`` with its native per-row insertion
+# SQLite source_lookups ``ORDER BY ... rowid`` with its native per-row insertion
 # counter.  PostgreSQL has no rowid, so these statements add a monotonic
 # ``seq`` column to the tables that order by it (the dialect rewrites ``rowid``
 # to ``seq``).  ``seq`` is filled from a sequence so concurrent writers can
@@ -338,18 +338,18 @@ _ORDERING_DDL: tuple[str, ...] = (
     ALTER TABLE turn_job_chunks ALTER COLUMN seq SET DEFAULT nextval('turn_job_chunks_seq')
     """,
     """
-    CREATE SEQUENCE IF NOT EXISTS knowledge_articles_seq START 1
+    CREATE SEQUENCE IF NOT EXISTS policy_articles_seq START 1
     """,
     """
-    ALTER TABLE knowledge_articles ADD COLUMN IF NOT EXISTS seq BIGINT NOT NULL DEFAULT 0
+    ALTER TABLE policy_articles ADD COLUMN IF NOT EXISTS seq BIGINT NOT NULL DEFAULT 0
     """,
     """
-    UPDATE knowledge_articles
-       SET seq = nextval('knowledge_articles_seq')
+    UPDATE policy_articles
+       SET seq = nextval('policy_articles_seq')
      WHERE seq = 0
     """,
     """
-    ALTER TABLE knowledge_articles ALTER COLUMN seq SET DEFAULT nextval('knowledge_articles_seq')
+    ALTER TABLE policy_articles ALTER COLUMN seq SET DEFAULT nextval('policy_articles_seq')
     """,
 )
 
@@ -439,21 +439,21 @@ def install_trgm_search(connection: Any) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Updated-sort conversations index (ROADMAP 18.5 search fast path)
+# Updated-sort review_cases index (ROADMAP 18.5 search fast path)
 # ---------------------------------------------------------------------------
 
 # The shared queue ORDER BY is ``updated_at DESC, id DESC``.  The SQLite-era
-# ``idx_conversations_tenant_updated (tenant_id, updated_at DESC)`` cannot
+# ``idx_review_cases_tenant_updated (tenant_id, updated_at DESC)`` cannot
 # satisfy the ``id DESC`` tiebreak, so on PostgreSQL the planner falls back to
 # a full parallel scan + top-N sort for the ``updated`` sort (measured
 # ~255ms warm on the 100k-tenant).  Adding ``id DESC`` lets the planner use an
 # ordered index scan for paging AND for the windowed message-search fast path
-# in :meth:`app.db.conversations_query.DatabaseConversationsQueryMixin
-# ._query_conversations_windowed` (full-match term: ~0.5ms, was 627-809ms).
+# in :meth:`app.db.review_cases_query.DatabaseReviewCasesQueryMixin
+# ._query_review_cases_windowed` (full-match term: ~0.5ms, was 627-809ms).
 _UPDATED_SORT_INDEX_DDL = (
     (
-        "CREATE INDEX IF NOT EXISTS idx_conversations_tenant_updated_id "
-        "ON conversations (tenant_id, updated_at DESC, id DESC)"
+        "CREATE INDEX IF NOT EXISTS idx_review_cases_tenant_updated_id "
+        "ON review_cases (tenant_id, updated_at DESC, id DESC)"
     ),
 )
 
@@ -462,12 +462,12 @@ def install_updated_sort_index(connection: Any) -> None:
     """Install the ``updated``-sort index used by queue paging and message search.
 
     PostgreSQL-only: the SQLite schema keeps the two-column
-    ``idx_conversations_tenant_updated`` (its rowid ordering already breaks
+    ``idx_review_cases_tenant_updated`` (its rowid ordering already breaks
     ``id`` ties), and migration-chain immutability rules out editing the shared
     DDL.  Idempotent; runs in the native post-schema pass.
     """
     _run(connection, _UPDATED_SORT_INDEX_DDL)
-    logger.info("PostgreSQL updated-sort conversations index installed")
+    logger.info("PostgreSQL updated-sort review_cases index installed")
 
 
 # ---------------------------------------------------------------------------
@@ -480,7 +480,7 @@ def install_updated_sort_index(connection: Any) -> None:
 # on PostgreSQL mirroring the hot-tier indexes lets a selective term use a
 # trigram bitmap scan instead (CAPACITY 3.4: selective cold search 328ms →
 # index-backed) and fixes the archive ``updated``-sort paging that, like the
-# hot ``idx_conversations_tenant_updated`` before it, lacked the ``id DESC``
+# hot ``idx_review_cases_tenant_updated`` before it, lacked the ``id DESC``
 # tiebreak the shared ``ORDER BY updated_at DESC, id DESC`` requires.
 _ARCHIVE_TRGM_INDEX_DDL = (
     (
@@ -490,8 +490,8 @@ _ARCHIVE_TRGM_INDEX_DDL = (
 )
 _ARCHIVE_UPDATED_SORT_INDEX_DDL = (
     (
-        "CREATE INDEX IF NOT EXISTS idx_conversations_archive_tenant_updated_id "
-        "ON conversations_archive (tenant_id, updated_at DESC, id DESC)"
+        "CREATE INDEX IF NOT EXISTS idx_review_cases_archive_tenant_updated_id "
+        "ON review_cases_archive (tenant_id, updated_at DESC, id DESC)"
     ),
 )
 
@@ -530,12 +530,12 @@ def install_archive_updated_sort_index(connection: Any) -> None:
     """Install the archive ``updated``-sort index for paging and search.
 
     PostgreSQL-only and idempotent, mirroring
-    :func:`install_updated_sort_index` onto ``conversations_archive`` so the
+    :func:`install_updated_sort_index` onto ``review_cases_archive`` so the
     shared ``ORDER BY updated_at DESC, id DESC`` can use an ordered index scan
     on the cold tier instead of a full scan + top-N sort.
     """
     _run(connection, _ARCHIVE_UPDATED_SORT_INDEX_DDL)
-    logger.info("PostgreSQL archive updated-sort conversations index installed")
+    logger.info("PostgreSQL archive updated-sort review_cases index installed")
 
 
 # ---------------------------------------------------------------------------
@@ -544,8 +544,8 @@ def install_archive_updated_sort_index(connection: Any) -> None:
 
 _CSAT_SUMMARY_INDEX_DDL = (
     (
-        "CREATE INDEX IF NOT EXISTS idx_csat_summary_tenant_responded "
-        "ON csat_surveys (tenant_id, substr(responded_at, 1, 10)) "
+        "CREATE INDEX IF NOT EXISTS idx_qa_spot_check_summary_tenant_responded "
+        "ON qa_spot_checks (tenant_id, substr(responded_at, 1, 10)) "
         "WHERE rating IS NOT NULL"
     ),
 )

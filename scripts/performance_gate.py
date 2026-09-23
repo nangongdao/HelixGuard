@@ -102,7 +102,7 @@ BUDGETS = {
     # and the ceiling means the same thing locally and in CI.
     "operator_js_bytes": 449_000,  # app.js + js/*.js — measured 415,634 B
     "operator_css_bytes": 107_000,  # styles.css + css/tokens.css — measured 98,260 B
-    "widget_js_bytes": 28_500,  # widget-app.js + js/widget-*.js — measured 26,218 B
+    "widget_js_bytes": 28_500,  # submission-portal-app.js + js/submission-portal-*.js — measured 26,218 B
     # Build output: the Vite React runtime under app/static/dist/assets/, minus
     # the on-demand terminal chunk. Only measurable where the frontend was built.
     "operator_dist_bytes": 400_000,  # dist/assets/*.{js,css} — measured 343,450 B
@@ -202,12 +202,12 @@ async (customerName) => {
 """
 
 
-def _ensure_queue_row(page: Any, customer_name: str) -> None:
+def _ensure_queue_row(page: Any, submitter_name: str) -> None:
     """Guarantee a clickable queue row: seed via the API, then wait for a
     poll cycle to surface it. Both measured tracks render the same row
     classes (legacy queueRowHtml and the island's QueueRow), so one selector
     covers web and desktop shell."""
-    page.evaluate(f"() => Promise.resolve(({_SEED_SCRIPT})({customer_name!r}))")
+    page.evaluate(f"() => Promise.resolve(({_SEED_SCRIPT})({submitter_name!r}))")
     # The seeded conversation is visible only after a poll cycle (SSE push or
     # ~15 s fallback); asking for an explicit refresh makes it deterministic
     # and fast instead of racing the next cycle.
@@ -215,7 +215,7 @@ def _ensure_queue_row(page: Any, customer_name: str) -> None:
     # Wait for a clickable row instead of a fixed settle so slow CI runners
     # do not race the first render.
     page.wait_for_selector(
-        ".conversation-row button.conversation-item",
+        ".review-case-row button.review-case-item",
         timeout=30000,
     )
 
@@ -234,7 +234,7 @@ def _measure_interaction_inp(page: Any) -> float:
             lambda response: "/api/review-cases/" in response.url,
             timeout=10000,
         ):
-            row = page.locator(".conversation-row button.conversation-item").first
+            row = page.locator(".review-case-row button.review-case-item").first
             if row.count() == 0:
                 return 0.0
             row.click()
@@ -280,12 +280,12 @@ def _widget_payload_files(static_dir: Path) -> list[Path]:
     """Every file in the widget's shipped payload.
 
     The widget ships its own shell plus whatever it imports from ``js/``. The
-    payload used to name ``widget-core.js`` explicitly, so a second widget module
+    payload used to name ``submission-portal-core.js`` explicitly, so a second widget module
     would have escaped the budget silently — the same fail-open shape as a budget
     that cannot fail. Glob the widget-side modules instead of listing them.
     """
-    files = [static_dir / "widget-app.js"]
-    files.extend(sorted(static_dir.glob("js/widget-*.js")))
+    files = [static_dir / "submission-portal-app.js"]
+    files.extend(sorted(static_dir.glob("js/submission-portal-*.js")))
     return files
 
 
@@ -545,7 +545,7 @@ def check_browser_budgets(base_url: str) -> tuple[dict[str, float | None], list[
         # design. domcontentloaded + a fixed settle window matches what
         # tests/ui_smoke.py does.
         page.goto(base_url, wait_until="domcontentloaded")
-        page.wait_for_selector("#conversationList[aria-busy='false']", timeout=30000)
+        page.wait_for_selector("#reviewCaseList[aria-busy='false']", timeout=30000)
         page.wait_for_timeout(1500)
         paint = page.evaluate(metrics_script)
         metrics.update(paint)
@@ -554,7 +554,7 @@ def check_browser_budgets(base_url: str) -> tuple[dict[str, float | None], list[
         metrics["long_task_count_30s"] = long_tasks
 
         # --- 10k-row queue render -------------------------------------
-        # Inject synthetic conversations straight into the legacy state and
+        # Inject synthetic review_cases straight into the legacy state and
         # time one full windowed render (the virtualized path above
         # VIRTUAL_THRESHOLD=200 rows).
         render_ms = page.evaluate(
@@ -706,7 +706,7 @@ def check_browser_budgets(base_url: str) -> tuple[dict[str, float | None], list[
             heap_context = heap_browser.new_context(viewport={"width": 1440, "height": 900})
             heap_page = heap_context.new_page()
             heap_page.goto(base_url, wait_until="domcontentloaded")
-            heap_page.wait_for_selector("#conversationList[aria-busy='false']", timeout=60000)
+            heap_page.wait_for_selector("#reviewCaseList[aria-busy='false']", timeout=60000)
             # Queue settle before the first sample, so the baseline is a
             # rendered page rather than one still filling in.
             heap_page.wait_for_timeout(800)
@@ -747,7 +747,7 @@ def check_browser_budgets(base_url: str) -> tuple[dict[str, float | None], list[
             leak_context = leak_browser.new_context(viewport={"width": 1440, "height": 900})
             leak_page = leak_context.new_page()
             leak_page.goto(base_url, wait_until="domcontentloaded")
-            leak_page.wait_for_selector("#conversationList[aria-busy='false']", timeout=60000)
+            leak_page.wait_for_selector("#reviewCaseList[aria-busy='false']", timeout=60000)
             # Queue render settle before the first cycle.
             leak_page.wait_for_timeout(800)
             leak_script = (
@@ -779,7 +779,7 @@ def check_browser_budgets(base_url: str) -> tuple[dict[str, float | None], list[
                 % DETAIL_LEAK_CYCLES
             )
             row_id = leak_page.evaluate(
-                "() => document.querySelector('.conversation-row button.conversation-item')"
+                "() => document.querySelector('.review-case-row button.review-case-item')"
                 "?.dataset?.id || null"
             )
             if row_id:

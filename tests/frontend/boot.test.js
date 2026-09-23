@@ -137,7 +137,7 @@ test("boot wires the queue row click to selectConversation", () => {
   const { els, calls } = configureDeps();
   bindLegacyBoot();
   els.list.fire("click", {
-    target: { closest: (sel) => (sel === ".conversation-item" ? { dataset: { id: "c1" } } : null) },
+    target: { closest: (sel) => (sel === ".review-case-item" ? { dataset: { id: "c1" } } : null) },
   });
   assert.deepEqual(calls.find((c) => c.select), { select: "c1" });
 });

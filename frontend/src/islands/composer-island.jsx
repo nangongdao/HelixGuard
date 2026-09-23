@@ -21,7 +21,7 @@
  * published by composer.js.
  *
  * The mount point stays hidden in a plain browser tab (legacy is the renderer
- * there); the desktop shell unhides it and yields #customerForm/#operatorForm.
+ * there); the desktop shell unhides it and yields #submitterForm/#reviewerForm.
  *
  * See DESKTOP_TAURI_PLAN.md §D3.
  */
@@ -56,7 +56,7 @@ export function ComposerIsland() {
   const [customerMessage, setCustomerMessage] = useState("");
   const [operatorReply, setOperatorReply] = useState("");
   const [tone, setTone] = useState("");
-  const [copilot, setCopilot] = useState({ status: "", suggestions: [], knowledge: [] });
+  const [copilot, setCopilot] = useState({ status: "", suggestions: [], policy: [] });
   const lastStateRef = useRef(state);
   const syncedDraftRef = useRef({ text: null, revision: null });
   const operatorInputRef = useRef(null);
@@ -72,7 +72,7 @@ export function ComposerIsland() {
       setCopilot((prev) => ({
         status: detail.status !== undefined ? detail.status : prev.status,
         suggestions: detail.suggestions !== undefined ? detail.suggestions : prev.suggestions,
-        knowledge: detail.knowledge !== undefined ? detail.knowledge : prev.knowledge,
+        policy: detail.policy !== undefined ? detail.policy : prev.policy,
       }));
       // Tone rewrite results land directly in the mirrored textarea.
       if (detail.rewritten !== undefined) setOperatorReply(detail.rewritten);
@@ -221,15 +221,15 @@ export function ComposerIsland() {
   return (
     <div className="composer-island">
       <form
-        id={INPUT_IDS.customerForm}
-        className="composer customer-composer"
+        id={INPUT_IDS.submitterForm}
+        className="composer submitter-composer"
         onSubmit={handleCustomerSubmit}
         data-busy={String(state.customerBusy)}
         aria-busy={state.customerBusy}
       >
-        <label className="sr-only" htmlFor={INPUT_IDS.customerInput}>待审内容</label>
+        <label className="sr-only" htmlFor={INPUT_IDS.submitterInput}>待审内容</label>
         <textarea
-          id={INPUT_IDS.customerInput}
+          id={INPUT_IDS.submitterInput}
           rows={2}
           maxLength={4000}
           placeholder="输入一条模拟待审内容…"
@@ -257,17 +257,17 @@ export function ComposerIsland() {
         onPick={handleCannedChip}
       />
       <form
-        id={INPUT_IDS.operatorForm}
-        className="composer operator-composer"
+        id={INPUT_IDS.reviewerForm}
+        className="composer reviewer-composer"
         onSubmit={handleOperatorSubmit}
         data-busy={String(state.operatorBusy)}
         aria-busy={state.operatorBusy}
         hidden={!state.human}
       >
-        <label className="sr-only" htmlFor={INPUT_IDS.operatorInput}>人工回复</label>
+        <label className="sr-only" htmlFor={INPUT_IDS.reviewerInput}>人工回复</label>
         <div className="composer-stack">
           <textarea
-            id={INPUT_IDS.operatorInput}
+            id={INPUT_IDS.reviewerInput}
             ref={operatorInputRef}
             rows={2}
             maxLength={4000}
@@ -296,7 +296,7 @@ export function ComposerIsland() {
           />
           <div className="composer-actions">
             <button
-              className="send-button operator-send"
+              className="send-button reviewer-send"
               type="submit"
               title="发送人工回复"
               aria-label="发送人工回复"

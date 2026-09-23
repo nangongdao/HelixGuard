@@ -38,7 +38,7 @@ class TurnExecutionContext:
     """Immutable inputs the specialist stage needs (ARC-001 typed context)."""
 
     tenant_id: str
-    conversation: dict[str, Any]
+    review_case: dict[str, Any]
     content: str
     decision: TriageDecision
     policy_reason: str | None
@@ -74,7 +74,7 @@ class TurnExecutionStage:
         )
         self.services.database.audit(
             context.tenant_id,
-            context.conversation["id"],
+            context.review_case["id"],
             AgentName.QUALITY,
             "quality.reviewed",
             {
@@ -94,7 +94,7 @@ class TurnExecutionStage:
         for tool_call in result.tool_calls:
             self.services.database.audit(
                 context.tenant_id,
-                context.conversation["id"],
+                context.review_case["id"],
                 result.agent,
                 "tool.executed",
                 tool_call,
@@ -118,7 +118,7 @@ class TurnExecutionStage:
         """
         decision = context.decision
         tenant_id = context.tenant_id
-        conversation = context.conversation
+        review_case = context.review_case
         if decision.route == AgentName.ESCALATION:
             return (
                 self.services.escalation.respond(
@@ -131,7 +131,7 @@ class TurnExecutionStage:
             # specialist. When the round limit is reached the customer gets a
             # clear escalation instead of being asked for the same slot
             # forever; the persist stage cancels the task on the handoff.
-            pending = self.services.database.get_pending_task(tenant_id, conversation["id"])
+            pending = self.services.database.get_pending_task(tenant_id, review_case["id"])
             max_rounds = self.services.settings.order_clarification_max_rounds
             if (
                 pending is not None
@@ -145,10 +145,10 @@ class TurnExecutionStage:
                     ),
                     None,
                 )
-            customer_ref = conversation.get("customer_ref")
+            submitter_ref = review_case.get("customer_ref")
             crm_record: dict[str, Any] | None = None
-            if customer_ref:
-                crm = self.services.tools.resolve_customer(tenant_id, str(customer_ref))
+            if submitter_ref:
+                crm = self.services.tools.resolve_customer(tenant_id, str(submitter_ref))
                 crm_record = crm.public_record()
                 if crm.code == "unavailable":
                     return (
@@ -180,8 +180,8 @@ class TurnExecutionStage:
                         None,
                     )
                 if crm.code == "ok" and crm.output.get("customer_ref"):
-                    customer_ref = crm.output["customer_ref"]
-            result = self.services.order.respond(tenant_id, customer_ref, context.content)
+                    submitter_ref = crm.output["customer_ref"]
+            result = self.services.order.respond(tenant_id, submitter_ref, context.content)
             # ROADMAP H03: the clarification path must not swallow a turn that
             # carries credential material. Asking for the order number would
             # invite the customer to paste more secrets, so the turn escalates

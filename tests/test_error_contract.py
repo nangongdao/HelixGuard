@@ -21,13 +21,13 @@ from app.config import Settings
 from app.main import create_app
 
 ADMIN_KEY = "errcontract-admin-key-01"
-OPERATOR_KEY = "errcontract-op-key-000001"
+REVIEWER_KEY = "errcontract-op-key-000001"
 
 
 def _settings(db_path: Path) -> Settings:
     principals = {
         ADMIN_KEY: {"tenant_id": "demo", "actor_id": "admin.user", "role": "admin"},
-        OPERATOR_KEY: {
+        REVIEWER_KEY: {
             "tenant_id": "demo",
             "actor_id": "operator.user",
             "role": "operator",
@@ -51,7 +51,7 @@ class ProblemDetailsContractTests(unittest.TestCase):
         self.client = TestClient(create_app(_settings(self.db_path)))
         self.services = cast(Any, self.client.app).state.services
         self.admin = {"X-API-Key": ADMIN_KEY, "X-Tenant-Id": "demo"}
-        self.operator = {"X-API-Key": OPERATOR_KEY, "X-Tenant-Id": "demo"}
+        self.reviewer = {"X-API-Key": REVIEWER_KEY, "X-Tenant-Id": "demo"}
 
     def tearDown(self) -> None:
         # Close the DB pool explicitly (Windows keeps file handles otherwise)
@@ -84,7 +84,7 @@ class ProblemDetailsContractTests(unittest.TestCase):
 
     def test_forbidden_rbac(self) -> None:
         # Operator lacks metrics:read.
-        response = self.client.get("/api/supervisor/quality", headers=self.operator)
+        response = self.client.get("/api/supervisor/quality", headers=self.reviewer)
         self._assert_problem(response, status=403, code="forbidden")
 
     def test_unauthorized_bad_key(self) -> None:

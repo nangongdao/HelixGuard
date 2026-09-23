@@ -186,10 +186,10 @@ def main() -> int:
         try:
             database.initialize()
             database.ensure_tenant("demo")
-            keep = database.create_conversation(
+            keep = database.create_review_case(
                 "demo", "PITR Keep", "CUST-PITR-KEEP", "web", "admin", 120
             )["id"]
-            database.create_conversation("demo", "PITR Gone", "CUST-PITR-GONE", "web", "admin", 120)
+            database.create_review_case("demo", "PITR Gone", "CUST-PITR-GONE", "web", "admin", 120)
             database.add_message("demo", keep, "customer", "cust-1", "pre-T0 message")
             database.audit("demo", None, "admin", "api_key.issued", {"credential_id": "k1"})
             database.audit("demo", None, "admin", "member.invited", {"member": "u2"})
@@ -288,7 +288,7 @@ def main() -> int:
                         messages = [
                             row["content"]
                             for row in connection.execute(
-                                "SELECT content FROM messages WHERE conversation_id = ?",
+                                "SELECT content FROM messages WHERE review_case_id = ?",
                                 (keep,),
                             ).fetchall()
                         ]
@@ -300,12 +300,12 @@ def main() -> int:
                             "WHERE tenant_id = 'demo'"
                         ).fetchall()
                         tombstone = connection.execute(
-                            "SELECT COUNT(*) AS n FROM customer_tombstones "
-                            "WHERE tenant_id = 'demo' AND customer_ref = 'CUST-PITR-GONE'"
+                            "SELECT COUNT(*) AS n FROM submitter_tombstones "
+                            "WHERE tenant_id = 'demo' AND submitter_ref = 'CUST-PITR-GONE'"
                         ).fetchone()
                         gone_left = connection.execute(
-                            "SELECT COUNT(*) AS n FROM conversations "
-                            "WHERE tenant_id = 'demo' AND customer_ref = 'CUST-PITR-GONE'"
+                            "SELECT COUNT(*) AS n FROM review_cases "
+                            "WHERE tenant_id = 'demo' AND submitter_ref = 'CUST-PITR-GONE'"
                         ).fetchone()
                     contents = "\n".join(messages)
                     if "pre-T0 message" not in contents:

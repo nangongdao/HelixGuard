@@ -47,26 +47,26 @@ POLICY_NAME = "helix_tenant_isolation"
 # baseline (v01), attachments (v22), archive cold tier (v24), channel
 # threads (v27). Deliberately excluded: configuration/registry tables that
 # mix global rows or unauthenticated token paths (tenants, sla_policies,
-# prompt_versions, csat_surveys, webhook_*, quality_daily aggregates) — they
+# prompt_versions, qa_spot_checks, webhook_*, quality_daily aggregates) — they
 # join the policy set only together with their access-path rework.
 RLS_TABLES: tuple[str, ...] = (
-    "conversations",
+    "review_cases",
     "messages",
-    "knowledge_articles",
+    "policy_articles",
     "turn_jobs",
     "turn_requests",
     "feedback",
-    "canned_responses",
+    "canned_verdicts",
     "saved_views",
-    "conversation_labels",
+    "review_case_labels",
     "audit_events",
     "attachments",
     "data_subject_requests",
-    "orders",
+    "source_lookups",
     "channel_threads",
-    "conversations_archive",
+    "review_cases_archive",
     "messages_archive",
-    "conversation_labels_archive",
+    "review_case_labels_archive",
     "feedback_archive",
 )
 

@@ -14,7 +14,7 @@ adapter can be diffed against:
   ``X-Helix-Timestamp`` / ``X-Helix-Signature`` (identical to the core's own
   inbound contract — one verification rule everywhere);
 - payload: JSON with ``message_id`` / ``thread_id`` / ``customer_id`` /
-  ``customer_name`` / ``content`` and an optional ``kind``
+  ``submitter_name`` / ``content`` and an optional ``kind``
   (``message|edit|recall|receipt``) plus ``attachments`` references;
 - unknown kinds fail closed.
 """
@@ -58,7 +58,7 @@ class NormalizedEvent:
     external_message_id: str
     thread_id: str
     customer_id: str
-    customer_name: str | None
+    submitter_name: str | None
     content: str
     attachments: tuple[AttachmentRef, ...] = field(default_factory=tuple)
     occurred_at: str | None = None
@@ -157,7 +157,7 @@ class ReferenceJsonAdapter:
             external_message_id=message_id,
             thread_id=thread_id,
             customer_id=customer_id,
-            customer_name=(
+            submitter_name=(
                 str(document["customer_name"]) if document.get("customer_name") else None
             ),
             content=str(document.get("content") or ""),

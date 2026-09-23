@@ -196,20 +196,20 @@ class SettingsValidationTests(unittest.TestCase):
             "CONVERSATION_ARCHIVE_AFTER_DAYS", "3", "CONVERSATION_ARCHIVE_AFTER_DAYS"
         )
 
-    def test_rejects_widget_frame_ancestors_empty(self) -> None:
+    def test_rejects_portal_frame_ancestors_empty(self) -> None:
         # Windows os.environ treats "" as deleted, so a space-only value
         # produces the same empty tuple after the strip filter.
         self._assert_rejects("WIDGET_FRAME_ANCESTORS", " ", "WIDGET_FRAME_ANCESTORS")
 
-    def test_rejects_widget_frame_ancestors_bad_source(self) -> None:
+    def test_rejects_portal_frame_ancestors_bad_source(self) -> None:
         self._assert_rejects(
             "WIDGET_FRAME_ANCESTORS", "javascript:alert(1)", "WIDGET_FRAME_ANCESTORS"
         )
 
-    def test_rejects_conversation_archive_batch_zero(self) -> None:
+    def test_rejects_review_case_archive_batch_zero(self) -> None:
         self._assert_rejects("CONVERSATION_ARCHIVE_BATCH", "0", "CONVERSATION_ARCHIVE_BATCH")
 
-    def test_rejects_conversation_archive_cadence_zero(self) -> None:
+    def test_rejects_review_case_archive_cadence_zero(self) -> None:
         self._assert_rejects(
             "CONVERSATION_ARCHIVE_CADENCE_HOURS", "0", "CONVERSATION_ARCHIVE_CADENCE_HOURS"
         )

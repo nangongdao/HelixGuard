@@ -2,7 +2,7 @@
  * Helix Guard — composer command/receipt contract (ROADMAP H02).
  *
  * The operator workspace fires several async commands at the same composer:
- * copilot suggestions, tone rewrites, knowledge lookups and the reply send
+ * copilot suggestions, tone rewrites, policy lookups and the reply send
  * itself. Each one races the operator's own navigation and typing, and the
  * naive shape — read `selectedId`, await, then write the shared DOM — loses
  * data: A's slow suggestion lands in B's copilot bar, A's late send
@@ -11,11 +11,11 @@
  *
  * This module owns the two facts that decide whether a result may be applied:
  *
- * - the **command ticket**: the conversation the command was issued for plus a
+ * - the **command appeal**: the conversation the command was issued for plus a
  *   per-surface monotonic generation. `isCurrent` is false as soon as the
  *   operator switches conversation or a newer command of the same surface
- *   supersedes the ticket. This generalises the stale-response guard
- *   `conversation-detail.js` already uses for detail loads
+ *   supersedes the appeal. This generalises the stale-response guard
+ *   `review-case-detail.js` already uses for detail loads
  *   (`detailSequence` + `selectedId` compared at apply time).
  * - the **draft version**: a counter bumped on every operator keystroke, so a
  *   result computed from an older draft is recognisable and can be dropped
@@ -58,7 +58,7 @@ function currentConversation() {
   return ctx?.state?.selectedId ?? null;
 }
 
-/** Open a command ticket for `surface` against `conversationId`. */
+/** Open a command appeal for `surface` against `conversationId`. */
 export function beginCommand(surface, conversationId) {
   const generation = (generations.get(surface) ?? 0) + 1;
   generations.set(surface, generation);
@@ -72,15 +72,15 @@ export function beginCommand(surface, conversationId) {
 }
 
 /**
- * True while the ticket is still the newest command of its surface *and* the
+ * True while the appeal is still the newest command of its surface *and* the
  * operator is still on the conversation it was issued for. Call this
  * immediately before applying a result.
  */
-export function isCurrent(ticket) {
-  if (!ticket) return false;
+export function isCurrent(appeal) {
+  if (!appeal) return false;
   return (
-    ticket.conversationId === currentConversation() &&
-    ticket.generation === (generations.get(ticket.surface) ?? 0)
+    appeal.conversationId === currentConversation() &&
+    appeal.generation === (generations.get(appeal.surface) ?? 0)
   );
 }
 
@@ -98,16 +98,16 @@ export function bumpDraftVersion(conversationId) {
 }
 
 /**
- * True while the ticket is current *and* the draft it was computed from is
+ * True while the appeal is current *and* the draft it was computed from is
  * still the draft on screen. A result that fails this must be dropped, not
  * applied: the operator's newer text wins.
  */
-export function isDraftUnchanged(ticket) {
-  return isCurrent(ticket) && ticket.draftVersion === draftVersionFor(ticket.conversationId);
+export function isDraftUnchanged(appeal) {
+  return isCurrent(appeal) && appeal.draftVersion === draftVersionFor(appeal.conversationId);
 }
 
 /** Forget all command/draft/receipt state (per-conversation teardown and test
- *  isolation). Superseding happens by bumping a ticket, so this is only for
+ *  isolation). Superseding happens by bumping a appeal, so this is only for
  *  discarding the whole contract — never call it on a mere conversation
  *  switch, or an in-flight send's own confirmation stops being current. */
 export function reset() {

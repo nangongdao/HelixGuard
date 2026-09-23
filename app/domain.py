@@ -5,7 +5,7 @@ from enum import StrEnum
 from typing import Any
 
 
-class ConversationStatus(StrEnum):
+class ReviewCaseStatus(StrEnum):
     OPEN = "open"
     WAITING_HUMAN = "waiting_human"
     HUMAN_ACTIVE = "human_active"
@@ -72,7 +72,7 @@ class RiskAssessment:
 @dataclass(frozen=True)
 class TriageDecision:
     route: AgentName
-    intent: str
+    risk_category: str
     confidence: float
     urgency: str = "normal"
     reasons: list[str] = field(default_factory=list)
@@ -93,7 +93,7 @@ class AgentResult:
     # agent-level escalations) and takes no part in pending-task bookkeeping.
     task_outcome: str | None = None
     # Set only when ``task_outcome`` is ``clarification``: the slot the task
-    # waits on (order flow: ``order_id``).
+    # waits on (order flow: ``source_record_id``).
     clarify_slot: str | None = None
 
 

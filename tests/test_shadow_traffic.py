@@ -449,7 +449,7 @@ class ShadowMiddlewareIntegrationTests(unittest.TestCase):
 class ShadowEligibilityTests(unittest.TestCase):
     """Only v1 GETs with a proven-comparable v2 counterpart are shadowed."""
 
-    def test_conversation_list_and_messages_are_eligible(self) -> None:
+    def test_review_case_list_and_messages_are_eligible(self) -> None:
         self.assertTrue(is_v2_shadow_eligible("/api/review-cases"))
         self.assertTrue(is_v2_shadow_eligible("/api/review-cases/conv_1/messages"))
 

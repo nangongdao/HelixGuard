@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <code>v2.28.0</code>&nbsp;
+  <code>v2.30.0</code>&nbsp;
   <code>Python 3.11+</code>&nbsp;
   <code>FastAPI</code>&nbsp;
   <code>SQLite / PostgreSQL</code>&nbsp;
@@ -25,7 +25,7 @@ Helix Guard 把**内容提交、策略校验、风险分级、策略库检索、
 [快速启动](#快速启动) · [界面预览](#界面预览) · [系统架构](#系统架构) · [验证与质量](#验证与质量) · [部署档位](#部署档位) · [文档导航](#文档导航)
 
 > [!IMPORTANT]
-> 默认配置面向本机演示。生产环境使用 `AUTH_MODE=api_key`、PostgreSQL 和 Redis，并按 [`DEPLOYMENT.md`](DEPLOYMENT.md) 配置 secrets、TLS、备份与可观测性。OIDC/BFF 目前属于预览能力，在 P4 数据层迁移与 M0 身份加固完成前应保持关闭。
+> 默认配置面向本机演示。生产环境使用 `AUTH_MODE=api_key`、PostgreSQL 和 Redis，并按 [`DEPLOYMENT.md`](DEPLOYMENT.md) 配置 secrets、TLS、备份与可观测性。OIDC/BFF 目前属于预览能力，在 M0 身份加固完成前应保持关闭。
 
 ## 产品亮点
 
@@ -48,7 +48,7 @@ Helix Guard 把**内容提交、策略校验、风险分级、策略库检索、
 - **Sidecar 产品化**：动态端口分配、就绪探测退避（200ms→2s）、优雅停机、崩溃自愈（≤3 次/分钟）、单实例锁
 - **启动遥测**：三时间戳（t_window_created / t_backend_ready / t_ui_ready）写入 `%APPDATA%/HelixGuard/telemetry/startup.json`
 - **xterm.js 内置终端**：底部抽屉（Ctrl+` 呼出），白名单诊断命令（健康检查/迁移状态/日志），DEBUG 构建启用交互式 PTY
-- **React 渐进式岛迁移**：Vite + React 19 + Zustand v5 + TanStack Query v5；8 个业务岛（quality/knowledge/ticket/queue/composer/inspector/command-palette/session-shell）渐进替换 legacy 渲染，六道门禁全程保持绿色
+- **React 渐进式岛**：Vite + React 19 + Zustand v5 + TanStack Query v5；**19 个岛**由 `frontend/src/island-loader.js` 声明，各自用 `yieldsLegacy` 列出它接管的 legacy 元素 id——quality / policy / appeal / admin / settings / queue / dashboard / identity / review-case-dialog / workspace-tabs / saved-views / mentions / inspector / composer / thread / summary / command-palette / session-shell / terminal；岛与 legacy 双轨并行，六道门禁全程绿色
 
 构建桌面包：
 
@@ -286,37 +286,52 @@ python3 -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 
 ## 验证与质量
 
-当前完整验证基线（2026-08-24，含 v1.3.9 专业 SaaS 视觉重做后的全门禁复验；证据见 [`CHANGELOG.md`](CHANGELOG.md)）：
+当前完整验证基线（**2026-09-23，域迁移 P1–P6 落地后的 2.30.0**；证据见 [`CHANGELOG.md`](CHANGELOG.md)）：
 
-| Gate | 最近证据 |
+| Gate | 最近证据（2.30.0） |
 | --- | ---: |
-| Python tests | 723 passed + 50 subtests |
-| Branch coverage | 85% |
-| PostgreSQL integration | 73 passed + 3 subtests |
-| Redis integration | 9 passed |
-| Frontend Node tests | 155 passed |
+| Python tests（SQLite / 进程内） | 1959 passed / 44 skipped |
+| Branch coverage | 89%（门 85%） |
+| PostgreSQL / Redis 集成套件 | 本机 44 项 skip（无实例）；CI 对真实 `postgres:16` 运行 `test_postgres.py` 等 5 个套件 |
+| Frontend Node tests | 400 passed |
 | Golden Set | 27 / 27 |
 | Browser acceptance | 审核台、管理、策略、提交端、移动与 axe 全绿 |
 | 视觉回归 | 四基线 clean DB 重引导，0.00% 像素漂移（±12 容差、0.5% 上限） |
-| 前端性能预算 | CSS 84 KB（预算 105 KB）、LCP 356 ms、CLS 0.0019、10k 队列渲染 10 ms |
+| 前端静态字节预算 | JS 415 KB（预算 449 KB）、CSS 98 KB（预算 107 KB）、提交端 JS 26 KB（预算 28.5 KB） |
+| 前端浏览器预算（夜间作业） | LCP 356 ms（预算 2500 ms）、CLS 0.0019（预算 0.10）、10k 队列渲染 10 ms |
 | 供应链 | project/lock pip-audit、npm audit 0 漏洞；SBOM、wheel/sdist 通过 |
+
+三点口径说明，避免把「本机绿」读成「全绿」：
+
+1. **Python tests 的 1959/44 是本机口径**（SQLite、进程内），另有 2 例 `opentelemetry` 环境相关失败：本机装了真实 OTel 而 CI 未装，`app/telemetry.py` 未被域迁移改动，与本批次无关。
+2. **44 个 skip 是 PostgreSQL / Redis 门控套件**（本机无实例），不是「已通过」。域迁移 P4 改写了全部表名与列名，而 SQLite 与 PostgreSQL 的 SQL 分歧正是历史上多次漏到生产的同一类缺陷（PG-gated 套件一直存在、却因无人运行而没拦住），因此这条路径由 CI 对真实集群验证：`.github/workflows/ci.yml` 的 `supply-chain` 作业以 `HELIX_PG_INTEGRATION=1` 运行 `tests/test_postgres.py`、`test_replication_ingress.py`、`test_multi_instance.py`、`test_migration_data_matrix.py`、`test_drills.py`。
+3. **前端浏览器预算**来自 `scripts/performance_gate.py` 的 Playwright 层，CI 挂在**夜间作业**（墙钟受 runner 影响，不进每 PR 门禁），此处为已记录基线；**静态字节预算**进每 PR 门禁，且在 `app/static/dist/assets` 未构建时 `operator_dist_bytes` 会**自报未实测**，而不是按一个偏小的数字通过。
 
 v1.3.9 视觉重做推翻了此前的 Art Deco 黑金主题，重建中性板岩深色 + 单一靛蓝强调色的专业 SaaS 体系：去金色装饰与仿金属光晕、恢复标准圆角与实色投影、系统字体栈替代 Google Fonts 依赖（CSP 同步收紧）、控件现代化与空状态引导感改造。accent 色分离 `--teal`（按钮实色，白字 ≥4.5:1）与 `--teal-bright`（文字/图标，深底 ≥4.5:1）双 token，双主题 axe 对比度全绿。视觉四基线随重做重新引导。
 
-开发时常用门禁：
+开发时常用门禁（与 CI 的 `quality` 作业逐条对应，见 [`.github/workflows/ci.yml`](.github/workflows/ci.yml)）：
 
 ```powershell
 python -m ruff format --check app tests scripts
 python -m ruff check app tests scripts
-python -m pyright app tests scripts
+python -m pyright app                 # CI 只对 app 做类型检查，不含 tests/scripts
 python -m coverage run --branch -m pytest tests -q
 python -m coverage report --fail-under=85
 python scripts\openapi_snapshot.py
 python scripts\frontend_gate.py
+python scripts\tauri_config_gate.py --allow-empty-pubkey
 python scripts\migration_gate.py
 python -m pip_audit .
 python -m pip_audit -r requirements.lock
 npm audit --audit-level=high
+```
+
+浏览器层门禁需要 clean-DB 本地服务（CI 的 `browser` 作业口径，不进每 PR 门禁）：
+
+```powershell
+$env:HELIX_BASE_URL = "http://127.0.0.1:8767"
+python scripts\visual_gate.py                                  # 四基线像素对比；--update 重锚
+python scripts\performance_gate.py --base-url http://127.0.0.1:8767   # LCP/CLS/10k 渲染
 ```
 
 真实 PostgreSQL/Redis、浏览器、迁移、构建和发布命令见 [`CONTRIBUTING.md`](CONTRIBUTING.md) 与 [`docs/RELEASE_CHECKLIST.md`](docs/RELEASE_CHECKLIST.md)。
@@ -364,9 +379,6 @@ tests/                后端、前端、PG/Redis 和 Playwright 验收
 | 审核与租户手册 | [`docs/guides/operator-manual.md`](docs/guides/operator-manual.md) · [`docs/guides/tenant-admin-manual.md`](docs/guides/tenant-admin-manual.md) |
 | 变更历史 | [`CHANGELOG.md`](CHANGELOG.md) |
 | README 截图重捕获 | `HELIX_BASE_URL=http://127.0.0.1:8766 python scripts/readme_screenshots.py`（对 clean-DB 服务，覆盖 `docs/assets/screenshots/`，七张含桌面壳） |
-
-> [!NOTE]
-> **域迁移进行中**：本产品原定位为多 Agent 智能客服平台，正在迁移到内容安全审核领域。产品名、README 叙事、术语契约（[`docs/DOMAIN.md`](docs/DOMAIN.md)）、**用户可见文案**（P1–P2，2.23.0/2.24.0）、**内容夹具**（P2b，2.25.0：种子策略正文、来源记录状态串、`golden/*` 评测集）、**模块名与 API 路径**（P3a，2.26.0：`tickets→appeals`、`csat→qa_spot_check`、`knowledge→policy`、`widget→submission_portal` 等 T4/T6–T9/T12/T13 面，旧路径经弃用窗口继续服务）、**文案层构词补漏**（P2c，2.27.0：`知识文章 / 知识草稿 / 知识缺口` 等 `知识` 族复合词按 T9 统一到「策略」，含 `commands.js` 的检索别名）与**审核单模块与路径**（P3b，2.28.0：`conversations→review_cases` 模块、`/api/review-cases` 全量路径面与弃用窗口，含 `knowledge-draft` 尾段补漏）已更新；数据库对象与测试/基线仍按 [`docs/DOMAIN_MIGRATION_PLAN.md`](docs/DOMAIN_MIGRATION_PLAN.md) 的阶段 P4–P5 推进。当前 `conversation` 一类**处理器/测试/前端标识符与数据库表名**仍是旧域命名，属预期中间态。
 
 ## 安全与生产边界
 

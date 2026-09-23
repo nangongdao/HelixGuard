@@ -24,7 +24,7 @@ afterEach(() => {
 describe("reduceWorkspaceTabs", () => {
   it("returns the same reference when the tab is unchanged", () => {
     expect(reduceWorkspaceTabs("queue", "queue")).toBe("queue");
-    expect(reduceWorkspaceTabs("queue", "tickets")).toBe("tickets");
+    expect(reduceWorkspaceTabs("queue", "appeals")).toBe("appeals");
   });
 });
 
@@ -34,26 +34,26 @@ describe("WorkspaceTabsIsland", () => {
     const tablist = container.querySelector(".workspace-tabs");
     expect(tablist.getAttribute("role")).toBe("tablist");
     const queue = screen.getByRole("tab", { name: "队列" });
-    const tickets = screen.getByRole("tab", { name: "申诉单" });
+    const appeals = screen.getByRole("tab", { name: "申诉单" });
     expect(queue.getAttribute("aria-selected")).toBe("true");
     expect(queue.classList.contains("is-active")).toBe(true);
     expect(queue.dataset.wstab).toBe("queue");
-    expect(tickets.getAttribute("aria-selected")).toBe("false");
-    expect(tickets.classList.contains("is-active")).toBe(false);
+    expect(appeals.getAttribute("aria-selected")).toBe("false");
+    expect(appeals.classList.contains("is-active")).toBe(false);
   });
 
   it("applies clicks optimistically and bridges helix-workspace-tab", () => {
     const dispatchSpy = vi.spyOn(window, "dispatchEvent");
     render(<WorkspaceTabsIsland />);
     fireEvent.click(screen.getByRole("tab", { name: "申诉单" }));
-    const tickets = screen.getByRole("tab", { name: "申诉单" });
-    expect(tickets.classList.contains("is-active")).toBe(true);
-    expect(tickets.getAttribute("aria-selected")).toBe("true");
+    const appeals = screen.getByRole("tab", { name: "申诉单" });
+    expect(appeals.classList.contains("is-active")).toBe(true);
+    expect(appeals.getAttribute("aria-selected")).toBe("true");
     expect(screen.getByRole("tab", { name: "队列" }).getAttribute("aria-selected")).toBe("false");
     const switchEvent = dispatchSpy.mock.calls.map(([ev]) => ev).find(
       (ev) => ev.type === WORKSPACE_TAB_EVENTS.SWITCH,
     );
-    expect(switchEvent.detail).toEqual({ field: "tickets" });
+    expect(switchEvent.detail).toEqual({ field: "appeals" });
   });
 
   it("reconciles when legacy reports a programmatic tab change", () => {
@@ -68,7 +68,7 @@ describe("WorkspaceTabsIsland", () => {
     expect(screen.getByRole("tab", { name: "队列" }).classList.contains("is-active")).toBe(true);
     act(() => {
       window.dispatchEvent(
-        new CustomEvent(WORKSPACE_TAB_EVENTS.CHANGED, { detail: { field: "tickets" } }),
+        new CustomEvent(WORKSPACE_TAB_EVENTS.CHANGED, { detail: { field: "appeals" } }),
       );
     });
     expect(screen.getByRole("tab", { name: "申诉单" }).classList.contains("is-active")).toBe(true);

@@ -52,7 +52,7 @@ def _psycopg2_importable() -> bool:
 
     :class:`FailClosedApiTests` builds an app whose ``DATABASE_URL`` points at a
     nonexistent host: with the driver present, ``create_app`` fails fast on DNS
-    resolution instead of exercising the queue contract.  The tests are
+    verdict instead of exercising the queue contract.  The tests are
     meaningful in driver-less environments (the historical CI posture) and skip
     elsewhere; the live-PG equivalent runs in ``tests/test_postgres.py``.
     """
@@ -164,7 +164,7 @@ class FailClosedQueueTests(unittest.TestCase):
         # the failure surfaces where REL-001 expects it: the Redis dispatch
         # push must fail closed, not the schema's conversation tenant guard.
         self.db.ensure_tenant("tenant-1", "Tenant One")
-        conv = self.db.create_conversation("tenant-1", "Queue Down", None, "web_chat", "admin", 120)
+        conv = self.db.create_review_case("tenant-1", "Queue Down", None, "web_chat", "admin", 120)
         with self.assertRaises(QueueUnavailableError):
             queue.enqueue("tenant-1", conv["id"], "key-1", "a1", "msg", 3)
 
@@ -218,7 +218,7 @@ class FailClosedApiTests(unittest.TestCase):
 
     def test_message_post_returns_503_with_retry_after(self) -> None:
         headers = {"X-API-Key": "helix-demo-key", "X-Tenant-Id": "demo"}
-        conv = self.services.database.create_conversation(
+        conv = self.services.database.create_review_case(
             "demo", "Fail Closed", "CUST-FC-1", "web", "admin", 120
         )
         response = self.client.post(

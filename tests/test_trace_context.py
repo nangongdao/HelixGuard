@@ -92,13 +92,13 @@ class TraceContextTests(unittest.TestCase):
         request_id = "req_trace-42-check"
         delivered = self._deliver_channel_message(request_id, "trace-msg-1", "correlate me")
         self.assertEqual(delivered.status_code, 202, delivered.text)
-        conversation_id = delivered.json()["conversation_id"]
+        review_case_id = delivered.json()["conversation_id"]
 
         # The job row carries the originating request id.
         with self.services.database.connect() as connection:
             jobs = connection.execute(
-                "SELECT id, request_id FROM turn_jobs WHERE conversation_id = ?",
-                (conversation_id,),
+                "SELECT id, request_id FROM turn_jobs WHERE review_case_id = ?",
+                (review_case_id,),
             ).fetchall()
         self.assertTrue(jobs, "a turn job must have been enqueued")
         for row in jobs:
@@ -110,19 +110,19 @@ class TraceContextTests(unittest.TestCase):
             pass
         events = [
             event
-            for event in self.db_request_ids(conversation_id)
+            for event in self.db_request_ids(review_case_id)
             if event["request_id"] is not None
         ]
         self.assertTrue(events, "processing must emit audited events")
         for event in events:
             self.assertEqual(event["request_id"], request_id)
 
-    def db_request_ids(self, conversation_id: str) -> list[dict[str, Any]]:
+    def db_request_ids(self, review_case_id: str) -> list[dict[str, Any]]:
         with self.services.database.connect() as connection:
             rows = connection.execute(
                 "SELECT event_type, request_id FROM audit_events "
-                "WHERE tenant_id = 'demo' AND conversation_id = ?",
-                (conversation_id,),
+                "WHERE tenant_id = 'demo' AND review_case_id = ?",
+                (review_case_id,),
             ).fetchall()
         return [dict(row) for row in rows]
 

@@ -13,12 +13,14 @@ from __future__ import annotations
 import sqlite3
 from typing import Any
 
+from app.db._util import to_wire_row
+
 
 class DatabaseAttachmentsMixin:
     """Read-side helpers for operator-uploaded attachments."""
 
     def get_attachment_by_operator_key(
-        self, tenant_id: str, conversation_id: str, idempotency_key: str
+        self, tenant_id: str, review_case_id: str, idempotency_key: str
     ) -> dict[str, Any] | None:
         """Resolve the upload receipt for an operator attachment (ROADMAP H02).
 
@@ -30,8 +32,8 @@ class DatabaseAttachmentsMixin:
         """
         with self.connect() as connection:
             row: sqlite3.Row | None = connection.execute(
-                "SELECT * FROM attachments WHERE tenant_id = ? AND conversation_id = ? "
-                "AND operator_idempotency_key = ?",
-                (tenant_id, conversation_id, idempotency_key),
+                "SELECT * FROM attachments WHERE tenant_id = ? AND review_case_id = ? "
+                "AND reviewer_idempotency_key = ?",
+                (tenant_id, review_case_id, idempotency_key),
             ).fetchone()
-        return dict(row) if row else None
+        return to_wire_row(row) if row else None

@@ -2,7 +2,7 @@
 
 Operator-facing collaboration primitives:
 
-* ``conversation_mentions`` — every internal note that ``@``-mentions a
+* ``review_case_mentions`` — every internal note that ``@``-mentions a
   colleague records a row here, scoped by ``mentioned_actor`` so each
   operator only ever sees their own inbox (tenant-scoped).
 * ``conversation_revision`` — a deterministic, multi-process-safe watermark
@@ -19,19 +19,19 @@ import json
 from typing import Any
 from uuid import uuid4
 
-from app.db._util import utc_now
+from app.db._util import to_wire_row, utc_now
 
 
 class DatabaseCollaborationMixin:
     def record_mentions(
         self,
         tenant_id: str,
-        conversation_id: str,
+        review_case_id: str,
         note_id: str,
         mentioned_by: str,
         mentioned_actors: list[str],
     ) -> int:
-        """Record one ``conversation_mentions`` row per mentioned colleague.
+        """Record one ``review_case_mentions`` row per mentioned colleague.
 
         The same note id can never repeat, so a fresh id per row is safe and
         there is no accidental read-state reuse when a note is re-created.
@@ -45,7 +45,7 @@ class DatabaseCollaborationMixin:
                 {
                     "id": f"men_{uuid4().hex[:12]}",
                     "tenant_id": tenant_id,
-                    "conversation_id": conversation_id,
+                    "conversation_id": review_case_id,
                     "note_id": note_id,
                     "mentioned_actor": actor,
                     "mentioned_by": mentioned_by,
@@ -54,8 +54,8 @@ class DatabaseCollaborationMixin:
             )
         with self.connect() as connection:
             connection.executemany(
-                """INSERT INTO conversation_mentions
-                (id, tenant_id, conversation_id, note_id, mentioned_actor,
+                """INSERT INTO review_case_mentions
+                (id, tenant_id, review_case_id, note_id, mentioned_actor,
                  mentioned_by, created_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?)""",
                 [
@@ -94,13 +94,13 @@ class DatabaseCollaborationMixin:
             clauses.append("m.read_at IS NULL")
         where = " AND ".join(clauses)
         query = f"""
-            SELECT m.id, m.conversation_id, m.note_id, m.mentioned_actor,
+            SELECT m.id, m.review_case_id, m.note_id, m.mentioned_actor,
                    m.mentioned_by, m.created_at, m.read_at,
-                   c.customer_name, c.channel, c.status,
+                   c.submitter_name, c.channel, c.status,
                    n.content AS note_content
-            FROM conversation_mentions m
-            LEFT JOIN conversations c
-                   ON c.tenant_id = m.tenant_id AND c.id = m.conversation_id
+            FROM review_case_mentions m
+            LEFT JOIN review_cases c
+                   ON c.tenant_id = m.tenant_id AND c.id = m.review_case_id
             LEFT JOIN messages n
                    ON n.tenant_id = m.tenant_id AND n.id = m.note_id
             WHERE {where}
@@ -112,7 +112,7 @@ class DatabaseCollaborationMixin:
             rows = connection.execute(query, values).fetchall()
         result: list[dict[str, Any]] = []
         for row in rows:
-            item = dict(row)
+            item = to_wire_row(row)
             item["unread"] = item["read_at"] is None
             item["note_preview"] = (item.get("note_content") or "")[:160].strip()
             result.append(item)
@@ -121,7 +121,7 @@ class DatabaseCollaborationMixin:
     def count_unread_mentions(self, tenant_id: str, actor_id: str) -> int:
         with self.connect() as connection:
             row = connection.execute(
-                "SELECT COUNT(*) AS n FROM conversation_mentions "
+                "SELECT COUNT(*) AS n FROM review_case_mentions "
                 "WHERE tenant_id = ? AND mentioned_actor = ? AND read_at IS NULL",
                 (tenant_id, actor_id),
             ).fetchone()
@@ -139,23 +139,23 @@ class DatabaseCollaborationMixin:
         now = utc_now()
         with self.connect() as connection:
             connection.execute(
-                "UPDATE conversation_mentions SET read_at = COALESCE(read_at, ?) "
+                "UPDATE review_case_mentions SET read_at = COALESCE(read_at, ?) "
                 "WHERE tenant_id = ? AND mentioned_actor = ? AND id = ?",
                 (now, tenant_id, actor_id, mention_id),
             )
             row = connection.execute(
-                "SELECT id, conversation_id, note_id, mentioned_actor, "
-                "mentioned_by, created_at, read_at FROM conversation_mentions "
+                "SELECT id, review_case_id, note_id, mentioned_actor, "
+                "mentioned_by, created_at, read_at FROM review_case_mentions "
                 "WHERE tenant_id = ? AND mentioned_actor = ? AND id = ?",
                 (tenant_id, actor_id, mention_id),
             ).fetchone()
         if not row:
             return None
-        item = dict(row)
+        item = to_wire_row(row)
         item["unread"] = item["read_at"] is None
         return item
 
-    def conversation_revision(self, tenant_id: str, conversation_id: str) -> str:
+    def conversation_revision(self, tenant_id: str, review_case_id: str) -> str:
         """Deterministic watermark for the supervisor live-view SSE.
 
         Combines the conversation ``updated_at`` with the latest message
@@ -166,17 +166,17 @@ class DatabaseCollaborationMixin:
         with self.connect() as connection:
             row = connection.execute(
                 "SELECT c.updated_at, COALESCE(MAX(m.seq), 0) AS seq "
-                "FROM conversations c "
+                "FROM review_cases c "
                 "LEFT JOIN messages m "
-                "ON m.tenant_id = c.tenant_id AND m.conversation_id = c.id "
+                "ON m.tenant_id = c.tenant_id AND m.review_case_id = c.id "
                 "WHERE c.tenant_id = ? AND c.id = ?",
-                (tenant_id, conversation_id),
+                (tenant_id, review_case_id),
             ).fetchone()
         if not row:
             return "missing"
         return f"{row['updated_at']}:{int(row['seq'])}"
 
-    def list_notes(self, tenant_id: str, conversation_id: str) -> list[dict[str, Any]]:
+    def list_notes(self, tenant_id: str, review_case_id: str) -> list[dict[str, Any]]:
         """List the conversation's internal notes in discussion order.
 
         Only ``internal_note`` messages are returned, each carrying
@@ -187,13 +187,13 @@ class DatabaseCollaborationMixin:
         with self.connect() as connection:
             rows = connection.execute(
                 "SELECT * FROM messages WHERE tenant_id = ? "
-                "AND conversation_id = ? AND role = 'internal_note' "
+                "AND review_case_id = ? AND role = 'internal_note' "
                 "ORDER BY created_at ASC, seq ASC",
-                (tenant_id, conversation_id),
+                (tenant_id, review_case_id),
             ).fetchall()
         result: list[dict[str, Any]] = []
         for row in rows:
-            item = dict(row)
+            item = to_wire_row(row)
             item["metadata"] = json.loads(item.pop("metadata_json"))
             item.pop("tenant_id", None)
             item.pop("conversation_id", None)

@@ -2,7 +2,7 @@
 
 Quality and usage reports are generated over a bounded lookback window
 (default 7 days, max 30) from the existing aggregates — quality buckets per
-day/intent/prompt version and per-tenant daily usage. A subscription pairs a
+day/risk_category/prompt version and per-tenant daily usage. A subscription pairs a
 report type with a cadence (daily/weekly) and an outbound webhook endpoint;
 the worker scan runs due subscriptions and delivers each report through the
 webhook machinery, deduplicated per subscription + period so a missed scan is

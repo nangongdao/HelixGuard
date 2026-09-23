@@ -2,9 +2,30 @@ from __future__ import annotations
 
 import re
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 ASCII_TERM_PATTERN = re.compile(r"[a-z0-9][a-z0-9-]+")
 CJK_SEQUENCE_PATTERN = re.compile(r"[\u3400-\u9fff]+")
+
+# Domain migration (P4): the data-layer columns were renamed to the review-case
+# vocabulary, but the wire contract keeps the legacy keys (plan §3.2, R8).
+# Every row -> dict boundary maps the new column names back to the wire keys.
+_COLUMN_TO_WIRE = {
+    "submitter_name": "customer_name",
+    "submitter_ref": "customer_ref",
+    "risk_category": "intent",
+    "assigned_reviewer": "assigned_agent",
+    "decided_at": "resolved_at",
+    "appeal_id": "ticket_id",
+    "review_case_id": "conversation_id",
+    "source_review_case_id": "source_conversation_id",
+}
+
+
+def to_wire_row(row: Any) -> dict[str, Any]:
+    """Copy a DB row to a dict, mapping new column names back to wire keys."""
+    items: dict[str, Any] = dict(row)
+    return {_COLUMN_TO_WIRE.get(key, key): value for key, value in items.items()}
 
 
 def knowledge_search_terms(value: str, limit: int = 2048) -> list[str]:

@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#12161d" />
+    <title>Helix Guard</title>
+    <link rel="icon" href="/static/favicon.svg?v=1.4.0" type="image/svg+xml" />
+    <link rel="stylesheet" href="/static/css/tokens.css?v=1.4.0" />
+    <link rel="stylesheet" href="/static/submission-portal.css?v=1.4.0" />
+  </head>
+  <body data-accent="teal">
+    <main class="submission-portal-frame" aria-labelledby="submissionPortalBrand">
+      <header class="submission-portal-header">
+        <div class="brand-lockup">
+          <img class="brand-mark" src="/static/favicon.svg?v=1.4.0" alt="" width="32" height="32" />
+          <div>
+            <div class="brand-name" id="submissionPortalBrand">Helix Guard</div>
+            <div class="brand-status"><span class="status-dot" aria-hidden="true"></span><span id="onlineLabel">在线</span></div>
+          </div>
+        </div>
+        <span class="header-kicker" id="headerKicker">在线提交入口</span>
+      </header>
+
+      <section class="submission-portal-body" id="prechatView" aria-labelledby="welcomeTitle">
+        <div class="welcome-mark" aria-hidden="true"><span>✦</span></div>
+        <p class="eyebrow" id="welcomeEyebrow">在线提交入口</p>
+        <h1 id="welcomeTitle">欢迎使用提交入口</h1>
+        <p class="welcome-copy" id="welcomeCopy">你好，我是审核助手。告诉我你正在处理什么，我们一起找到下一步。</p>
+        <form id="startForm" class="start-form">
+          <label for="submitterName" id="nameLabel">怎么称呼你？（可选）</label>
+          <input id="submitterName" name="customer_name" maxlength="80" autocomplete="name" placeholder="例如：林晓" />
+          <button class="primary-button" type="submit" id="startButton">开始提交<span aria-hidden="true">↗</span></button>
+        </form>
+        <p class="privacy-note"><span aria-hidden="true">◌</span><span id="introCopy">你的消息会安全地送交人工复核。</span></p>
+      </section>
+
+      <section class="submission-portal-body chat-body" id="chatView" hidden aria-labelledby="chatTitle">
+        <h1 class="sr-only" id="chatTitle">内容提交</h1>
+        <div class="connection-banner" id="connectionBanner" role="status" hidden></div>
+        <div class="message-scroller" id="messageScroller">
+          <div class="message-log" id="messageLog" role="log" aria-live="polite" aria-relevant="additions"></div>
+        </div>
+        <div class="resolved-banner" id="resolvedBanner" role="status" hidden>
+          <span>审核单已判定</span>
+          <a id="qaSpotCheckLink" href="" target="_blank" rel="noopener">评价本次服务 ↗</a>
+        </div>
+        <form id="messageForm" class="message-form">
+          <label for="messageInput" class="sr-only" id="inputLabel">发送消息</label>
+          <div class="composer-shell">
+            <textarea id="messageInput" rows="1" maxlength="4000" placeholder="输入你的问题…" required></textarea>
+            <button class="send-button" type="submit" id="sendButton" aria-label="发送" title="发送"><span aria-hidden="true">↑</span></button>
+          </div>
+          <div class="composer-meta"><span id="composerState"></span><span id="poweredLabel">由 Helix Guard 提供支持</span></div>
+        </form>
+      </section>
+
+      <section class="submission-portal-state" id="fatalState" hidden role="alert">
+        <div class="state-icon" aria-hidden="true">!</div>
+        <h1 id="fatalTitle">提交链接不可用</h1>
+        <p id="fatalCopy">这条提交链接已失效，请重新打开提交入口。</p>
+      </section>
+    </main>
+    <script type="module" src="/static/submission-portal-app.js?v=1.4.0"></script>
+  </body>
+</html>

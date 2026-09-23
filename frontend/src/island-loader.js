@@ -28,26 +28,26 @@
 export const ISLANDS = [
   { name: "quality", mountId: "qualityReactIsland", yieldsLegacy: ["qualityViewBuckets"] },
   {
-    name: "knowledge",
-    mountId: "knowledgeReactIsland",
-    // The knowledge island owns the whole surface: summary + filter toolbar +
+    name: "policy",
+    mountId: "policyReactIsland",
+    // The policy island owns the whole surface: summary + filter toolbar +
     // article list + the draft editor. Writes still bridge back to legacy
     // (helix-knowledge-save / -action) so api()/toast/reload stay in one place.
     yieldsLegacy: [
-      "knowledgeSummary",
-      "knowledgeSearch",
-      "knowledgeStatusFilter",
-      "knowledgeLanguageFilter",
-      "knowledgeResultCount",
-      "knowledgeReadOnly",
-      "knowledgeList",
-      "knowledgeListStatus",
-      "knowledgeEditor",
+      "policySummary",
+      "policySearch",
+      "policyStatusFilter",
+      "policyLanguageFilter",
+      "policyResultCount",
+      "policyReadOnly",
+      "policyList",
+      "policyListStatus",
+      "policyEditor",
     ],
   },
-  // The ticket island owns the status filter + list; the legacy detail view
-  // (#ticketDetailView) stays legacy until a later D3 slice migrates it.
-  { name: "ticket", mountId: "ticketReactIsland", yieldsLegacy: ["ticketStatusFilter", "ticketList"] },
+  // The appeal island owns the status filter + list; the legacy detail view
+  // (#appealDetailView) stays legacy until a later D3 slice migrates it.
+  { name: "appeal", mountId: "appealReactIsland", yieldsLegacy: ["appealStatusFilter", "appealList"] },
   // The admin island owns the whole #adminContent card grid (quota,
   // members, webhooks, report subscriptions/export, CSAT, SLA, routing).
   // Writes bridge back to legacy (helix-admin-*) so api()/toast/confirm
@@ -62,7 +62,7 @@ export const ISLANDS = [
       "adminWebhooksCard",
       "adminReportSubsCard",
       "adminReportExportCard",
-      "adminCsatCard",
+      "adminQaSpotCheckCard",
       "adminSlaCard",
       "adminRoutingCard",
     ],
@@ -81,7 +81,7 @@ export const ISLANDS = [
   {
     name: "queue",
     mountId: "queueReactIsland",
-    yieldsLegacy: ["conversationList", "queueCount", "loadMore", "bulkToolbar"],
+    yieldsLegacy: ["reviewCaseList", "queueCount", "loadMore", "bulkToolbar"],
   },
   // The dashboard island owns the workspace metrics strip; legacy
   // foreground refreshAll cycles drive it via helix-dashboard-refresh
@@ -89,13 +89,13 @@ export const ISLANDS = [
   { name: "dashboard", mountId: "dashboardReactIsland", yieldsLegacy: ["metrics"] },
   // The identity island owns the header readout (actor · role) as a pure
   // helix-identity subscriber; the surrounding header toggles stay legacy.
-  { name: "identity", mountId: "identityReactIsland", yieldsLegacy: ["operatorIdentity"] },
+  { name: "identity", mountId: "identityReactIsland", yieldsLegacy: ["reviewerIdentity"] },
   // The conversation dialog island owns the new-conversation <dialog>; the
   // create lifecycle stays legacy via helix-conversation-create/-created.
   {
-    name: "conversation-dialog",
-    mountId: "conversationDialogReactIsland",
-    yieldsLegacy: ["newConversationDialog"],
+    name: "review-case-dialog",
+    mountId: "reviewCaseDialogReactIsland",
+    yieldsLegacy: ["newReviewCaseDialog"],
   },
   // The workspace tabs island owns the 队列/申诉单 tablist; pane switching and
   // data loading stay legacy via helix-workspace-tab/-changed.
@@ -123,7 +123,7 @@ export const ISLANDS = [
   { name: "inspector", mountId: "inspectorReactIsland", yieldsLegacy: ["inspectorTabs", "inspectorOverview", "inspectorEvidence", "inspectorAudit", "noteForm"] },
   // The composer island owns the message forms in the desktop shell; the
   // legacy draft/macro/copilot lifecycle stays legacy via event bridges.
-  { name: "composer", mountId: "composerReactIsland", yieldsLegacy: ["customerForm", "operatorForm"] },
+  { name: "composer", mountId: "composerReactIsland", yieldsLegacy: ["submitterForm", "reviewerForm"] },
   // The thread island owns the message transcript; the loadDetail /
   // loadOlderMessages lifecycle and the feedback/translate writes stay
   // legacy via helix-thread-state/-load-older/-feedback/-translate.
@@ -204,7 +204,7 @@ export async function loadIslands(manifest) {
   if (!manifest) return results; // dist not built — legacy-only mode
   // Islands are the desktop-shell renderer. In a plain browser tab the
   // legacy app.js owns every surface; mounting a parallel React tree on
-  // the non-hidden mount points would duplicate quality/knowledge/command
+  // the non-hidden mount points would duplicate quality/policy/command
   // palette/terminal. The desktop shell (main.js) opts in by setting
   // __HELIX_ISLAND_MODE__ before calling loadIslands.
   if (typeof window === "undefined" || !window.__HELIX_ISLAND_MODE__) {

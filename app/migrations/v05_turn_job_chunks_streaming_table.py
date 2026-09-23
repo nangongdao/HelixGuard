@@ -14,7 +14,7 @@ def migration_5(connection: sqlite3.Connection) -> None:
         CREATE TABLE IF NOT EXISTS turn_job_chunks (
             id TEXT PRIMARY KEY,
             tenant_id TEXT NOT NULL,
-            conversation_id TEXT NOT NULL,
+            review_case_id TEXT NOT NULL,
             job_id TEXT NOT NULL,
             seq INTEGER NOT NULL DEFAULT 0,
             content TEXT NOT NULL,

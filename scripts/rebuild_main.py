@@ -26,7 +26,7 @@ MAIN = ROOT / "app" / "main.py"
 # (start, end) inclusive 1-based ranges to REMOVE from the backup
 BLOCKS = [
     (629, 668),  # system routes (health/me/dashboard)
-    (670, 1670),  # conversations domain (incl saved-views, queue SSE, canned, audit, knowledge)
+    (670, 1670),  # review_cases domain (incl saved-views, queue SSE, canned, audit, knowledge)
     (1698, 2127),  # admin domain (prompts, tenants, quota, members, usage, retention, webhooks)
     (2136, 2245),  # auth routes (login/callback/logout/session/refresh)
 ]
@@ -34,7 +34,7 @@ BLOCKS = [
 MOUNT = """    # Phase 27.2: domain routers (extracted from create_app).
     from app.routers.common import RouteDeps
     from app.routers.system import build_router as build_system_router
-    from app.routers.conversations import build_router as build_conversations_router
+    from app.routers.conversations import build_router as build_review_cases_router
     from app.routers.policy import build_router as build_knowledge_router
     from app.routers.admin import build_router as build_admin_router
     from app.routers.auth import build_router as build_auth_router
@@ -53,7 +53,7 @@ MOUNT = """    # Phase 27.2: domain routers (extracted from create_app).
         telemetry_metrics=telemetry_metrics,
     )
     app.include_router(build_system_router(route_deps))
-    app.include_router(build_conversations_router(route_deps))
+    app.include_router(build_review_cases_router(route_deps))
     app.include_router(build_knowledge_router(route_deps))
     app.include_router(build_admin_router(route_deps))
     app.include_router(build_auth_router(route_deps))

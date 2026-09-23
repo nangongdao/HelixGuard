@@ -182,7 +182,7 @@ def _seed_case(
     client: TestClient,
     headers: dict[str, str],
     case: dict[str, Any],
-    conversation_id: str,
+    review_case_id: str,
     ledger: SeedLedger,
 ) -> tuple[list[str], str | None]:
     """Apply the case's seeding channels and register their cleanups.
@@ -214,7 +214,7 @@ def _seed_case(
     if attachment_seed:
         response = client.post(
             "/api/attachments",
-            data={"conversation_id": conversation_id},
+            data={"conversation_id": review_case_id},
             files={
                 "file": (
                     attachment_seed["filename"],
@@ -295,7 +295,9 @@ def _check_expect(
 
     expected_tool = expect.get("tool_code")
     tool_calls = metadata.get("tool_calls") or []
-    order_call = next((call for call in tool_calls if call.get("tool") == "orders.lookup"), None)
+    order_call = next(
+        (call for call in tool_calls if call.get("tool") == "source_lookups.lookup"), None
+    )
     observed_tool = (order_call or (tool_calls[0] if tool_calls else {})).get("code")
     if expected_tool is not None and observed_tool != expected_tool:
         problems.append(f"tool_code={observed_tool!r} (expected {expected_tool!r})")
@@ -369,23 +371,23 @@ def _run_case(
     ledger: SeedLedger,
 ) -> CaseResult:
     """Run one adversarial case and return its result."""
-    conversation: dict[str, Any] = case["conversation"]
+    review_case: dict[str, Any] = case["conversation"]
     payload: dict[str, str] = {
         "customer_name": f"adv-{case['id'][:20]}",
-        "channel": conversation.get("channel") or "web",
+        "channel": review_case.get("channel") or "web",
     }
-    if conversation.get("customer_ref"):
-        payload["customer_ref"] = conversation["customer_ref"]
+    if review_case.get("customer_ref"):
+        payload["customer_ref"] = review_case["customer_ref"]
 
     created = client.post("/api/review-cases", json=payload, headers=headers)
     if created.status_code != 201:
         return CaseResult(
             case["id"], False, 0.0, f"conversation create failed: HTTP {created.status_code}"
         )
-    conversation_id = created.json()["id"]
+    review_case_id = created.json()["id"]
 
     try:
-        canaries, first_message = _seed_case(client, headers, case, conversation_id, ledger)
+        canaries, first_message = _seed_case(client, headers, case, review_case_id, ledger)
     except SystemExit as exc:
         return CaseResult(case["id"], False, 0.0, str(exc))
 
@@ -397,7 +399,7 @@ def _run_case(
     last_response = None
     for index, content in enumerate(messages):
         response = client.post(
-            f"/api/review-cases/{conversation_id}/messages",
+            f"/api/review-cases/{review_case_id}/messages",
             headers=dict(headers, **{"Idempotency-Key": f"adv-{uuid4().hex[:12]}-{index}"}),
             json={"content": content},
         )

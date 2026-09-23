@@ -43,12 +43,14 @@ class _StaticOrderConn:
     def __init__(self) -> None:
         self.calls = 0
 
-    def lookup_order(self, tenant_id, customer_ref, order_id):
+    def lookup_order(self, tenant_id, submitter_ref, source_record_id):
         self.calls += 1
         return OrderLookup(
             ok=True,
             code="ok",
-            order=OrderDetails(id=order_id, status="已核验", eta="2026-07-20", tracking_code="SF1"),
+            order=OrderDetails(
+                id=source_record_id, status="已核验", eta="2026-07-20", tracking_code="SF1"
+            ),
         )
 
 
@@ -57,14 +59,14 @@ class _TransientOrderConn:
         self.fail_times = fail_times
         self.calls = 0
 
-    def lookup_order(self, tenant_id, customer_ref, order_id):
+    def lookup_order(self, tenant_id, submitter_ref, source_record_id):
         self.calls += 1
         if self.calls <= self.fail_times:
             raise TransientConnectorError("timeout")
         return OrderLookup(
             ok=True,
             code="ok",
-            order=OrderDetails(id=order_id, status="已核验", eta="x", tracking_code="t"),
+            order=OrderDetails(id=source_record_id, status="已核验", eta="x", tracking_code="t"),
         )
 
 
@@ -72,7 +74,7 @@ class _AlwaysTransientConn:
     def __init__(self) -> None:
         self.calls = 0
 
-    def lookup_order(self, tenant_id, customer_ref, order_id):
+    def lookup_order(self, tenant_id, submitter_ref, source_record_id):
         self.calls += 1
         raise TransientConnectorError("always")
 
@@ -81,7 +83,7 @@ class _FailingOrderConn:
     def __init__(self) -> None:
         self.calls = 0
 
-    def lookup_order(self, tenant_id, customer_ref, order_id):
+    def lookup_order(self, tenant_id, submitter_ref, source_record_id):
         self.calls += 1
         raise ValueError("boom")
 
@@ -301,7 +303,7 @@ class _StaticCRMConn:
         self.lookup = lookup
         self.calls = 0
 
-    def resolve_customer(self, tenant_id, customer_ref):
+    def resolve_customer(self, tenant_id, submitter_ref):
         self.calls += 1
         return self.lookup
 
@@ -310,7 +312,7 @@ class _TransientCRMConn:
     def __init__(self) -> None:
         self.calls = 0
 
-    def resolve_customer(self, tenant_id, customer_ref):
+    def resolve_customer(self, tenant_id, submitter_ref):
         self.calls += 1
         raise TransientConnectorError("timeout")
 
@@ -318,14 +320,14 @@ class _TransientCRMConn:
 class ResilientCRMConnectorTests(unittest.TestCase):
     def test_passthrough_success(self) -> None:
         lookup = CustomerLookup(
-            ok=True, code="ok", profile=CustomerProfile(customer_ref="CUST-1", name="林嘉")
+            ok=True, code="ok", profile=CustomerProfile(submitter_ref="CUST-1", name="林嘉")
         )
         conn = ResilientCRMConnector(_StaticCRMConn(lookup), CircuitBreakerRegistry(_CONFIG))
         result = conn.resolve_customer("t1", "CUST-1")
         self.assertTrue(result.ok)
         self.assertEqual(result.code, "ok")
         assert result.profile is not None
-        self.assertEqual(result.profile.customer_ref, "CUST-1")
+        self.assertEqual(result.profile.submitter_ref, "CUST-1")
 
     def test_open_returns_unavailable(self) -> None:
         inner = _TransientCRMConn()

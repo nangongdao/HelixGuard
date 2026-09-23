@@ -38,8 +38,8 @@ def launch_browser(playwright: Playwright):
 def wait_for_operator(page: Page) -> None:
     response = page.goto(BASE_URL, wait_until="domcontentloaded")
     assert response is not None and response.ok
-    expect(page.locator("#operatorIdentity")).to_contain_text("demo.admin")
-    expect(page.locator("#conversationList")).to_have_attribute("aria-busy", "false")
+    expect(page.locator("#reviewerIdentity")).to_contain_text("demo.admin")
+    expect(page.locator("#reviewCaseList")).to_have_attribute("aria-busy", "false")
     page.wait_for_function("() => typeof window.HelixModules?.toggleTheme === 'function'")
 
 
@@ -66,8 +66,8 @@ def wait_for_desktop_shell(page: Page) -> None:
     page.wait_for_function("() => typeof window.HelixModules?.toggleTheme === 'function'")
 
 
-def seed_shell_conversations(page: Page) -> None:
-    """Push synthetic conversations through the island event bridge.
+def seed_shell_review_cases(page: Page) -> None:
+    """Push synthetic review_cases through the island event bridge.
 
     The shell scan would otherwise axe an empty-state queue, which says
     nothing about the row markup desktop users actually read. Seeding keeps
@@ -142,7 +142,7 @@ def assert_island_labels_bind_inside_their_island(page: Page) -> None:
 
 def assert_desktop_shell_accessibility(page: Page) -> None:
     wait_for_desktop_shell(page)
-    seed_shell_conversations(page)
+    seed_shell_review_cases(page)
     assert_island_labels_bind_inside_their_island(page)
     for theme in ("dark", "light"):
         page.evaluate(f"() => window.HelixModules.applyTheme({theme!r})")
@@ -245,33 +245,33 @@ def assert_visible_focus(page: Page) -> None:
 
 
 def assert_knowledge_keyboard_path(page: Page) -> None:
-    knowledge_nav = page.locator('.nav-item[data-view="knowledge"]')
+    knowledge_nav = page.locator('.nav-item[data-view="policy"]')
     knowledge_nav.focus()
     page.keyboard.press("Enter")
-    expect(page.locator("#knowledgeView")).to_be_visible()
-    expect(page.locator("#knowledgeList")).to_have_attribute("aria-busy", "false")
+    expect(page.locator("#policyView")).to_be_visible()
+    expect(page.locator("#policyList")).to_have_attribute("aria-busy", "false")
 
-    new_button = page.locator("#newKnowledgeDraft")
+    new_button = page.locator("#newPolicyDraft")
     new_button.focus()
     page.keyboard.press("Enter")
-    expect(page.locator("#knowledgeEditor")).to_be_visible()
-    assert active_descriptor(page) == "knowledgeTitle"
+    expect(page.locator("#policyEditor")).to_be_visible()
+    assert active_descriptor(page) == "policyTitle"
     assert_visible_focus(page)
 
     page.keyboard.press("Tab")
-    assert active_descriptor(page) == "knowledgeContent"
+    assert active_descriptor(page) == "policyContent"
     assert_visible_focus(page)
 
-    close_button = page.locator("#cancelKnowledgeEdit")
+    close_button = page.locator("#cancelPolicyEdit")
     close_button.focus()
     page.keyboard.press("Enter")
-    expect(page.locator("#knowledgeEditor")).to_be_hidden()
+    expect(page.locator("#policyEditor")).to_be_hidden()
 
-    page.locator("#knowledgeSearch").focus()
+    page.locator("#policySearch").focus()
     page.keyboard.press("Tab")
-    assert active_descriptor(page) == "knowledgeStatusFilter"
+    assert active_descriptor(page) == "policyStatusFilter"
     page.keyboard.press("Tab")
-    assert active_descriptor(page) == "knowledgeLanguageFilter"
+    assert active_descriptor(page) == "policyLanguageFilter"
 
 
 def assert_mobile_focus_trap(page: Page) -> None:
@@ -325,7 +325,7 @@ def widget_url() -> str:
     token = sign_token(
         secret=WIDGET_SECRET,
         tenant_id="demo",
-        customer_ref=f"A11Y-{uuid4().hex[:8]}",
+        submitter_ref=f"A11Y-{uuid4().hex[:8]}",
         ttl_seconds=1800,
     )
     return f"{BASE_URL}/widget?brand=Northstar+Care&accent=teal&locale=zh#token={token}"
@@ -366,7 +366,7 @@ def main() -> None:
         assert_no_serious_axe_violations(page, "operator light theme")
 
         assert_knowledge_keyboard_path(page)
-        assert_no_serious_axe_violations(page, "knowledge view")
+        assert_no_serious_axe_violations(page, "policy view")
 
         admin_nav = page.locator('.nav-item[data-view="admin"]')
         admin_nav.focus()
@@ -388,7 +388,7 @@ def main() -> None:
         assert_no_serious_axe_violations(widget_page, "web chat")
         reset_focus(widget_page)
         widget_page.keyboard.press("Tab")
-        assert active_descriptor(widget_page) == "customerName"
+        assert active_descriptor(widget_page) == "submitterName"
         widget_page.keyboard.press("Tab")
         assert active_descriptor(widget_page) == "startButton"
         assert_reduced_motion(widget_page, "web chat")

@@ -27,22 +27,22 @@ def migration_32(connection: sqlite3.Connection) -> None:
                 downstream TEXT NOT NULL DEFAULT '[]'
             );
     
-            CREATE TABLE IF NOT EXISTS customer_tombstones (
+            CREATE TABLE IF NOT EXISTS submitter_tombstones (
                 tenant_id TEXT NOT NULL,
-                customer_ref TEXT NOT NULL,
+                submitter_ref TEXT NOT NULL,
                 request_id TEXT NOT NULL,
                 deleted_at TEXT NOT NULL,
                 deleted_by TEXT NOT NULL,
                 secret_hash TEXT NOT NULL,
-                PRIMARY KEY (tenant_id, customer_ref)
+                PRIMARY KEY (tenant_id, submitter_ref)
             );
-            CREATE INDEX IF NOT EXISTS idx_customer_tombstones_tenant
-                ON customer_tombstones(tenant_id, deleted_at);
+            CREATE INDEX IF NOT EXISTS idx_submitter_tombstones_tenant
+                ON submitter_tombstones(tenant_id, deleted_at);
     
             CREATE TABLE IF NOT EXISTS deferred_deletion_jobs (
                 tenant_id TEXT NOT NULL,
                 request_id TEXT NOT NULL,
-                customer_ref TEXT NOT NULL,
+                submitter_ref TEXT NOT NULL,
                 status TEXT NOT NULL
                     CHECK (status IN ('approved', 'retryable', 'completed', 'failed')),
                 attempt INTEGER NOT NULL DEFAULT 0,

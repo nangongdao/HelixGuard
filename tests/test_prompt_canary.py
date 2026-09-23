@@ -1,4 +1,4 @@
-"""Phase 19.2: canary routing, prompt-version resolution, and telemetry.
+"""Phase 19.2: canary routing, prompt-version verdict, and telemetry.
 
 These tests pin the contract the release gate depends on:
 - ``canary_bucket`` is deterministic and bounded in [0, 1).
@@ -95,7 +95,7 @@ class ResolvePromptTests(unittest.TestCase):
         self.assertEqual(channel, "canary")
         self.assertEqual(version.version, "v2")
 
-    def test_canary_bucketing_is_stable_per_conversation(self) -> None:
+    def test_canary_bucketing_is_stable_per_review_case(self) -> None:
         """The same conversation always lands on the same channel for a ratio."""
         self._make("tenant-1", "v1", "active")
         self._make("tenant-1", "v2", "canary")
@@ -146,7 +146,7 @@ class OrchestratorPromptVersionTests(unittest.TestCase):
         self.settings = Settings(database_path=self.db_path, auth_mode="demo")
         self.orchestrator = ConversationOrchestrator(self.database, self.settings)
         self.registry = PromptRegistry(self.database)
-        conv = self.database.create_conversation("tenant-1", "Customer", None, "web", "admin", 120)
+        conv = self.database.create_review_case("tenant-1", "Customer", None, "web", "admin", 120)
         self.conv_id = conv["id"]
         # Reset the global telemetry counter diff baseline.
         from app.telemetry import metrics as telemetry_metrics

@@ -54,7 +54,7 @@ export function AdminCostCard({ daily, agents, prompts, anomaly }) {
       <AdminReadout id={CARD_IDS.costAnomalyReadout} rows={anomalyModel.rows} />
       <h4>按功能拆分</h4>
       <BreakdownList
-        id={CARD_IDS.costAgentList}
+        id={CARD_IDS.costReviewerList}
         items={agentItems}
         emptyText="暂无推理成本记录"
       />

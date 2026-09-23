@@ -132,7 +132,7 @@ class TurnJobWorker:
         # killed during a rolling restart and nothing new starts within the
         # lease window.
         self.recover_cadence_seconds = recover_cadence_seconds
-        # ROADMAP 18.3: resolved conversations older than ``archive_after_days``
+        # ROADMAP 18.3: resolved review_cases older than ``archive_after_days``
         # are moved to the archive tier on a fixed cadence in bounded batches.
         self.archive_enabled = archive_enabled
         self.archive_after_days = archive_after_days
@@ -341,9 +341,9 @@ class TurnJobWorker:
                 logger.exception("turn_worker.housekeeping_failed")
 
     def archive_once(self) -> int:
-        """Archive one bounded batch of old resolved conversations (ROADMAP 18.3).
+        """Archive one bounded batch of old resolved review_cases (ROADMAP 18.3).
 
-        Returns the number of conversations moved to the cold tier and adds
+        Returns the number of review_cases moved to the cold tier and adds
         them to ``snapshot()['archived_total']``.  Safe to call directly
         (tests, drills) and idempotent across replays.
         """
@@ -352,7 +352,7 @@ class TurnJobWorker:
         # 43.2: the retention sweep scans every tenant's resolved rows.
         with maintenance_scope("conversation-archive"):
             cutoff = utc_after_seconds(-self.archive_after_days * 86400)
-            archived = self.database.archive_resolved_conversations(cutoff, self.archive_batch)
+            archived = self.database.archive_decided_review_cases(cutoff, self.archive_batch)
         with self._lock:
             self._archived += archived
         return archived
@@ -395,7 +395,7 @@ class TurnJobWorker:
         try:
             try:
                 # 43.2: the turn itself is single-tenant business logic —
-                # messages/conversations/knowledge access runs inside the
+                # messages/review_cases/knowledge access runs inside the
                 # job row's tenant scope (the durable source of identity,
                 # not caller-supplied input).
                 with tenant_scope(job["tenant_id"]):

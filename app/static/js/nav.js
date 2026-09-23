@@ -2,13 +2,13 @@
  * Helix Guard — global navigation module (UI 升级 §17.1)
  *
  * Pure view registry for the left icon rail: the five top-level mount
- * points (workspace / quality / knowledge / admin / settings) and which of
+ * points (workspace / quality / policy / admin / settings) and which of
  * them currently render a placeholder. No DOM access, unit-testable with
  * node:test.
  */
 
 /** Every top-level view the nav rail can select. */
-export const NAV_VIEWS = ["workspace", "quality", "knowledge", "admin", "settings"];
+export const NAV_VIEWS = ["workspace", "quality", "policy", "admin", "settings"];
 
 /** Views that render the "under construction" placeholder mount point. */
 export const NAV_PLACEHOLDER_VIEWS = [];

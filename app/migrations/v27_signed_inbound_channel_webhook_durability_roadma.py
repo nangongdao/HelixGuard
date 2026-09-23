@@ -17,21 +17,21 @@ def migration_27(connection: sqlite3.Connection) -> None:
             tenant_id TEXT NOT NULL REFERENCES tenants(id),
             account_id TEXT NOT NULL,
             external_thread_id TEXT NOT NULL,
-            conversation_id TEXT NOT NULL UNIQUE
-                REFERENCES conversations(id) ON DELETE CASCADE,
+            review_case_id TEXT NOT NULL UNIQUE
+                REFERENCES review_cases(id) ON DELETE CASCADE,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL,
             PRIMARY KEY (tenant_id, account_id, external_thread_id)
         );
         CREATE INDEX IF NOT EXISTS idx_channel_threads_conversation
-            ON channel_threads(tenant_id, conversation_id);
+            ON channel_threads(tenant_id, review_case_id);
 
         CREATE TABLE IF NOT EXISTS channel_webhook_receipts (
             tenant_id TEXT NOT NULL REFERENCES tenants(id),
             account_id TEXT NOT NULL,
             message_id TEXT NOT NULL,
             external_thread_id TEXT NOT NULL,
-            conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+            review_case_id TEXT NOT NULL REFERENCES review_cases(id) ON DELETE CASCADE,
             content_sha256 TEXT NOT NULL,
             received_at TEXT NOT NULL,
             PRIMARY KEY (tenant_id, account_id, message_id),
@@ -40,13 +40,13 @@ def migration_27(connection: sqlite3.Connection) -> None:
                 ON DELETE CASCADE
         );
         CREATE INDEX IF NOT EXISTS idx_channel_receipts_conversation
-            ON channel_webhook_receipts(tenant_id, conversation_id, received_at);
+            ON channel_webhook_receipts(tenant_id, review_case_id, received_at);
 
         CREATE TRIGGER IF NOT EXISTS channel_threads_tenant_guard
         BEFORE INSERT ON channel_threads
         WHEN NOT EXISTS (
-            SELECT 1 FROM conversations c
-            WHERE c.id = NEW.conversation_id AND c.tenant_id = NEW.tenant_id
+            SELECT 1 FROM review_cases c
+            WHERE c.id = NEW.review_case_id AND c.tenant_id = NEW.tenant_id
         )
         BEGIN
             SELECT RAISE(ABORT, 'conversation tenant mismatch');
@@ -55,8 +55,8 @@ def migration_27(connection: sqlite3.Connection) -> None:
         CREATE TRIGGER IF NOT EXISTS channel_receipts_tenant_guard
         BEFORE INSERT ON channel_webhook_receipts
         WHEN NOT EXISTS (
-            SELECT 1 FROM conversations c
-            WHERE c.id = NEW.conversation_id AND c.tenant_id = NEW.tenant_id
+            SELECT 1 FROM review_cases c
+            WHERE c.id = NEW.review_case_id AND c.tenant_id = NEW.tenant_id
         )
         BEGIN
             SELECT RAISE(ABORT, 'conversation tenant mismatch');

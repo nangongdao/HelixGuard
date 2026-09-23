@@ -9,6 +9,7 @@ from typing import Any
 from uuid import uuid4
 
 from app.db._util import (
+    to_wire_row,
     utc_now,
 )
 
@@ -19,7 +20,7 @@ def _message_row_to_item(row: sqlite3.Row, *, include_seq: bool = True) -> dict[
     Shared by the hot ``messages`` reads and the archive-tier fallback
     (ROADMAP 18.3) so both return an identical transcript item.
     """
-    item = dict(row)
+    item = to_wire_row(row)
     item["metadata"] = json.loads(item.pop("metadata_json", "{}") or "{}")
     item.pop("tenant_id", None)
     item.pop("conversation_id", None)
@@ -33,14 +34,14 @@ def _query_messages(
     connection: sqlite3.Connection,
     table: str,
     tenant_id: str,
-    conversation_id: str,
+    review_case_id: str,
     *,
     limit: int | None,
     cursor: tuple[str, int] | None,
     before: bool,
 ) -> list[sqlite3.Row]:
-    clauses = ["tenant_id = ?", "conversation_id = ?"]
-    values: list[Any] = [tenant_id, conversation_id]
+    clauses = ["tenant_id = ?", "review_case_id = ?"]
+    values: list[Any] = [tenant_id, review_case_id]
     if cursor:
         created_at, seq = cursor
         if before:
@@ -66,7 +67,7 @@ class DatabaseMessagesMixin:
     def add_message(
         self,
         tenant_id: str,
-        conversation_id: str,
+        review_case_id: str,
         role: str,
         author: str,
         content: str,
@@ -74,29 +75,29 @@ class DatabaseMessagesMixin:
         turn_id: str | None = None,
         channel_message_id: str | None = None,
         reply_to: str | None = None,
-        operator_idempotency_key: str | None = None,
+        reviewer_idempotency_key: str | None = None,
     ) -> dict[str, Any]:
         message_id = f"msg_{uuid4().hex[:12]}"
         now = utc_now()
         with self.connect() as connection:
             # The write path is hot-only (ROADMAP 18.3): messages may only be
-            # appended to live conversations, never to archived ones.
+            # appended to live review_cases, never to archived ones.
             exists = connection.execute(
-                "SELECT 1 FROM conversations WHERE tenant_id = ? AND id = ?",
-                (tenant_id, conversation_id),
+                "SELECT 1 FROM review_cases WHERE tenant_id = ? AND id = ?",
+                (tenant_id, review_case_id),
             ).fetchone()
             if not exists:
                 raise LookupError("conversation not found")
             connection.execute(
                 """INSERT INTO messages
-                (id, tenant_id, conversation_id, turn_id, role, author, content,
+                (id, tenant_id, review_case_id, turn_id, role, author, content,
                  metadata_json, created_at, channel_message_id, reply_to,
-                 operator_idempotency_key)
+                 reviewer_idempotency_key)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     message_id,
                     tenant_id,
-                    conversation_id,
+                    review_case_id,
                     turn_id,
                     role,
                     author,
@@ -105,7 +106,7 @@ class DatabaseMessagesMixin:
                     now,
                     channel_message_id,
                     reply_to,
-                    operator_idempotency_key,
+                    reviewer_idempotency_key,
                 ),
             )
         self._invalidate_dashboard(tenant_id)
@@ -121,7 +122,7 @@ class DatabaseMessagesMixin:
         }
 
     def get_message_by_channel_id(
-        self, tenant_id: str, conversation_id: str, channel_message_id: str
+        self, tenant_id: str, review_case_id: str, channel_message_id: str
     ) -> dict[str, Any] | None:
         """Look up a message by its channel message id (Phase 23.2).
 
@@ -131,9 +132,9 @@ class DatabaseMessagesMixin:
         """
         with self.connect() as connection:
             row = connection.execute(
-                "SELECT * FROM messages WHERE tenant_id = ? AND conversation_id = ? "
+                "SELECT * FROM messages WHERE tenant_id = ? AND review_case_id = ? "
                 "AND channel_message_id = ?",
-                (tenant_id, conversation_id, channel_message_id),
+                (tenant_id, review_case_id, channel_message_id),
             ).fetchone()
         if not row:
             return None
@@ -142,7 +143,7 @@ class DatabaseMessagesMixin:
         return item
 
     def get_message_by_operator_key(
-        self, tenant_id: str, conversation_id: str, idempotency_key: str
+        self, tenant_id: str, review_case_id: str, idempotency_key: str
     ) -> dict[str, Any] | None:
         """Resolve the send receipt for an operator reply (ROADMAP H02).
 
@@ -154,16 +155,16 @@ class DatabaseMessagesMixin:
         """
         with self.connect() as connection:
             row = connection.execute(
-                "SELECT * FROM messages WHERE tenant_id = ? AND conversation_id = ? "
-                "AND operator_idempotency_key = ?",
-                (tenant_id, conversation_id, idempotency_key),
+                "SELECT * FROM messages WHERE tenant_id = ? AND review_case_id = ? "
+                "AND reviewer_idempotency_key = ?",
+                (tenant_id, review_case_id, idempotency_key),
             ).fetchone()
         return _message_row_to_item(row, include_seq=False) if row else None
 
     def list_messages(
         self,
         tenant_id: str,
-        conversation_id: str,
+        review_case_id: str,
         *,
         limit: int | None = None,
         cursor: tuple[str, int] | None = None,
@@ -174,12 +175,12 @@ class DatabaseMessagesMixin:
                 connection,
                 "messages",
                 tenant_id,
-                conversation_id,
+                review_case_id,
                 limit=limit,
                 cursor=cursor,
                 before=before,
             )
-        if not rows and self.get_archived_conversation(tenant_id, conversation_id) is not None:
+        if not rows and self.get_archived_review_case(tenant_id, review_case_id) is not None:
             # ROADMAP 18.3: transparent read merge — an archived
             # conversation's transcript is served from the cold tier.
             with self.connect() as connection:
@@ -187,7 +188,7 @@ class DatabaseMessagesMixin:
                     connection,
                     "messages_archive",
                     tenant_id,
-                    conversation_id,
+                    review_case_id,
                     limit=limit,
                     cursor=cursor,
                     before=before,
@@ -198,12 +199,12 @@ class DatabaseMessagesMixin:
         return result
 
     def get_message(
-        self, tenant_id: str, conversation_id: str, message_id: str
+        self, tenant_id: str, review_case_id: str, message_id: str
     ) -> dict[str, Any] | None:
         with self.connect() as connection:
             row = connection.execute(
                 """SELECT * FROM messages
-                WHERE tenant_id = ? AND conversation_id = ? AND id = ?""",
-                (tenant_id, conversation_id, message_id),
+                WHERE tenant_id = ? AND review_case_id = ? AND id = ?""",
+                (tenant_id, review_case_id, message_id),
             ).fetchone()
         return _message_row_to_item(row, include_seq=False) if row else None

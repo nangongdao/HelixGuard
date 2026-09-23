@@ -67,15 +67,15 @@ class RedisQueueIntegrationTests(unittest.TestCase):
     def _queue(self) -> RedisTaskQueue:
         return RedisTaskQueue(self.redis, self.db)
 
-    def _conversation(self, index: int = 0) -> str:
-        conversation = self.db.create_conversation(
+    def _review_case(self, index: int = 0) -> str:
+        review_case = self.db.create_review_case(
             "redis-tenant", f"Redis Conv {index}", f"CUST-R-{index}", "web", "admin", 120
         )
-        return conversation["id"]
+        return review_case["id"]
 
     def test_exactly_once_dispatch_under_replay(self) -> None:
         queue = self._queue()
-        conv = self._conversation()
+        conv = self._review_case()
         queue.enqueue("redis-tenant", conv, "key-1", "a1", "c1", 3)
         # Re-enqueue with the same idempotency key: the database returns a
         # replay and the dispatch list must not get a duplicate entry.
@@ -84,10 +84,10 @@ class RedisQueueIntegrationTests(unittest.TestCase):
 
     def test_channel_message_id_survives_redis_dispatch(self) -> None:
         queue = self._queue()
-        conversation_id = self._conversation()
+        review_case_id = self._review_case()
         queued, replayed = queue.enqueue(
             "redis-tenant",
-            conversation_id,
+            review_case_id,
             "channel-key-1",
             "channel:formal-account",
             "channel content",
@@ -106,7 +106,7 @@ class RedisQueueIntegrationTests(unittest.TestCase):
     def test_no_double_claim_across_instances(self) -> None:
         """Two independent queue instances over one Redis never double-claim."""
         for index in range(8):
-            conv = self._conversation(index)
+            conv = self._review_case(index)
             self._queue().enqueue("redis-tenant", conv, f"k-{index}", f"a{index}", f"c{index}", 3)
         queues = [self._queue(), self._queue()]
         claimed: list[str] = []
@@ -117,9 +117,9 @@ class RedisQueueIntegrationTests(unittest.TestCase):
         self.assertEqual(len(set(claimed)), len(claimed), "double-claim detected")
         self.assertEqual(len(claimed), 8)
 
-    def test_per_conversation_serialization(self) -> None:
+    def test_per_review_case_serialization(self) -> None:
         """Only one job per conversation may be in flight, even across queues."""
-        conv = self._conversation()
+        conv = self._review_case()
         queue = self._queue()
         for index in range(3):
             queue.enqueue("redis-tenant", conv, f"ser-{index}", f"a{index}", f"c{index}", 3)
@@ -134,7 +134,7 @@ class RedisQueueIntegrationTests(unittest.TestCase):
         self.assertIsNone(queue.dequeue("w4", 300))
 
     def test_retry_backoff_reschedules(self) -> None:
-        conv = self._conversation()
+        conv = self._review_case()
         queue = self._queue()
         queue.enqueue("redis-tenant", conv, "r-1", "a1", "c1", 3)
         job = queue.dequeue("w1", 300)
@@ -150,7 +150,7 @@ class RedisQueueIntegrationTests(unittest.TestCase):
         self.assertEqual(retried["attempts"], 2)
 
     def test_lease_expiry_recovers_and_reclaims(self) -> None:
-        conv = self._conversation()
+        conv = self._review_case()
         queue = self._queue()
         queue.enqueue("redis-tenant", conv, "l-1", "a1", "c1", 3)
         job = queue.dequeue("w1", 1)  # very short lease
@@ -163,7 +163,7 @@ class RedisQueueIntegrationTests(unittest.TestCase):
         self.assertEqual(re_claimed["id"], job["id"])
 
     def test_complete_cleans_up_redis_state(self) -> None:
-        conv = self._conversation()
+        conv = self._review_case()
         queue = self._queue()
         queue.enqueue("redis-tenant", conv, "cc-1", "a1", "c1", 3)
         job = queue.dequeue("w1", 300)
@@ -182,11 +182,11 @@ class RedisQueueIntegrationTests(unittest.TestCase):
         and each job is claimable exactly once afterwards.
         """
         queue = self._queue()
-        conversations = [self._conversation(index) for index in range(3)]
+        review_cases = [self._review_case(index) for index in range(3)]
         enqueued_ids = set()
-        for index, conversation in enumerate(conversations):
+        for index, review_case in enumerate(review_cases):
             queued, _replayed = queue.enqueue(
-                "redis-tenant", conversation, f"flush-{index}", f"a{index}", f"c{index}", 3
+                "redis-tenant", review_case, f"flush-{index}", f"a{index}", f"c{index}", 3
             )
             enqueued_ids.add(queued["id"])
 
@@ -275,10 +275,10 @@ class RedisBackendAppEndToEndTests(unittest.TestCase):
             headers=self.headers,
         )
         self.assertEqual(created.status_code, 201, created.text)
-        conversation_id = created.json()["id"]
+        review_case_id = created.json()["id"]
 
         job = self.client.post(
-            f"/api/review-cases/{conversation_id}/turn-jobs",
+            f"/api/review-cases/{review_case_id}/turn-jobs",
             json={"content": "帮我查一下订单"},
             headers={**self.headers, "Idempotency-Key": "redis-e2e-key"},
         )
@@ -304,11 +304,11 @@ class RedisBackendAppEndToEndTests(unittest.TestCase):
             json={"customer_name": "Redis Race", "channel": "web"},
             headers=self.headers,
         )
-        conversation_id = created.json()["id"]
+        review_case_id = created.json()["id"]
         job_ids: list[str] = []
         for index in range(6):
             response = self.client.post(
-                f"/api/review-cases/{conversation_id}/turn-jobs",
+                f"/api/review-cases/{review_case_id}/turn-jobs",
                 json={"content": f"并发任务 {index}"},
                 headers={**self.headers, "Idempotency-Key": f"redis-race-{index}"},
             )

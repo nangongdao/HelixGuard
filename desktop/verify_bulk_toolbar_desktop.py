@@ -30,9 +30,15 @@ def wait_for_cdp(deadline_s: float = 90.0) -> list[dict]:
     deadline = time.time() + deadline_s
     while time.time() < deadline:
         try:
-            with urllib.request.urlopen(f"http://127.0.0.1:{DEBUG_PORT}/json/list", timeout=2) as res:
+            with urllib.request.urlopen(
+                f"http://127.0.0.1:{DEBUG_PORT}/json/list", timeout=2
+            ) as res:
                 targets = json.loads(res.read().decode("utf-8"))
-            pages = [t for t in targets if t.get("type") == "page" and "127.0.0.1" in (t.get("url") or "")]
+            pages = [
+                t
+                for t in targets
+                if t.get("type") == "page" and "127.0.0.1" in (t.get("url") or "")
+            ]
             if pages:
                 return targets
         except Exception:
@@ -68,8 +74,10 @@ def main() -> int:
                 print("FAIL: no console page found over CDP")
                 return 1
 
-            page.wait_for_selector("#operatorIdentity", state="attached", timeout=30000)
-            page.wait_for_selector("#queueReactIsland .conversation-item", state="attached", timeout=30000)
+            page.wait_for_selector("#reviewerIdentity", state="attached", timeout=30000)
+            page.wait_for_selector(
+                "#queueReactIsland .review-case-item", state="attached", timeout=30000
+            )
             checks: dict[str, object] = {}
             checks["island_mode"] = page.evaluate("() => window.__HELIX_ISLAND_MODE__ === true")
             checks["legacy_bulk_toolbar_hidden"] = page.evaluate(
@@ -80,7 +88,7 @@ def main() -> int:
                 "() => !document.querySelector('#queueReactIsland .bulk-toolbar')"
             )
 
-            # Seed conversations so at least two island rows exist.
+            # Seed review_cases so at least two island rows exist.
             uuid4().hex[:6]
             seeded = page.evaluate(
                 """async (count) => {
@@ -100,12 +108,12 @@ def main() -> int:
             checks["seeded"] = seeded
             page.locator("#refreshList").click()
             page.wait_for_function(
-                "() => document.querySelectorAll('#queueReactIsland .conversation-item').length >= 3",
+                "() => document.querySelectorAll('#queueReactIsland .review-case-item').length >= 3",
                 timeout=30000,
             )
 
             # Select two island rows via their bulk checkboxes.
-            checkboxes = page.locator("#queueReactIsland .conversation-checkbox")
+            checkboxes = page.locator("#queueReactIsland .review-case-checkbox")
             checkboxes.nth(0).check()
             checkboxes.nth(1).check()
             page.wait_for_selector("#queueReactIsland .bulk-toolbar", timeout=10000)
@@ -114,10 +122,13 @@ def main() -> int:
             )
 
             # Apply a priority action through the bridge — a real POST.
-            page.locator("#queueReactIsland .bulk-action-field select").select_option("priority-high")
+            page.locator("#queueReactIsland .bulk-action-field select").select_option(
+                "priority-high"
+            )
             with page.expect_response(
-                lambda r: r.url.endswith("/api/review-cases/bulk-actions")
-                and r.request.method == "POST"
+                lambda r: (
+                    r.url.endswith("/api/review-cases/bulk-actions") and r.request.method == "POST"
+                )
             ) as bulk_info:
                 page.locator("#queueReactIsland .bulk-icon-button.is-primary").click()
             checks["bulk_post_status"] = bulk_info.value.status

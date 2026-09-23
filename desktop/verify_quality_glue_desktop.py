@@ -39,9 +39,15 @@ def wait_for_cdp(deadline_s: float = 90.0) -> list[dict]:
     deadline = time.time() + deadline_s
     while time.time() < deadline:
         try:
-            with urllib.request.urlopen(f"http://127.0.0.1:{DEBUG_PORT}/json/list", timeout=2) as res:
+            with urllib.request.urlopen(
+                f"http://127.0.0.1:{DEBUG_PORT}/json/list", timeout=2
+            ) as res:
                 targets = json.loads(res.read().decode("utf-8"))
-            pages = [t for t in targets if t.get("type") == "page" and "127.0.0.1" in (t.get("url") or "")]
+            pages = [
+                t
+                for t in targets
+                if t.get("type") == "page" and "127.0.0.1" in (t.get("url") or "")
+            ]
             if pages:
                 return targets
         except Exception:
@@ -66,9 +72,9 @@ SEED_JS = """async () => {
     const turn = await turnRes.json();
     if (!turn.assistant_message) return { error: 'no assistant reply' };
 
-    // The knowledge agent cites its sources for known topics, and a gap
+    // The policy agent cites its sources for known topics, and a gap
     // requires a negatively-rated message WITHOUT citations. Ask something
-    // the knowledge base cannot match; if the fallback still cites, rate the
+    // the policy base cannot match; if the fallback still cites, rate the
     // (always citation-free) customer message instead so the gap exists.
     const gapTarget = { messageId: null, kind: null };
     const unknownRes = await fetch('/api/review-cases/' + conv.id + '/messages', {
@@ -128,7 +134,7 @@ def main() -> int:
                 print("FAIL: no console page found over CDP")
                 return 1
 
-            page.wait_for_selector("#operatorIdentity", state="attached", timeout=30000)
+            page.wait_for_selector("#reviewerIdentity", state="attached", timeout=30000)
             page.wait_for_selector("#qualityReactIsland", state="attached", timeout=30000)
             checks: dict[str, object] = {}
             checks["island_mode"] = page.evaluate("() => window.__HELIX_ISLAND_MODE__ === true")
@@ -155,7 +161,9 @@ def main() -> int:
 
             # ── Standalone quality view: island owns it, legacy stays hidden ──
             page.locator("button.nav-item[data-view='quality']").click()
-            page.wait_for_selector("#qualityReactIsland .qc-island", state="attached", timeout=15000)
+            page.wait_for_selector(
+                "#qualityReactIsland .qc-island", state="attached", timeout=15000
+            )
             checks["island_view_rendered"] = page.evaluate(
                 "() => !!document.querySelector('#qualityReactIsland .qc-island')"
             )
@@ -178,7 +186,9 @@ def main() -> int:
             page.locator("button.nav-item[data-view='workspace']").click()
             page.locator("button.nav-item[data-view='quality']").click()
             page.wait_for_timeout(800)
-            checks["unforced_fresh_no_refetch"] = page.evaluate("() => window.__qualityFetches === 1")
+            checks["unforced_fresh_no_refetch"] = page.evaluate(
+                "() => window.__qualityFetches === 1"
+            )
 
             # ── Unforced re-open after staleTime expires: refetches again ──
             page.locator("button.nav-item[data-view='workspace']").click()
@@ -190,9 +200,15 @@ def main() -> int:
             # ── Inspector quality tab: island-rendered, legacy-fed ──
             page.locator("button.nav-item[data-view='workspace']").click()
             page.locator("#refreshList").click()
-            page.wait_for_selector("#queueReactIsland .conversation-item", state="visible", timeout=30000)
-            page.locator("#queueReactIsland .conversation-item").first.click()
-            page.wait_for_selector("#inspectorReactIsland .inspector-tab[data-tab='quality']", state="visible", timeout=15000)
+            page.wait_for_selector(
+                "#queueReactIsland .review-case-item", state="visible", timeout=30000
+            )
+            page.locator("#queueReactIsland .review-case-item").first.click()
+            page.wait_for_selector(
+                "#inspectorReactIsland .inspector-tab[data-tab='quality']",
+                state="visible",
+                timeout=15000,
+            )
             page.locator("#inspectorReactIsland .inspector-tab[data-tab='quality']").click()
             page.wait_for_function(
                 """() => {

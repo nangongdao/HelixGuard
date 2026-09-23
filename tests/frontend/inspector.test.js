@@ -69,7 +69,7 @@ test("unknown actions return the same state object", () => {
 });
 
 test("safeCitationUrl allows root-relative and https targets only", () => {
-  assert.equal(safeCitationUrl("/static/knowledge/a.md"), "/static/knowledge/a.md");
+  assert.equal(safeCitationUrl("/static/policy/a.md"), "/static/policy/a.md");
   assert.equal(safeCitationUrl("https://docs.example/x"), "https://docs.example/x");
   assert.equal(safeCitationUrl("http://docs.example/x"), "#");
   assert.equal(safeCitationUrl("javascript:alert(1)"), "#");

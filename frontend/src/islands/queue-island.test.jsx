@@ -47,8 +47,8 @@ describe("QueueIsland mirror contract", () => {
       compact: false,
     });
     const row = await waitFor(() => screen.getByRole("button", { name: /林嘉/ }));
-    expect(row.closest(".conversation-row")).toBeTruthy();
-    expect(row).toHaveProperty("className", expect.stringContaining("conversation-item"));
+    expect(row.closest(".review-case-row")).toBeTruthy();
+    expect(row).toHaveProperty("className", expect.stringContaining("review-case-item"));
     expect(row.getAttribute("data-id")).toBe("conv_1");
     // Backend enum label for open status (mirrors legacy statusLabel).
     expect(screen.getByText("自动处理中")).toBeTruthy();

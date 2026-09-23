@@ -1,7 +1,7 @@
 """Backlog: auto-routing rules.
 
 Covers the roadmap acceptance for auto-routing:
-- rules match by intent/label/channel and pick the highest priority;
+- rules match by risk_category/label/channel and pick the highest priority;
 - a conversation with a matching rule is assigned to a group agent with
   spare capacity (round-robin across least-loaded members);
 - a full group leaves the conversation unassigned with a routing audit;
@@ -51,7 +51,7 @@ class AutoRoutingTests(unittest.TestCase):
     def _group(self, capacity: int = 1) -> str:
         response = self.client.post(
             "/api/admin/reviewer-groups",
-            json={"name": "Order Support", "skills": ["orders"], "capacity": capacity},
+            json={"name": "Order Support", "skills": ["source_lookups"], "capacity": capacity},
             headers=self.admin,
         )
         self.assertEqual(response.status_code, 201, response.text)
@@ -65,18 +65,18 @@ class AutoRoutingTests(unittest.TestCase):
             self.assertEqual(added.status_code, 201)
         return group_id
 
-    def _rule(self, group_id: str, intent: str | None = None, priority: int = 10) -> str:
+    def _rule(self, group_id: str, risk_category: str | None = None, priority: int = 10) -> str:
         payload: dict[str, Any] = {"group_id": group_id, "priority": priority}
-        if intent:
-            payload["intent"] = intent
+        if risk_category:
+            payload["intent"] = risk_category
         response = self.client.post("/api/admin/routing-rules", json=payload, headers=self.admin)
         self.assertEqual(response.status_code, 201, response.text)
         return response.json()["id"]
 
-    def _turn(self, content: str, key: str, customer_ref: str | None = "CUST-1001") -> dict:
+    def _turn(self, content: str, key: str, submitter_ref: str | None = "CUST-1001") -> dict:
         conv = self.client.post(
             "/api/review-cases",
-            json={"customer_name": "C", "customer_ref": customer_ref},
+            json={"customer_name": "C", "customer_ref": submitter_ref},
             headers=self.admin,
         ).json()
         return self.client.post(
@@ -97,19 +97,19 @@ class AutoRoutingTests(unittest.TestCase):
         listed = self.client.get("/api/admin/reviewer-groups", headers=self.admin)
         self.assertEqual(listed.status_code, 200)
         self.assertEqual(len(listed.json()), 1)
-        self.assertEqual(listed.json()[0]["skills"], ["orders"])
+        self.assertEqual(listed.json()[0]["skills"], ["source_lookups"])
         rules = self.client.get("/api/admin/routing-rules", headers=self.admin)
         self.assertEqual(rules.json(), [])
-        rule_id = self._rule(group_id, intent="order_status")
+        rule_id = self._rule(group_id, risk_category="order_status")
         rules = self.client.get("/api/admin/routing-rules", headers=self.admin).json()
         self.assertEqual(len(rules), 1)
         self.assertEqual(rules[0]["intent"], "order_status")
         deleted = self.client.delete(f"/api/admin/routing-rules/{rule_id}", headers=self.admin)
         self.assertEqual(deleted.status_code, 204)
 
-    def test_intent_rule_assigns_group_agent(self) -> None:
+    def test_risk_category_rule_assigns_group_agent(self) -> None:
         group_id = self._group()
-        self._rule(group_id, intent="order_status")
+        self._rule(group_id, risk_category="order_status")
         turn = self._turn("ORD-10482 的来源", "route-a-1")
         self.assertEqual(turn["conversation"]["status"], "open")
         assigned = turn["conversation"].get("assigned_agent")
@@ -118,7 +118,7 @@ class AutoRoutingTests(unittest.TestCase):
 
     def test_capacity_full_leaves_unassigned_with_audit(self) -> None:
         group_id = self._group(capacity=1)
-        self._rule(group_id, intent="order_status")
+        self._rule(group_id, risk_category="order_status")
         # Two agents each at capacity 1 -> two assignments, third stays pooled.
         for index in range(2):
             turn = self._turn("ORD-10482 的来源", f"route-cap-{index}")
@@ -140,8 +140,8 @@ class AutoRoutingTests(unittest.TestCase):
             json={"name": "General", "skills": [], "capacity": 2},
             headers=self.admin,
         ).json()["id"]
-        # Higher-priority channel rule wins over lower-priority intent rule.
-        self._rule(group_a, intent="order_status", priority=5)
+        # Higher-priority channel rule wins over lower-priority risk_category rule.
+        self._rule(group_a, risk_category="order_status", priority=5)
         self.client.post(
             "/api/admin/routing-rules",
             json={"group_id": group_b, "channel": "web", "priority": 20},
@@ -154,7 +154,7 @@ class AutoRoutingTests(unittest.TestCase):
         self.assertEqual(turn["conversation"].get("assigned_agent"), "order")
         self.assertIn("routing.group_full", self._routing_audits())
 
-    def test_operator_cannot_manage_routing(self) -> None:
+    def test_reviewer_cannot_manage_routing(self) -> None:
         # Operator role lacks admin:manage -> 403.
         op_key = "route-op-key-000001"
         principals = {

@@ -68,9 +68,9 @@ export function publishComposerState() {
       detail: {
         resolved,
         human,
-        customerBusy: ctx.els?.customerForm?.dataset?.busy === "true",
-        operatorBusy: ctx.els?.operatorForm?.dataset?.busy === "true",
-        operatorDraft: ctx.els?.operatorInput?.value || "",
+        customerBusy: ctx.els?.submitterForm?.dataset?.busy === "true",
+        operatorBusy: ctx.els?.reviewerForm?.dataset?.busy === "true",
+        operatorDraft: ctx.els?.reviewerInput?.value || "",
         // ROADMAP H02 (2.19.0): the canonical draft's generation. A confirmed
         // send clears the draft *without changing the text* when it was the
         // first thing typed (the box was already empty), so a value snapshot
@@ -108,7 +108,7 @@ export function bindIslandBridge() {
     // ROADMAP H02: an in-flight rewrite computed from the previous text must
     // not overwrite what the operator has typed since.
     bumpDraftVersion(conversationId);
-    ctx.els.operatorInput.value = content;
+    ctx.els.reviewerInput.value = content;
     window.clearTimeout(ctx.state.draftTimer);
     if (content.trim()) {
       ctx.state.draftTimer = window.setTimeout(() => saveDraft(conversationId, content), 300);
@@ -117,7 +117,7 @@ export function bindIslandBridge() {
     }
   });
   // Copilot tools: the island passes its own textarea content where the
-  // legacy flow would have read #operatorInput.
+  // legacy flow would have read #reviewerInput.
   window.addEventListener("helix-composer-copilot-suggest", (event) => {
     const { draft } = event.detail || {};
     void fetchCopilotSuggestions({ draft });
@@ -159,10 +159,10 @@ export function bindIslandBridge() {
     const conversationId = ctx.state.selectedId;
     if (token && conversationId) dismissFailedAttachment(conversationId, token);
   });
-  // Browser dual-track: the legacy #operatorInput typing listener is the
+  // Browser dual-track: the legacy #reviewerInput typing listener is the
   // exact counterpart of the helix-composer-typing bridge above (draft
   // autosave debounce + trailing-/ macro suggest), so both live here.
-  ctx.els.operatorInput?.addEventListener("input", () => {
+  ctx.els.reviewerInput?.addEventListener("input", () => {
     const conversationId = ctx.state.selectedId;
     if (conversationId) {
       // ROADMAP H02: every keystroke advances the draft generation, so a
@@ -170,17 +170,17 @@ export function bindIslandBridge() {
       bumpDraftVersion(conversationId);
       window.clearTimeout(ctx.state.draftTimer);
       ctx.state.draftTimer = window.setTimeout(() => {
-        saveDraft(conversationId, ctx.els.operatorInput.value);
+        saveDraft(conversationId, ctx.els.reviewerInput.value);
       }, 300);
     }
-    const match = ctx.els.operatorInput.value.match(/(^|\s)\/([^\s]*)$/);
+    const match = ctx.els.reviewerInput.value.match(/(^|\s)\/([^\s]*)$/);
     if (match) renderMacroSuggest(match[2] || "");
     else hideMacroSuggest();
   });
-  ctx.els.operatorInput?.addEventListener("keydown", (event) => {
+  ctx.els.reviewerInput?.addEventListener("keydown", (event) => {
     if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
       event.preventDefault();
-      ctx.els.operatorForm.requestSubmit();
+      ctx.els.reviewerForm.requestSubmit();
       return;
     }
     if (event.key === "Escape" && ctx.state.macroOpen) {

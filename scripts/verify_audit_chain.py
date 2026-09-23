@@ -39,7 +39,7 @@ from scripts._console import use_utf8_console
 def load_rows(connection: sqlite3.Connection) -> list[dict]:
     connection.row_factory = sqlite3.Row
     hot_rows = connection.execute(
-        "SELECT id, tenant_id, conversation_id, request_id, actor, event_type, "
+        "SELECT id, tenant_id, review_case_id, request_id, actor, event_type, "
         "payload_json, created_at, seq, prev_hash, event_hash "
         "FROM audit_events ORDER BY seq ASC, rowid ASC"
     ).fetchall()

@@ -2,7 +2,7 @@
 
 Launches the release helix-desktop.exe with a WebView2 remote-debugging port
 and asserts the header identity readout renders through the React island
-("actor · role"), with the legacy #operatorIdentity span yielded.
+("actor · role"), with the legacy #reviewerIdentity span yielded.
 """
 
 from __future__ import annotations
@@ -26,9 +26,15 @@ def wait_for_cdp(deadline_s: float = 90.0) -> list[dict]:
     deadline = time.time() + deadline_s
     while time.time() < deadline:
         try:
-            with urllib.request.urlopen(f"http://127.0.0.1:{DEBUG_PORT}/json/list", timeout=2) as res:
+            with urllib.request.urlopen(
+                f"http://127.0.0.1:{DEBUG_PORT}/json/list", timeout=2
+            ) as res:
                 targets = json.loads(res.read().decode("utf-8"))
-            pages = [t for t in targets if t.get("type") == "page" and "127.0.0.1" in (t.get("url") or "")]
+            pages = [
+                t
+                for t in targets
+                if t.get("type") == "page" and "127.0.0.1" in (t.get("url") or "")
+            ]
             if pages:
                 return targets
         except Exception:
@@ -66,7 +72,7 @@ def main() -> int:
 
             # The legacy span is yielded (hidden) by this very slice — wait
             # for attachment, not visibility.
-            page.wait_for_selector("#operatorIdentity", state="attached", timeout=30000)
+            page.wait_for_selector("#reviewerIdentity", state="attached", timeout=30000)
             checks: dict[str, object] = {}
             checks["island_mode"] = page.evaluate("() => window.__HELIX_ISLAND_MODE__ === true")
 
@@ -74,20 +80,20 @@ def main() -> int:
             # cycle publishes helix-identity (demo.admin in the shell).
             page.wait_for_function(
                 "() => /^.+ · .+$/.test("
-                "document.querySelector('#identityReactIsland .operator-identity')?.textContent || '')",
+                "document.querySelector('#identityReactIsland .reviewer-identity')?.textContent || '')",
                 timeout=30000,
             )
             readout = page.evaluate(
-                "() => document.querySelector('#identityReactIsland .operator-identity')?.textContent"
+                "() => document.querySelector('#identityReactIsland .reviewer-identity')?.textContent"
             )
             checks["island_readout"] = readout
             checks["readout_format"] = bool(readout and " · " in readout)
             checks["legacy_span_hidden"] = page.evaluate(
-                "() => { const s = document.querySelector('#operatorIdentity');"
+                "() => { const s = document.querySelector('#reviewerIdentity');"
                 " return s && s.hidden === true; }"
             )
             checks["legacy_span_not_painted"] = page.evaluate(
-                "() => document.querySelector('#operatorIdentity')?.textContent === '正在验证'"
+                "() => document.querySelector('#reviewerIdentity')?.textContent === '正在验证'"
             )
             # The header toggles must remain present and functional-looking.
             checks["header_toggles_kept"] = page.evaluate(

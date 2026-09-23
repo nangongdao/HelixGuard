@@ -48,15 +48,15 @@ export function loadDesktopInfo(els) {
 }
 
 /**
- * Read the knowledge view filter inputs.
+ * Read the policy view filter inputs.
  * @param {Object} els - element refs from app.js
  * @returns {{status:string, language:string, query:string}}
  */
 export function knowledgeFilters(els) {
   return {
-    status: els.knowledgeStatusFilter?.value || "all",
-    language: els.knowledgeLanguageFilter?.value || "",
-    query: els.knowledgeSearch?.value || "",
+    status: els.policyStatusFilter?.value || "all",
+    language: els.policyLanguageFilter?.value || "",
+    query: els.policySearch?.value || "",
   };
 }
 

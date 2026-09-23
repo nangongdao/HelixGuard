@@ -5,7 +5,7 @@
  * (§17.1): setNavActive toggles the is-active rail state, showAppView shows/
  * hides the top-level view mount points (and loads the D1 settings readout),
  * switchAppView routes a nav selection onto its view with the quality/admin/
- * knowledge loaders, currentAppView reads the active rail item.
+ * policy loaders, currentAppView reads the active rail item.
  *
  * js/nav.js remains the pure view registry (NAV_VIEWS/isNavView/...); this
  * module owns the DOM side and arrives its loaders through configure because
@@ -29,7 +29,7 @@ function showAppView(name) {
   const views = {
     workspace: ctx.els.workspaceView,
     quality: ctx.els.qualityView,
-    knowledge: ctx.els.knowledgeView,
+    policy: ctx.els.policyView,
     admin: ctx.els.adminView,
   };
   for (const [key, element] of Object.entries(views)) {
@@ -63,7 +63,7 @@ function switchAppView(view) {
   if (view === "admin") {
     void ctx.loadAdminView();
   }
-  if (view === "knowledge") {
+  if (view === "policy") {
     void ctx.loadKnowledgeView();
   }
 }

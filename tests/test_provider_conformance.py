@@ -111,7 +111,7 @@ class ProviderConformanceTests(unittest.TestCase):
             "message_id": event.external_message_id,
             "thread_id": event.thread_id,
             "customer_id": event.customer_id,
-            "customer_name": event.customer_name,
+            "customer_name": event.submitter_name,
             "content": event.content,
         }
         body = json.dumps(core_payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
@@ -126,8 +126,8 @@ class ProviderConformanceTests(unittest.TestCase):
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         return self.adapter.parse(body)
 
-    def _customer_messages(self, conversation_id: str) -> list[dict[str, Any]]:
-        rows = self.services.database.list_messages("demo", conversation_id)
+    def _submitter_messages(self, review_case_id: str) -> list[dict[str, Any]]:
+        rows = self.services.database.list_messages("demo", review_case_id)
         return [row for row in rows if row["role"] == "customer"]
 
     def _drain(self) -> None:
@@ -168,12 +168,12 @@ class ProviderConformanceTests(unittest.TestCase):
         self.assertEqual(second.json()["job_id"], first.json()["job_id"])
 
         self._drain()
-        conversation_id = first.json()["conversation_id"]
-        self.assertEqual(len(self._customer_messages(conversation_id)), 1)
+        review_case_id = first.json()["conversation_id"]
+        self.assertEqual(len(self._submitter_messages(review_case_id)), 1)
         with self.services.database.connect() as connection:
             jobs = connection.execute(
-                "SELECT COUNT(*) AS n FROM turn_jobs WHERE conversation_id = ?",
-                (conversation_id,),
+                "SELECT COUNT(*) AS n FROM turn_jobs WHERE review_case_id = ?",
+                (review_case_id,),
             ).fetchone()
         self.assertEqual(jobs["n"], 1)
 
@@ -184,10 +184,10 @@ class ProviderConformanceTests(unittest.TestCase):
         early = self._deliver(_event(seq=1))
         self.assertEqual(late.status_code, 202)
         self.assertEqual(early.status_code, 202)
-        conversation_id = late.json()["conversation_id"]
-        self.assertEqual(early.json()["conversation_id"], conversation_id)
+        review_case_id = late.json()["conversation_id"]
+        self.assertEqual(early.json()["conversation_id"], review_case_id)
         self._drain()
-        contents = [row["content"] for row in self._customer_messages(conversation_id)]
+        contents = [row["content"] for row in self._submitter_messages(review_case_id)]
         self.assertEqual(sorted(contents), ["conformance message 1", "conformance message 2"])
 
     # ------------------------------------------------------ 编辑 / 撤回
@@ -204,10 +204,10 @@ class ProviderConformanceTests(unittest.TestCase):
         # conflict: history is immutable through the ingress.
         edited = self._deliver(_event(content="edited text"))
         self.assertEqual(edited.status_code, 409)
-        conversation_id = original.json()["conversation_id"]
+        review_case_id = original.json()["conversation_id"]
         self._drain()
         self.assertEqual(
-            self._customer_messages(conversation_id)[0]["content"],
+            self._submitter_messages(review_case_id)[0]["content"],
             "conformance message 1",
             "an edit delivery must never rewrite ingested history",
         )
@@ -240,20 +240,20 @@ class ProviderConformanceTests(unittest.TestCase):
     def test_backpressure_returns_429_with_retry_after_then_recovers(self) -> None:
         # Fill the queue past the configured depth threshold to trip the
         # overload guard deterministically.
-        conversation_id = self.services.database.create_conversation(
+        review_case_id = self.services.database.create_review_case(
             "demo", "Backpressure", "CUST-BP", "web", "admin", 120
         )["id"]
         threshold = self.services.settings.queue_depth_threshold
         with self.services.database.connect() as connection:
             for index in range(threshold + 5):
                 connection.execute(
-                    """INSERT INTO turn_jobs (id, tenant_id, conversation_id, idempotency_key,
+                    """INSERT INTO turn_jobs (id, tenant_id, review_case_id, idempotency_key,
                        actor_id, content, status, attempts, max_attempts, available_at,
                        created_at, updated_at)
                        VALUES (?, 'demo', ?, ?, 'load', 'x', 'queued',
                                0, 3, '2020-01-01T00:00:00+00:00',
                                '2020-01-01T00:00:00+00:00', '2020-01-01T00:00:00+00:00')""",
-                    (f"job_bp_{index}", conversation_id, f"bp-{index}"),
+                    (f"job_bp_{index}", review_case_id, f"bp-{index}"),
                 )
         blocked = self._deliver(_event(seq=10))
         self.assertEqual(blocked.status_code, 429, blocked.text)
@@ -262,9 +262,7 @@ class ProviderConformanceTests(unittest.TestCase):
         # The provider retries after the backlog drains; the retry succeeds
         # exactly once.
         with self.services.database.connect() as connection:
-            connection.execute(
-                "DELETE FROM turn_jobs WHERE conversation_id = ?", (conversation_id,)
-            )
+            connection.execute("DELETE FROM turn_jobs WHERE review_case_id = ?", (review_case_id,))
         retried = self._deliver(_event(seq=10))
         self.assertEqual(retried.status_code, 202, retried.text)
         again = self._deliver(_event(seq=10))
@@ -323,9 +321,9 @@ class ProviderConformanceTests(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 202, response.text)
         # The acme account's conversation must live in acme, not demo.
-        conversation_id = response.json()["conversation_id"]
-        self.assertIsNone(self.services.database.get_conversation("demo", conversation_id))
-        self.assertIsNotNone(self.services.database.get_conversation("acme", conversation_id))
+        review_case_id = response.json()["conversation_id"]
+        self.assertIsNone(self.services.database.get_review_case("demo", review_case_id))
+        self.assertIsNotNone(self.services.database.get_review_case("acme", review_case_id))
         # And the demo account's secret cannot authenticate on the acme path.
         swapped = self._deliver(_event(seq=21), account_id=OTHER_ACCOUNT, secret=SECRET.encode())
         self.assertEqual(swapped.status_code, 401)

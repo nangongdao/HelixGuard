@@ -9,6 +9,7 @@ from typing import Any
 from uuid import uuid4
 
 from app.db._util import (
+    to_wire_row,
     utc_now,
 )
 
@@ -125,7 +126,7 @@ class DatabaseTenancyMixin:
             ).fetchone()
         return int(row["turn_count"]) if row else 0
 
-    def increment_tenant_usage_conversations(self, tenant_id: str, date_str: str) -> int:
+    def increment_tenant_usage_review_cases(self, tenant_id: str, date_str: str) -> int:
         """Increment the per-tenant daily conversation count (Phase 22.4).
 
         Called once per created conversation so ``GET /api/admin/usage`` can
@@ -252,12 +253,12 @@ class DatabaseTenancyMixin:
             ]
             for article_id, title, content, tags, category, url in articles:
                 connection.execute(
-                    """INSERT OR IGNORE INTO knowledge_articles
+                    """INSERT OR IGNORE INTO policy_articles
                     (id, tenant_id, title, content, tags, category, source_url, updated_at)
                     VALUES (?, 'demo', ?, ?, ?, ?, ?, ?)""",
                     (article_id, title, content, tags, category, url, now),
                 )
-            orders = [
+            source_lookups = [
                 (
                     "ORD-10482",
                     "CUST-1001",
@@ -277,15 +278,15 @@ class DatabaseTenancyMixin:
                     "trace-b2e910931",
                 ),
             ]
-            for order in orders:
+            for order in source_lookups:
                 connection.execute(
-                    """INSERT OR IGNORE INTO orders
-                    (id, tenant_id, customer_ref, customer_name, status, amount, eta, tracking_code)
+                    """INSERT OR IGNORE INTO source_lookups
+                    (id, tenant_id, submitter_ref, submitter_name, status, amount, eta, tracking_code)
                     VALUES (?, 'demo', ?, ?, ?, ?, ?, ?)""",
                     order,
                 )
                 connection.execute(
-                    "UPDATE orders SET customer_ref = ? WHERE tenant_id = 'demo' AND id = ?",
+                    "UPDATE source_lookups SET submitter_ref = ? WHERE tenant_id = 'demo' AND id = ?",
                     (order[1], order[0]),
                 )
             macros = [
@@ -313,7 +314,7 @@ class DatabaseTenancyMixin:
             ]
             for macro_id, title, body, shortcut, tags_json in macros:
                 connection.execute(
-                    """INSERT OR IGNORE INTO canned_responses
+                    """INSERT OR IGNORE INTO canned_verdicts
                     (id, tenant_id, title, body, shortcut, tags_json, active, usage_count,
                      created_by, updated_by, created_at, updated_at)
                     VALUES (?, 'demo', ?, ?, ?, ?, 1, 0, 'system', 'system', ?, ?)""",
@@ -441,7 +442,7 @@ class DatabaseTenancyMixin:
         now = utc_now()
         with self.connect() as connection:
             existing = connection.execute(
-                "SELECT COUNT(*) AS n FROM knowledge_articles WHERE tenant_id = ?",
+                "SELECT COUNT(*) AS n FROM policy_articles WHERE tenant_id = ?",
                 (tenant_id,),
             ).fetchone()
             if existing and existing["n"] > 0:
@@ -466,7 +467,7 @@ class DatabaseTenancyMixin:
             ]
             for article_id, title, content, tags, category, source_url in articles:
                 connection.execute(
-                    """INSERT OR IGNORE INTO knowledge_articles
+                    """INSERT OR IGNORE INTO policy_articles
                     (id, tenant_id, title, content, tags, category, source_url,
                      active, version, updated_at, status)
                     VALUES (?, ?, ?, ?, ?, ?, ?, 1, 1, ?, 'published')""",
@@ -558,7 +559,7 @@ class DatabaseTenancyMixin:
 
     def find_active_members_by_actor(self, actor_id: str) -> list[dict[str, Any]]:
         """All active roster rows for an actor across tenants (OIDC single-tenant
-        resolution: exactly one row may match)."""
+        verdict: exactly one row may match)."""
         with self.connect() as connection:
             rows = connection.execute(
                 "SELECT * FROM tenant_members WHERE actor_id = ? AND status = 'active'",
@@ -649,16 +650,16 @@ class DatabaseTenancyMixin:
 
     # ----------------------------------------------------------- CSAT surveys
 
-    def create_csat_survey(self, tenant_id: str, conversation_id: str, expires_at: str) -> str:
+    def create_csat_survey(self, tenant_id: str, review_case_id: str, expires_at: str) -> str:
         """Create a one-time CSAT survey token (backlog item)."""
         token = secrets.token_urlsafe(24)
         now = utc_now()
         with self.connect() as connection:
             connection.execute(
-                """INSERT INTO csat_surveys
-                (token, tenant_id, conversation_id, created_at, expires_at)
+                """INSERT INTO qa_spot_checks
+                (token, tenant_id, review_case_id, created_at, expires_at)
                 VALUES (?, ?, ?, ?, ?)""",
-                (token, tenant_id, conversation_id, now, expires_at),
+                (token, tenant_id, review_case_id, now, expires_at),
             )
         return token
 
@@ -666,30 +667,28 @@ class DatabaseTenancyMixin:
         """Return the survey row, or None when missing/expired/answered."""
         with self.connect() as connection:
             row = connection.execute(
-                "SELECT * FROM csat_surveys WHERE token = ?", (token,)
+                "SELECT * FROM qa_spot_checks WHERE token = ?", (token,)
             ).fetchone()
         if row is None:
             return None
-        item = dict(row)
+        item = to_wire_row(row)
         if item["expires_at"] and item["expires_at"] < utc_now():
             return None
         if item["responded_at"]:
             return None
         return item
 
-    def get_pending_csat_survey(
-        self, tenant_id: str, conversation_id: str
-    ) -> dict[str, Any] | None:
+    def get_pending_csat_survey(self, tenant_id: str, review_case_id: str) -> dict[str, Any] | None:
         """Return the newest unanswered, unexpired survey for a conversation."""
         with self.connect() as connection:
             row = connection.execute(
-                "SELECT * FROM csat_surveys "
-                "WHERE tenant_id = ? AND conversation_id = ? AND responded_at IS NULL "
+                "SELECT * FROM qa_spot_checks "
+                "WHERE tenant_id = ? AND review_case_id = ? AND responded_at IS NULL "
                 "AND (expires_at IS NULL OR expires_at >= ?) "
                 "ORDER BY created_at DESC LIMIT 1",
-                (tenant_id, conversation_id, utc_now()),
+                (tenant_id, review_case_id, utc_now()),
             ).fetchone()
-        return dict(row) if row else None
+        return to_wire_row(row) if row else None
 
     def submit_csat_rating(self, token: str, rating: int) -> dict[str, Any] | None:
         """Record a CSAT rating once, atomically; returns the updated row or None.
@@ -702,7 +701,7 @@ class DatabaseTenancyMixin:
         now = utc_now()
         with self.connect() as connection:
             cursor = connection.execute(
-                "UPDATE csat_surveys SET rating = ?, responded_at = ? "
+                "UPDATE qa_spot_checks SET rating = ?, responded_at = ? "
                 "WHERE token = ? AND responded_at IS NULL "
                 "AND (expires_at IS NULL OR expires_at >= ?)",
                 (rating, now, token, now),
@@ -710,9 +709,9 @@ class DatabaseTenancyMixin:
             if cursor.rowcount == 0:
                 return None
             row = connection.execute(
-                "SELECT * FROM csat_surveys WHERE token = ?", (token,)
+                "SELECT * FROM qa_spot_checks WHERE token = ?", (token,)
             ).fetchone()
-        return dict(row) if row else None
+        return to_wire_row(row) if row else None
 
     def summarize_csat(self, tenant_id: str, days: int) -> dict[str, Any]:
         """Aggregate answered CSAT surveys for the admin summary card.
@@ -728,12 +727,12 @@ class DatabaseTenancyMixin:
             overall = connection.execute(
                 "SELECT COUNT(*) AS total, AVG(rating) AS avg_rating, "
                 "SUM(CASE WHEN rating >= 4 THEN 1 ELSE 0 END) AS positive "
-                "FROM csat_surveys WHERE tenant_id = ? AND rating IS NOT NULL",
+                "FROM qa_spot_checks WHERE tenant_id = ? AND rating IS NOT NULL",
                 (tenant_id,),
             ).fetchone()
             trend_rows = connection.execute(
                 "SELECT substr(responded_at, 1, 10) AS date, COUNT(*) AS count, "
-                "AVG(rating) AS avg_rating FROM csat_surveys "
+                "AVG(rating) AS avg_rating FROM qa_spot_checks "
                 "WHERE tenant_id = ? AND rating IS NOT NULL "
                 "GROUP BY substr(responded_at, 1, 10) ORDER BY date DESC LIMIT ?",
                 (tenant_id, days),
@@ -757,7 +756,7 @@ class DatabaseTenancyMixin:
 
     # ------------------------------------------------------- auto routing (backlog)
 
-    def create_agent_group(
+    def create_reviewer_group(
         self, tenant_id: str, name: str, skills: list[str], capacity: int
     ) -> dict[str, Any]:
         """Create an agent group with skill tags and a concurrency cap."""
@@ -765,33 +764,33 @@ class DatabaseTenancyMixin:
         now = utc_now()
         with self.connect() as connection:
             connection.execute(
-                """INSERT INTO agent_groups
+                """INSERT INTO reviewer_groups
                 (id, tenant_id, name, skills_json, capacity, created_at)
                 VALUES (?, ?, ?, ?, ?, ?)""",
                 (group_id, tenant_id, name, json.dumps(skills), max(1, capacity), now),
             )
             row = connection.execute(
-                "SELECT * FROM agent_groups WHERE id = ?", (group_id,)
+                "SELECT * FROM reviewer_groups WHERE id = ?", (group_id,)
             ).fetchone()
         return _agent_group_row(row)
 
-    def list_agent_groups(self, tenant_id: str) -> list[dict[str, Any]]:
+    def list_reviewer_groups(self, tenant_id: str) -> list[dict[str, Any]]:
         with self.connect() as connection:
             rows = connection.execute(
-                "SELECT * FROM agent_groups WHERE tenant_id = ? ORDER BY name",
+                "SELECT * FROM reviewer_groups WHERE tenant_id = ? ORDER BY name",
                 (tenant_id,),
             ).fetchall()
         return [_agent_group_row(r) for r in rows]
 
-    def delete_agent_group(self, tenant_id: str, group_id: str) -> bool:
+    def delete_reviewer_group(self, tenant_id: str, group_id: str) -> bool:
         with self.connect() as connection:
             cursor = connection.execute(
-                "DELETE FROM agent_groups WHERE id = ? AND tenant_id = ?",
+                "DELETE FROM reviewer_groups WHERE id = ? AND tenant_id = ?",
                 (group_id, tenant_id),
             )
             if cursor.rowcount:
                 connection.execute(
-                    "DELETE FROM agent_group_members WHERE group_id = ?", (group_id,)
+                    "DELETE FROM reviewer_group_members WHERE group_id = ?", (group_id,)
                 )
                 connection.execute("DELETE FROM routing_rules WHERE group_id = ?", (group_id,))
             return cursor.rowcount > 0
@@ -801,19 +800,19 @@ class DatabaseTenancyMixin:
     ) -> dict[str, Any] | None:
         with self.connect() as connection:
             group = connection.execute(
-                "SELECT id FROM agent_groups WHERE id = ? AND tenant_id = ?",
+                "SELECT id FROM reviewer_groups WHERE id = ? AND tenant_id = ?",
                 (group_id, tenant_id),
             ).fetchone()
             if group is None:
                 return None
             connection.execute(
-                """INSERT INTO agent_group_members (group_id, tenant_id, actor_id, added_at)
+                """INSERT INTO reviewer_group_members (group_id, tenant_id, actor_id, added_at)
                 VALUES (?, ?, ?, ?)
                 ON CONFLICT(group_id, actor_id) DO NOTHING""",
                 (group_id, tenant_id, actor_id, utc_now()),
             )
             row = connection.execute(
-                "SELECT * FROM agent_group_members WHERE group_id = ? AND actor_id = ?",
+                "SELECT * FROM reviewer_group_members WHERE group_id = ? AND actor_id = ?",
                 (group_id, actor_id),
             ).fetchone()
         return dict(row) if row else None
@@ -821,7 +820,7 @@ class DatabaseTenancyMixin:
     def list_group_agents(self, tenant_id: str, group_id: str) -> list[dict[str, Any]]:
         with self.connect() as connection:
             rows = connection.execute(
-                "SELECT * FROM agent_group_members WHERE group_id = ? AND tenant_id = ? "
+                "SELECT * FROM reviewer_group_members WHERE group_id = ? AND tenant_id = ? "
                 "ORDER BY actor_id",
                 (group_id, tenant_id),
             ).fetchall()
@@ -830,7 +829,7 @@ class DatabaseTenancyMixin:
     def remove_group_agent(self, tenant_id: str, group_id: str, actor_id: str) -> bool:
         with self.connect() as connection:
             cursor = connection.execute(
-                "DELETE FROM agent_group_members WHERE group_id = ? AND tenant_id = ? "
+                "DELETE FROM reviewer_group_members WHERE group_id = ? AND tenant_id = ? "
                 "AND actor_id = ?",
                 (group_id, tenant_id, actor_id),
             )
@@ -840,32 +839,32 @@ class DatabaseTenancyMixin:
         self,
         tenant_id: str,
         *,
-        intent: str | None,
+        risk_category: str | None,
         label: str | None,
         channel: str | None,
         group_id: str,
         priority: int,
     ) -> dict[str, Any]:
-        """Create a routing rule (match intent/label/channel -> group)."""
+        """Create a routing rule (match risk_category/label/channel -> group)."""
         rule_id = f"rule_{uuid4().hex[:12]}"
         now = utc_now()
         with self.connect() as connection:
             group = connection.execute(
-                "SELECT id FROM agent_groups WHERE id = ? AND tenant_id = ?",
+                "SELECT id FROM reviewer_groups WHERE id = ? AND tenant_id = ?",
                 (group_id, tenant_id),
             ).fetchone()
             if group is None:
                 raise LookupError("Agent group not found")
             connection.execute(
                 """INSERT INTO routing_rules
-                (id, tenant_id, intent, label, channel, group_id, priority, created_at)
+                (id, tenant_id, risk_category, label, channel, group_id, priority, created_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-                (rule_id, tenant_id, intent, label, channel, group_id, priority, now),
+                (rule_id, tenant_id, risk_category, label, channel, group_id, priority, now),
             )
             row = connection.execute(
                 "SELECT * FROM routing_rules WHERE id = ?", (rule_id,)
             ).fetchone()
-        return dict(row)
+        return to_wire_row(row)
 
     def list_routing_rules(self, tenant_id: str) -> list[dict[str, Any]]:
         with self.connect() as connection:
@@ -873,7 +872,7 @@ class DatabaseTenancyMixin:
                 "SELECT * FROM routing_rules WHERE tenant_id = ? ORDER BY priority DESC, id",
                 (tenant_id,),
             ).fetchall()
-        return [dict(r) for r in rows]
+        return [to_wire_row(r) for r in rows]
 
     def delete_routing_rule(self, tenant_id: str, rule_id: str) -> bool:
         with self.connect() as connection:
@@ -884,12 +883,12 @@ class DatabaseTenancyMixin:
             return cursor.rowcount > 0
 
     def find_routing_group(
-        self, tenant_id: str, *, intent: str | None, label: str | None, channel: str | None
+        self, tenant_id: str, *, risk_category: str | None, label: str | None, channel: str | None
     ) -> str | None:
         """Return the best-matching group id for a conversation (highest priority)."""
         rows = self.list_routing_rules(tenant_id)
         for rule in rows:
-            if rule["intent"] and rule["intent"] != intent:
+            if rule["intent"] and rule["intent"] != risk_category:
                 continue
             if rule["label"] and rule["label"] != label:
                 continue
@@ -905,16 +904,16 @@ class DatabaseTenancyMixin:
             return None
         with self.connect() as connection:
             group = connection.execute(
-                "SELECT capacity FROM agent_groups WHERE id = ? AND tenant_id = ?",
+                "SELECT capacity FROM reviewer_groups WHERE id = ? AND tenant_id = ?",
                 (group_id, tenant_id),
             ).fetchone()
             capacity = int(group["capacity"]) if group else 1
-            # Count currently-assigned conversations per member.
+            # Count currently-assigned review_cases per member.
             counts: dict[str, int] = {}
             for member in members:
                 row = connection.execute(
-                    "SELECT COUNT(*) AS n FROM conversations "
-                    "WHERE tenant_id = ? AND assigned_agent = ? "
+                    "SELECT COUNT(*) AS n FROM review_cases "
+                    "WHERE tenant_id = ? AND assigned_reviewer = ? "
                     "AND status IN ('open', 'waiting_human', 'human_active')",
                     (tenant_id, member["actor_id"]),
                 ).fetchone()
@@ -1044,7 +1043,7 @@ class DatabaseTenancyMixin:
 
 
 def _agent_group_row(row: Any) -> dict[str, Any]:
-    """Parse an agent_groups row, expanding skills_json."""
+    """Parse an reviewer_groups row, expanding skills_json."""
     item = dict(row)
     try:
         item["skills"] = json.loads(item.pop("skills_json") or "[]")

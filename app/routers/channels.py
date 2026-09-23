@@ -13,7 +13,7 @@ from app.channel_webhooks import (
     content_sha256,
 )
 from app.context import bind_tenant_scope
-from app.domain import ConversationStatus
+from app.domain import ReviewCaseStatus
 from app.intake import backpressure_reason
 from app.main import AppServices, _conversation_quota_exceeded
 from app.orchestrator import IdempotencyConflictError, InvalidTransitionError
@@ -79,25 +79,25 @@ def _validate_customer(conversation: dict[str, Any], customer_id: str) -> None:
 def _replay_response(
     services: AppServices,
     tenant_id: str,
-    conversation_id: str,
+    review_case_id: str,
     message_id: str,
     content: str,
     idempotency_key: str,
 ) -> ChannelWebhookAccepted | None:
     database = services.database
-    existing_message = database.get_message_by_channel_id(tenant_id, conversation_id, message_id)
+    existing_message = database.get_message_by_channel_id(tenant_id, review_case_id, message_id)
     if existing_message is not None and existing_message["content"] != content:
         raise IdempotencyConflictError(
             "Channel message id was already used with a different message"
         )
-    job = database.get_turn_job_by_idempotency(tenant_id, conversation_id, idempotency_key)
+    job = database.get_turn_job_by_idempotency(tenant_id, review_case_id, idempotency_key)
     if job is not None:
         if job["content"] != content or job.get("channel_message_id") != message_id:
             raise IdempotencyConflictError(
                 "Channel message id was already used with a different message"
             )
         return ChannelWebhookAccepted(
-            conversation_id=conversation_id,
+            conversation_id=review_case_id,
             job_id=job["id"],
             status=job["status"],
             idempotent_replay=True,
@@ -105,7 +105,7 @@ def _replay_response(
         )
     if existing_message is not None:
         return ChannelWebhookAccepted(
-            conversation_id=conversation_id,
+            conversation_id=review_case_id,
             status="completed",
             idempotent_replay=True,
             conversation_created=False,
@@ -143,7 +143,7 @@ async def receive_channel_message(
     created = False
     if receipt is not None:
         _validate_receipt(receipt, payload, body_hash)
-        conversation = database.get_conversation(tenant_id, receipt["conversation_id"])
+        conversation = database.get_review_case(tenant_id, receipt["conversation_id"])
         if conversation is None:
             raise RuntimeError("Channel receipt references a missing conversation")
         _validate_customer(conversation, payload.customer_id)
@@ -164,7 +164,7 @@ async def receive_channel_message(
         conversation = database.get_channel_conversation(
             tenant_id, account.account_id, payload.thread_id
         )
-        if conversation is None or conversation["status"] == ConversationStatus.RESOLVED:
+        if conversation is None or conversation["status"] == ReviewCaseStatus.RESOLVED:
             quota_error = _conversation_quota_exceeded(database, tenant_id)
             if quota_error:
                 raise HTTPException(
@@ -222,12 +222,12 @@ async def receive_channel_message(
                 response.headers["Location"] = f"/api/turn-jobs/{replay.job_id}"
             return replay
 
-    if conversation["status"] == ConversationStatus.RESOLVED:
+    if conversation["status"] == ReviewCaseStatus.RESOLVED:
         try:
             conversation = orchestrator.reopen(tenant_id, conversation["id"], actor)
         except InvalidTransitionError:
-            refreshed = database.get_conversation(tenant_id, conversation["id"])
-            if refreshed is None or refreshed["status"] == ConversationStatus.RESOLVED:
+            refreshed = database.get_review_case(tenant_id, conversation["id"])
+            if refreshed is None or refreshed["status"] == ReviewCaseStatus.RESOLVED:
                 raise
             conversation = refreshed
 

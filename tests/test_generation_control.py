@@ -90,7 +90,7 @@ class StreamCancellationTests(unittest.TestCase):
             stream_enabled=True,
             stream_pacing_ms=0,
         )
-        conv = self.database.create_conversation("demo", "Customer", None, "web", "admin", 120)
+        conv = self.database.create_review_case("demo", "Customer", None, "web", "admin", 120)
         self.conv_id = conv["id"]
 
     def tearDown(self) -> None:

@@ -9,7 +9,7 @@ kill 主实例(脚本只负责观察与断言;kill 动作由操作者在另一�
   停留在孤儿状态(状态机停留在非终态且已超出租约恢复窗);
 - **零失败/零重复**:failed == 0;`(job_id, seq)` 在 turn_job_chunks 无重复
   (同一 turn 未被重放产出两份 chunk;语义守卫,DB 幂等本应阻止);
-- **幂等唯一**:每 (tenant_id, conversation_id, idempotency_key) 仅一行;
+- **幂等唯一**:每 (tenant_id, review_case_id, idempotency_key) 仅一行;
 - **审计链连续**:全链 `verify_chain` 无断裂(含滚动重启窗口写入的行)。
 
 判定:全部通过 exit 0,否则 exit 1。租约恢复时间由 `TURN_JOB_LEASE_SECONDS`
@@ -68,7 +68,7 @@ def _enqueue_loop(
     write_seconds: float,
     client: httpx.Client,
 ) -> None:
-    """Create conversations and enqueue turn jobs, failing over when primary drops."""
+    """Create review_cases and enqueue turn jobs, failing over when primary drops."""
     deadline = time.monotonic() + write_seconds
     current = base_url
     issue = 0
@@ -170,17 +170,17 @@ def _pg_verify(dsn: str, run_prefix: str, after_iso: str) -> dict[str, Any]:
             )
 
     cur.execute(
-        "SELECT tenant_id, conversation_id, idempotency_key, count(*) AS n "
+        "SELECT tenant_id, review_case_id, idempotency_key, count(*) AS n "
         "FROM turn_jobs "
         "WHERE idempotency_key LIKE %s AND created_at >= %s "
-        "GROUP BY tenant_id, conversation_id, idempotency_key HAVING count(*) > 1",
+        "GROUP BY tenant_id, review_case_id, idempotency_key HAVING count(*) > 1",
         (f"{run_prefix}-%", after_iso),
     )
     dup_keys = cur.fetchall()
 
     # Verify the full audit hash chain — the rollover must not break it.
     cur.execute(
-        "SELECT id, tenant_id, conversation_id, request_id, actor, event_type, "
+        "SELECT id, tenant_id, review_case_id, request_id, actor, event_type, "
         "payload_json, created_at, prev_hash, event_hash "
         "FROM audit_events ORDER BY seq ASC"
     )

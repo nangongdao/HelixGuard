@@ -38,7 +38,7 @@ export function OverviewSection({ conversation, assistant, canOperate, onPriorit
           <div className="detail-row"><dt>认领</dt><dd>{conversation.claim_active ? `${escapeHtml(conversation.claimed_by)} · 至 ${formatTime(conversation.claim_expires_at)}` : "未认领"}</dd></div>
         </dl>
         {canOperate ? (
-          <form id="conversationLabelsForm" className="label-editor" onSubmit={handleLabelsSubmit}>
+          <form id="reviewCaseLabelsForm" className="label-editor" onSubmit={handleLabelsSubmit}>
             <label className="label-editor-field">
               <svg className="icon"><use href="/static/icons.svg?v=1.4.0#tag" /></svg>
               <span className="sr-only">审核单标签</span>

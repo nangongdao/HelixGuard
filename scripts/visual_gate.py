@@ -2,7 +2,7 @@
 
 Screenshot-diff against committed baselines — but only for the surfaces that
 are actually stable: the operator workspace on first load, dark/light theme
-tokens, the knowledge view, and the mobile queue drawer. Transient regions
+tokens, the policy view, and the mobile queue drawer. Transient regions
 (timestamps, dynamic conversation data) are masked before comparison so a
 baseline survives normal data churn.
 
@@ -76,9 +76,9 @@ def mask_dynamic(page: Page) -> None:
           stamp('.item-sla');
           stamp('#liveStatus');
           stamp('#queueCount');
-          stamp('#operatorIdentity');
+          stamp('#reviewerIdentity');
           stamp('.metric strong');
-          stamp('.knowledge-article-meta time');
+          stamp('.policy-article-meta time');
         }"""
     )
 
@@ -160,7 +160,7 @@ def widget_url() -> str:
     token = sign_token(
         secret=WIDGET_SECRET,
         tenant_id="demo",
-        customer_ref=f"VIS-{uuid4().hex[:8]}",
+        submitter_ref=f"VIS-{uuid4().hex[:8]}",
         ttl_seconds=1800,
     )
     return f"{BASE_URL}/widget?brand=Northstar+Care&accent=teal&locale=zh#token={token}"
@@ -170,8 +170,8 @@ def wait_for_operator(page: Page) -> None:
     from playwright.sync_api import expect
 
     page.goto(BASE_URL, wait_until="domcontentloaded")
-    expect(page.locator("#operatorIdentity")).to_contain_text("demo.admin")
-    expect(page.locator("#conversationList")).to_have_attribute("aria-busy", "false")
+    expect(page.locator("#reviewerIdentity")).to_contain_text("demo.admin")
+    expect(page.locator("#reviewCaseList")).to_have_attribute("aria-busy", "false")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -211,8 +211,8 @@ def main(argv: list[str] | None = None) -> int:
         page.evaluate("() => window.HelixModules.applyTheme('dark')")
         page.wait_for_timeout(300)
 
-        page.locator('.nav-item[data-view="knowledge"]').click()
-        page.wait_for_selector("#knowledgeList[aria-busy='false']", timeout=15000)
+        page.locator('.nav-item[data-view="policy"]').click()
+        page.wait_for_selector("#policyList[aria-busy='false']", timeout=15000)
         results.append(compare("knowledge-view", capture(page, "knowledge-view"), update))
 
         mobile = context.new_page()

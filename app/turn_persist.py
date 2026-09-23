@@ -23,7 +23,7 @@ from app.database import utc_now
 from app.domain import (
     PENDING_TASK_ORDER_CLARIFICATION,
     AgentName,
-    ConversationStatus,
+    ReviewCaseStatus,
     QualityAssessment,
     RiskAssessment,
     TaskOutcome,
@@ -44,7 +44,7 @@ class TurnPersistInputs:
     """Everything the persist stage needs for one resolved specialist result."""
 
     tenant_id: str
-    conversation: dict[str, Any]
+    review_case: dict[str, Any]
     customer_message: dict[str, Any]
     decision: TriageDecision
     result: AgentResult
@@ -71,7 +71,7 @@ class TurnPersistOutcome:
     """
 
     state_updated: bool
-    next_status: ConversationStatus
+    next_status: ReviewCaseStatus
     priority: str
     sla_minutes: int
     metadata: dict[str, Any]
@@ -115,47 +115,47 @@ class TurnPersistStage:
         """Persist the turn outcome; returns the final response parts."""
         started = monotonic()
         tenant_id = inputs.tenant_id
-        conversation_id = inputs.conversation["id"]
+        review_case_id = inputs.review_case["id"]
         result = inputs.result
         decision = inputs.decision
         prompt_version = inputs.prompt_version
         turn_started = inputs.turn_started_monotonic
 
         next_status = (
-            ConversationStatus.WAITING_HUMAN if result.requires_human else ConversationStatus.OPEN
+            ReviewCaseStatus.WAITING_HUMAN if result.requires_human else ReviewCaseStatus.OPEN
         )
         priority = "high" if result.requires_human or decision.urgency == "high" else "normal"
         sla_minutes = self.services.database.resolve_sla_policy(
             tenant_id,
             priority,
-            inputs.conversation.get("channel") or "web",
+            inputs.review_case.get("channel") or "web",
             self.services.settings.high_sla_minutes
-            if next_status == ConversationStatus.WAITING_HUMAN
+            if next_status == ReviewCaseStatus.WAITING_HUMAN
             else self.services.settings.normal_sla_minutes,
         )
         state_updated = self.services.database.set_routing(
             tenant_id,
-            conversation_id,
+            review_case_id,
             next_status,
-            decision.intent,
+            decision.risk_category,
             str(result.agent),
             priority,
             result.handoff_reason,
             result.confidence,
             sla_minutes,
         )
-        if state_updated and next_status == ConversationStatus.OPEN:
+        if state_updated and next_status == ReviewCaseStatus.OPEN:
             self._maybe_auto_assign(
                 tenant_id,
-                conversation_id,
-                inputs.conversation,
-                intent=decision.intent,
-                channel=inputs.conversation.get("channel"),
+                review_case_id,
+                inputs.review_case,
+                risk_category=decision.risk_category,
+                channel=inputs.review_case.get("channel"),
             )
         if not state_updated:
             self.services.database.audit(
                 tenant_id,
-                conversation_id,
+                review_case_id,
                 "orchestrator",
                 "automation.suppressed",
                 {"reason": "conversation_state_changed_during_agent_run"},
@@ -171,16 +171,16 @@ class TurnPersistStage:
                 elapsed=max(0.0, (monotonic() - started) * 1000),
             )
 
-        if next_status == ConversationStatus.WAITING_HUMAN:
+        if next_status == ReviewCaseStatus.WAITING_HUMAN:
             self._emit_webhook(
                 tenant_id,
                 EVENT_CONVERSATION_ESCALATED,
                 {
-                    "conversation_id": conversation_id,
-                    "customer_name": inputs.conversation["customer_name"],
+                    "conversation_id": review_case_id,
+                    "customer_name": inputs.review_case["customer_name"],
                     "reason": result.handoff_reason,
                     "agent": str(result.agent),
-                    "intent": decision.intent,
+                    "intent": decision.risk_category,
                     "priority": priority,
                 },
             )
@@ -196,11 +196,11 @@ class TurnPersistStage:
         pending_meta: dict[str, Any] = {}
         if result.task_outcome is not None:
             pending_meta["task_outcome"] = result.task_outcome
-        if next_status == ConversationStatus.WAITING_HUMAN:
-            if self.services.database.clear_pending_task(tenant_id, conversation_id):
+        if next_status == ReviewCaseStatus.WAITING_HUMAN:
+            if self.services.database.clear_pending_task(tenant_id, review_case_id):
                 self.services.database.audit(
                     tenant_id,
-                    conversation_id,
+                    review_case_id,
                     "orchestrator",
                     "order.pending_cleared",
                     {"reason": "handoff"},
@@ -208,10 +208,10 @@ class TurnPersistStage:
         elif result.agent == AgentName.ORDER and result.task_outcome == TaskOutcome.CLARIFICATION:
             pending = self.services.database.bump_pending_task(
                 tenant_id,
-                conversation_id,
+                review_case_id,
                 kind=PENDING_TASK_ORDER_CLARIFICATION,
-                slot=result.clarify_slot or "order_id",
-                intent=decision.intent,
+                slot=result.clarify_slot or "source_record_id",
+                risk_category=decision.risk_category,
                 ttl_minutes=self.services.settings.pending_clarification_ttl_minutes,
             )
             pending_meta.update(
@@ -223,30 +223,30 @@ class TurnPersistStage:
             )
             self.services.database.audit(
                 tenant_id,
-                conversation_id,
+                review_case_id,
                 result.agent,
                 "order.clarification_requested",
                 {
                     "slot": result.clarify_slot,
                     "rounds": pending.get("rounds"),
                     "expires_at": pending.get("expires_at"),
-                    "intent": decision.intent,
+                    "intent": decision.risk_category,
                 },
             )
         elif result.agent == AgentName.ORDER and result.task_outcome == TaskOutcome.ANSWER:
-            if self.services.database.clear_pending_task(tenant_id, conversation_id):
+            if self.services.database.clear_pending_task(tenant_id, review_case_id):
                 self.services.database.audit(
                     tenant_id,
-                    conversation_id,
+                    review_case_id,
                     "orchestrator",
                     "order.pending_cleared",
                     {"reason": "answered"},
                 )
         elif result.agent != AgentName.ORDER:
-            if self.services.database.clear_pending_task(tenant_id, conversation_id):
+            if self.services.database.clear_pending_task(tenant_id, review_case_id):
                 self.services.database.audit(
                     tenant_id,
-                    conversation_id,
+                    review_case_id,
                     "orchestrator",
                     "order.pending_cleared",
                     {"reason": "topic_switch"},
@@ -255,7 +255,7 @@ class TurnPersistStage:
         metadata = {
             "agent": result.agent,
             "confidence": result.confidence,
-            "intent": decision.intent,
+            "intent": decision.risk_category,
             "route_mode": decision.mode,
             "risk_categories": [
                 *inputs.policy_categories,
@@ -309,7 +309,7 @@ class TurnPersistStage:
                     audit_payload["rejected_categories"] = rejected_categories
                 self.services.database.audit(
                     tenant_id,
-                    conversation_id,
+                    review_case_id,
                     result.agent,
                     "reply.translated",
                     audit_payload,
@@ -338,7 +338,7 @@ class TurnPersistStage:
         self.services.database.increment_tenant_usage(tenant_id, utc_now()[:10])
         assistant_message = self.services.database.add_message(
             tenant_id,
-            conversation_id,
+            review_case_id,
             "assistant",
             str(result.agent),
             assistant_content,
@@ -347,7 +347,7 @@ class TurnPersistStage:
         )
         self.services.database.audit(
             tenant_id,
-            conversation_id,
+            review_case_id,
             result.agent,
             "agent.responded",
             {
@@ -389,21 +389,21 @@ class TurnPersistStage:
     def _maybe_auto_assign(
         self,
         tenant_id: str,
-        conversation_id: str,
-        conversation: dict[str, Any],
+        review_case_id: str,
+        review_case: dict[str, Any],
         *,
-        intent: str | None,
+        risk_category: str | None,
         channel: str | None,
     ) -> None:
-        if conversation.get("assigned_agent"):
+        if review_case.get("assigned_agent"):
             return
         label = None
-        labels = conversation.get("labels") or []
+        labels = review_case.get("labels") or []
         if isinstance(labels, list) and labels:
             label = str(labels[0])
         try:
             group_id = self.services.database.find_routing_group(
-                tenant_id, intent=intent, label=label, channel=channel
+                tenant_id, risk_category=risk_category, label=label, channel=channel
             )
         except Exception:
             logger.exception("auto-routing lookup failed")
@@ -418,29 +418,29 @@ class TurnPersistStage:
         if agent is None:
             self.services.database.audit(
                 tenant_id,
-                conversation_id,
+                review_case_id,
                 "orchestrator",
                 "routing.group_full",
-                {"group_id": group_id, "intent": intent, "channel": channel},
+                {"group_id": group_id, "intent": risk_category, "channel": channel},
             )
             return
         try:
-            self.services.database.transition_conversation(
+            self.services.database.transition_review_case(
                 tenant_id,
-                conversation_id,
-                [ConversationStatus.OPEN, ConversationStatus.WAITING_HUMAN],
-                ConversationStatus.OPEN,
-                assigned_agent=agent,
+                review_case_id,
+                [ReviewCaseStatus.OPEN, ReviewCaseStatus.WAITING_HUMAN],
+                ReviewCaseStatus.OPEN,
+                assigned_reviewer=agent,
             )
         except Exception:
             logger.exception("auto-routing assign failed")
             return
         self.services.database.audit(
             tenant_id,
-            conversation_id,
+            review_case_id,
             "orchestrator",
             "routing.assigned",
-            {"group_id": group_id, "assigned_agent": agent, "intent": intent},
+            {"group_id": group_id, "assigned_agent": agent, "intent": risk_category},
         )
 
     def _record_quality_turn(
@@ -469,7 +469,7 @@ class TurnPersistStage:
         tokens = estimate_tokens(customer_content) + estimate_tokens(assistant_content)
         self.services.quality_service.record_turn(
             tenant_id,
-            intent=decision.intent,
+            risk_category=decision.risk_category,
             prompt_version=prompt_version_label,
             escalated=result.requires_human,
             latency_ms=latency_ms,

@@ -1,6 +1,6 @@
 """Helix Guard API client (Phase 25.4; v2 support Phase 43.3).
 
-A thin, typed client over the Helix HTTP API covering conversations,
+A thin, typed client over the Helix HTTP API covering review_cases,
 messages, turn jobs (including SSE streaming), feedback, knowledge, and
 webhook signature verification. Depends only on ``httpx``.
 
@@ -9,7 +9,7 @@ Usage::
     from helix_client import HelixClient
 
     client = HelixClient(base_url="https://support.example.com", api_key="...")
-    conv = client.create_conversation(customer_name="Ada")
+    conv = client.create_review_case(submitter_name="Ada")
     turn = client.send_message(conv["id"], "帮我查一下来源记录", idempotency_key="k-1")
 
 API v2 (Phase 43.3): ``*_v2`` methods speak the cursor-envelope contract —
@@ -18,10 +18,10 @@ every response carries ``X-API-Version``, and writes honour an
 ``Idempotency-Key`` whose replay returns the original resource flagged by
 ``X-Idempotent-Replay: true``::
 
-    page = client.list_conversations_v2(limit=50)
-    for conv in client.iter_conversations_v2(limit=50):  # auto-paginates
+    page = client.list_review_cases_v2(limit=50)
+    for conv in client.iter_review_cases_v2(limit=50):  # auto-paginates
         ...
-    replay = client.create_conversation_v2("Ada", idempotency_key="k-2")
+    replay = client.create_review_case_v2("Ada", idempotency_key="k-2")
 
 Error handling: HTTP errors raise :class:`HelixError` (or a subclass) whose
 ``code``/``status`` mirror the RFC 9457 Problem Details body the server
@@ -52,7 +52,7 @@ __all__ = [
     "verify_webhook_signature",
 ]
 
-# Safety bound for iter_conversations_v2: a server that never clears
+# Safety bound for iter_review_cases_v2: a server that never clears
 # next_cursor must not loop forever inside the SDK.
 _MAX_V2_PAGES = 10_000
 
@@ -230,30 +230,30 @@ class HelixClient:
                 return response.json(), response
             attempts += 1
 
-    # ------------------------------------------------------------ conversations
+    # ------------------------------------------------------------ review_cases
 
-    def list_conversations(self, **params: Any) -> list[dict[str, Any]]:
-        """List conversations; pass queue filters as keyword args."""
+    def list_review_cases(self, **params: Any) -> list[dict[str, Any]]:
+        """List review_cases; pass queue filters as keyword args."""
         return self._request("GET", "/api/review-cases", params=params)
 
-    def create_conversation(
+    def create_review_case(
         self,
-        customer_name: str,
+        submitter_name: str,
         *,
-        customer_ref: str | None = None,
+        submitter_ref: str | None = None,
         channel: str = "web",
     ) -> dict[str, Any]:
-        body: dict[str, Any] = {"customer_name": customer_name, "channel": channel}
-        if customer_ref:
-            body["customer_ref"] = customer_ref
+        body: dict[str, Any] = {"customer_name": submitter_name, "channel": channel}
+        if submitter_ref:
+            body["customer_ref"] = submitter_ref
         return self._request("POST", "/api/review-cases", json_body=body)
 
-    def get_conversation(self, conversation_id: str) -> dict[str, Any]:
-        return self._request("GET", f"/api/review-cases/{conversation_id}")
+    def get_review_case(self, review_case_id: str) -> dict[str, Any]:
+        return self._request("GET", f"/api/review-cases/{review_case_id}")
 
     def send_message(
         self,
-        conversation_id: str,
+        review_case_id: str,
         content: str,
         *,
         idempotency_key: str | None = None,
@@ -261,14 +261,14 @@ class HelixClient:
         """Send a customer turn; returns the assistant reply."""
         return self._request(
             "POST",
-            f"/api/review-cases/{conversation_id}/messages",
+            f"/api/review-cases/{review_case_id}/messages",
             json_body={"content": content},
             idempotency_key=idempotency_key,
         )
 
-    # ------------------------------------------------- conversations v2 (43.3)
+    # ------------------------------------------------- review_cases v2 (43.3)
 
-    def list_conversations_v2(
+    def list_review_cases_v2(
         self,
         *,
         cursor: str | None = None,
@@ -280,7 +280,7 @@ class HelixClient:
 
         Returns a :class:`ConversationPage` whose ``next_cursor`` feeds the
         next call; core fields of each item match v1 exactly (shadow-read
-        contract). Prefer :meth:`iter_conversations_v2` for full scans.
+        contract). Prefer :meth:`iter_review_cases_v2` for full scans.
         """
         params: dict[str, Any] = {"limit": limit, "sort": sort}
         if cursor:
@@ -294,7 +294,7 @@ class HelixClient:
             api_version=response.headers.get("X-API-Version"),
         )
 
-    def iter_conversations_v2(
+    def iter_review_cases_v2(
         self,
         *,
         limit: int = 50,
@@ -308,7 +308,7 @@ class HelixClient:
         cursor: str | None = None
         seen_pages = 0
         while True:
-            page = self.list_conversations_v2(cursor=cursor, limit=limit, sort=sort, status=status)
+            page = self.list_review_cases_v2(cursor=cursor, limit=limit, sort=sort, status=status)
             yield from page.data
             if not page.next_cursor:
                 return
@@ -322,13 +322,13 @@ class HelixClient:
                     body={},
                 )
 
-    def get_conversation_v2(self, conversation_id: str) -> dict[str, Any]:
+    def get_review_case_v2(self, review_case_id: str) -> dict[str, Any]:
         """Fetch one conversation under the v2 contract (shadow-read fields)."""
-        return self._request("GET", f"/api/v2/review-cases/{conversation_id}")
+        return self._request("GET", f"/api/v2/review-cases/{review_case_id}")
 
     def list_messages_v2(
         self,
-        conversation_id: str,
+        review_case_id: str,
         *,
         cursor: str | None = None,
         limit: int = 100,
@@ -338,7 +338,7 @@ class HelixClient:
         if cursor:
             params["cursor"] = cursor
         body, response = self._request_raw(
-            "GET", f"/api/v2/review-cases/{conversation_id}/messages", params=params
+            "GET", f"/api/v2/review-cases/{review_case_id}/messages", params=params
         )
         return ConversationPage(
             data=list(body.get("data") or []),
@@ -346,11 +346,11 @@ class HelixClient:
             api_version=response.headers.get("X-API-Version"),
         )
 
-    def create_conversation_v2(
+    def create_review_case_v2(
         self,
-        customer_name: str,
+        submitter_name: str,
         *,
-        customer_ref: str | None = None,
+        submitter_ref: str | None = None,
         channel: str = "web",
         idempotency_key: str | None = None,
     ) -> dict[str, Any]:
@@ -363,9 +363,9 @@ class HelixClient:
         domain event commits in the same transaction as the business row
         (transactional outbox).
         """
-        body: dict[str, Any] = {"customer_name": customer_name, "channel": channel}
-        if customer_ref:
-            body["customer_ref"] = customer_ref
+        body: dict[str, Any] = {"customer_name": submitter_name, "channel": channel}
+        if submitter_ref:
+            body["customer_ref"] = submitter_ref
         result, response = self._request_raw(
             "POST",
             "/api/v2/review-cases",
@@ -381,14 +381,14 @@ class HelixClient:
 
     def create_turn_job(
         self,
-        conversation_id: str,
+        review_case_id: str,
         content: str,
         *,
         idempotency_key: str | None = None,
     ) -> dict[str, Any]:
         return self._request(
             "POST",
-            f"/api/review-cases/{conversation_id}/turn-jobs",
+            f"/api/review-cases/{review_case_id}/turn-jobs",
             json_body={"content": content},
             idempotency_key=idempotency_key,
         )
@@ -419,7 +419,7 @@ class HelixClient:
 
     def submit_feedback(
         self,
-        conversation_id: str,
+        review_case_id: str,
         message_id: str,
         rating: int,
         *,
@@ -428,13 +428,11 @@ class HelixClient:
         body: dict[str, Any] = {"message_id": message_id, "rating": rating}
         if reason:
             body["reason"] = reason
-        return self._request(
-            "POST", f"/api/review-cases/{conversation_id}/feedback", json_body=body
-        )
+        return self._request("POST", f"/api/review-cases/{review_case_id}/feedback", json_body=body)
 
     # --------------------------------------------------------------- knowledge
 
-    def list_knowledge(self) -> list[dict[str, Any]]:
+    def list_policy_articles(self) -> list[dict[str, Any]]:
         return self._request("GET", "/api/policy")
 
     def create_knowledge_draft(
@@ -546,7 +544,7 @@ class HelixClient:
         self,
         *,
         widget_token: str,
-        customer_name: str | None = None,
+        submitter_name: str | None = None,
         channel: str = "web_chat",
     ) -> dict[str, Any]:
         """Open a widget chat session with a signed customer token (23.1).
@@ -556,8 +554,8 @@ class HelixClient:
         history, and stream calls; the bootstrap token is create-session-only.
         """
         body: dict[str, Any] = {"channel": channel}
-        if customer_name:
-            body["customer_name"] = customer_name
+        if submitter_name:
+            body["customer_name"] = submitter_name
         return self._request(
             "POST",
             "/api/submission-portal/sessions",
@@ -569,7 +567,7 @@ class HelixClient:
         self,
         *,
         widget_token: str,
-        conversation_id: str,
+        review_case_id: str,
         content: str,
         channel_message_id: str | None = None,
         async_mode: bool = False,
@@ -581,7 +579,7 @@ class HelixClient:
         params = {"async_mode": "true"} if async_mode else None
         return self._request(
             "POST",
-            f"/api/submission-portal/sessions/{conversation_id}/messages",
+            f"/api/submission-portal/sessions/{review_case_id}/messages",
             json_body=body,
             params=params,
             headers={"X-Widget-Token": widget_token},

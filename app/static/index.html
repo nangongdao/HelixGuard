@@ -23,7 +23,7 @@
     <link rel="modulepreload" href="/static/js/format.js?v=1.4.0" />
     <link rel="modulepreload" href="/static/js/i18n.js?v=1.4.0" />
     <link rel="modulepreload" href="/static/js/inspector.js?v=1.4.0" />
-    <link rel="modulepreload" href="/static/js/knowledge.js?v=1.4.0" />
+    <link rel="modulepreload" href="/static/js/policy.js?v=1.4.0" />
     <link rel="modulepreload" href="/static/js/nav.js?v=1.4.0" />
     <link rel="modulepreload" href="/static/js/queue-view.js?v=1.4.0" />
     <link rel="modulepreload" href="/static/js/quality-charts.js?v=1.4.0" />
@@ -61,7 +61,7 @@
           <span class="environment-chip">CONTROL ROOM</span>
         </div>
         <div class="header-actions">
-          <span id="operatorIdentity" class="operator-identity">正在验证</span>
+          <span id="reviewerIdentity" class="reviewer-identity">正在验证</span>
           <!-- D3 React island mount (header identity readout). The legacy
                span above stays during the dual-track period; the React
                island renders into this container and takes over the
@@ -93,7 +93,7 @@
           <button class="nav-item" type="button" data-view="quality" title="质量看板" aria-label="质量看板">
             <svg class="icon"><use href="/static/icons.svg?v=1.4.0#activity" /></svg>
           </button>
-          <button class="nav-item" type="button" data-view="knowledge" title="策略库" aria-label="策略库">
+          <button class="nav-item" type="button" data-view="policy" title="策略库" aria-label="策略库">
             <svg class="icon"><use href="/static/icons.svg?v=1.4.0#book-open" /></svg>
           </button>
           <button class="nav-item" type="button" data-view="admin" title="管理" aria-label="管理">
@@ -116,7 +116,7 @@
                 <svg class="icon"><use href="/static/icons.svg?v=1.4.0#x" /></svg>
               </button>
             </div>
-            <button id="newConversation" class="button button-primary" type="button">
+            <button id="newReviewCase" class="button button-primary" type="button">
               <svg class="icon"><use href="/static/icons.svg?v=1.4.0#plus" /></svg>
               <span>新建</span>
             </button>
@@ -128,7 +128,7 @@
           <div id="workspaceTabsReactIsland"></div>
           <div id="workspaceTabs" class="workspace-tabs" role="tablist" aria-label="工作区视图">
             <button id="wsTabQueue" class="workspace-tab is-active" type="button" role="tab" aria-selected="true" data-wstab="queue">队列</button>
-            <button id="wsTabTickets" class="workspace-tab" type="button" role="tab" aria-selected="false" data-wstab="tickets">申诉单</button>
+            <button id="wsTabAppeals" class="workspace-tab" type="button" role="tab" aria-selected="false" data-wstab="appeals">申诉单</button>
           </div>
           <div id="metrics" class="metric-grid" aria-live="polite"></div>
           <!-- D3 React island mount (dashboard metrics). The legacy #metrics
@@ -251,17 +251,17 @@
               <svg class="icon"><use href="/static/icons.svg?v=1.4.0#x" /></svg>
             </button>
           </div>
-          <div id="conversationList" class="conversation-list" aria-live="polite" aria-busy="false"></div>
+          <div id="reviewCaseList" class="review-case-list" aria-live="polite" aria-busy="false"></div>
           <!-- D3 React island mount (queue-view domain). The island takes
                over the list rendering in the desktop shell; the legacy
-               #conversationList above is yielded (hidden) once the island
+               #reviewCaseList above is yielded (hidden) once the island
                mounts, and stays the surface in a plain browser tab. -->
           <div id="queueReactIsland" class="queue-react-island"></div>
-          <div id="ticketPane" class="ticket-pane" hidden>
-            <div class="ticket-filters">
+          <div id="appealPane" class="appeal-pane" hidden>
+            <div class="appeal-filters">
               <label class="filter-field">
                 <span class="sr-only">筛选申诉单状态</span>
-                <select id="ticketStatusFilter" aria-label="筛选申诉单状态">
+                <select id="appealStatusFilter" aria-label="筛选申诉单状态">
                   <option value="">全部申诉单</option>
                   <option value="open">待处理</option>
                   <option value="in_progress">处理中</option>
@@ -270,14 +270,14 @@
                 <svg class="icon"><use href="/static/icons.svg?v=1.4.0#chevron-down" /></svg>
               </label>
             </div>
-            <div id="ticketList" class="ticket-list" aria-live="polite"></div>
+            <div id="appealList" class="appeal-list" aria-live="polite"></div>
           </div>
-          <!-- D3 React island mount (ticket domain). The legacy #ticketList
+          <!-- D3 React island mount (appeal domain). The legacy #appealList
                above stays during dual-track; the React island renders into
-               this separate container and takes over ticket list rendering.
-               #ticketPane itself is not touched (it holds the workspace
+               this separate container and takes over appeal list rendering.
+               #appealPane itself is not touched (it holds the workspace
                drawer layout). -->
-          <div id="ticketReactIsland" class="ticket-react-island"></div>
+          <div id="appealReactIsland" class="appeal-react-island"></div>
           <div class="queue-footer">
             <span id="queueCount">0 个审核单</span>
             <button id="loadMore" class="queue-more" type="button" hidden>
@@ -301,35 +301,35 @@
           <div id="mentionsPanel" class="mentions-panel" role="dialog" aria-label="我的被提及" hidden></div>
         </aside>
 
-        <main class="conversation-pane">
+        <main class="review-case-pane">
           <section id="emptyState" class="empty-state" aria-label="未选择审核单">
             <div class="empty-icon"><svg class="icon icon-xl"><use href="/static/icons.svg?v=1.4.0#inbox" /></svg></div>
             <h2>未打开审核单</h2>
             <p>队列待命</p>
           </section>
-          <section id="conversationView" class="conversation-view" hidden>
-            <header class="conversation-header">
+          <section id="reviewCaseView" class="review-case-view" hidden>
+            <header class="review-case-header">
               <button id="backToQueue" class="icon-button mobile-only" type="button" title="返回队列" aria-label="返回队列">
                 <svg class="icon"><use href="/static/icons.svg?v=1.4.0#arrow-left" /></svg>
               </button>
-              <div id="customerAvatar" class="customer-avatar" aria-hidden="true">?</div>
-              <div class="conversation-heading">
+              <div id="submitterAvatar" class="submitter-avatar" aria-hidden="true">?</div>
+              <div class="review-case-heading">
                 <div class="title-line">
-                  <h2 id="conversationTitle">选择审核单</h2>
-                  <span id="conversationStatus" class="status-pill">-</span>
-                  <span id="ticketBadge" class="ticket-badge" hidden></span>
+                  <h2 id="reviewCaseTitle">选择审核单</h2>
+                  <span id="reviewCaseStatus" class="status-pill">-</span>
+                  <span id="appealBadge" class="appeal-badge" hidden></span>
                 </div>
                 <div class="subtitle-line">
-                  <p id="conversationSubtitle">-</p>
+                  <p id="reviewCaseSubtitle">-</p>
                   <label class="language-picker" title="内容语言：手动覆盖自动检测，或选「自动」恢复">
                     <span class="language-picker-label">语言</span>
-                    <select id="conversationLanguageSelect" aria-label="内容语言">
+                    <select id="reviewCaseLanguageSelect" aria-label="内容语言">
                       <option value="">自动</option>
                     </select>
                   </label>
                 </div>
               </div>
-              <div class="conversation-actions">
+              <div class="review-case-actions">
                 <button id="claimBtn" class="button button-secondary" type="button">
                   <svg class="icon"><use href="/static/icons.svg?v=1.4.0#shield-check" /></svg>
                   <span>认领</span>
@@ -354,7 +354,7 @@
                   <svg class="icon"><use href="/static/icons.svg?v=1.4.0#rotate-ccw" /></svg>
                   <span>重开</span>
                 </button>
-                <button id="ticketBtn" class="button button-secondary" type="button" title="把该审核单转为长周期申诉单" hidden>
+                <button id="appealBtn" class="button button-secondary" type="button" title="把该审核单转为长周期申诉单" hidden>
                   <svg class="icon"><use href="/static/icons.svg?v=1.4.0#file-text" /></svg>
                   <span>转申诉单</span>
                 </button>
@@ -364,16 +364,16 @@
                 </button>
               </div>
             </header>
-              <div id="csatBanner" class="csat-banner" hidden>
-                <span class="csat-label">
+              <div id="qaSpotCheckBanner" class="qa-spot-check-banner" hidden>
+                <span class="qa-spot-check-label">
                   <svg class="icon"><use href="/static/icons.svg?v=1.4.0#thumbs-up" /></svg>
                   <span>抽检评分链接（判定后发给提交方）</span>
                 </span>
-                <code id="csatUrl" class="csat-url"></code>
-                <button id="csatCopyBtn" class="button button-secondary" type="button">复制</button>
+                <code id="qaSpotCheckUrl" class="qa-spot-check-url"></code>
+                <button id="qaSpotCheckCopyBtn" class="button button-secondary" type="button">复制</button>
               </div>
               <div id="summaryBanner" class="summary-banner" hidden>
-                <span class="csat-label">
+                <span class="qa-spot-check-label">
                   <svg class="icon"><use href="/static/icons.svg?v=1.4.0#file-text" /></svg>
                   <span id="summaryTitle">内容摘要</span>
                 </span>
@@ -384,13 +384,13 @@
                    in the desktop shell the island takes it over. -->
               <div id="summaryReactIsland"></div>
               <div id="watchBanner" class="watch-banner" hidden>
-                <span class="csat-label">
+                <span class="qa-spot-check-label">
                   <svg class="icon"><use href="/static/icons.svg?v=1.4.0#eye" /></svg>
                   <span id="watchText">旁观中 · 实时只读</span>
                 </span>
                 <button id="watchToggle" class="button button-secondary" type="button">停止旁观</button>
               </div>
-            <div class="conversation-grid">
+            <div class="review-case-grid">
               <section class="thread-surface" aria-label="消息线程">
                 <div class="thread-toolbar">
                   <div class="thread-context"><span class="context-dot"></span><span id="threadContext">等待消息</span></div>
@@ -406,9 +406,9 @@
                   <svg class="icon"><use href="/static/icons.svg?v=1.4.0#shield-check" /></svg>
                   <span>人工已接管，新的待审内容会进入队列，不会触发机器人回复。</span>
                 </div>
-                <form id="customerForm" class="composer customer-composer">
-                  <label class="sr-only" for="customerInput">待审内容</label>
-                  <textarea id="customerInput" rows="2" maxlength="4000" placeholder="输入一条模拟待审内容…" required></textarea>
+                <form id="submitterForm" class="composer submitter-composer">
+                  <label class="sr-only" for="submitterInput">待审内容</label>
+                  <textarea id="submitterInput" rows="2" maxlength="4000" placeholder="输入一条模拟待审内容…" required></textarea>
                   <button class="send-button" type="submit" title="发送待审内容" aria-label="发送待审内容">
                     <svg class="icon"><use href="/static/icons.svg?v=1.4.0#send" /></svg>
                   </button>
@@ -417,10 +417,10 @@
                   <span class="canned-label">预置结论</span>
                   <div id="cannedList" class="canned-list"></div>
                 </div>
-                <form id="operatorForm" class="composer operator-composer" hidden>
-                  <label class="sr-only" for="operatorInput">人工回复</label>
+                <form id="reviewerForm" class="composer reviewer-composer" hidden>
+                  <label class="sr-only" for="reviewerInput">人工回复</label>
                   <div class="composer-stack">
-                    <textarea id="operatorInput" rows="2" maxlength="4000" placeholder="输入人工回复… 输入 / 插入预置结论，Ctrl+Enter 发送"></textarea>
+                    <textarea id="reviewerInput" rows="2" maxlength="4000" placeholder="输入人工回复… 输入 / 插入预置结论，Ctrl+Enter 发送"></textarea>
                     <div id="macroSuggest" class="macro-suggest" hidden role="listbox" aria-label="预置结论建议"></div>
                     <div id="copilotBar" class="copilot-bar" hidden>
                       <div class="copilot-tools">
@@ -436,7 +436,7 @@
                         <span id="copilotStatus" class="copilot-status" hidden></span>
                       </div>
                       <div id="copilotSuggestions" class="copilot-suggestions" hidden></div>
-                      <div id="copilotKnowledge" class="copilot-knowledge" hidden></div>
+                      <div id="copilotPolicy" class="copilot-policy" hidden></div>
                     </div>
                     <div id="attachmentBar" class="attachment-bar" hidden>
                       <div id="pendingAttachments" class="pending-attachments"></div>
@@ -447,13 +447,13 @@
                       <input id="attachmentFile" type="file" hidden />
                     </div>
                   </div>
-                  <button class="send-button operator-send" type="submit" title="发送人工回复" aria-label="发送人工回复">
+                  <button class="send-button reviewer-send" type="submit" title="发送人工回复" aria-label="发送人工回复">
                     <svg class="icon"><use href="/static/icons.svg?v=1.4.0#send" /></svg>
                   </button>
                 </form>
                 <!-- D3 React island mount (composer domain). The island
                      renders the mirrored composer forms in the desktop
-                     shell; legacy #customerForm/#operatorForm are yielded
+                     shell; legacy #submitterForm/#reviewerForm are yielded
                      (hidden) and stay the surface in a plain browser tab. -->
                 <div id="composerReactIsland" class="composer-react-island"></div>
               </section>
@@ -508,30 +508,30 @@
               </aside>
             </div>
           </section>
-          <section id="ticketDetailView" class="conversation-view ticket-detail-view" hidden aria-label="申诉单详情">
-            <header class="conversation-header">
-              <button id="ticketBack" class="icon-button" type="button" title="返回申诉单列表" aria-label="返回申诉单列表">
+          <section id="appealDetailView" class="review-case-view appeal-detail-view" hidden aria-label="申诉单详情">
+            <header class="review-case-header">
+              <button id="appealBack" class="icon-button" type="button" title="返回申诉单列表" aria-label="返回申诉单列表">
                 <svg class="icon"><use href="/static/icons.svg?v=1.4.0#arrow-left" /></svg>
               </button>
-              <div class="conversation-heading">
+              <div class="review-case-heading">
                 <div class="title-line">
-                  <h2 id="ticketDetailTitle">申诉单详情</h2>
-                  <span id="ticketDetailStatus" class="status-pill">-</span>
-                  <span id="ticketDetailPriority" class="priority-pill" hidden></span>
+                  <h2 id="appealDetailTitle">申诉单详情</h2>
+                  <span id="appealDetailStatus" class="status-pill">-</span>
+                  <span id="appealDetailPriority" class="priority-pill" hidden></span>
                 </div>
-                <p id="ticketDetailSubtitle">-</p>
+                <p id="appealDetailSubtitle">-</p>
               </div>
-              <div class="conversation-actions">
-                <button id="ticketLinkCurrent" class="button button-secondary" type="button" title="把当前打开的审核单关联到本申诉单" hidden>
+              <div class="review-case-actions">
+                <button id="appealLinkCurrent" class="button button-secondary" type="button" title="把当前打开的审核单关联到本申诉单" hidden>
                   <svg class="icon"><use href="/static/icons.svg?v=1.4.0#link" /></svg>
                   <span>关联当前审核单</span>
                 </button>
-                <div id="ticketTransitions" class="ticket-transitions"></div>
+                <div id="appealTransitions" class="appeal-transitions"></div>
               </div>
             </header>
-            <div class="ticket-detail-body">
-              <div id="ticketDetailDescription" class="ticket-description" hidden></div>
-              <div id="ticketDetailConvs" class="ticket-convs"></div>
+            <div class="appeal-detail-body">
+              <div id="appealDetailDescription" class="appeal-description" hidden></div>
+              <div id="appealDetailConvs" class="appeal-convs"></div>
             </div>
           </section>
         </main>
@@ -555,37 +555,37 @@
           <div id="qualityViewGaps" class="quality-gaps" aria-live="polite"></div>
         </div>
       </section>
-      <section id="knowledgeView" class="app-view" hidden aria-label="策略库">
-        <header class="knowledge-heading">
+      <section id="policyView" class="app-view" hidden aria-label="策略库">
+        <header class="policy-heading">
           <div>
             <span class="section-kicker">POLICY OPERATIONS</span>
             <h2>策略库</h2>
           </div>
-          <div class="knowledge-heading-actions">
-            <button id="newKnowledgeDraft" class="button button-primary" type="button" hidden>
+          <div class="policy-heading-actions">
+            <button id="newPolicyDraft" class="button button-primary" type="button" hidden>
               <svg class="icon"><use href="/static/icons.svg?v=1.4.0#plus" /></svg>
               <span>新建草稿</span>
             </button>
-            <button id="refreshKnowledge" class="icon-button" type="button" title="刷新策略库" aria-label="刷新策略库">
+            <button id="refreshPolicy" class="icon-button" type="button" title="刷新策略库" aria-label="刷新策略库">
               <svg class="icon"><use href="/static/icons.svg?v=1.4.0#refresh-cw" /></svg>
             </button>
           </div>
         </header>
-        <div id="knowledgeSummary" class="knowledge-summary" aria-live="polite"></div>
-        <!-- D3 React island mount (knowledge domain). The legacy
-             #knowledgeList / #knowledgeSummary above stay during the
+        <div id="policySummary" class="policy-summary" aria-live="polite"></div>
+        <!-- D3 React island mount (policy domain). The legacy
+             #policyList / #policySummary above stay during the
              dual-track period; the React island renders into this
              separate container and takes over article list rendering. -->
-        <div id="knowledgeReactIsland" class="knowledge-react-island"></div>
-        <div class="knowledge-toolbar" aria-label="策略文章筛选">
-          <label class="knowledge-search">
+        <div id="policyReactIsland" class="policy-react-island"></div>
+        <div class="policy-toolbar" aria-label="策略文章筛选">
+          <label class="policy-search">
             <svg class="icon" aria-hidden="true"><use href="/static/icons.svg?v=1.4.0#search" /></svg>
             <span class="sr-only">搜索策略文章</span>
-            <input id="knowledgeSearch" type="search" maxlength="160" autocomplete="off" placeholder="搜索标题、正文、标签或来源" />
+            <input id="policySearch" type="search" maxlength="160" autocomplete="off" placeholder="搜索标题、正文、标签或来源" />
           </label>
-          <label class="knowledge-filter">
+          <label class="policy-filter">
             <span>状态</span>
-            <select id="knowledgeStatusFilter">
+            <select id="policyStatusFilter">
               <option value="all">全部状态</option>
               <option value="published">已发布</option>
               <option value="draft">草稿</option>
@@ -593,9 +593,9 @@
               <option value="retired">已停用</option>
             </select>
           </label>
-          <label class="knowledge-filter">
+          <label class="policy-filter">
             <span>语言</span>
-            <select id="knowledgeLanguageFilter">
+            <select id="policyLanguageFilter">
               <option value="">全部语言</option>
               <option value="zh">中文</option>
               <option value="en">English</option>
@@ -607,40 +607,40 @@
               <option value="pt">Português</option>
             </select>
           </label>
-          <span id="knowledgeResultCount" class="knowledge-result-count"></span>
+          <span id="policyResultCount" class="policy-result-count"></span>
         </div>
-        <p id="knowledgeReadOnly" class="knowledge-read-only" hidden>当前角色可检索已发布文章；草稿和审核操作仅对策略管理员开放。</p>
-        <div class="knowledge-layout">
-          <section class="knowledge-list-panel" aria-label="策略文章">
-            <div id="knowledgeListStatus" class="knowledge-list-status" role="status">正在加载文章…</div>
-            <div id="knowledgeList" class="knowledge-list" role="list"></div>
+        <p id="policyReadOnly" class="policy-read-only" hidden>当前角色可检索已发布文章；草稿和审核操作仅对策略管理员开放。</p>
+        <div class="policy-layout">
+          <section class="policy-list-panel" aria-label="策略文章">
+            <div id="policyListStatus" class="policy-list-status" role="status">正在加载文章…</div>
+            <div id="policyList" class="policy-list" role="list"></div>
           </section>
-          <aside id="knowledgeEditor" class="knowledge-editor" hidden aria-label="策略草稿编辑器">
-            <form id="knowledgeForm">
-              <header class="knowledge-editor-heading">
+          <aside id="policyEditor" class="policy-editor" hidden aria-label="策略草稿编辑器">
+            <form id="policyForm">
+              <header class="policy-editor-heading">
                 <div>
                   <span class="section-kicker">EDITOR</span>
-                  <h3 id="knowledgeEditorTitle">新建策略草稿</h3>
+                  <h3 id="policyEditorTitle">新建策略草稿</h3>
                 </div>
-                <button id="cancelKnowledgeEdit" class="icon-button" type="button" title="关闭编辑器" aria-label="关闭编辑器">
+                <button id="cancelPolicyEdit" class="icon-button" type="button" title="关闭编辑器" aria-label="关闭编辑器">
                   <svg class="icon"><use href="/static/icons.svg?v=1.4.0#x" /></svg>
                 </button>
               </header>
-              <label class="knowledge-field">标题
-                <input id="knowledgeTitle" type="text" minlength="2" maxlength="160" required />
+              <label class="policy-field">标题
+                <input id="policyTitle" type="text" minlength="2" maxlength="160" required />
               </label>
-              <label class="knowledge-field">正文
-                <textarea id="knowledgeContent" rows="10" minlength="10" maxlength="12000" required></textarea>
+              <label class="policy-field">正文
+                <textarea id="policyContent" rows="10" minlength="10" maxlength="12000" required></textarea>
               </label>
-              <div class="knowledge-form-grid">
-                <label class="knowledge-field">标签
-                  <input id="knowledgeTags" type="text" maxlength="820" placeholder="shipping, refund" required />
+              <div class="policy-form-grid">
+                <label class="policy-field">标签
+                  <input id="policyTags" type="text" maxlength="820" placeholder="shipping, refund" required />
                 </label>
-                <label class="knowledge-field">分类
-                  <input id="knowledgeCategory" type="text" minlength="2" maxlength="60" value="general" required />
+                <label class="policy-field">分类
+                  <input id="policyCategory" type="text" minlength="2" maxlength="60" value="general" required />
                 </label>
-                <label class="knowledge-field">语言
-                  <select id="knowledgeLanguage">
+                <label class="policy-field">语言
+                  <select id="policyLanguage">
                     <option value="">不限语言</option>
                     <option value="zh">中文</option>
                     <option value="en">English</option>
@@ -653,14 +653,14 @@
                   </select>
                 </label>
               </div>
-              <label class="knowledge-field">来源
-                <input id="knowledgeSource" type="text" minlength="1" maxlength="500" placeholder="https://… 或 internal:…" required />
+              <label class="policy-field">来源
+                <input id="policySource" type="text" minlength="1" maxlength="500" placeholder="https://… 或 internal:…" required />
               </label>
-              <div class="knowledge-editor-actions">
-                <button id="resetKnowledgeForm" class="button button-secondary" type="button">重置</button>
+              <div class="policy-editor-actions">
+                <button id="resetPolicyForm" class="button button-secondary" type="button">重置</button>
                 <button class="button button-primary" type="submit">
                   <svg class="icon"><use href="/static/icons.svg?v=1.4.0#check" /></svg>
-                  <span id="knowledgeSaveLabel">保存草稿</span>
+                  <span id="policySaveLabel">保存草稿</span>
                 </button>
               </div>
             </form>
@@ -682,7 +682,7 @@
             <dl id="quotaReadout" class="admin-readout"></dl>
             <form id="quotaForm" class="admin-form">
               <label class="admin-field">审核单配额
-                <input id="quotaConversations" type="number" min="1" max="10000000" placeholder="不修改留空" />
+                <input id="quotaReviewCases" type="number" min="1" max="10000000" placeholder="不修改留空" />
               </label>
               <label class="admin-field">存储配额（MB）
                 <input id="quotaStorageMb" type="number" min="1" placeholder="不修改留空" />
@@ -771,10 +771,10 @@
               <pre id="reportPreview" class="report-preview" hidden></pre>
             </form>
           </section>
-          <section class="admin-card" id="adminCsatCard">
+          <section class="admin-card" id="adminQaSpotCheckCard">
             <h3>CSAT 评分汇总</h3>
-            <dl id="csatReadout" class="admin-readout"></dl>
-            <ul id="csatTrend" class="admin-list"></ul>
+            <dl id="qaSpotCheckReadout" class="admin-readout"></dl>
+            <ul id="qaSpotCheckTrend" class="admin-list"></ul>
           </section>
           <section class="admin-card" id="adminSlaCard">
             <h3>SLA 策略</h3>
@@ -862,17 +862,17 @@
     <!-- D3 React island mount (new-conversation dialog). The legacy dialog
          below stays during the dual-track period; the React island renders
          its own dialog into this container and takes over in island mode. -->
-    <div id="conversationDialogReactIsland" class="conversation-dialog-react-island"></div>
-    <dialog id="newConversationDialog" class="dialog">
-      <form id="newConversationForm" method="dialog">
+    <div id="reviewCaseDialogReactIsland" class="review-case-dialog-react-island"></div>
+    <dialog id="newReviewCaseDialog" class="dialog">
+      <form id="newReviewCaseForm" method="dialog">
         <div class="dialog-heading">
           <div><span class="section-kicker">NEW SUBMISSION</span><h2>新建审核单</h2></div>
           <button id="closeDialog" class="icon-button" type="button" title="关闭" aria-label="关闭"><svg class="icon"><use href="/static/icons.svg?v=1.4.0#x" /></svg></button>
         </div>
-        <label class="field-label" for="newCustomerName">提交方名称</label>
-        <input id="newCustomerName" class="text-input" maxlength="80" required placeholder="例如：林嘉" />
-        <label class="field-label" for="newCustomerRef">提交方标识 <span>可选</span></label>
-        <input id="newCustomerRef" class="text-input" maxlength="80" placeholder="例如：CUST-1001" />
+        <label class="field-label" for="newSubmitterName">提交方名称</label>
+        <input id="newSubmitterName" class="text-input" maxlength="80" required placeholder="例如：林嘉" />
+        <label class="field-label" for="newSubmitterRef">提交方标识 <span>可选</span></label>
+        <input id="newSubmitterRef" class="text-input" maxlength="80" placeholder="例如：CUST-1001" />
         <label class="field-label" for="newChannel">渠道</label>
         <select id="newChannel" class="text-input"><option value="web">Web</option><option value="api">API</option><option value="messaging">Messaging</option></select>
         <div class="dialog-actions">

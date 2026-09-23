@@ -20,7 +20,7 @@ from app.connectors import (
     SandboxOrderConnector,
 )
 from app.control_plane import DataPlaneConfig
-from app.conversation_lifecycle import ConversationLifecycleMixin
+from app.review_case_lifecycle import ReviewCaseLifecycleMixin
 from app.connectors_runtime import (
     CircuitBreakerRegistry,
     ResilientCRMConnector,
@@ -30,10 +30,10 @@ from app.connectors_runtime import (
 from app.database import Database
 
 # The lifecycle exceptions are domain errors; they live here next to
-# ConversationStatus and are re-exported for every importer (middleware,
+# ReviewCaseStatus and are re-exported for every importer (middleware,
 # routers, tests) whose import surface is unchanged.
 from app.domain import (
-    ConversationStatus,
+    ReviewCaseStatus,
     IdempotencyConflictError,  # noqa: F401  (re-export)
     InvalidTransitionError,  # noqa: F401  (re-export)
     TurnInProgressError,  # noqa: F401  (re-export)
@@ -57,7 +57,7 @@ from app.webhooks import (
 logger = logging.getLogger("helix")
 
 
-class ConversationOrchestrator(ConversationLifecycleMixin):
+class ConversationOrchestrator(ReviewCaseLifecycleMixin):
     def __init__(
         self,
         database: Database,
@@ -148,7 +148,7 @@ class ConversationOrchestrator(ConversationLifecycleMixin):
     def queue_customer_message(
         self,
         tenant_id: str,
-        conversation_id: str,
+        review_case_id: str,
         content: str,
         actor_id: str,
         idempotency_key: str,
@@ -158,15 +158,15 @@ class ConversationOrchestrator(ConversationLifecycleMixin):
         content = content.strip()
         if not content:
             raise ValueError("Message content cannot be blank")
-        conversation = self.database.get_conversation(tenant_id, conversation_id)
-        if not conversation:
+        review_case = self.database.get_review_case(tenant_id, review_case_id)
+        if not review_case:
             raise LookupError("Conversation not found")
-        if conversation["status"] == ConversationStatus.RESOLVED:
-            raise InvalidTransitionError("Resolved conversations must be reopened first")
+        if review_case["status"] == ReviewCaseStatus.RESOLVED:
+            raise InvalidTransitionError("Resolved review_cases must be reopened first")
         if channel_message_id is None:
             job, replayed = self.queue.enqueue(
                 tenant_id,
-                conversation_id,
+                review_case_id,
                 idempotency_key,
                 actor_id,
                 content,
@@ -175,7 +175,7 @@ class ConversationOrchestrator(ConversationLifecycleMixin):
         else:
             job, replayed = self.queue.enqueue(
                 tenant_id,
-                conversation_id,
+                review_case_id,
                 idempotency_key,
                 actor_id,
                 content,
@@ -197,7 +197,7 @@ class ConversationOrchestrator(ConversationLifecycleMixin):
         if not replayed:
             self.database.audit(
                 tenant_id,
-                conversation_id,
+                review_case_id,
                 actor_id,
                 "turn_job.queued",
                 {"job_id": job["id"], "max_attempts": max_attempts},
@@ -230,7 +230,7 @@ class ConversationOrchestrator(ConversationLifecycleMixin):
     def handle_customer_message(
         self,
         tenant_id: str,
-        conversation_id: str,
+        review_case_id: str,
         content: str,
         actor_id: str,
         idempotency_key: str,
@@ -240,22 +240,22 @@ class ConversationOrchestrator(ConversationLifecycleMixin):
         content = content.strip()
         if not content:
             raise ValueError("Message content cannot be blank")
-        conversation = self.database.get_conversation(tenant_id, conversation_id)
-        if not conversation:
+        review_case = self.database.get_review_case(tenant_id, review_case_id)
+        if not review_case:
             raise LookupError("Conversation not found")
-        if conversation["status"] == ConversationStatus.RESOLVED:
-            raise InvalidTransitionError("Resolved conversations must be reopened first")
+        if review_case["status"] == ReviewCaseStatus.RESOLVED:
+            raise InvalidTransitionError("Resolved review_cases must be reopened first")
 
         # Phase 23.2: channel-level idempotency. A channel message id already
         # stored for this conversation is a replay of the same channel message;
         # return the recorded turn instead of processing a duplicate.
         if channel_message_id:
             existing = self.database.get_message_by_channel_id(
-                tenant_id, conversation_id, channel_message_id
+                tenant_id, review_case_id, channel_message_id
             )
             if existing is not None:
                 cached = self.database.get_turn_by_message_id(
-                    tenant_id, conversation_id, existing["id"]
+                    tenant_id, review_case_id, existing["id"]
                 )
                 if cached is not None:
                     cached["idempotent_replay"] = True
@@ -263,7 +263,7 @@ class ConversationOrchestrator(ConversationLifecycleMixin):
 
         claim, cached = self.database.claim_turn(
             tenant_id,
-            conversation_id,
+            review_case_id,
             idempotency_key,
             self.settings.idempotency_processing_timeout_seconds,
         )
@@ -276,7 +276,7 @@ class ConversationOrchestrator(ConversationLifecycleMixin):
         try:
             response = self._process_customer_message(
                 tenant_id,
-                conversation,
+                review_case,
                 content,
                 actor_id,
                 idempotency_key,
@@ -284,16 +284,16 @@ class ConversationOrchestrator(ConversationLifecycleMixin):
                 chunk_sink=chunk_sink,
             )
             response["idempotent_replay"] = False
-            self.database.complete_turn(tenant_id, conversation_id, idempotency_key, response)
+            self.database.complete_turn(tenant_id, review_case_id, idempotency_key, response)
             return response
         except Exception as exc:
-            self.database.fail_turn(tenant_id, conversation_id, idempotency_key, type(exc).__name__)
+            self.database.fail_turn(tenant_id, review_case_id, idempotency_key, type(exc).__name__)
             raise
 
     def _process_customer_message(
         self,
         tenant_id: str,
-        conversation: dict[str, Any],
+        review_case: dict[str, Any],
         content: str,
         actor_id: str,
         turn_id: str,
@@ -301,14 +301,14 @@ class ConversationOrchestrator(ConversationLifecycleMixin):
         chunk_sink: Callable[[str], None] | None = None,
     ) -> dict[str, Any]:
         turn_started_monotonic = monotonic()
-        conversation_id = conversation["id"]
+        review_case_id = review_case["id"]
         # Phase 41.6 (ARC-001): the turn is composed as three deep stages.
         # 1) Policy/triage: language detect + message persist + audit, policy
         #    inspection, budget/model guards, triage decision.
         policy = self.turn_policy.ingest(
             TurnPolicyContext(
                 tenant_id=tenant_id,
-                conversation=conversation,
+                review_case=review_case,
                 content=content,
                 actor_id=actor_id,
                 turn_id=turn_id,
@@ -317,7 +317,7 @@ class ConversationOrchestrator(ConversationLifecycleMixin):
         )
         self._observe_turn_segment("intake", turn_started_monotonic)
         if policy.suppressed:
-            current = self.database.get_conversation(tenant_id, conversation_id) or conversation
+            current = self.database.get_review_case(tenant_id, review_case_id) or review_case
             return {
                 "customer_message": policy.customer_message,
                 "assistant_message": None,
@@ -333,7 +333,7 @@ class ConversationOrchestrator(ConversationLifecycleMixin):
         execution = self.turn_execution.execute(
             TurnExecutionContext(
                 tenant_id=tenant_id,
-                conversation=conversation,
+                review_case=review_case,
                 content=content,
                 decision=policy.decision,
                 policy_reason=policy.risk.handoff_reason,
@@ -346,7 +346,7 @@ class ConversationOrchestrator(ConversationLifecycleMixin):
         persist = self.turn_persist.finalize(
             TurnPersistInputs(
                 tenant_id=tenant_id,
-                conversation=conversation,
+                review_case=review_case,
                 customer_message=policy.customer_message,
                 decision=policy.decision,
                 result=execution.result,
@@ -367,7 +367,7 @@ class ConversationOrchestrator(ConversationLifecycleMixin):
         )
         self._observe_turn_segment_ms("persist", persist.elapsed)
         if not persist.state_updated:
-            current = self.database.get_conversation(tenant_id, conversation_id) or conversation
+            current = self.database.get_review_case(tenant_id, review_case_id) or review_case
             return {
                 "customer_message": policy.customer_message,
                 "assistant_message": None,
@@ -376,7 +376,7 @@ class ConversationOrchestrator(ConversationLifecycleMixin):
         return {
             "customer_message": policy.customer_message,
             "assistant_message": persist.assistant_message,
-            "conversation": self.database.get_conversation(tenant_id, conversation_id),
+            "conversation": self.database.get_review_case(tenant_id, review_case_id),
         }
 
     def _observe_turn_segment(self, segment: str, started: float) -> None:

@@ -16,9 +16,9 @@ registered exactly once.
 Migration inventory (matching the 1.0/1.1 roadmap):
   1  - full baseline schema (idempotent; the legacy ``initialize()``
        executescript creates the same objects, so this is a no-op there)
-  2  - ``conversations.sla_due_at`` (legacy column supplement)
-  3  - ``conversations.labels_json`` (legacy column supplement)
-  4  - ``conversations.first_response_at`` + monotonic ``seq`` columns and
+  2  - ``review_cases.sla_due_at`` (legacy column supplement)
+  3  - ``review_cases.labels_json`` (legacy column supplement)
+  4  - ``review_cases.first_response_at`` + monotonic ``seq`` columns and
        backfill for messages/audit_events (Phase 16/17)
   5  - ``turn_job_chunks`` streaming table (Phase 18)
   6  - ``prompt_versions`` registry (Phase 19.1)
@@ -29,11 +29,11 @@ Migration inventory (matching the 1.0/1.1 roadmap):
   11 - ``messages.channel_message_id`` web-chat idempotency (Phase 23.2)
   12 - audit hash chain columns + backfill (Phase 28.3)
   13 - ``revoked_api_keys`` (Phase 28.2)
-  14 - ``csat_surveys`` satisfaction surveys (backlog)
-  15 - auto-routing: ``agent_groups``/``routing_rules`` (backlog)
+  14 - ``qa_spot_checks`` satisfaction surveys (backlog)
+  15 - auto-routing: ``reviewer_groups``/``routing_rules`` (backlog)
   16 - ``sla_policies`` policy engine (backlog)
-  17 - ``conversation_summaries`` operator summaries (backlog)
-  18 - ``conversation_mentions`` + ``messages.reply_to`` (backlog: 坐席协作)
+  17 - ``review_case_summaries`` operator summaries (backlog)
+  18 - ``review_case_mentions`` + ``messages.reply_to`` (backlog: 坐席协作)
   19 - ``consumer_agents``/queues and tenant backpressure columns (backlog)
   20 - outbound report subscriptions (backlog: 报表导出与订阅)
   21 - SLA policy engine tables (backlog)
@@ -135,11 +135,11 @@ def _detect_legacy_version(connection: sqlite3.Connection) -> int | None:
             "SELECT name FROM sqlite_master WHERE type='table'"
         ).fetchall()
     }
-    if "conversations" not in tables:
+    if "review_cases" not in tables:
         return None
 
     legacy_columns = {
-        row[1] for row in connection.execute("PRAGMA table_info(conversations)").fetchall()
+        row[1] for row in connection.execute("PRAGMA table_info(review_cases)").fetchall()
     }
     if "first_response_at" in legacy_columns:
         return 3
@@ -456,30 +456,30 @@ def _create_seq_trigger_if_table_exists(
 # ---------------------------------------------------------------------------
 _VERSION_MODULES = [
     "v01_baseline_schema",
-    "v02_conversation_sla_deadline",
-    "v03_conversation_labels_projection",
+    "v02_review_case_sla_deadline",
+    "v03_review_case_labels_projection",
     "v04_first_response_timestamp_and_monotonic_seq",
     "v05_turn_job_chunks_streaming_table",
     "v06_prompt_version_registry",
     "v07_tenant_model_policy_and_daily_usage",
     "v08_outbound_webhook_endpoints_and_deliveries",
-    "v09_quality_aggregates_and_knowledge_lifecycle",
+    "v09_quality_aggregates_and_policy_lifecycle",
     "v10_tenant_members_and_quota_metering",
     "v11_channel_message_idempotency_for_web_chat",
     "v12_audit_hash_chain",
     "v13_revoked_api_keys",
-    "v14_csat_satisfaction_surveys",
-    "v15_auto_routing_rules_and_agent_groups",
+    "v14_qa_spot_check_satisfaction_surveys",
+    "v15_auto_routing_rules_and_reviewer_groups",
     "v16_sla_policy_engine",
-    "v17_conversation_summaries",
-    "v18_operator_collaboration_mentions_and_threads",
-    "v19_conversation_and_knowledge_article_language",
-    "v20_long_cycle_tickets",
+    "v17_review_case_summaries",
+    "v18_reviewer_collaboration_mentions_and_threads",
+    "v19_review_case_and_policy_article_language",
+    "v20_long_cycle_appeals",
     "v21_report_subscriptions",
     "v22_rich_media_attachments",
     "v23_message_pagination_seq_index_roadmap_18_2d",
-    "v24_conversation_archive_cold_tier_roadmap_18_3",
-    "v25_csat_summary_partial_index",
+    "v24_review_case_archive_cold_tier_roadmap_18_3",
+    "v25_qa_spot_check_summary_partial_index",
     "v26_durable_audit_retention_archives_roadmap_18_3",
     "v27_signed_inbound_channel_webhook_durability_roadma",
     "v28_oidc_one_time_auth_transactions_m0_sec_001",
@@ -500,8 +500,8 @@ _VERSION_MODULES = [
     "v43_replication_log",
     "v44_inference_costs",
     "v45_tenant_model_call_budget",
-    "v46_conversation_pending_tasks",
-    "v47_operator_send_receipt",
+    "v46_review_case_pending_tasks",
+    "v47_reviewer_send_receipt",
     "v48_attachment_upload_receipt",
 ]
 

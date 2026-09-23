@@ -37,7 +37,7 @@ class BurnRateRuleTests(unittest.TestCase):
         alert = evaluate_slo(PAGE_SLO, {"fast": _counts(0.5), "long": _counts(0.001)})
         self.assertIsNone(alert)
 
-    def test_slow_sustained_burn_tickets_not_pages(self) -> None:
+    def test_slow_sustained_burn_appeals_not_pages(self) -> None:
         # 4% error rate for hours: above the 6× ticket threshold (3%), far
         # below the 14.4× page threshold (7.2%).
         counts = {"fast": _counts(0.04), "long": _counts(0.04)}

@@ -28,7 +28,7 @@ from pathlib import Path
 from typing import Any, Self
 
 from app.database import Database
-from app.domain import ConversationStatus
+from app.domain import ReviewCaseStatus
 
 
 class _Fixture:
@@ -60,7 +60,7 @@ class _Fixture:
         self.b.initialize()
         for db in (self.a, self.b):
             db.ensure_tenant("multi-tenant")
-        self.conversation = self.a.create_conversation(
+        self.review_case = self.a.create_review_case(
             "multi-tenant", "Multi Instance", "CUST-MI", "web", "admin", 120
         )
         return self
@@ -104,7 +104,7 @@ class MultiInstanceSQLiteTests(unittest.TestCase):
 
     def test_exactly_once_enqueue_cross_pool(self) -> None:
         started = self.fixture.a.enqueue_turn_job(
-            "multi-tenant", self.fixture.conversation["id"], "multi-key-a", "a1", "x", 3
+            "multi-tenant", self.fixture.review_case["id"], "multi-key-a", "a1", "x", 3
         )
         self.assertFalse(started[1])
 
@@ -114,7 +114,7 @@ class MultiInstanceSQLiteTests(unittest.TestCase):
         def enqueue(i: int) -> tuple[dict[str, Any], bool]:
             db = (self.fixture.a, self.fixture.b)[i % 2]
             return db.enqueue_turn_job(
-                "multi-tenant", self.fixture.conversation["id"], "multi-key-b", f"a{i}", "x", 3
+                "multi-tenant", self.fixture.review_case["id"], "multi-key-b", f"a{i}", "x", 3
             )
 
         with ThreadPoolExecutor(max_workers=2) as executor:
@@ -127,21 +127,21 @@ class MultiInstanceSQLiteTests(unittest.TestCase):
         self.assertLessEqual(sum(1 for _, r in results if not r), 1)
 
     def test_no_double_claim_cross_pool(self) -> None:
-        """Eight independent conversations: each worker claims a distinct job.
+        """Eight independent review_cases: each worker claims a distinct job.
 
         ``claim`` serialises turns *within* one conversation, so a single
         conversation cannot exercise a real claim race.  Spreading the jobs
-        across conversations lets every worker contend at the head on a true
+        across review_cases lets every worker contend at the head on a true
         cross-pool path.
         """
         from app.queue import SQLiteTaskQueue
 
         for i in range(8):
-            conversation = self.fixture.a.create_conversation(
+            review_case = self.fixture.a.create_review_case(
                 "multi-tenant", f"Conv {i}", f"CUST-MI-{i}", "web", "admin", 120
             )
             self.fixture.a.enqueue_turn_job(
-                "multi-tenant", conversation["id"], f"claim-{i}", f"a{i}", f"c{i}", 3
+                "multi-tenant", review_case["id"], f"claim-{i}", f"a{i}", f"c{i}", 3
             )
 
         claimed = self.fixture.claim_with(8, SQLiteTaskQueue)
@@ -153,20 +153,20 @@ class MultiInstanceSQLiteTests(unittest.TestCase):
 
     def test_optimistic_concurrency_prevents_clobber(self) -> None:
         """A stale version update must be rejected when both pools write."""
-        conv_id = self.fixture.conversation["id"]
+        conv_id = self.fixture.review_case["id"]
 
         pool_a = self.fixture.a
         pool_b = self.fixture.b
         # First move OPEN -> HUMAN_ACTIVE via pool A.
         self.assertTrue(
-            pool_a.transition_conversation(
-                "multi-tenant", conv_id, [ConversationStatus.OPEN], ConversationStatus.HUMAN_ACTIVE
+            pool_a.transition_review_case(
+                "multi-tenant", conv_id, [ReviewCaseStatus.OPEN], ReviewCaseStatus.HUMAN_ACTIVE
             )
             is not None
         )
         self.assertIsNone(
-            pool_b.transition_conversation(
-                "multi-tenant", conv_id, [ConversationStatus.OPEN], ConversationStatus.RESOLVED
+            pool_b.transition_review_case(
+                "multi-tenant", conv_id, [ReviewCaseStatus.OPEN], ReviewCaseStatus.RESOLVED
             )
         )
 
@@ -174,7 +174,7 @@ class MultiInstanceSQLiteTests(unittest.TestCase):
         from app.queue import SQLiteTaskQueue
 
         self.fixture.a.enqueue_turn_job(
-            "multi-tenant", self.fixture.conversation["id"], "c-key-1", "a1", "c", 3
+            "multi-tenant", self.fixture.review_case["id"], "c-key-1", "a1", "c", 3
         )
         first = SQLiteTaskQueue(self.fixture.a).dequeue("worker-a", 300)
         assert first is not None
@@ -203,7 +203,7 @@ class MultiInstancePostgresTests(unittest.TestCase):
     def test_exactly_once_enqueue_cross_pool(self) -> None:
         """Two pools racing on one idempotency key must produce one job."""
         started = self.fixture.a.enqueue_turn_job(
-            "multi-tenant", self.fixture.conversation["id"], "pg-key-a", "a1", "x", 3
+            "multi-tenant", self.fixture.review_case["id"], "pg-key-a", "a1", "x", 3
         )
         self.assertFalse(started[1])
 
@@ -212,7 +212,7 @@ class MultiInstancePostgresTests(unittest.TestCase):
         def enqueue(i: int) -> tuple[dict[str, Any], bool]:
             db = (self.fixture.a, self.fixture.b)[i % 2]
             return db.enqueue_turn_job(
-                "multi-tenant", self.fixture.conversation["id"], "pg-key-race", f"a{i}", "x", 3
+                "multi-tenant", self.fixture.review_case["id"], "pg-key-race", f"a{i}", "x", 3
             )
 
         with ThreadPoolExecutor(max_workers=4) as executor:
@@ -225,16 +225,16 @@ class MultiInstancePostgresTests(unittest.TestCase):
         self.assertLessEqual(sum(1 for _, replayed in results if not replayed), 1)
 
     def test_no_double_claim_cross_pool(self) -> None:
-        """Ten independent conversations, one job each, all claimed exactly once."""
+        """Ten independent review_cases, one job each, all claimed exactly once."""
         from app.queue import SQLiteTaskQueue
 
         for i in range(10):
-            conversation = self.fixture.a.create_conversation(
+            review_case = self.fixture.a.create_review_case(
                 "multi-tenant", f"PG Conv {i}", f"CUST-MI-{i}", "web", "admin", 120
             )
             self.fixture.a.enqueue_turn_job(
                 "multi-tenant",
-                conversation["id"],
+                review_case["id"],
                 f"pg-claim-{i}",
                 f"a{i}",
                 f"c{i}",
@@ -248,7 +248,7 @@ class MultiInstancePostgresTests(unittest.TestCase):
         self.assertEqual(len(set(ids)), len(ids), "a job was claimed twice")
         self.assertEqual(keys, {f"pg-claim-{i}" for i in range(10)})
 
-    def test_turns_are_serialised_per_conversation(self) -> None:
+    def test_turns_are_serialised_per_review_case(self) -> None:
         """Only one job per conversation may be in flight, even across pools.
 
         This is the analogue of the redelivery guard the orchestrator relies on:
@@ -259,36 +259,36 @@ class MultiInstancePostgresTests(unittest.TestCase):
 
         for i in range(3):
             self.fixture.a.enqueue_turn_job(
-                "multi-tenant", self.fixture.conversation["id"], f"serial-{i}", f"a{i}", f"c{i}", 3
+                "multi-tenant", self.fixture.review_case["id"], f"serial-{i}", f"a{i}", f"c{i}", 3
             )
         claimed = self.fixture.claim_with(6, SQLiteTaskQueue)
         keys = {c["idempotency_key"] for c in claimed}
         self.assertLessEqual(len(keys), 1, f"turns not serialised: {keys}")
 
     def test_optimistic_concurrency_prevents_clobber(self) -> None:
-        conv_id = self.fixture.conversation["id"]
+        conv_id = self.fixture.review_case["id"]
         self.assertTrue(
-            self.fixture.a.transition_conversation(
+            self.fixture.a.transition_review_case(
                 "multi-tenant",
                 conv_id,
-                [ConversationStatus.OPEN],
-                ConversationStatus.HUMAN_ACTIVE,
+                [ReviewCaseStatus.OPEN],
+                ReviewCaseStatus.HUMAN_ACTIVE,
             )
             is not None
         )
         self.assertIsNone(
-            self.fixture.b.transition_conversation(
-                "multi-tenant", conv_id, [ConversationStatus.OPEN], ConversationStatus.RESOLVED
+            self.fixture.b.transition_review_case(
+                "multi-tenant", conv_id, [ReviewCaseStatus.OPEN], ReviewCaseStatus.RESOLVED
             )
         )
 
     def test_summary_maintained_across_pools(self) -> None:
         """Message-trigger summaries must stay correct with writes from two pools."""
-        conv_id = self.fixture.conversation["id"]
+        conv_id = self.fixture.review_case["id"]
         for i in range(5):
             db = (self.fixture.a, self.fixture.b)[i % 2]
             db.add_message("multi-tenant", conv_id, "customer", "Customer", f"msg-{i}")
-        updated = self.fixture.a.get_conversation("multi-tenant", conv_id)
+        updated = self.fixture.a.get_review_case("multi-tenant", conv_id)
         assert updated is not None
         self.assertEqual(updated["message_count"], 5)
 

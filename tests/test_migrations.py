@@ -20,15 +20,15 @@ class DatabaseMigrationTests(unittest.TestCase):
                     name TEXT NOT NULL,
                     created_at TEXT NOT NULL
                 );
-                CREATE TABLE conversations (
+                CREATE TABLE review_cases (
                     id TEXT PRIMARY KEY,
                     tenant_id TEXT NOT NULL REFERENCES tenants(id),
-                    customer_name TEXT NOT NULL,
-                    customer_ref TEXT,
+                    submitter_name TEXT NOT NULL,
+                    submitter_ref TEXT,
                     channel TEXT NOT NULL,
                     status TEXT NOT NULL,
-                    intent TEXT,
-                    assigned_agent TEXT,
+                    risk_category TEXT,
+                    assigned_reviewer TEXT,
                     priority TEXT NOT NULL DEFAULT 'normal',
                     handoff_reason TEXT,
                     sla_due_at TEXT,
@@ -36,12 +36,12 @@ class DatabaseMigrationTests(unittest.TestCase):
                     version INTEGER NOT NULL DEFAULT 1,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL,
-                    resolved_at TEXT
+                    decided_at TEXT
                 );
                 CREATE TABLE messages (
                     id TEXT PRIMARY KEY,
                     tenant_id TEXT NOT NULL REFERENCES tenants(id),
-                    conversation_id TEXT NOT NULL REFERENCES conversations(id),
+                    review_case_id TEXT NOT NULL REFERENCES review_cases(id),
                     turn_id TEXT,
                     role TEXT NOT NULL,
                     author TEXT NOT NULL,
@@ -50,15 +50,15 @@ class DatabaseMigrationTests(unittest.TestCase):
                     created_at TEXT NOT NULL
                 );
                 INSERT INTO tenants VALUES ('demo', 'Legacy Tenant', '2026-01-01T00:00:00+00:00');
-                INSERT INTO conversations (
-                    id, tenant_id, customer_name, channel, status, priority,
+                INSERT INTO review_cases (
+                    id, tenant_id, submitter_name, channel, status, priority,
                     created_at, updated_at
                 ) VALUES (
                     'conv_legacy_001', 'demo', 'Legacy Customer', 'web', 'open', 'normal',
                     '2026-01-01T00:00:00+00:00', '2026-01-01T00:00:00+00:00'
                 );
                 INSERT INTO messages (
-                    id, tenant_id, conversation_id, role, author, content,
+                    id, tenant_id, review_case_id, role, author, content,
                     metadata_json, created_at
                 ) VALUES
                     ('msg_legacy_001', 'demo', 'conv_legacy_001', 'customer', 'Legacy',
@@ -72,15 +72,15 @@ class DatabaseMigrationTests(unittest.TestCase):
 
             database = Database(path)
             database.initialize()
-            conversation = database.get_conversation("demo", "conv_legacy_001")
-            assert conversation is not None
-            self.assertEqual(conversation["message_count"], 2)
-            self.assertEqual(conversation["preview"], "legacy response")
-            self.assertEqual(conversation["labels"], [])
+            review_case = database.get_review_case("demo", "conv_legacy_001")
+            assert review_case is not None
+            self.assertEqual(review_case["message_count"], 2)
+            self.assertEqual(review_case["preview"], "legacy response")
+            self.assertEqual(review_case["labels"], [])
             self.assertEqual(
                 [
                     row["id"]
-                    for row in database.list_conversations("demo", search="legacyneedle", limit=10)
+                    for row in database.list_review_cases("demo", search="legacyneedle", limit=10)
                 ],
                 ["conv_legacy_001"],
             )
@@ -92,7 +92,7 @@ class DatabaseMigrationTests(unittest.TestCase):
                 "legacy.agent",
                 "follow-up response",
             )
-            updated = database.get_conversation("demo", "conv_legacy_001")
+            updated = database.get_review_case("demo", "conv_legacy_001")
             assert updated is not None
             self.assertEqual(updated["message_count"], 3)
             self.assertEqual(updated["preview"], "follow-up response")
@@ -181,7 +181,7 @@ class MigrationGovernanceTests(unittest.TestCase):
                 # Upgrade to latest; migration 12 must backfill.
                 run_migrations(connection, all_migrations())
                 rows = connection.execute(
-                    "SELECT id, tenant_id, conversation_id, request_id, actor, "
+                    "SELECT id, tenant_id, review_case_id, request_id, actor, "
                     "event_type, payload_json, created_at, prev_hash, event_hash "
                     "FROM audit_events ORDER BY seq"
                 ).fetchall()

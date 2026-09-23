@@ -28,21 +28,21 @@ def _encode(payload: dict[str, Any]) -> str:
 
 
 class PaginationCursorTests(unittest.TestCase):
-    def test_conversation_cursor_round_trip_priority(self) -> None:
+    def test_review_case_cursor_round_trip_priority(self) -> None:
         cursor = encode_conversation_cursor(1, "2026-01-01T00:00:00Z", "conv-1")
-        sort, rank, key, updated_at, conversation_id = decode_conversation_cursor(cursor)
+        sort, rank, key, updated_at, review_case_id = decode_conversation_cursor(cursor)
         self.assertEqual(
-            (sort, rank, key, updated_at, conversation_id),
+            (sort, rank, key, updated_at, review_case_id),
             ("priority", 1, None, "2026-01-01T00:00:00Z", "conv-1"),
         )
 
-    def test_conversation_cursor_round_trip_sorted(self) -> None:
+    def test_review_case_cursor_round_trip_sorted(self) -> None:
         cursor = encode_conversation_cursor(
             0, "2026-01-01T00:00:00Z", "conv-2", sort="waiting", sort_key="5"
         )
-        sort, rank, key, updated_at, conversation_id = decode_conversation_cursor(cursor)
+        sort, rank, key, updated_at, review_case_id = decode_conversation_cursor(cursor)
         self.assertEqual(
-            (sort, rank, key, updated_at, conversation_id),
+            (sort, rank, key, updated_at, review_case_id),
             ("waiting", None, "5", "2026-01-01T00:00:00Z", "conv-2"),
         )
 

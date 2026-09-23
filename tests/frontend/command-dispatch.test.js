@@ -85,7 +85,7 @@ function configureDeps({ fetchImpl, overrides = {} } = {}) {
   configure({
     state: {},
     els: {
-      newConversation: { click() {} },
+      newReviewCase: { click() {} },
       lowPerfToggle: { click() {} },
       inspectorToggle: { click() {} },
       saveView: { click() {} },
@@ -120,7 +120,7 @@ test("bindCommandDispatch routes nav commands to switchAppView", () => {
   const windowStub = installWindow();
   configureDeps();
   assert.equal(bindCommandDispatch(), true);
-  windowStub.dispatchEvent(new CustomEvent("helix-command", { detail: { id: "nav:knowledge" } }));
+  windowStub.dispatchEvent(new CustomEvent("helix-command", { detail: { id: "nav:policy" } }));
   windowStub.dispatchEvent(new CustomEvent("helix-command", { detail: { id: "nav:settings" } }));
 });
 
@@ -128,8 +128,8 @@ test("nav commands reach switchAppView with the stripped view id", () => {
   const windowStub = installWindow();
   const { calls } = configureDeps();
   bindCommandDispatch();
-  windowStub.dispatchEvent(new CustomEvent("helix-command", { detail: { id: "nav:knowledge" } }));
-  assert.deepEqual(calls.filter((call) => call.view), [{ view: "knowledge" }]);
+  windowStub.dispatchEvent(new CustomEvent("helix-command", { detail: { id: "nav:policy" } }));
+  assert.deepEqual(calls.filter((call) => call.view), [{ view: "policy" }]);
 });
 
 test("conv:new re-dispatches the dialog bridge and conv:refresh refreshes", async () => {

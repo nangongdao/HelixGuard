@@ -28,9 +28,15 @@ def wait_for_cdp(deadline_s: float = 90.0) -> list[dict]:
     deadline = time.time() + deadline_s
     while time.time() < deadline:
         try:
-            with urllib.request.urlopen(f"http://127.0.0.1:{DEBUG_PORT}/json/list", timeout=2) as res:
+            with urllib.request.urlopen(
+                f"http://127.0.0.1:{DEBUG_PORT}/json/list", timeout=2
+            ) as res:
                 targets = json.loads(res.read().decode("utf-8"))
-            pages = [t for t in targets if t.get("type") == "page" and "127.0.0.1" in (t.get("url") or "")]
+            pages = [
+                t
+                for t in targets
+                if t.get("type") == "page" and "127.0.0.1" in (t.get("url") or "")
+            ]
             if pages:
                 return targets
         except Exception:
@@ -49,9 +55,7 @@ def open_palette(page) -> None:
     for _ in range(10):
         page.keyboard.press("Control+k")
         try:
-            page.wait_for_selector(
-                "#commandPaletteReactIsland .command-input", timeout=2000
-            )
+            page.wait_for_selector("#commandPaletteReactIsland .command-input", timeout=2000)
             return
         except Exception:
             page.keyboard.press("Escape")
@@ -85,8 +89,10 @@ def main() -> int:
                 print("FAIL: no console page found over CDP")
                 return 1
 
-            page.wait_for_selector("#operatorIdentity", state="attached", timeout=30000)
-            page.wait_for_selector("#queueReactIsland .conversation-item", state="attached", timeout=30000)
+            page.wait_for_selector("#reviewerIdentity", state="attached", timeout=30000)
+            page.wait_for_selector(
+                "#queueReactIsland .review-case-item", state="attached", timeout=30000
+            )
             checks: dict[str, object] = {}
             checks["island_mode"] = page.evaluate("() => window.__HELIX_ISLAND_MODE__ === true")
 
@@ -100,8 +106,7 @@ def main() -> int:
             page.locator("#commandPaletteReactIsland .command-item", has_text="管理").first.click()
             page.wait_for_selector("#adminReactIsland .admin-cards", timeout=15000)
             checks["nav_admin_opens_admin_view"] = page.evaluate(
-                "() => { const v = document.querySelector('#adminView');"
-                " return v && !v.hidden; }"
+                "() => { const v = document.querySelector('#adminView'); return v && !v.hidden; }"
             )
 
             # Run conv:refresh — a fresh queue request must fire.
@@ -112,7 +117,9 @@ def main() -> int:
                 "() => performance.getEntriesByType('resource')"
                 ".filter((e) => e.name.includes('/api/review-cases?')).length"
             )
-            page.locator("#commandPaletteReactIsland .command-item", has_text="刷新队列").first.click()
+            page.locator(
+                "#commandPaletteReactIsland .command-item", has_text="刷新队列"
+            ).first.click()
             page.wait_for_function(
                 """(before) => performance.getEntriesByType('resource')
                     .filter((e) => e.name.includes('/api/review-cases?')).length > before""",
@@ -125,8 +132,13 @@ def main() -> int:
             open_palette(page)
             page.fill("#commandPaletteReactIsland .command-input", "服务器日志")
             page.wait_for_selector("#commandPaletteReactIsland .command-item", timeout=10000)
-            page.locator("#commandPaletteReactIsland .command-item", has_text="服务器日志").first.click()
-            page.wait_for_selector("#terminalReactIsland .terminal-drawer, #terminalReactIsland .terminal-wrap, #terminalReactIsland canvas, #terminalReactIsland .xterm", timeout=15000)
+            page.locator(
+                "#commandPaletteReactIsland .command-item", has_text="服务器日志"
+            ).first.click()
+            page.wait_for_selector(
+                "#terminalReactIsland .terminal-drawer, #terminalReactIsland .terminal-wrap, #terminalReactIsland canvas, #terminalReactIsland .xterm",
+                timeout=15000,
+            )
             checks["diag_logs_opens_terminal"] = True
 
             print(json.dumps(checks, ensure_ascii=False, indent=2))

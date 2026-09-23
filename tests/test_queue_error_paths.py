@@ -46,10 +46,10 @@ class SQLiteQueueStatsTests(unittest.TestCase):
 
     def test_sqlite_stats_returns_database_stats(self) -> None:
         queue = SQLiteTaskQueue(self.db)
-        conversation = self.db.create_conversation(
+        review_case = self.db.create_review_case(
             "stats-tenant", "Stats Test", "CUST-S-1", "web", "admin", 120
         )
-        queue.enqueue("stats-tenant", conversation["id"], "stats-key-1", "actor", "content", 3)
+        queue.enqueue("stats-tenant", review_case["id"], "stats-key-1", "actor", "content", 3)
 
         stats = queue.stats(tenant_id="stats-tenant")
         self.assertIn("queued", stats)
@@ -86,10 +86,10 @@ class RedisQueueStatsTests(unittest.TestCase):
 
     def test_redis_stats_includes_dispatch_depth_and_in_flight(self) -> None:
         queue = RedisTaskQueue(self.redis, self.db)
-        conversation = self.db.create_conversation(
+        review_case = self.db.create_review_case(
             "redis-stats-tenant", "Stats Conv", "CUST-RS-1", "web", "admin", 120
         )
-        queue.enqueue("redis-stats-tenant", conversation["id"], "rs-key-1", "actor", "content", 3)
+        queue.enqueue("redis-stats-tenant", review_case["id"], "rs-key-1", "actor", "content", 3)
 
         stats = queue.stats(tenant_id="redis-stats-tenant")
         self.assertIn("redis_dispatch_depth", stats)
@@ -99,10 +99,10 @@ class RedisQueueStatsTests(unittest.TestCase):
 
     def test_redis_stats_reflects_claimed_jobs(self) -> None:
         queue = RedisTaskQueue(self.redis, self.db)
-        conversation = self.db.create_conversation(
+        review_case = self.db.create_review_case(
             "redis-stats-tenant", "Claimed Conv", "CUST-RS-2", "web", "admin", 120
         )
-        queue.enqueue("redis-stats-tenant", conversation["id"], "rs-key-2", "actor", "content", 3)
+        queue.enqueue("redis-stats-tenant", review_case["id"], "rs-key-2", "actor", "content", 3)
         queue.dequeue("stats-worker", 300)
 
         stats = queue.stats()
@@ -147,10 +147,10 @@ class RedisQueueRetryTests(unittest.TestCase):
 
     def test_retry_re_dispatches_terminal_failed_job(self) -> None:
         queue = RedisTaskQueue(self.redis, self.db)
-        conversation = self.db.create_conversation(
+        review_case = self.db.create_review_case(
             "retry-tenant", "Retry Conv", "CUST-RT-1", "web", "admin", 120
         )
-        job, _ = queue.enqueue("retry-tenant", conversation["id"], "retry-key-1", "actor", "msg", 1)
+        job, _ = queue.enqueue("retry-tenant", review_case["id"], "retry-key-1", "actor", "msg", 1)
         claimed = queue.dequeue("retry-worker", 300)
         assert claimed is not None
         # Fail with retryable=False to reach terminal failed state
@@ -169,10 +169,10 @@ class RedisQueueRetryTests(unittest.TestCase):
 
     def test_retry_fail_closed_raises_on_redis_error(self) -> None:
         queue = RedisTaskQueue(self.redis, self.db, fail_closed=True)
-        conversation = self.db.create_conversation(
+        review_case = self.db.create_review_case(
             "retry-tenant", "Retry FC", "CUST-RT-2", "web", "admin", 120
         )
-        job, _ = queue.enqueue("retry-tenant", conversation["id"], "retry-fc-1", "actor", "msg", 1)
+        job, _ = queue.enqueue("retry-tenant", review_case["id"], "retry-fc-1", "actor", "msg", 1)
         claimed = queue.dequeue("fc-worker", 300)
         assert claimed is not None
         queue.fail(claimed["id"], "fc-worker", "error", 1, 300, retryable=False)
@@ -205,12 +205,12 @@ class RedisQueueErrorHandlingTests(unittest.TestCase):
 
     def test_enqueue_fail_closed_raises_on_rpush_failure(self) -> None:
         queue = RedisTaskQueue(self.redis, self.db, fail_closed=True)
-        conversation = self.db.create_conversation(
+        review_case = self.db.create_review_case(
             "error-tenant", "Error Conv", "CUST-E-1", "web", "admin", 120
         )
         with patch.object(queue.redis, "rpush", side_effect=Exception("Redis write error")):
             with self.assertRaises(QueueUnavailableError):
-                queue.enqueue("error-tenant", conversation["id"], "err-key-1", "actor", "msg", 3)
+                queue.enqueue("error-tenant", review_case["id"], "err-key-1", "actor", "msg", 3)
 
     def test_dequeue_fail_closed_raises_on_eval_failure(self) -> None:
         queue = RedisTaskQueue(self.redis, self.db, fail_closed=True)
@@ -229,10 +229,10 @@ class RedisQueueErrorHandlingTests(unittest.TestCase):
 
     def test_complete_fail_closed_raises_on_cleanup_failure(self) -> None:
         queue = RedisTaskQueue(self.redis, self.db, fail_closed=True)
-        conversation = self.db.create_conversation(
+        review_case = self.db.create_review_case(
             "error-tenant", "Complete Err", "CUST-E-2", "web", "admin", 120
         )
-        job, _ = queue.enqueue("error-tenant", conversation["id"], "comp-err-1", "actor", "msg", 3)
+        job, _ = queue.enqueue("error-tenant", review_case["id"], "comp-err-1", "actor", "msg", 3)
         claimed = queue.dequeue("comp-worker", 300)
         assert claimed is not None
 
@@ -242,10 +242,10 @@ class RedisQueueErrorHandlingTests(unittest.TestCase):
 
     def test_fail_fail_closed_raises_on_cleanup_exception(self) -> None:
         queue = RedisTaskQueue(self.redis, self.db, fail_closed=True)
-        conversation = self.db.create_conversation(
+        review_case = self.db.create_review_case(
             "error-tenant", "Fail Err", "CUST-E-3", "web", "admin", 120
         )
-        queue.enqueue("error-tenant", conversation["id"], "fail-err-1", "actor", "msg", 3)
+        queue.enqueue("error-tenant", review_case["id"], "fail-err-1", "actor", "msg", 3)
         claimed = queue.dequeue("fail-worker", 300)
         assert claimed is not None
 
@@ -255,10 +255,10 @@ class RedisQueueErrorHandlingTests(unittest.TestCase):
 
     def test_fail_fail_closed_raises_on_delayed_zadd_failure(self) -> None:
         queue = RedisTaskQueue(self.redis, self.db, fail_closed=True)
-        conversation = self.db.create_conversation(
+        review_case = self.db.create_review_case(
             "error-tenant", "Delayed Err", "CUST-E-4", "web", "admin", 120
         )
-        queue.enqueue("error-tenant", conversation["id"], "delayed-err-1", "actor", "msg", 3)
+        queue.enqueue("error-tenant", review_case["id"], "delayed-err-1", "actor", "msg", 3)
         claimed = queue.dequeue("delayed-worker", 300)
         assert claimed is not None
 

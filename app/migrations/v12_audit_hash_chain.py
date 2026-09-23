@@ -29,7 +29,7 @@ def migration_12(connection: sqlite3.Connection) -> None:
         return
     prev = ""
     rows = connection.execute(
-        "SELECT id, tenant_id, conversation_id, request_id, actor, event_type, "
+        "SELECT id, tenant_id, review_case_id, request_id, actor, event_type, "
         "payload_json, created_at, event_hash FROM audit_events "
         "ORDER BY seq ASC, rowid ASC"
     ).fetchall()
@@ -43,7 +43,7 @@ def migration_12(connection: sqlite3.Connection) -> None:
             prev_hash=prev,
             event_id=row["id"],
             tenant_id=row["tenant_id"],
-            conversation_id=row["conversation_id"],
+            review_case_id=row["review_case_id"],
             request_id=row["request_id"],
             actor=row["actor"],
             event_type=row["event_type"],

@@ -154,20 +154,20 @@ export function renderMacroSuggest(query) {
 export function applyMacroFromSuggest(responseId) {
   const macro = ctx.state.cannedResponses.find((item) => item.id === responseId);
   if (!macro) return;
-  const value = ctx.els.operatorInput.value;
+  const value = ctx.els.reviewerInput.value;
   const match = value.match(/(^|\s)\/([^\s]*)$/);
   if (match) {
     const start = value.slice(0, value.length - match[0].length + (match[1] ? match[1].length : 0));
-    ctx.els.operatorInput.value = `${start}${macro.body}`;
+    ctx.els.reviewerInput.value = `${start}${macro.body}`;
   } else {
-    ctx.els.operatorInput.value = macro.body;
+    ctx.els.reviewerInput.value = macro.body;
   }
   hideMacroSuggest();
   // ROADMAP H02: the macro replaced the draft, so an in-flight rewrite
   // computed from the previous text is stale.
   bumpDraftVersion(ctx.state.selectedId);
-  saveDraft(ctx.state.selectedId, ctx.els.operatorInput.value);
-  ctx.els.operatorInput.focus();
+  saveDraft(ctx.state.selectedId, ctx.els.reviewerInput.value);
+  ctx.els.reviewerInput.focus();
   void ctx.api(`/api/canned-verdicts/${encodeURIComponent(responseId)}/use`, { method: "POST" }).catch(
     () => {},
   );
@@ -223,12 +223,12 @@ export function renderCopilot(detail) {
   const human = ["waiting_human", "human_active"].includes(conversation.status);
   const visible = human && ctx.canOperate();
   // Island mode: the composer island derives the copilot/canned/attachment
-  // tool visibility from the composer state snapshot; the knowledge load and
+  // tool visibility from the composer state snapshot; the policy load and
   // reset lifecycle stay here.
   if (typeof window !== "undefined" && window.__HELIX_ISLAND_MODE__) {
     if (!visible) {
       resetCopilot();
-      publishCopilot({ suggestions: [], knowledge: [], status: "" });
+      publishCopilot({ suggestions: [], policy: [], status: "" });
     } else if (ctx.state.lastCopilotConv !== conversation.id) {
       void loadCopilotKnowledge();
     }
@@ -266,11 +266,11 @@ export async function sendOperatorMessage(content) {
   const text = String(content || "").trim();
   if (!text) return;
   hideMacroSuggest();
-  const ticket = beginCommand("operator-send", conversationId);
+  const appeal = beginCommand("reviewer-send", conversationId);
   // Backlog (语音/富媒体消息): include this conversation's pending uploads.
   const pendingIds_ = pendingIds(conversationId);
   const sendKey = sendKeyFor(conversationId, text, pendingIds_);
-  ctx.setFormBusy(ctx.els.operatorForm, true);
+  ctx.setFormBusy(ctx.els.reviewerForm, true);
   try {
     const body = { content: text };
     if (pendingIds_.length) body.attachment_ids = [...pendingIds_];
@@ -284,11 +284,11 @@ export async function sendOperatorMessage(content) {
     clearSendKey(conversationId, text, pendingIds_);
     clearPendingAttachments(conversationId);
     clearDraft(conversationId);
-    if (isCurrent(ticket)) {
+    if (isCurrent(appeal)) {
       // Only clear the box if it still holds what was sent: an operator who
       // kept typing while the send was in flight must not lose the newer text
       // (the island mirror reads the same field, so this covers both tracks).
-      if (ctx.els.operatorInput.value.trim() === text) ctx.els.operatorInput.value = "";
+      if (ctx.els.reviewerInput.value.trim() === text) ctx.els.reviewerInput.value = "";
       // The sent text is no longer the draft: an in-flight rewrite computed
       // from it must not paste it back into the now-empty box.
       bumpDraftVersion(conversationId);
@@ -298,21 +298,21 @@ export async function sendOperatorMessage(content) {
   } catch (error) {
     ctx.showToast(error.message, true);
   } finally {
-    ctx.setFormBusy(ctx.els.operatorForm, false);
+    ctx.setFormBusy(ctx.els.reviewerForm, false);
   }
 }
 
 /**
  * Bind the composer DOM (exactly once, at app.js load): operator message
- * submit, copilot suggestion chips, tone rewrite and knowledge picks.
+ * submit, copilot suggestion chips, tone rewrite and policy picks.
  */
 export function bindComposer() {
   if (!ctx?.els) return false;
-  if (ctx.els.operatorForm) {
-    ctx.els.operatorForm.addEventListener("submit", async (event) => {
+  if (ctx.els.reviewerForm) {
+    ctx.els.reviewerForm.addEventListener("submit", async (event) => {
       event.preventDefault();
       if (!ctx.state.selectedId) return;
-      const content = ctx.els.operatorInput.value.trim();
+      const content = ctx.els.reviewerInput.value.trim();
       if (!content) return;
       await sendOperatorMessage(content);
     });
@@ -333,19 +333,19 @@ export function bindComposer() {
       if (!button) return;
       const content = suggestionAt(button.dataset.index);
       if (content) {
-        ctx.els.operatorInput.value = content;
+        ctx.els.reviewerInput.value = content;
         bumpDraftVersion(ctx.state.selectedId);
-        ctx.els.operatorInput.focus();
+        ctx.els.reviewerInput.focus();
       }
     });
   }
-  if (ctx.els.copilotKnowledge) {
-    ctx.els.copilotKnowledge.addEventListener("click", (event) => {
+  if (ctx.els.copilotPolicy) {
+    ctx.els.copilotPolicy.addEventListener("click", (event) => {
       const button = event.target.closest(".copilot-kb-item");
       if (!button) return;
-      ctx.els.operatorInput.value = button.dataset.title || "";
+      ctx.els.reviewerInput.value = button.dataset.title || "";
       bumpDraftVersion(ctx.state.selectedId);
-      ctx.els.operatorInput.focus();
+      ctx.els.reviewerInput.focus();
     });
   }
   return true;
