@@ -383,7 +383,7 @@ jobs:
           export HELIX_DB_PATH=/tmp/helix_ci.db
           python tests/ui_smoke.py
           python tests/ui_admin.py
-          python tests/ui_knowledge.py
+          python tests/ui_policy.py
           python tests/ui_accessibility.py
           # Desktop-shell island journeys (Tauri preconditions boot the React
           # islands; these caught four shipped defects — PG-dialect-adjacent
@@ -391,7 +391,7 @@ jobs:
           # suites run first; the island suites share the same server and DB.
           python tests/ui_admin_island.py
           python tests/ui_console_island.py
-          python tests/ui_knowledge_island.py
+          python tests/ui_policy_island.py
           HELIX_BASE_URL=http://127.0.0.1:8765 python tests/ui_portal.py
 
       - name: Nightly performance and visual gates (schedule only)

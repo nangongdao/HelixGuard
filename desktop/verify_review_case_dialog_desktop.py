@@ -1,10 +1,10 @@
-"""Desktop-shell real-machine verification for the conversation dialog island (D3 long tail).
+"""Desktop-shell real-machine verification for the review case dialog island (D3 long tail).
 
 Launches the release helix-desktop.exe with a WebView2 remote-debugging port
-and drives the new-conversation dialog end-to-end through the island: the
+and drives the new-review-case dialog end-to-end through the island: the
 legacy 新建 button opens the island dialog, a submit bridges the payload to
 legacy createConversation (a real POST), and the island closes on success
-with the created conversation selected in the inspector.
+with the created review case selected in the inspector.
 """
 
 from __future__ import annotations
@@ -117,7 +117,7 @@ def main() -> int:
                 )
                 is not None
             )
-            # The created conversation is prepended to the island queue and
+            # The created review case is prepended to the island queue and
             # selected (is-selected row) by the create lifecycle.
             page.wait_for_selector(
                 f"#queueReactIsland .review-case-item:has-text('{submitter}')",
@@ -135,7 +135,7 @@ def main() -> int:
             if failed:
                 print(f"FAIL: {failed}")
                 return 1
-            print("PASS: desktop conversation dialog island verified end-to-end")
+            print("PASS: desktop review case dialog island verified end-to-end")
             return 0
     finally:
         proc.terminate()

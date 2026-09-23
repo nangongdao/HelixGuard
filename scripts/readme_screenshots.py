@@ -114,7 +114,7 @@ def main() -> int:
         context = browser.new_context(viewport={"width": 1440, "height": 900})
         page = context.new_page()
 
-        # 1) operator-workspace — dark theme, conversation + evidence panel.
+        # 1) reviewer-workspace — dark theme, review case + evidence panel.
         wait_for_operator(page)
         open_new_conversation(page, f"演示审核单-{run_id}", "CUST-1001")
         page.get_by_role("button", name="折叠检查器").click()
@@ -124,10 +124,10 @@ def main() -> int:
         page.get_by_role("tab", name="证据").click()
         expect(page.locator("#inspectorEvidence")).to_contain_text("违规内容分级标准")
         page.wait_for_timeout(400)
-        page.screenshot(path=OUT / "operator-workspace.png", full_page=False)
-        print("captured operator-workspace.png")
+        page.screenshot(path=OUT / "reviewer-workspace.png", full_page=False)
+        print("captured reviewer-workspace.png")
 
-        # 2) operator-handoff — human takeover with summary banner + audit tab.
+        # 2) reviewer-handoff — human takeover with summary banner + audit tab.
         open_new_conversation(page, f"人工接管-{run_id}")
         send_customer_message(page, "我要投诉并升级复审，请转人工复核")
         expect(page.locator("#reviewCaseStatus")).to_have_text("等待人工")
@@ -143,8 +143,8 @@ def main() -> int:
         page.get_by_role("tab", name="审计").click()
         expect(page.locator("#inspectorAudit")).to_be_visible()
         page.wait_for_timeout(400)
-        page.screenshot(path=OUT / "operator-handoff.png", full_page=False)
-        print("captured operator-handoff.png")
+        page.screenshot(path=OUT / "reviewer-handoff.png", full_page=False)
+        print("captured reviewer-handoff.png")
 
         # 3) quality-dashboard — supervisor quality view with trend chart.
         page.get_by_role("button", name="关闭低配模式")
@@ -156,12 +156,12 @@ def main() -> int:
         page.screenshot(path=OUT / "quality-dashboard.png", full_page=False)
         print("captured quality-dashboard.png")
 
-        # 4) knowledge-operations — policy list + editor.
+        # 4) policy-operations — policy list + editor.
         page.locator('.nav-item[data-view="policy"]').click()
         page.wait_for_selector("#policyList[aria-busy='false']", timeout=15000)
         page.wait_for_timeout(500)
-        page.screenshot(path=OUT / "knowledge-operations.png", full_page=False)
-        print("captured knowledge-operations.png")
+        page.screenshot(path=OUT / "policy-operations.png", full_page=False)
+        print("captured policy-operations.png")
 
         # 5) tenant-admin — admin cards (quota, members, webhooks, CSAT).
         page.locator('.nav-item[data-view="admin"]').click()

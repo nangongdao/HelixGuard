@@ -1,6 +1,6 @@
 # 业务域迁移方案：智能客服 → AI 内容安全审核平台
 
-> 状态：**已完成**（P1–P5 全部落地，2.23.0 → 2.29.0）。执行结论见 §8；两处未收口面见 §8 末节与 `docs/DOMAIN.md` §5.1。
+> 状态：**已完成**（P1–P6 全部落地，2.23.0 → 2.30.0；范围外批次已于 2.31.0 收口，无遗留项）。执行结论见 §8。
 > 起因：本仓库当前定位为"多 Agent 智能客服平台"，该定位在简历场景中同质化严重，需要把业务外壳整体迁移到区分度更高的领域，同时保留全部平台能力。
 > 目标业务域：**AI 内容安全审核平台**（提交内容 → 机审 → 人工复核 → 申诉/复审）
 
@@ -150,7 +150,7 @@
 2. ~~确认 T5 是否按建议拆为独立末阶段~~ —— **未拆**：T5 与其余词表在 P3b/P4 同批处理（拆开会让 `conversation` 一个词横跨两个版本，中间态自相矛盾）。P4/P5 按计划合并为 2.29.0 一个提交。
 3. ~~契约冻结后从 P1 开始执行~~ —— P1–P6 已全部执行完毕，见 §8。
 
-**已无「当前后续项」**（2.30.0 收口）：本节原先登记的三项——`docs/DOMAIN.md` §5.1 的 DOM 标识符面与 `docs/api/reference.md` 重生成、§7.3 的 `PII_FIELDS` 类契约常量守护缺口——**全部已实施**（P6 与 2.30.0 的两个独立提交）。唯一的未实施项已变为 §8 末节登记的**范围外**批次（测试/harness 文件名 + 视觉/截图场景名），它不是本计划的任务，需要先决定是否重锚视觉基线。
+**已无「当前后续项」**（2.30.0 收口；2.31.0 补完最后一项）：本节原先登记的三项——`docs/DOMAIN.md` §5.1 的 DOM 标识符面与 `docs/api/reference.md` 重生成、§7.3 的 `PII_FIELDS` 类契约常量守护缺口——**全部已实施**（P6 与 2.30.0 的两个独立提交）。§8 末节原登记的**范围外**批次（测试/harness 文件名 + 视觉/截图场景名）也已于 **2.31.0** 收口，且其「会强制重锚视觉基线」的前提被实测证伪（见 R8⑦）。**域迁移至此无遗留项。**
 
 ---
 
@@ -166,6 +166,7 @@
 | P4 数据层 | 2.29.0 | 已完成（一致改写，链长仍 48；wire 契约经 `to_wire_row()` 不变） |
 | P5 测试与基线 | 2.29.0 | 已完成（与 P4 同批次；`database.py.bak` 已清、README 横幅已撤） |
 | P6 DOM/标识符面 | 2.30.0 | 已完成（144 文件 / +1670 −1511、18 `git mv`；visual_gate 4/4 **0.00%**，基线无需重锚；OpenAPI diff 仅版本号一行） |
+| P7 测试/harness 文件名与场景名 | 2.31.0 | 已完成（8 文件 `git mv` + 4 张 PNG 重命名；visual_gate 4/4 **0.00%**，`policy-view.png` blob 哈希与旧 `knowledge-view.png` 相同 = 未重锚；CI 引用同步） |
 
 ### P4/P5 暴露的两条新机制教训（建议补入 R8）
 
@@ -178,7 +179,9 @@
 
 **R8⑥ 契约串（权限、事件名、请求头、枚举值、预算键）必须显式排除在词表之外，且**像素门禁是唯一会红的门禁**。** P6（2.30.0）把 `policy-view.js` 的 `"knowledge:write"` 改成了 `"policy:write"`，服务端照旧发旧名，于是写权限分支整体变死（按钮不显现、编辑器不打开）。**关键在失败模式**：vitest 夹具被同一次改名一起改了（`["policy:write"]`），断言与实现同步漂移、互相印证——**契约串在自己的测试两侧同时被改名 = 不可见**。没有静态错误、没有 Python 测试红、没有 vitest 红，唯一症状是 `visual_gate` 的 `knowledge-view` 一面 **7.69%** 像素漂移（取证：基线 vs 改名前 0.04% / 改名前 vs 改名后 7.73%，把「本版引入」与「数据态噪声」分开）。可复用做法：① 词表**只列域词**，权限/事件/头/枚举/预算键单独列「禁改清单」并在脚本里做交集断言；② 加**来源单一**的守护（`tests/test_wire_contract_constants.py` 从前端的 `ROLE_PERMISSIONS` 推导动作词表，不复制清单）；③ 守护必须**证伪**过一次（`artifacts/p6_guard_falsify.py`）。
 
+**R8⑦ 门禁产物的「名义改名」与「重锚」是两件事，别把前者当成后者的代价。** 测试/harness 文件名与视觉场景名的改名被推迟了两个版本，登记理由一直是「改名会牵动基线 PNG 的文件名，等于强制重锚一次视觉门禁」。2.31.0 实测推翻了它：`scripts/visual_gate.py:103` 把基线路径推成 `BASELINES / f"{name}.png"`，所以**场景名与其 PNG 同步 `git mv` 是纯名义操作**——字节与像素都不变。四面跑下来 0.00%，`policy-view.png` 的 blob 哈希与旧 `knowledge-view.png` 逐一相同（`c64bce83…`），这是比「像素差 0」更强的证据：它证明磁盘上的字节从未被重写。**可复用做法**：判断一次改名是否要求重锚，看的是**门禁如何从名字推出产物路径**，而不是「名字出现在产物文件名里」；用 `git hash-object` 对比新旧 blob 是最省的判据。同一轮里还有一处 R8⑥ 的复现：`helix-knowledge-*` 事件名与 `"conversation:read"/"conversation:write"` 权限串在改名面上**必须原样保留**（前者是 `app/static/js/policy-view.js:23-24` 的真实事件桥，后者在 `app/security.py:28,47,54`），所以改 harness 文件时只动散文、注释与文件名——**契约串与散文在同一个文件里相邻出现，判据永远是「这个名字有没有外部消费者」**。
+
 ### 后续可选项（本计划范围外，已登记）
 
-- **测试/harness 的文件名与视觉场景名**：`tests/ui_knowledge.py`、`tests/ui_knowledge_island.py`（CI 引用）、`tests/frontend/knowledge*.test.js`、`desktop/verify_knowledge_island_desktop.py`、`tests/baselines/knowledge-view.png`、`scripts/visual_gate.py` 的 `"knowledge-view"`、`scripts/readme_screenshots.py` 的 `operator-workspace` / `knowledge-operations` / `operator-handoff` 仍是旧域词。P6 的**标识符面**已收口（见上），但这一层属 P5 的「测试/基线面」：改名会牵动**基线 PNG 的文件名**，等于强制重锚一次视觉门禁，与 P6 追求的「像素中性」冲突，故独立成批。
+- **测试/harness 的文件名与视觉场景名（2.31.0 已收口）**：`tests/ui_policy.py`、`tests/ui_policy_island.py`（CI 引用）、`tests/frontend/policy{,-view}.test.js`、`desktop/verify_policy_island_desktop.py`、`tests/baselines/policy-view.png`、`scripts/visual_gate.py` 的 `"policy-view"` 场景名、`scripts/readme_screenshots.py` 的 `reviewer-workspace` / `policy-operations` / `reviewer-handoff`。**原登记理由「改名会强制重锚一次视觉门禁」经实测证伪**：`visual_gate.py:103` 的基线路径是 `BASELINES / f"{name}.png"`，场景名与 PNG 同步 `git mv` 属纯名义操作，实测四面仍 0.00%、`policy-view.png` blobs 哈希与旧 `knowledge-view.png` 逐一相同。见 R8⑦。
 - **`docs/api/reference.md` 重生成（2.30.0 已收口）**：原漂移为文档化 141 vs 快照 181 路径 / 215 操作（P3a 时点 107 vs 133）。2.30.0 以**独立提交**重生成（6269 → 9917 行、`+5593 −1945`），并补 `tests/test_api_docs.py`（3 例）——漂移能累积的根因正是**从无门禁比对文档与快照**。守护含**非空断言**（快照每条路径都必须在文档里），因为只比对「文档 == 生成器输出」的话，一个静默丢掉一半 spec 的生成器照样能过。

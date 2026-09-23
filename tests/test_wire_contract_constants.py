@@ -13,8 +13,8 @@ ROLE_PERMISSIONS). `canWriteKnowledge()` then returned false for every real
 principal, so the writer-only branches went dead: the "新建草稿" button stayed
 hidden, the editor never opened, and the published-only filter never relaxed.
 Every Python test stayed green, the vitest fixture had been renamed in lockstep
-(`tests/frontend/knowledge-view.test.js`), and the only symptom was **7.69%
-pixel drift** on the `knowledge-view` surface of `scripts/visual_gate.py` —
+(`tests/frontend/policy-view.test.js`), and the only symptom was **7.69%
+pixel drift** on the `policy-view` surface of `scripts/visual_gate.py` —
 which is how it was found.
 
 The lesson is R8④ in `docs/DOMAIN_MIGRATION_PLAN.md`: a contract string renamed

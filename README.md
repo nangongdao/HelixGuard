@@ -18,7 +18,7 @@
   <code>Zero-build frontend</code>
 </p>
 
-![Helix Guard 审核工作台](docs/assets/screenshots/operator-workspace.png)
+![Helix Guard 审核工作台](docs/assets/screenshots/reviewer-workspace.png)
 
 Helix Guard 把**内容提交、策略校验、风险分级、策略库检索、来源溯源、判定复核、人工稽核和审计取证**闭合在一个可部署系统中。没有模型密钥时使用确定性路径安全运行；接入兼容模型后可增加语义分级、多语言判定、摘要与审核员 Copilot，同时保留规则回退。审核台与可嵌入提交端采用中性板岩深色 + 单一靛蓝强调色的专业 SaaS 视觉体系，支持深/浅双主题、密度档位与低配模式。
 
@@ -74,7 +74,7 @@ cd ../src-tauri && cargo tauri build
 <table>
   <tr>
     <td width="50%" valign="top">
-      <img src="docs/assets/screenshots/operator-handoff.png" alt="转人工稽核后的内容摘要、判定线程与审计检查器">
+      <img src="docs/assets/screenshots/reviewer-handoff.png" alt="转人工稽核后的内容摘要、判定线程与审计检查器">
       <br><strong>转人工稽核</strong><br>自动生成前情摘要，接管后机审判定静默，审核员处置与审计信息在同一上下文中完成。
     </td>
     <td width="50%" valign="top">
@@ -89,7 +89,7 @@ cd ../src-tauri && cargo tauri build
 <table>
   <tr>
     <td width="50%" valign="top">
-      <img src="docs/assets/screenshots/knowledge-operations.png" alt="策略条款检索、状态筛选、草稿和审核界面">
+      <img src="docs/assets/screenshots/policy-operations.png" alt="策略条款检索、状态筛选、草稿和审核界面">
       <br><strong>策略运营</strong><br>草稿、审核、发布、停用完整生命周期；只读角色只看到已发布条款。
     </td>
     <td width="50%" valign="top">

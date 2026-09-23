@@ -235,7 +235,7 @@ def main() -> None:
     assert not page_errors, page_errors
     assert not http_errors, http_errors
     assert not failed_requests, failed_requests
-    print("Knowledge operations browser acceptance passed")
+    print("Policy operations browser acceptance passed")
 
 
 if __name__ == "__main__":
